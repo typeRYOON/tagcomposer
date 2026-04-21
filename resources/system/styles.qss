@@ -1,0 +1,8 @@
+#CentralWidget {
+    background: black;
+    border: 1px solid red;
+}
+
+#TitleBar {
+    background-color: #181818
+}

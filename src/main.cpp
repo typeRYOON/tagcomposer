@@ -13,7 +13,7 @@ int32_t main(int32_t argc, char** argv)
         QApplication::setApplicationName(QString::fromStdString(APP_NAME));
         QApplication::setOrganizationName(QString::fromStdString(ORGANIZATION_NAME));
         QApplication::setApplicationVersion(QString::fromStdString(APP_VERSION));
-        //QApplication::setWindowIcon(QIcon(":/icons/app_icon.png"));
+        QApplication::setWindowIcon(QIcon(":/icons/app_icon.ico"));
         QGuiApplication::setDesktopFileName(QString::fromStdString(APP_ID));
 
         tagcomposer::AppMainWindow window;

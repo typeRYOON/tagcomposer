@@ -9,7 +9,6 @@ CMakeCache.txt
 CMakeFiles/
 *.cmake.user
 
-
 # Binaries
 *.exe
 *.dll
@@ -21,3 +20,6 @@ CMakeFiles/
 
 # VS
 .vs/
+
+# Resource heavy
+*.ico
