@@ -45,6 +45,7 @@ if (WIN32)
     )
 endif()
 
+
 install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION ${CMAKE_BINARY_DIR}
 )

@@ -1,8 +1,11 @@
 #pragma once
+#include <model/entrymodel.h>
+
+
 #include <QMainWindow>
 #include <QCloseEvent>
 
-namespace tagcomposer {
+namespace gui {
 
 class AppMainWindow : public QMainWindow
 {
@@ -20,10 +23,8 @@ public:
 protected:
     void closeEvent(QCloseEvent* event) override;
 
-
 private:
-    const QString m_appPath;
-
+    model::EntryModel* m_entryModel;
 
 };
 

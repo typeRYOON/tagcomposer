@@ -1,8 +1,6 @@
-#pragma once
+#include <utils/qutils.h>
 
-#include <QPropertyAnimation>
-
-namespace tagcomposer {
+namespace utils {
 
     QPropertyAnimation* propertyAnimate(
         QObject* object,
@@ -10,7 +8,7 @@ namespace tagcomposer {
         const QVariant& start_value,
         const QVariant& end_value,
         const qint32 duration,
-        const QEasingCurve curve = QEasingCurve::Linear)
+        const QEasingCurve curve)
     {
         QPropertyAnimation* a = new QPropertyAnimation{ object, property, object };
         a->setDuration(duration);

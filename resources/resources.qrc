@@ -2,5 +2,6 @@
     <qresource prefix="/">
         <file>system/styles.qss</file>
         <file>icons/app_icon.ico</file>
+        <file>system/Hiragino Maru Gothic ProN W4.otf</file>
     </qresource>
 </RCC>
