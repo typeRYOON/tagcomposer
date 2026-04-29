@@ -5,6 +5,7 @@
 #include <QPixmap>
 #include <QHash>
 #include <QSet>
+#include <QMap>
 #include <QMutex>
 #include <QTimer>
 #include <QLabel>
@@ -35,9 +36,17 @@ namespace gui {
 
     public slots:
         void query(const QString& q);
+        void setActiveGroups(const QMap<int, QList<int>>& groups);
+        void clearLoraForEntry(int entryId);
+        void setLoraActiveByUuids(const QList<QString>& uuids);
 
-        // signals:
-        //     void entryClicked(core::Entry*);
+    public:
+        QList<QString> activeLoraUuids() const;
+
+    signals:
+        void entryClicked(core::Entry*);
+        void loraStackChanged(QList<core::LoraConfig> stack);
+        void tagsExported(int entryId, int imageIdx, QList<QString> tags);
 
     protected:
         void paintEvent(QPaintEvent* event) override;
@@ -52,6 +61,9 @@ namespace gui {
         void  recomputeLayout();
         QRect tileRect(int index) const;
         int   indexAt(QPoint widgetPos) const;
+        void  scrollToEntry(int idx);
+        void  repositionNav();
+        void  rebuildNavPanel();
 
         // Async image loading
         void   requestLoad(int entryIndex);
@@ -62,13 +74,15 @@ namespace gui {
         QList<core::Entry*> m_entries;
 
         // Tile dimensions (constexpr so they're usable in makeTileImage as static)
-        static constexpr int TileW = static_cast<int>(180 * 1.3);
-        static constexpr int TileH = static_cast<int>(231 * 1.3);
+        static constexpr int TileW   = static_cast<int>(180 * 1.3);
+        static constexpr int TileH   = static_cast<int>(231 * 1.3);
         static constexpr int Spacing = 12;
-        static constexpr int Radius = 12;
+        static constexpr int Radius  = 12;
+        static constexpr int PadV    = 16;
 
         // Layout state
-        int m_cols = 1;
+        int m_cols    = 1;
+        int m_offsetX = 0;
         qreal m_scrollYTarget = 0.0;
         qreal m_scrollYActual = 0.0;
         int m_totalH = 0;
@@ -92,6 +106,15 @@ namespace gui {
         QTimer* m_animTimer = nullptr;
 
         int m_generation = 0;
+
+        QSet<int> m_activeEntryIds;
+
+        QList<int> m_loraActiveOrder; // entry IDs in activation order (up to maxSlots)
+
+        int      m_selectedEntryId = -1;
+        QWidget* m_navPanel = nullptr;
+
+        void emitLoraStack();
     };
 
 } // namespace gui

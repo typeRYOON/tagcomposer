@@ -1,8 +1,1625 @@
-#CentralWidget {
-    background: black;
-    border: 1px solid red;
+/* ── App-wide ─────────────────────────────────────────────────────────────── */
+
+QMainWindow, QWidget {
+    background: transparent;
+    color: #e0e0e0;
+    font-family: "Hiragino Maru Gothic ProN W4";
+    font-size: 16px;
 }
 
-#TitleBar {
-    background-color: #181818
+#MainPages {
+    background: #0d0d0d;
+}
+
+/* ── NavBar ───────────────────────────────────────────────────────────────── */
+
+#NavBar {
+    background: #111111;
+    border-right: 1px solid #222222;
+}
+
+#NavButton {
+    background: transparent;
+    color: #666666;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+}
+
+#NavButton:hover {
+    background: #1e1e1e;
+    color: #cccccc;
+}
+
+#NavButton:checked {
+    background: #252525;
+    color: #ffffff;
+}
+
+#NavTooltip {
+    background: rgba(28, 28, 28, 220);
+    color: #e0e0e0;
+    border: 1px solid #333333;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+/* ── TileViewPage ─────────────────────────────────────────────────────────── */
+
+#SearchBar {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #2a2a2a;
+    border-radius: 0px;
+    padding: 6px 10px;
+    font-size: 16px;
+    selection-background-color: #3a3a3a;
+}
+
+#SearchBar:focus {
+    border-bottom: 1px solid #444444;
+    background: #1e1e1e;
+}
+
+#SearchBar::placeholder {
+    color: #444444;
+}
+
+#TileRightPanel {
+    background: #111111;
+    border-left: 1px solid #222222;
+}
+
+/* ── HomePage ─────────────────────────────────────────────────────────────── */
+
+#HomePage {
+    background: transparent;
+}
+
+/* ── EntryPanel ───────────────────────────────────────────────────────────── */
+
+#EntryPanel {
+    background: #111111;
+    border-left: 1px solid #1e1e1e;
+}
+
+#EntryEmptyLabel {
+    color: #3a3a3a;
+    font-size: 13px;
+}
+
+#EntryHeader {
+    background: transparent;
+    border-bottom: 1px solid #1e1e1e;
+}
+
+#EntryTitle {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #cccccc;
+    font-family: "Hiragino Maru Gothic ProN W4";
+    selection-background-color: #3a3a3a;
+}
+
+#EntryTitle:hover {
+    border-color: #2a2a2a;
+    background: #181818;
+}
+
+#EntryTitle:focus {
+    border-color: #404040;
+    background: #1a1a1a;
+}
+
+#EntryActionBtn {
+    background: #1a1a1a;
+    color: #888888;
+    border: 1px solid #262626;
+    border-radius: 5px;
+    padding: 5px 8px;
+    text-align: left;
+    font-size: 12px;
+}
+
+#EntryActionBtn:hover {
+    background: #222222;
+    color: #cccccc;
+    border-color: #333333;
+}
+
+#EntryActionBtn:disabled {
+    background: #141414;
+    color: #3a3a3a;
+    border-color: #1e1e1e;
+}
+
+#EntryActionBtn:checked {
+    background: #182418;
+    color: #5a9a5a;
+    border-color: #2a4a2a;
+}
+
+#EntryActionBtn:checked:hover {
+    background: #1e2e1e;
+    color: #7acc7a;
+    border-color: #3a6a3a;
+}
+
+#EntryActionBtnDelete {
+    background: #1a1a1a;
+    color: #7a3535;
+    border: 1px solid #262626;
+    border-radius: 5px;
+    padding: 5px 8px;
+    text-align: left;
+    font-size: 12px;
+}
+
+#EntryActionBtnDelete:hover {
+    background: #221818;
+    color: #dd5555;
+    border-color: #442222;
+}
+
+#EntryPageBtn {
+    background: transparent;
+    border: none;
+    color: #555555;
+    font-size: 11px;
+}
+
+#EntryPageBtn:hover    { color: #aaaaaa; }
+#EntryPageBtn:disabled { color: #2a2a2a; }
+
+#EntryPageBtnRemove {
+    background: transparent;
+    border: none;
+    color: #5a2a2a;
+    font-size: 11px;
+}
+
+#EntryPageBtnRemove:hover    { color: #cc4444; }
+#EntryPageBtnRemove:disabled { color: #2a2a2a; }
+
+#EntryPageLabel {
+    color: #555555;
+    font-size: 11px;
+}
+
+#EntryComment {
+    background: #141414;
+    color: #888888;
+    border: 1px solid #1e1e1e;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}
+
+#EntryComment:focus {
+    border-color: #2e2e2e;
+    color: #aaaaaa;
+    background: #181818;
+}
+
+#EntryTagsSection {
+    background: transparent;
+}
+
+#EntryTagScroll {
+    background: transparent;
+    border: none;
+}
+
+#EntryTagList {
+    background: transparent;
+}
+
+#TagRow {
+    background: transparent;
+    border-radius: 4px;
+}
+
+#TagRow:hover {
+    background: #1a1a1a;
+}
+
+#TagRemoveBtn {
+    background: transparent;
+    border: none;
+    color: #3a3a3a;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0;
+}
+
+#TagRemoveBtn:hover { color: #cc3333; }
+
+#ImageDropper {
+    background: #181818;
+    border-radius: 8px;
+}
+
+/* ── TagSearchBar ─────────────────────────────────────────────────────────── */
+
+#TagSearchInput {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #2a2a2a;
+    border-radius: 0px;
+    padding: 6px 10px;
+    font-size: 16px;
+    font-family: "Hiragino Maru Gothic ProN W4";
+    selection-background-color: #3a3a3a;
+}
+
+#TagSearchInput:focus {
+    border-color: #444444;
+}
+
+#TagSearchInput:disabled {
+    background: #141414;
+    color: #2a2a2a;
+    border-color: #1e1e1e;
+}
+
+#TagSearchPopup {
+    background: #161616;
+    border: 1px solid #2e2e2e;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+#TagSearchList {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+#TagSearchList::item {
+    border: none;
+    padding: 0px;
+}
+
+/* ── PromptComposerPage ───────────────────────────────────────────────────── */
+
+#PromptComposerPage {
+    background: transparent;
+}
+
+#ComposerScroll, #ComposerGroupsContainer {
+    background: transparent;
+}
+
+#ComposerEmptyHint {
+    color: #2e2e2e;
+    font-size: 13px;
+}
+
+#ComposerGroupHeader {
+    color: #383838;
+    font-size: 24px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 10px 12px 2px 12px;
+}
+
+#ComposerTagRow {
+    background: transparent;
+    border-radius: 3px;
+}
+
+#ComposerTagRow:hover {
+    background: #141414;
+}
+
+#ComposerTagEdit {
+    background: transparent;
+    border: none;
+    color: #cccccc;
+    font-size: 20px;
+    padding: 0;
+    selection-background-color: #2a2a2a;
+}
+
+#ComposerTagEdit:focus {
+    background: #161616;
+    border-bottom: 1px solid #333333;
+    color: #e0e0e0;
+}
+
+#ComposerTagReadOnly {
+    background: transparent;
+    border: none;
+    color: #383838;
+    font-size: 20px;
+    padding: 0;
+}
+
+
+#ComposerVarBadge {
+    background: transparent;
+    color: #664422;
+    font-size: 16px;
+}
+
+#ComposerNoBadge {
+    background: transparent;
+    color: #334466;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#ComposerFlagBadge {
+    background: transparent;
+    color: #886622;
+    font-size: 16px;
+}
+
+#ComposerInjectedBadge {
+    background: transparent;
+    color: #336633;
+    font-size: 16px;
+}
+
+#ComposerSidebar {
+    background: #0f0f0f;
+    border-left: 1px solid #1a1a1a;
+}
+
+#ComposerRulesScroll, #ComposerRulesContainer {
+    background: transparent;
+    border-left: 1px solid #1a1a1a;
+}
+
+#WfList,
+#ComposerVarsContainer {
+    border-left: 1px solid #1a1a1a;
+}
+
+#ComposerHeaderRow {
+    border-bottom: 1px solid #1a1a1a;
+}
+
+
+#ComposerHeaderLabel {
+    color: #333333;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#SidebarBtn {
+    background: transparent;
+    color: #3a3a3a;
+    border: none;
+    font-size: 14px;
+    padding: 0;
+}
+
+
+
+
+
+
+#SidebarBtn:hover {
+    color: #777777;
+    background: #1a1a1a;
+    border-radius: 3px;
+}
+
+#ComposerRuleToggle {
+    background: transparent;
+    color: #555555;
+    font-size: 14px;
+    spacing: 6px;
+    border: none;
+    padding: 3px 0;
+}
+
+#ComposerRuleToggle:checked {
+    color: #909090;
+}
+
+#ComposerRuleToggle::indicator {
+    width: 12px;
+    height: 12px;
+    border: 1px solid #2a2a2a;
+    border-radius: 2px;
+    background: #141414;
+}
+
+#ComposerRuleToggle::indicator:checked {
+    background: #336633;
+    border-color: #336633;
+}
+
+#ComposerRuleAddBadge {
+    color: #336644;
+    font-size: 16px;
+    font-weight: bold;
+    background: transparent;
+}
+
+#ComposerRuleReplaceBadge {
+    color: #664422;
+    font-size: 16px;
+    font-weight: bold;
+    background: transparent;
+}
+
+#ComposerRuleForceBadge {
+    color: #664422;
+    font-size: 12px;
+    font-weight: bold;
+    background: transparent;
+}
+
+#ComposerRulesHint {
+    color: #282828;
+    font-size: 12px;
+    padding: 8px;
+}
+
+#ComposerRuleArgEdit {
+    background: #141414;
+    color: #557766;
+    border: 1px solid #1a1a1a;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 14px;
+    selection-background-color: #2a2a2a;
+}
+
+#ComposerRuleArgEdit:focus {
+    border-color: #2e2e2e;
+    color: #77aa88;
+}
+
+
+/* ── Workflow sidebar (PromptComposerPage) ────────────────────────────────── */
+
+#WfSidebarHeaderLabel {
+    color: #333333;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#WfSidebarEditBtn {
+    background: transparent;
+    color: #3a3a3a;
+    border: none;
+    font-size: 14px;
+    padding: 0;
+}
+
+#WfSidebarEditBtn:hover {
+    color: #777777;
+    background: #1a1a1a;
+    border-radius: 3px;
+}
+
+#ComposerModeTab {
+    background: transparent;
+    color: #2a2a2a;
+    border: none;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 1px 5px;
+}
+
+#ComposerModeTab:checked {
+    color: #888888;
+}
+
+#ComposerModeTab:hover:!checked {
+    color: #444444;
+}
+
+#WfList {
+    background: #0f0f0f;
+    border: none;
+    border-left: 1px solid #1a1a1a;
+    outline: none;
+    font-size: 14px;
+    font-weight: bold;
+    color: #4a4a4a;
+}
+
+#StatesList {
+    background: #0f0f0f;
+    border: none;
+    border-left: 1px solid #1a1a1a;
+    outline: none;
+    font-size: 13px;
+    color: #4a4a4a;
+}
+
+#StatesList::item {
+    padding: 3px 12px;
+    border: none;
+}
+
+#StatesList::item:hover {
+    background: #141414;
+    color: #888888;
+}
+
+#StatesList::item:selected {
+    background: #141414;
+    color: #aaaaaa;
+}
+
+#WfList::item {
+    padding: 2px 14px;
+    border: none;
+}
+
+#WfList::item:hover {
+    background: #141414;
+    color: #888888;
+}
+
+#WfList::item:selected {
+    background: #141414;
+}
+
+
+
+
+#ComposerVarName {
+    color: #554433;
+    font-size: 12px;
+}
+
+#ComposerVarEdit {
+    background: #141414;
+    color: #886644;
+    border: 1px solid #1e1e1e;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 14px;
+    selection-background-color: #2a2a2a;
+}
+
+#ComposerVarEdit:focus {
+    border-color: #333333;
+    color: #bb9966;
+}
+
+#ComposerCenterBg {
+    background: transparent;
+}
+
+#ComposerPreviewLabel {
+    background: #0a0a0a;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+}
+
+#ComposerPreviewLabel:hover {
+    border: 1px solid #3a3a3a;
+    background: #0f0f0f;
+}
+/* Step text is painted directly in PreviewClickLabel::paintEvent — no separate widget */
+
+#ComposerControlBar {
+    background: #111111;
+    border: 1px solid #1e1e1e;
+    border-radius: 4px;
+}
+
+#ComposerRunBtn {
+    background: #16344f;
+    color: #5588bb;
+    border: none;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 12px;
+}
+
+#ComposerRunBtn:hover {
+    background: #1e4570;
+    color: #77aadd;
+}
+
+#ComposerRunBtn:pressed {
+    background: #122b40;
+}
+
+#ComposerInterruptBtn {
+    background: #3d1515;
+    color: #cc3333;
+    border: none;
+    border-radius: 3px;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0px;
+}
+
+#ComposerInterruptBtn:hover {
+    background: #551919;
+    color: #ee4444;
+}
+
+#ComposerInterruptBtn:pressed {
+    background: #2a0f0f;
+}
+
+#ComposerCountSpin {
+    background: #1a1a1a;
+    color: #aaaaaa;
+    border: 1px solid #252525;
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}
+
+#ComposerCountSpin::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 14px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #252525;
+    border-bottom: 1px solid #252525;
+}
+
+#ComposerCountSpin::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 14px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #252525;
+}
+
+#ComposerCountSpin::up-button:hover,
+#ComposerCountSpin::down-button:hover {
+    background: #282828;
+}
+
+#ComposerQueueLabel {
+    color: #555555;
+    font-size: 11px;
+    background: transparent;
+}
+
+#ComposerCopyBtn {
+    background: #141414;
+    color: #555555;
+    border: 1px solid #1e1e1e;
+    border-radius: 0;
+    padding: 6px 12px;
+    font-size: 12px;
+    text-align: left;
+}
+
+#ComposerCopyBtn:hover {
+    background: #1a1a1a;
+    color: #999999;
+}
+
+/* ── Clear button (top-right float, left of nav panel) ────────────── */
+#ComposerClearBtn {
+    background: #0e0e0e;
+    color: #555555;
+    border: 1px solid #1e1e1e;
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 0 10px;
+}
+
+#ComposerClearBtn:hover {
+    background: #1a1a1a;
+    color: #cc5555;
+    border-color: #3a2020;
+}
+
+/* ── Category nav panel (top-right float) ──────────────────────────── */
+#CategoryNavPanel {
+    background: #0e0e0e;
+    border: 1px solid #1e1e1e;
+    border-radius: 4px;
+}
+
+#CategoryNavHandle {
+    color: #555555;
+    font-size: 12px;
+    background: transparent;
+    padding: 0 8px;
+}
+
+#CategoryNavList {
+    background: transparent;
+}
+
+#CategoryNavBtn {
+    background: transparent;
+    color: #666666;
+    border: none;
+    border-radius: 0;
+    font-size: 11px;
+    padding: 2px 10px;
+    text-align: left;
+}
+
+#CategoryNavBtn:hover {
+    background: #1a1a1a;
+    color: #aaaaaa;
+}
+
+/* ── Entry nav panel (top-right float on EntryView) ────────────────── */
+#EntryNavPanel {
+    background: #0e0e0e;
+    border: 1px solid #1e1e1e;
+    border-radius: 4px;
+}
+
+#EntryNavHandle {
+    color: #555555;
+    font-size: 12px;
+    background: transparent;
+    padding: 0 8px;
+}
+
+#EntryNavList {
+    background: transparent;
+}
+
+#EntryNavBtn {
+    background: transparent;
+    color: #666666;
+    border: none;
+    border-radius: 0;
+    font-size: 11px;
+    padding: 2px 10px;
+    text-align: left;
+}
+
+#EntryNavBtn:hover {
+    background: #1a1a1a;
+    color: #aaaaaa;
+}
+
+
+#ComposerWeightSpin {
+    background: transparent;
+    color: #2a2a2a;
+    border: none;
+    font-size: 11px;
+    padding: 0 2px;
+    selection-background-color: #2a2a2a;
+}
+
+#ComposerWeightSpin:focus {
+    color: #886644;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 2px;
+}
+
+#ComposerTagRow:hover #ComposerWeightSpin {
+    color: #404040;
+}
+
+#ComposerWeightSpin[weighted="true"] {
+    color: #c8a050;
+}
+
+#ComposerTagRow:hover #ComposerWeightSpin[weighted="true"] {
+    color: #d4b060;
+}
+
+/* ── FacetEditorPage ──────────────────────────────────────────────────────── */
+
+#FacetEditorPage {
+    background: transparent;
+}
+
+#FacetLeftPanel {
+    background: #0f0f0f;
+    border-right: 1px solid #1a1a1a;
+}
+
+#FacetPanelHeader {
+    color: #2e2e2e;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 10px 12px 8px 12px;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+#FacetSearchBar {
+    background: #0f0f0f;
+    color: #888888;
+    border: none;
+    border-bottom: 1px solid #1a1a1a;
+    padding: 5px 10px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}
+
+#FacetSearchBar:focus {
+    border-bottom-color: #2e2e2e;
+    color: #cccccc;
+    background: #141414;
+}
+
+#FacetCountLabel {
+    color: #252525;
+    font-size: 11px;
+    padding: 4px 12px 4px 12px;
+    border-bottom: 1px solid #161616;
+}
+
+#FacetTagList {
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 12px;
+    color: #666666;
+}
+
+#FacetTagList::item {
+    padding: 4px 12px;
+    border: none;
+}
+
+#FacetTagList::item:selected {
+    background: #1a1a1a;
+    color: #cccccc;
+}
+
+#FacetTagList::item:hover {
+    background: #141414;
+    color: #aaaaaa;
+}
+
+#FacetEditorHint {
+    color: #252525;
+    font-size: 13px;
+}
+
+#FacetSelectedTag {
+    color: #888888;
+    font-size: 20px;
+    font-weight: bold;
+    padding: 4px 0 8px 0;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+#FacetCheckScroll {
+    background: transparent;
+    border: none;
+}
+
+#FacetCategoryBlock {
+    background: transparent;
+    border: 1px solid #1e1e1e;
+    border-radius: 5px;
+}
+
+#FacetCategoryLabel {
+    background: transparent;
+    color: #2e2e2e;
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 0 0 4px 0;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+#FacetCheckBox {
+    background: transparent;
+    color: #4a4a4a;
+    font-size: 20px;
+    spacing: 5px;
+}
+
+#FacetCheckBox:checked {
+    color: #bbbbbb;
+}
+
+#FacetCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #262626;
+    border-radius: 2px;
+    background: #181818;
+}
+
+#FacetCheckBox::indicator:checked {
+    background: #336633;
+    border-color: #336633;
+}
+
+#FacetCheckBox::indicator:hover {
+    border-color: #3a3a3a;
+}
+
+#FacetSaveBtn {
+    background: #141414;
+    color: #448844;
+    border: 1px solid #223322;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+#FacetSaveBtn:hover {
+    background: #192219;
+    color: #66aa66;
+    border-color: #336633;
+}
+
+/* ── TagWikiPage ──────────────────────────────────────────────────────────── */
+
+#TagWikiPage {
+    background: transparent;
+}
+
+#WikiHeader {
+    background: #0f0f0f;
+    border-bottom: 1px solid #1e1e1e;
+}
+
+#WikiNavBtn {
+    background: transparent;
+    border: none;
+    color: #3a3a3a;
+    font-size: 16px;
+    padding: 0px 6px;
+    min-width: 24px;
+}
+
+#WikiNavBtn:hover:enabled {
+    color: #888888;
+}
+
+#WikiNavBtn:disabled {
+    color: #1e1e1e;
+}
+
+#WikiHeaderInner {
+    background: transparent;
+}
+
+#WikiTitle {
+    background: transparent;
+    color: #cccccc;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+#WikiAlias {
+    background: transparent;
+    color: #444444;
+    font-size: 11px;
+}
+
+#WikiBrowser {
+    background: transparent;
+    color: #c0c0c0;
+    border: none;
+    font-size: 13px;
+    selection-background-color: #2a2a2a;
+}
+
+#WikiStatusLabel {
+    color: #333333;
+    font-size: 13px;
+}
+
+
+/* ── StatusBar ────────────────────────────────────────────────────────────── */
+
+#StatusBar {
+    background: #000000;
+    border-top: 1px solid #1a1a1a;
+}
+
+#StatusBarLabel {
+    background: transparent;
+    color: #444444;
+    font-size: 11px;
+}
+
+/* ── LogPage ──────────────────────────────────────────────────────────────── */
+
+#LogPage {
+    background: transparent;
+}
+
+#LogView {
+    background: #0a0a0a;
+    color: #505050;
+    border: none;
+    font-family: monospace;
+    font-size: 12px;
+    selection-background-color: #1e1e1e;
+    padding: 8px;
+}
+
+/* ── SettingsPage ─────────────────────────────────────────────────────────── */
+
+#SettingsPage, #SettingsBody, #SettingsScroll {
+    background: transparent;
+}
+
+#SettingsSectionHeader {
+    color: #303030;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#SettingsGroup {
+    background: #0f0f0f;
+    border: 1px solid #1a1a1a;
+    border-radius: 6px;
+}
+
+#SettingsCheckBox {
+    color: #888888;
+    font-size: 16px;
+    spacing: 8px;
+}
+
+#SettingsCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #2a2a2a;
+    border-radius: 3px;
+    background: #141414;
+}
+
+#SettingsCheckBox::indicator:checked {
+    background: #336633;
+    border-color: #336633;
+}
+
+#SettingsFieldLabel {
+    color: #444444;
+    font-size: 12px;
+}
+
+#SettingsInput {
+    background: #141414;
+    color: #cccccc;
+    border: 1px solid #222222;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 14px;
+    selection-background-color: #2a2a2a;
+}
+
+#SettingsInput:focus {
+    border-color: #333333;
+    background: #181818;
+}
+
+#SettingsLaunchBtn {
+    background: #141414;
+    color: #448844;
+    border: 1px solid #223322;
+    border-radius: 4px;
+    padding: 5px 12px;
+    font-size: 14px;
+}
+
+#SettingsLaunchBtn:hover {
+    background: #192219;
+    color: #66aa66;
+    border-color: #336633;
+}
+
+#SettingsConnectBtn {
+    background: #141414;
+    color: #446688;
+    border: 1px solid #223344;
+    border-radius: 4px;
+    padding: 5px 12px;
+    font-size: 14px;
+}
+
+#SettingsConnectBtn:hover {
+    background: #19222e;
+    color: #6699cc;
+    border-color: #335588;
+}
+
+#SettingsSeparator {
+    color: #1a1a1a;
+}
+
+#SettingsStatusDot[status="disabled"]     { color: #2a2a2a; }
+#SettingsStatusDot[status="connecting"]   { color: #886622; }
+#SettingsStatusDot[status="connected"]    { color: #336633; }
+#SettingsStatusDot[status="disconnected"] { color: #553333; }
+#SettingsStatusDot[status="error"]        { color: #883333; }
+
+#SettingsStatusText {
+    color: #444444;
+    font-size: 11px;
+}
+
+
+
+/* ── WorkflowEditPage ─────────────────────────────────────────────────────── */
+
+#WorkflowEditPage {
+    background: transparent;
+}
+
+#WfEditHeader {
+    background: #0f0f0f;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+#WfEditTitle {
+    color: #2a2a2a;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#WfEditSubtitle {
+    color: #555555;
+    font-size: 12px;
+}
+
+#WfAddBtn {
+    background: #141414;
+    color: #448844;
+    border: 1px solid #223322;
+    border-radius: 4px;
+    padding: 5px 14px;
+    font-size: 12px;
+}
+
+#WfAddBtn:hover {
+    background: #192219;
+    color: #66aa66;
+    border-color: #336633;
+}
+
+#WfEditScroll {
+    background: transparent;
+}
+
+#WfVarCard {
+    background: #0f0f0f;
+    border: 1px solid #1a1a1a;
+    border-radius: 5px;
+}
+
+#WfPlaceholderEdit {
+    background: #141414;
+    color: #cccccc;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-family: monospace;
+    selection-background-color: #2a2a2a;
+}
+
+#WfPlaceholderEdit:focus {
+    border-color: #333333;
+    background: #181818;
+}
+
+#WfTypeLabel {
+    color: #3a6a3a;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    background: #0f1a0f;
+    border: 1px solid #1a2a1a;
+    border-radius: 3px;
+}
+
+#WfRemoveBtn {
+    background: transparent;
+    border: none;
+    color: #3a3a3a;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0;
+}
+
+#WfRemoveBtn:hover {
+    color: #cc3333;
+}
+
+#WfRadio {
+    background: transparent;
+    color: #444444;
+    font-size: 12px;
+    spacing: 5px;
+}
+
+#WfRadio::indicator {
+    width: 11px;
+    height: 11px;
+    border-radius: 6px;
+    border: 1px solid #2a2a2a;
+    background: #141414;
+}
+
+#WfRadio::indicator:checked {
+    background: #336633;
+    border-color: #336633;
+}
+
+#WfRadio:checked {
+    color: #888888;
+}
+
+#WfFieldLabel {
+    color: #3a3a3a;
+    font-size: 11px;
+    min-width: 44px;
+}
+
+#WfSeedSpin, #WfSpinBox {
+    background: #141414;
+    color: #aaaaaa;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}
+
+#WfSeedSpin:focus, #WfSpinBox:focus {
+    border-color: #333333;
+}
+
+#WfSeedSpin::up-button, #WfSpinBox::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 14px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #222222;
+    border-bottom: 1px solid #222222;
+}
+
+#WfSeedSpin::down-button, #WfSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 14px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #222222;
+}
+
+#WfSeedSpin::up-button:hover,   #WfSpinBox::up-button:hover,
+#WfSeedSpin::down-button:hover, #WfSpinBox::down-button:hover {
+    background: #282828;
+}
+
+#WfValueEdit {
+    background: #141414;
+    color: #aaaaaa;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}
+
+#WfValueEdit:focus {
+    border-color: #333333;
+    color: #cccccc;
+}
+
+#WfBrowseBtn {
+    background: #141414;
+    color: #555555;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    padding: 3px 10px;
+    font-size: 12px;
+}
+
+#WfBrowseBtn:hover {
+    background: #1a1a1a;
+    color: #999999;
+    border-color: #333333;
+}
+
+#WfFileList {
+    background: #111111;
+    color: #666666;
+    border: 1px solid #1e1e1e;
+    border-radius: 3px;
+    font-size: 12px;
+    outline: none;
+}
+
+#WfFileList::item {
+    padding: 3px 8px;
+    border: none;
+}
+
+#WfFileList::item:hover {
+    background: #1a1a1a;
+    color: #aaaaaa;
+}
+
+#WfFileList::item:selected {
+    background: #141414;
+}
+
+#WfEmptyHint {
+    color: #252525;
+    font-size: 13px;
+}
+
+/* ── SettingsPage extras ──────────────────────────────────────────────────── */
+
+#SettingsHintLabel {
+    color: #2a2a2a;
+    font-size: 11px;
+}
+
+#SettingsBrowseBtn {
+    background: #141414;
+    color: #555555;
+    border: 1px solid #222222;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+
+#SettingsBrowseBtn:hover {
+    background: #1a1a1a;
+    color: #999999;
+    border-color: #333333;
+}
+
+/* ── PreviewPopoutWindow ──────────────────────────────────────────────────── */
+
+#PreviewPopout {
+    background: #0d0d0d;
+}
+
+#PopoutImageLabel {
+    background: #080808;
+}
+
+#PopoutTempLabel {
+    background: #0a0a0a;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+}
+
+#PopoutTempLabel:hover {
+    border: 1px solid #3a3a3a;
+    background: #0f0f0f;
+}
+
+/* ── LoRA section (EntryPanel) ────────────────────────────────────────────── */
+
+#EntrySubLabel {
+    color: #333333;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#LoraDropZone {
+    background: #141414;
+    color: #383838;
+    border: 1px dashed #252525;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 11px;
+}
+
+#LoraDropZone:hover {
+    background: #1a1a1a;
+    color: #666666;
+    border-color: #3d3020;
+}
+
+#LoraSpinLabel {
+    color: #333333;
+    font-size: 10px;
+}
+
+#LoraSpinBox {
+    background: #141414;
+    color: #886644;
+    border: 1px solid #1e1e1e;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 11px;
+    selection-background-color: #2a2a2a;
+}
+
+#LoraSpinBox:focus {
+    border-color: #333333;
+    color: #bb9966;
+}
+
+#LoraSpinBox:disabled {
+    background: #111111;
+    color: #242424;
+    border-color: #181818;
+}
+
+#LoraSpinBox::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 12px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #1e1e1e;
+    border-bottom: 1px solid #1e1e1e;
+}
+
+#LoraSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 12px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #1e1e1e;
+}
+
+#LoraSpinBox::up-button:hover,
+#LoraSpinBox::down-button:hover {
+    background: #252525;
+}
+
+
+/* ── DatasetHelpersPage ───────────────────────────────────────────────────── */
+
+#DatasetHelpersPage {
+    background: transparent;
+}
+
+#DatasetTabBar {
+    background: #111111;
+    border-right: 1px solid #1e1e1e;
+}
+
+#DatasetTabBtn {
+    background: transparent;
+    color: #555555;
+    border: none;
+    border-radius: 5px;
+    padding: 4px 8px;
+    font-size: 13px;
+    text-align: left;
+}
+
+#DatasetTabBtn:hover {
+    background: #1a1a1a;
+    color: #999999;
+}
+
+#DatasetTabBtn:checked {
+    background: #1e1e1e;
+    color: #dddddd;
+}
+
+#DatasetParamsPanel {
+    background: #111111;
+    border-right: 1px solid #1e1e1e;
+}
+
+#DatasetParamLabel {
+    color: #555555;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#DatasetSpin {
+    background: #161616;
+    color: #aaaaaa;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 12px;
+}
+
+#DatasetRunBtn {
+    background: #181e18;
+    color: #5a9a5a;
+    border: 1px solid #2a4a2a;
+    border-radius: 5px;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+#DatasetRunBtn:hover {
+    background: #1e2e1e;
+    color: #7acc7a;
+    border-color: #3a6a3a;
+}
+
+#DatasetRunBtn:disabled {
+    background: #141414;
+    color: #2a2a2a;
+    border-color: #1a1a1a;
+}
+
+#DatasetExcludeEdit {
+    background: #141414;
+    color: #666666;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}
+
+#DatasetStatusLabel {
+    color: #555555;
+    font-size: 12px;
+}
+
+#DatasetProgressBar {
+    background: #161616;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    color: #666666;
+    font-size: 11px;
+    text-align: center;
+}
+
+#DatasetProgressBar::chunk {
+    background: #2a4a2a;
+    border-radius: 2px;
+}
+
+#DatasetResultsList {
+    background: transparent;
+}
+
+#DatasetResultsScroll {
+    background: transparent;
+}
+
+#DatasetResultRow {
+    background: #111111;
+    border-radius: 3px;
+}
+
+#DatasetResultRow:hover {
+    background: #161616;
+}
+
+#DatasetResultTag {
+    color: #cccccc;
+    font-size: 13px;
+}
+
+#DatasetResultScore {
+    color: #444444;
+    font-size: 11px;
+}
+
+#DatasetCopyEdit {
+    background: #141414;
+    color: #777777;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
 }

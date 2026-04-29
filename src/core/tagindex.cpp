@@ -34,6 +34,11 @@ namespace core {
         return m_idToTag.value(id);
     }
 
+    const QList<QString>& TagIndex::allTags() const
+    {
+        return m_sortedTags;
+    }
+
 
     void TagIndex::buildIndex()
     {
@@ -123,6 +128,19 @@ namespace core {
     }
 
 
+    QList<int32_t> TagIndex::entriesForTerm(const QString& raw) const
+    {
+        const bool exact    = raw.endsWith(']');
+        const QString token = normalizeTagInput(exact ? raw.chopped(1) : raw);
+        if (exact) {
+            auto it = m_tagToId.find(token);
+            if (it == m_tagToId.end()) return {};
+            return m_tagIdToEntryId.value(it.value());
+        }
+        return entriesForPrefix(token);
+    }
+
+
     QList<int32_t> TagIndex::multiPrefixSearch(const QString& query) const
     {
         QList<int32_t> result;
@@ -136,12 +154,19 @@ namespace core {
 
         for (const auto& part : parts)
         {
-            const QString prefix = normalizeTagInput(part.trimmed());
+            const QString raw   = part.trimmed();
+            const bool exact    = raw.endsWith(']');
+            const QString token = normalizeTagInput(exact ? raw.chopped(1) : raw);
 
-            auto ids = entriesForPrefix(prefix);
-
-            if (ids.isEmpty()) {
-                return {};
+            QList<int32_t> ids;
+            if (exact) {
+                auto it = m_tagToId.find(token);
+                if (it == m_tagToId.end()) return {};
+                ids = m_tagIdToEntryId.value(it.value());
+                if (ids.isEmpty()) return {};
+            } else {
+                ids = entriesForPrefix(token);
+                if (ids.isEmpty()) return {};
             }
             segmentResults.push_back(std::move(ids));
         }

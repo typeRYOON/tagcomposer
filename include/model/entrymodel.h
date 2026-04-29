@@ -2,6 +2,7 @@
 #include <core/entry.h>
 #include <core/tagindex.h>
 #include <QObject>
+#include <list>
 
 namespace model {
     class EntryModel : public QObject {
@@ -18,10 +19,15 @@ namespace model {
         void deleteEntry(int32_t entryId);
         void updateEntry(int32_t entryId, const core::Entry& updated);
         core::Entry* entryById(const int32_t);
+        core::Entry* entryByUuid(const QString& uuid);
+        core::Entry* entryByLoraSha256(const QString& sha256);
+        void addTagToImage(int32_t entryId, int imageIdx, const QString& tag);
+        void removeTagFromImage(int32_t entryId, int imageIdx, const QString& tag);
+        void removeImageFromEntry(int32_t entryId, int imageIdx);
+        void saveEntry(int32_t entryId);
 
     private:
-        QList<core::Entry>  m_conceptEntries;
-        QList<core::Entry>  m_modelEntries;
+        std::list<core::Entry> m_entries;
         QList<core::Entry*> m_entryByIndex;
 
         core::TagIndex m_tagIndex;

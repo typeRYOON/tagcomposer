@@ -10,7 +10,7 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network Concurrent)
+find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network Concurrent WebSockets)
 
 file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
     src/*.cpp
@@ -23,6 +23,8 @@ find_package(Qt${QT_VERSION_MAJOR}
         Gui
         Widgets
         Concurrent
+        Network
+        WebSockets
 )
 qt_standard_project_setup()
 
@@ -56,5 +58,7 @@ target_link_libraries(${PROJECT_NAME}
         Qt::Gui
         Qt::Widgets
         Qt::Concurrent
+        Qt::Network
+        Qt::WebSockets
 )
 

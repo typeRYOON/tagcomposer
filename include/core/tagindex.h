@@ -11,10 +11,14 @@ namespace core {
         QString getTag(const int32_t) const;
         void buildIndex();
 
+        // All tag strings currently in the index, in sorted order
+        const QList<QString>& allTags() const;
+
         void add(int32_t tagId, int32_t entryId);
         void remove(int32_t tagId, int32_t entryId);
 
         QList<int32_t> multiPrefixSearch(const QString& query) const;
+        QList<int32_t> entriesForTerm(const QString& raw) const;
     private:
         bool m_bulkLoading{ true };
 

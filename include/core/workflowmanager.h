@@ -1,0 +1,78 @@
+#pragma once
+#include <core/entry.h>
+#include <QString>
+#include <QList>
+
+namespace core {
+
+enum class SeedBehavior    { Fixed, Increment, Randomize };
+enum class WorkflowVarType { Seed, String, Integer, Float, DirSearch, LatentSize };
+
+struct LatentSizeEntry {
+    int     w, h;
+    QString label; // e.g. "896x1088 (0.82)"
+};
+
+struct WorkflowVar {
+    QString         placeholder;
+    WorkflowVarType type            = WorkflowVarType::String;
+    SeedBehavior    seedBehavior    = SeedBehavior::Randomize;
+    qint64          seedValue       = 0;
+    QString         stringValue;
+    int             intValue        = 0;
+    double          floatValue      = 0.0;
+    QString         searchDir;
+    QString         selectedFile;   // absolute path
+    QString         extensionFilter;
+};
+
+struct WorkflowFile {
+    QString            id;   // stable timestamp-based identifier
+    QString            name;
+    QString            path;
+    QList<WorkflowVar> vars; // variables belonging to this workflow
+};
+
+class WorkflowManager {
+public:
+    static WorkflowManager loadFromFile(const QString& path);
+    void saveToFile(const QString& path) const;
+
+    QList<WorkflowFile>&       files()       { return m_files; }
+    const QList<WorkflowFile>& files() const { return m_files; }
+
+    // Returns the variable list for the currently selected workflow.
+    // Returns a reference to an empty list if no workflow is selected.
+    QList<WorkflowVar>&       variables();
+    const QList<WorkflowVar>& variables() const;
+
+    int  selectedIndex() const   { return m_selectedIndex; }
+    void setSelectedIndex(int i) { m_selectedIndex = i; }
+
+    const WorkflowFile* selectedFile() const;
+
+    // Returns index of the workflow with the given id, or -1 if not found.
+    int workflowIndexById(const QString& id) const;
+
+    // Returns jsonContent with __PLACEHOLDER__ tokens replaced by current values.
+    // Advances increment-mode seeds as a side effect.
+    QString applyToJson(const QString& jsonContent);
+
+    // Fills __lora_count__, __lora_name_N__, __lora_wt_N__, __lora_model_str_N__,
+    // __lora_clip_str_N__ for N in 1..maxSlots. Empty slots get "None" / defaults.
+    // baseDir is the absolute path LoRA filenames are made relative to.
+    static void applyLoraStack(QString& json,
+                               const QList<LoraConfig>& loras,
+                               const QString& baseDir,
+                               int maxSlots = 6);
+
+    // Parses a latent_sizes.txt file (format: "width height" per line, # comments).
+    static QList<LatentSizeEntry> loadLatentSizes(const QString& path);
+
+private:
+    QList<WorkflowFile> m_files;
+    QList<WorkflowVar>  m_fallbackVars; // returned when no workflow is selected
+    int                 m_selectedIndex = -1;
+};
+
+} // namespace core

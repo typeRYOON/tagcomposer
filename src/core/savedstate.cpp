@@ -1,0 +1,141 @@
+#include <core/savedstate.h>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QFile>
+#include <QDir>
+#include <QFileInfo>
+
+namespace core {
+
+// ── SavedState ────────────────────────────────────────────────────────────────
+
+SavedState SavedState::fromJson(const QJsonObject& obj)
+{
+    SavedState s;
+    s.id   = obj["id"].toString();
+    s.name = obj["name"].toString();
+
+    for (const auto& v : obj["activeTags"].toArray())
+        s.activeTags << v.toString();
+
+    const QJsonObject weights = obj["tagWeights"].toObject();
+    for (auto it = weights.constBegin(); it != weights.constEnd(); ++it)
+        s.tagWeights[it.key()] = float(it.value().toDouble(1.0));
+
+    for (const auto& v : obj["deactivatedTags"].toArray())
+        s.deactivatedTags.insert(v.toString());
+
+    for (const auto& v : obj["activePushes"].toArray()) {
+        const QJsonObject o = v.toObject();
+        EntryPush ep;
+        ep.uuid          = o["uuid"].toString();
+        ep.imageFileName = o["imageFileName"].toString();
+        for (const auto& t : o["tags"].toArray()) ep.tags << t.toString();
+        s.activePushes << ep;
+    }
+
+    const QJsonObject rules = obj["ruleStates"].toObject();
+    for (auto it = rules.constBegin(); it != rules.constEnd(); ++it)
+        s.ruleStates[it.key()] = it.value().toBool();
+
+    const QJsonObject vars = obj["varValues"].toObject();
+    for (auto it = vars.constBegin(); it != vars.constEnd(); ++it)
+        s.varValues[it.key()] = it.value().toString();
+
+    s.selectedWorkflowId  = obj["selectedWorkflowId"].toString();
+    s.workflowVarValues   = obj["workflowVarValues"].toObject();
+    s.previewImagePath    = obj["previewImage"].toString();
+    for (const auto& v : obj["activeLoraUuids"].toArray())
+        s.activeLoraUuids << v.toString();
+    return s;
+}
+
+QJsonObject SavedState::toJson() const
+{
+    QJsonObject obj;
+    obj["id"]   = id;
+    obj["name"] = name;
+
+    QJsonArray tagsArr;
+    for (const auto& t : activeTags) tagsArr.append(t);
+    obj["activeTags"] = tagsArr;
+
+    QJsonObject weightsObj;
+    for (auto it = tagWeights.constBegin(); it != tagWeights.constEnd(); ++it)
+        weightsObj[it.key()] = double(it.value());
+    obj["tagWeights"] = weightsObj;
+
+    QJsonArray deactArr;
+    for (const auto& t : deactivatedTags) deactArr.append(t);
+    obj["deactivatedTags"] = deactArr;
+
+    QJsonArray pushesArr;
+    for (const auto& ep : activePushes) {
+        QJsonArray tagArr;
+        for (const auto& t : ep.tags) tagArr.append(t);
+        QJsonObject o;
+        o["uuid"]          = ep.uuid;
+        o["imageFileName"] = ep.imageFileName;
+        o["tags"]          = tagArr;
+        pushesArr.append(o);
+    }
+    obj["activePushes"] = pushesArr;
+
+    QJsonObject rulesObj;
+    for (auto it = ruleStates.constBegin(); it != ruleStates.constEnd(); ++it)
+        rulesObj[it.key()] = it.value();
+    obj["ruleStates"] = rulesObj;
+
+    QJsonObject varsObj;
+    for (auto it = varValues.constBegin(); it != varValues.constEnd(); ++it)
+        varsObj[it.key()] = it.value();
+    obj["varValues"] = varsObj;
+
+    obj["selectedWorkflowId"]  = selectedWorkflowId;
+    obj["workflowVarValues"]   = workflowVarValues;
+    obj["previewImage"] = previewImagePath.isEmpty()
+        ? QString()
+        : QFileInfo(previewImagePath).fileName();
+    QJsonArray loraArr;
+    for (const auto& uuid : activeLoraUuids) loraArr.append(uuid);
+    obj["activeLoraUuids"] = loraArr;
+    return obj;
+}
+
+// ── StateManager ──────────────────────────────────────────────────────────────
+
+StateManager StateManager::loadFromDir(const QString& dir)
+{
+    StateManager sm;
+    QDir d(dir);
+    if (!d.exists()) return sm;
+
+    // Each subdirectory is one state; sort by name (timestamp IDs → chronological)
+    const QStringList subs = d.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+    for (const QString& sub : subs) {
+        QFile f(dir + "/" + sub + "/state.json");
+        if (!f.open(QIODevice::ReadOnly)) continue;
+        SavedState s = SavedState::fromJson(QJsonDocument::fromJson(f.readAll()).object());
+        // Resolve the preview filename to a full path
+        if (!s.previewImagePath.isEmpty()) {
+            const QString full = dir + "/" + sub + "/" + s.previewImagePath;
+            s.previewImagePath = QFile::exists(full) ? full : QString();
+        }
+        sm.m_states << s;
+    }
+    return sm;
+}
+
+void StateManager::saveToDir(const QString& dir) const
+{
+    QDir().mkpath(dir);
+    for (const auto& s : m_states) {
+        const QString stateDir = dir + "/" + s.id;
+        QDir().mkpath(stateDir);
+        QFile f(stateDir + "/state.json");
+        if (f.open(QIODevice::WriteOnly))
+            f.write(QJsonDocument(s.toJson()).toJson());
+    }
+}
+
+} // namespace core

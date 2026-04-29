@@ -1,4 +1,5 @@
 #include <utils/stringutils.h>
+#include <QDebug>
 
 namespace utils {
 
@@ -15,6 +16,20 @@ namespace utils {
         t.replace("(", "\\(");
         t.replace(")", "\\)");
         t.replace(" ", "_");
+        return t.toLower();
+    }
+
+    QString serializeTagForPrompt(QString t, bool forJson)
+    {
+        if (forJson) {
+            t.replace("(", "\\\\(");
+            t.replace(")", "\\\\)");
+        }
+        else {
+            t.replace("(", "\\(");
+            t.replace(")", "\\)");
+        }
+        t.replace("_", " ");
         return t.toLower();
     }
 

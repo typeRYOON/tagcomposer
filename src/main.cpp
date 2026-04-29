@@ -3,10 +3,27 @@
 #include <core/entry.h>
 #include <io/entryio.h>
 #include <QApplication>
+#include <QProxyStyle>
 #include <QThreadPool>
-#include <iostream>
 #include <QFontDatabase>
 
+#include <QLockFile>
+#include <QStandardPaths>
+
+class NoFocusRectStyle : public QProxyStyle {
+public:
+    using QProxyStyle::QProxyStyle;
+    void drawPrimitive(
+        PrimitiveElement element,
+        const QStyleOption* option,
+        QPainter* painter,
+        const QWidget* widget) const override
+    {
+        if (element == PE_FrameFocusRect)
+            return;
+        QProxyStyle::drawPrimitive(element, option, painter, widget);
+    }
+};
 
 using namespace utils;
 
@@ -16,30 +33,35 @@ int32_t main(int32_t argc, char** argv)
         QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
             Qt::HighDpiScaleFactorRoundingPolicy::Floor
         );
+        QApplication app(argc, argv);
+        QLockFile lockFile(
+            QStandardPaths::writableLocation(QStandardPaths::TempLocation)
+            + "/" + QApplication::applicationName() + ".lock"
+        );
+        lockFile.setStaleLockTime(0);
+        if (!lockFile.tryLock())
+            return 0;
+
+        BASE_PATH = QCoreApplication::applicationDirPath();
+        app.setStyle(new NoFocusRectStyle(app.style()));
         QThreadPool::globalInstance()->setMaxThreadCount(QThread::idealThreadCount());
 
-        QApplication app(argc, argv);
-        BASE_PATH = QCoreApplication::applicationDirPath();
-
+        QFontDatabase::addApplicationFont(":/system/Hiragino Maru Gothic ProN W4.otf");
         QApplication::setApplicationName(QString::fromStdString(APP_NAME));
         QApplication::setOrganizationName(QString::fromStdString(ORGANIZATION_NAME));
         QApplication::setApplicationVersion(QString::fromStdString(APP_VERSION));
-        //QApplication::setWindowIcon(QIcon(":/icons/app_icon.ico"));
+        QApplication::setWindowIcon(QIcon(":/icons/app_icon.ico"));
         QGuiApplication::setDesktopFileName(QString::fromStdString(APP_ID));
-
         gui::AppMainWindow window;
-
-        // set theming here.
-        QFontDatabase::addApplicationFont(":/system/Hiragino Maru Gothic ProN W4.otf"); // todo, actual font loader.
 
         return QApplication::exec();
     }
     catch (const std::exception& e) {
-        std::cerr << "UNCAUGHT EXCEPTION: " << e.what() << '\n';
+        qDebug() << "UNCAUGHT EXCEPTION: " << e.what() << '\n';
         return 1;
     }
     catch (...) {
-        std::cerr << "UNKNOWN EXCEPTION\n";
+        qDebug() << "UNKNOWN EXCEPTION\n";
         return 1;
     }
 

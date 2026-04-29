@@ -10,7 +10,6 @@ namespace core {
             || entry.uuid.isEmpty()
             || entry.images.isEmpty()
             || entry.title.isEmpty()
-            || entry.type == EntryType::None
             ) {
             return false;
         }

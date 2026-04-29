@@ -24,3 +24,6 @@ CMakeFiles/
 # Resource heavy
 *.ico
 *.otf
+resources/img/
+resources/icons/
+data/

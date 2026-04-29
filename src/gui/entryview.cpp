@@ -3,17 +3,122 @@
 #include <utils/qutils.h>
 #include <QtConcurrent>
 #include <QFontDatabase>
+#include <QMenu>
+#include <QCursor>
 #include <QPainter>
 #include <QPainterPath>
 #include <QWheelEvent>
 #include <QMouseEvent>
 #include <QTimer>
+#include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QPropertyAnimation>
+#include <functional>
 #include <cmath>
 #include <algorithm>
 
 using namespace core;
 using namespace model;
 using namespace utils;
+
+// ── EntryNavPanel ─────────────────────────────────────────────────────────────
+// Floating top-right widget: handle that expands on hover to show a scrollable
+// list of the current entries. Clicking one smoothly scrolls to it in the view.
+
+namespace {
+
+class EntryNavPanel : public QWidget {
+public:
+    std::function<void(int)> onEntryClicked;
+
+    explicit EntryNavPanel(QWidget* parent = nullptr) : QWidget(parent)
+    {
+        setAttribute(Qt::WA_StyledBackground, true);
+        setObjectName("EntryNavPanel");
+        setFixedWidth(160);
+
+        auto* root = new QVBoxLayout(this);
+        root->setContentsMargins(0, 0, 0, 0);
+        root->setSpacing(0);
+
+        m_handle = new QLabel("☰  Active Entries", this);
+        m_handle->setObjectName("EntryNavHandle");
+        m_handle->setFixedHeight(26);
+        m_handle->setAlignment(Qt::AlignCenter);
+        root->addWidget(m_handle);
+
+        m_listFrame = new QWidget(this);
+        m_listFrame->setObjectName("EntryNavList");
+        m_listLayout = new QVBoxLayout(m_listFrame);
+        m_listLayout->setContentsMargins(0, 2, 0, 2);
+        m_listLayout->setSpacing(0);
+
+        root->addWidget(m_listFrame);
+        m_listFrame->setMaximumHeight(0);
+
+        m_anim = new QPropertyAnimation(m_listFrame, "maximumHeight", this);
+        m_anim->setEasingCurve(QEasingCurve::InOutQuad);
+        m_anim->setDuration(160);
+        connect(m_anim, &QPropertyAnimation::valueChanged,
+                m_listFrame, [this](const QVariant&) { adjustSize(); });
+    }
+
+    // items: (display title, index into m_entries for scroll target)
+    void updateEntries(const QList<QPair<QString, int>>& items)
+    {
+        while (m_listLayout->count()) {
+            auto* item = m_listLayout->takeAt(0);
+            if (auto* w = item->widget()) w->deleteLater();
+            delete item;
+        }
+
+        for (const auto& [title, entryIdx] : items) {
+            auto* btn = new QPushButton(title, m_listFrame);
+            btn->setObjectName("EntryNavBtn");
+            btn->setFixedHeight(24);
+            btn->setCursor(Qt::PointingHandCursor);
+            btn->setFlat(true);
+            connect(btn, &QPushButton::clicked, btn, [this, entryIdx]() {
+                if (onEntryClicked) onEntryClicked(entryIdx);
+            });
+            m_listLayout->addWidget(btn);
+        }
+
+        m_fullHeight = items.isEmpty() ? 0 : std::min((int)items.size() * 24 + 4, 1000);
+        if (m_listFrame->maximumHeight() > 0)
+            m_listFrame->setMaximumHeight(m_fullHeight);
+
+        adjustSize();
+    }
+
+protected:
+    void enterEvent(QEnterEvent*) override
+    {
+        if (m_fullHeight == 0) return;
+        m_anim->stop();
+        m_anim->setStartValue(m_listFrame->maximumHeight());
+        m_anim->setEndValue(m_fullHeight);
+        m_anim->start();
+    }
+
+    void leaveEvent(QEvent*) override
+    {
+        m_anim->stop();
+        m_anim->setStartValue(m_listFrame->maximumHeight());
+        m_anim->setEndValue(0);
+        m_anim->start();
+    }
+
+private:
+    QLabel*             m_handle;
+    QWidget*            m_listFrame;
+    QVBoxLayout*        m_listLayout;
+    QPropertyAnimation* m_anim;
+    int                 m_fullHeight = 0;
+};
+
+} // anonymous namespace
 
 namespace gui {
 
@@ -89,9 +194,24 @@ namespace gui {
                 else
                     m_animTimer->stop();
             });
+
+    // Floating entry nav panel
+    auto* navPanel = new EntryNavPanel(this);
+    m_navPanel = navPanel;
+    navPanel->onEntryClicked = [this](int idx) { scrollToEntry(idx); };
+    repositionNav();
     }
 
     // ── public ────────────────────────────────────────────────────────────────────
+
+    void EntryView::setActiveGroups(const QMap<int, QList<int>>& groups)
+    {
+        m_activeEntryIds.clear();
+        for (auto it = groups.begin(); it != groups.end(); ++it)
+            m_activeEntryIds.insert(it.key());
+        rebuildNavPanel();
+        update();
+    }
 
     void EntryView::query(const QString& q)
     {
@@ -111,6 +231,24 @@ namespace gui {
         m_animTimer->stop();
 
         recomputeLayout();
+
+        // If an entry is selected and still in the result set, restore its scroll position.
+        if (m_selectedEntryId >= 0) {
+            for (int i = 0; i < m_entries.size(); ++i) {
+                if (m_entries[i]->id == m_selectedEntryId) {
+                    const int row = i / std::max(1, m_cols);
+                    const qreal tileTop = PadV + row * static_cast<qreal>(TileH + Spacing);
+                    const qreal centered = tileTop - (height() - TileH) / 2.0;
+                    const int maxScroll = std::max(0, m_totalH - height());
+                    const qreal pos = std::clamp(centered, 0.0, static_cast<qreal>(maxScroll));
+                    m_scrollYTarget = pos;
+                    m_scrollYActual = pos;
+                    break;
+                }
+            }
+        }
+
+        rebuildNavPanel();
         update();
     }
 
@@ -119,9 +257,10 @@ namespace gui {
     void EntryView::recomputeLayout()
     {
         const int strideX = TileW + Spacing;
-        m_cols = std::max(1, (width() + Spacing) / strideX);
+        m_cols   = std::max(1, (width() + Spacing) / strideX);
+        m_offsetX = std::max(0, (width() - (m_cols * TileW + (m_cols - 1) * Spacing)) / 2);
         int rows = (m_entries.size() + m_cols - 1) / m_cols;
-        m_totalH = rows * TileH + std::max(0, rows - 1) * Spacing;
+        m_totalH = rows * TileH + std::max(0, rows - 1) * Spacing + PadV * 2;
     }
 
     QRect EntryView::tileRect(int index) const
@@ -130,15 +269,15 @@ namespace gui {
         const int strideY = TileH + Spacing;
         const int col = index % m_cols;
         const int row = index / m_cols;
-        return QRect(col * strideX, row * strideY - m_scrollYActual, TileW, TileH);
+        return QRect(m_offsetX + col * strideX, PadV + row * strideY - m_scrollYActual, TileW, TileH);
     }
 
     int EntryView::indexAt(QPoint p) const
     {
         const int strideX = TileW + Spacing;
         const int strideY = TileH + Spacing;
-        const int col = p.x() / strideX;
-        const int row = (p.y() + m_scrollYActual) / strideY;
+        const int col = (p.x() - m_offsetX) / strideX;
+        const int row = (p.y() + m_scrollYActual - PadV) / strideY;
 
         if (col < 0 || col >= m_cols || row < 0) return -1;
         const int idx = row * m_cols + col;
@@ -156,7 +295,7 @@ namespace gui {
         recomputeLayout();
         m_scrollYTarget = 0.0;
         m_scrollYActual = 0.0;
-        //m_scrollY = std::clamp(m_scrollY, 0, std::max(0, m_totalH - height()));
+        repositionNav();
         update();
     }
 
@@ -194,12 +333,130 @@ namespace gui {
     void EntryView::mousePressEvent(QMouseEvent* event)
     {
         const int idx = indexAt(event->pos());
-        if (idx < 0) return;
+        if (idx < 0) {
+            if (event->button() == Qt::LeftButton && m_selectedEntryId >= 0) {
+                m_selectedEntryId = -1;
+                emit entryClicked(nullptr);
+            }
+            return;
+        }
 
-        if (event->button() == Qt::LeftButton)
-            qDebug() << m_model->getTags(m_entries[idx]->images[0].tagIds);
+        if (event->button() == Qt::LeftButton) {
+            m_selectedEntryId = m_entries[idx]->id;
+            emit entryClicked(m_entries[idx]);
+            return;
+        }
 
-        // emit entryClicked(m_entries[idx]);
+        if (event->button() == Qt::RightButton) {
+            core::Entry* e = m_entries[idx];
+            QMenu menu(this);
+
+            QAction* composerAct = nullptr;
+            if (!e->images.isEmpty()) {
+                const bool composerActive = m_activeEntryIds.contains(e->id);
+                composerAct = menu.addAction(composerActive ? "Remove from Composer" : "Add to Composer");
+            }
+
+            QAction* loraAct = nullptr;
+            if (e->lora.has_value()) {
+                if (!menu.isEmpty()) menu.addSeparator();
+                const bool loraActive = m_loraActiveOrder.contains(e->id);
+                loraAct = menu.addAction(loraActive ? "Deactivate LoRA" : "Activate LoRA");
+            }
+
+            if (menu.isEmpty()) return;
+            QAction* chosen = menu.exec(QCursor::pos());
+            if (!chosen) return;
+
+            if (chosen == composerAct) {
+                emit tagsExported(e->id, 0, m_model->getTags(e->images[0].tagIds));
+            } else if (chosen == loraAct) {
+                if (m_loraActiveOrder.contains(e->id))
+                    m_loraActiveOrder.removeAll(e->id);
+                else
+                    m_loraActiveOrder.append(e->id);
+                update();
+                emitLoraStack();
+            }
+        }
+    }
+
+    void EntryView::rebuildNavPanel()
+    {
+        if (!m_navPanel) return;
+        QList<QPair<QString, int>> items;
+        for (int i = 0; i < m_entries.size(); ++i) {
+            const core::Entry* e = m_entries[i];
+            if (m_activeEntryIds.contains(e->id)) {
+                const QString title = e->title.isEmpty()
+                    ? QStringLiteral("(untitled)") : e->title;
+                items.append({ title, i });
+            }
+        }
+        static_cast<EntryNavPanel*>(m_navPanel)->updateEntries(items);
+    }
+
+    void EntryView::scrollToEntry(int idx)
+    {
+        if (idx < 0 || idx >= m_entries.size()) return;
+        const int row = idx / std::max(1, m_cols);
+        const qreal tileTop = PadV + row * static_cast<qreal>(TileH + Spacing);
+        const qreal centered = tileTop - (height() - TileH) / 2.0;
+        const int maxScroll = std::max(0, m_totalH - height());
+        m_scrollYTarget = std::clamp(centered, 0.0, static_cast<qreal>(maxScroll));
+        if (!m_animTimer->isActive()) m_animTimer->start();
+        m_selectedEntryId = m_entries[idx]->id;
+        emit entryClicked(m_entries[idx]);
+    }
+
+    void EntryView::repositionNav()
+    {
+        if (!m_navPanel) return;
+        constexpr int margin = 8;
+        m_navPanel->move(width() - m_navPanel->width() - margin, margin-2);
+        m_navPanel->raise();
+    }
+
+    void EntryView::clearLoraForEntry(int entryId)
+    {
+        if (m_loraActiveOrder.removeAll(entryId) > 0) {
+            update();
+            emitLoraStack();
+        }
+    }
+
+    void EntryView::emitLoraStack()
+    {
+        QList<core::LoraConfig> stack;
+        for (int id : m_loraActiveOrder) {
+            core::Entry* e = m_model->entryById(id);
+            if (e && e->lora.has_value())
+                stack << e->lora.value();
+        }
+        emit loraStackChanged(stack);
+    }
+
+    QList<QString> EntryView::activeLoraUuids() const
+    {
+        QList<QString> result;
+        for (int id : m_loraActiveOrder) {
+            core::Entry* e = m_model->entryById(id);
+            if (e && e->lora.has_value())
+                result << e->uuid;
+        }
+        return result;
+    }
+
+    void EntryView::setLoraActiveByUuids(const QList<QString>& uuids)
+    {
+        m_loraActiveOrder.clear();
+        for (const QString& uuid : uuids) {
+            core::Entry* e = m_model->entryByUuid(uuid);
+            if (e && e->lora.has_value())
+                m_loraActiveOrder.append(e->id);
+        }
+        update();
+        emitLoraStack();
     }
 
     // ── paint ─────────────────────────────────────────────────────────────────────
@@ -207,14 +464,15 @@ namespace gui {
     void EntryView::paintEvent(QPaintEvent*)
     {
         QPainter p(this);
+        static constexpr QColor bgColor{ 13, 13, 13 };
         p.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing);
-        p.fillRect(rect(), Qt::black);
+        //p.fillRect(rect(), bgColor);
 
         if (m_entries.isEmpty() || m_cols == 0) return;
 
         const int strideY = TileH + Spacing;
-        const int startRow = m_scrollYActual / strideY;
-        const int endRow = (m_scrollYActual + height()) / strideY + 1;
+        const int startRow = std::max(0, (int)((m_scrollYActual - PadV) / strideY));
+        const int endRow = (m_scrollYActual + height() - PadV) / strideY + 1;
         const int startIdx = startRow * m_cols;
         const int endIdx = std::min((endRow + 1) * m_cols, (int)m_entries.size());
 
@@ -251,6 +509,35 @@ namespace gui {
             p.scale(scale, scale);
             p.translate(-r.center());
             p.drawPixmap(r.topLeft(), pix);
+            if (m_activeEntryIds.contains(m_entries[i]->id)) {
+                p.setOpacity(1.0);
+                QPen borderPen(QColor(74, 160, 74), 2.5);
+                p.setPen(borderPen);
+                p.setBrush(Qt::NoBrush);
+                QPainterPath borderPath;
+                borderPath.addRoundedRect(
+                    QRectF(r).adjusted(1.25, 1.25, -1.25, -1.25), Radius, Radius);
+                p.drawPath(borderPath);
+            }
+
+            {
+                const bool hasLora   = m_entries[i]->lora.has_value();
+                const bool loraActive = m_loraActiveOrder.contains(m_entries[i]->id);
+                if (loraActive) {
+                    p.setOpacity(1.0);
+                    p.setPen(QPen(QColor(220, 150, 30), 2.5));
+                    p.setBrush(Qt::NoBrush);
+                    QPainterPath lp;
+                    lp.addRoundedRect(QRectF(r).adjusted(4.0, 4.0, -4.0, -4.0), Radius - 2, Radius - 2);
+                    p.drawPath(lp);
+                } else if (hasLora) {
+                    p.setOpacity(0.85);
+                    p.setPen(Qt::NoPen);
+                    p.setBrush(QColor(220, 150, 30));
+                    p.drawEllipse(QPointF(r.right() - 9.0, r.top() + 9.0), 5.0, 5.0);
+                }
+            }
+
             p.restore();
         }
 
@@ -278,7 +565,19 @@ namespace gui {
 
         const int generation = m_generation;
         const Entry* e = m_entries[entryIndex];
-        const QString path = BASE_PATH + "/data/user/concept/" + e->uuid
+
+        if (e->images.isEmpty()) {
+            const QImage composed = makeTileImage(
+                m_placeholder.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied),
+                e->title);
+            QMutexLocker lk(&m_cacheMutex);
+            m_pixCache[entryIndex] = QPixmap::fromImage(composed);
+            m_pending.remove(entryIndex);
+            update();
+            return;
+        }
+
+        const QString path = BASE_PATH + "/data/entry/" + e->uuid
             + "/" + e->images[0].fileName;
         const QString title = e->title;
 

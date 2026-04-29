@@ -1,112 +1,333 @@
 #include <gui/appmainwindow.h>
-#include <gui/entryview.h>
+#include <gui/navbar.h>
+#include <gui/homepage.h>
+#include <gui/tileviewpage.h>
+#include <gui/statusbar.h>
+#include <gui/promptcomposerpage.h>
+#include <gui/faceteditorpage.h>
+#include <gui/tagwikipage.h>
+#include <gui/settingspage.h>
+#include <gui/workfloweditpage.h>
+#include <gui/datasethelperspage.h>
+#include <gui/danmakuoverlay.h>
 #include <utils/qutils.h>
 #include <utils/appconfig.h>
 #include <QApplication>
-#include <QTimer>
+#include <QEvent>
+#include <QFile>
+#include <QHBoxLayout>
 #include <QVBoxLayout>
-#include <QLabel>
-
+#include <QTimer>
+#include <QFutureWatcher>
 #include <QLineEdit>
-#include <QTextEdit>
-#include <QPushButton>
-
+#include <QPlainTextEdit>
+#include <QShortcut>
+#include <QtConcurrent>
 
 using namespace utils;
 using namespace model;
 
 namespace gui {
 
-
 AppMainWindow::AppMainWindow(QWidget* parent)
     : QMainWindow{ parent },
     m_entryModel{ new EntryModel(this) }
 {
-    setWindowTitle("Viewer");
+    setWindowTitle("TagComposer");
     setWindowOpacity(0.0);
 
-    QWidget* root = new QWidget;
-    QVBoxLayout* mainLayout = new QVBoxLayout;
+    // ── Load settings ─────────────────────────────────────────────────────────
+    m_settings = AppSettings::load(BASE_PATH + "/" + SETTINGS_PATH);
 
-    QLineEdit* search = new QLineEdit;
-    search->setPlaceholderText("search tags...");
+    // ── ComfyUI client ────────────────────────────────────────────────────────
+    m_comfyClient = new core::ComfyUiClient(this);
+    m_comfyClient->setServerAddress(m_settings.comfyUiServerAddress);
+    m_comfyClient->setApiKey(m_settings.comfyUiApiKey);
 
-    EntryView* ev = new EntryView(m_entryModel);
-    ev->setStyleSheet("Border: 0px");
+    // ── Load pipeline data ────────────────────────────────────────────────────
+    m_facetIndex       = core::FacetIndex::loadFromFile(BASE_PATH + "/" + FACETS_PATH);
+    m_facetIndex.loadDefinitionsFromFile(BASE_PATH + "/" + DEFINITIONS_PATH);
+    m_ruleEngine       = core::RuleEngine::loadFromFile(BASE_PATH + "/" + RULES_PATH);
+    m_tagGroupIndex    = core::TagGroupIndex::loadFromFile(BASE_PATH + "/" + GROUPS_PATH);
+    m_varIndex         = core::VariableIndex::loadFromFile(BASE_PATH + "/" + VARS_PATH);
+    m_workflowManager  = core::WorkflowManager::loadFromFile(BASE_PATH + "/" + WORKFLOWS_PATH);
+    m_pipeline         = new core::PromptPipeline(&m_facetIndex, &m_ruleEngine, &m_varIndex, this);
 
-    // BOTTOM PANEL
-    //QHBoxLayout* bottom = new QHBoxLayout;
+    // ── Pages ─────────────────────────────────────────────────────────────────
+    m_tileViewPage    = new TileViewPage(m_entryModel, this);
+    m_composerPage    = new PromptComposerPage(m_pipeline, &m_ruleEngine, m_tagGroupIndex, this);
+    m_composerPage->setVariableIndex(&m_varIndex);
+    m_composerPage->setWorkflowManager(&m_workflowManager, BASE_PATH + "/" + WORKFLOWS_PATH);
+    m_composerPage->setStatesDir(BASE_PATH + "/" + STATES_DIR);
+    m_composerPage->setEntryModel(m_entryModel);
+    m_composerPage->setOutputFolderPattern(m_settings.comfyUiOutputFolder);
+    m_composerPage->setTempFolder(m_settings.comfyUiTempFolder);
+    m_facetEditorPage = new FacetEditorPage(&m_facetIndex, m_entryModel, this);
 
-    /*QLabel* detailImage = new QLabel;
-    detailImage->setFixedSize(180, 231);*/
+    m_wikiPage          = new TagWikiPage(this);
+    m_settingsPage      = new SettingsPage(&m_settings, this);
+    m_workflowEditPage  = new WorkflowEditPage(this);
+    m_workflowEditPage->setWorkflowManager(&m_workflowManager, BASE_PATH + "/" + WORKFLOWS_PATH);
 
+    m_pages = new QStackedWidget(this);
+    m_pages->setObjectName("MainPages");
+    m_pages->installEventFilter(this);
+    m_pages->addWidget(new HomePage(this));          // 0
+    m_pages->addWidget(m_tileViewPage);              // 1
+    m_pages->addWidget(m_composerPage);              // 2
+    m_pages->addWidget(m_facetEditorPage);           // 3
+    m_pages->addWidget(m_wikiPage);                  // 4
+    m_pages->addWidget(m_workflowEditPage);          // 5
+    m_pages->addWidget(new DatasetHelpersPage(this)); // 6
+    m_pages->addWidget(m_settingsPage);              // 7
 
-    //QVBoxLayout* detailText = new QVBoxLayout;
-    //QLineEdit* detailTitle  = new QLineEdit;
-    //QTextEdit* detailTags   = new QTextEdit;
+    // ── Danmaku overlay (behind all pages) ────────────────────────────────────
+    m_danmakuOverlay = new DanmakuOverlay(m_pages);
 
-    //QPushButton* copyBtn = new QPushButton("Copy Tags");
+    NavBar* nav = new NavBar(this, this);
+    connect(nav,     &NavBar::pageRequested,        m_pages, &QStackedWidget::setCurrentIndex);
+    connect(m_pages, &QStackedWidget::currentChanged, nav,   &NavBar::setCurrentPage);
 
-    //detailText->addWidget(detailTitle);
-    //detailText->addWidget(detailTags);
-    //detailText->addWidget(copyBtn);
+    // ── LoRA stack: tile view → main window + composer ───────────────────────
+    connect(m_tileViewPage, &TileViewPage::loraStackChanged,
+            this, [this](const QList<core::LoraConfig>& stack) {
+                m_activeLoraStack = stack;
+                m_activeLoraUuids = m_tileViewPage->activeLoraUuids();
+                m_composerPage->setActiveLoraUuids(m_activeLoraUuids);
+            });
 
-    /*bottom->addWidget(detailImage);*/
-    //bottom->addLayout(detailText);
+    // ── LoRA restore: composer session/state → tile view ─────────────────────
+    connect(m_composerPage, &PromptComposerPage::loraUuidsRestored,
+            m_tileViewPage, &TileViewPage::setLoraActiveByUuids);
 
-    // SIDEBAR
-    QVBoxLayout* sidebar = new QVBoxLayout;
-    QLineEdit* titleInput = new QLineEdit;
-    titleInput->setPlaceholderText("Title");
+    // ── Wire export: extraBtn → composer page ─────────────────────────────────
+    connect(m_tileViewPage, &TileViewPage::tagsExported,
+            m_composerPage, &PromptComposerPage::loadPipeline);
+    connect(m_tileViewPage, &TileViewPage::entryTagAdded,
+            m_composerPage, &PromptComposerPage::onEntryTagAdded);
+    connect(m_tileViewPage, &TileViewPage::entryTagRemoved,
+            m_composerPage, &PromptComposerPage::onEntryTagRemoved);
 
-    QTextEdit* tagsInput = new QTextEdit;
-    tagsInput->setPlaceholderText("tags (comma separated)");
-    tagsInput->setMinimumHeight(80);
+    // ── Sync push-group state back to tile view ────────────────────────────────
+    connect(m_composerPage, &PromptComposerPage::activeGroupsChanged,
+            m_tileViewPage, &TileViewPage::setActiveGroups);
 
-    //DropLabel* drop = new DropLabel;
+    // ── Wire facet editor reload ───────────────────────────────────────────────
+    connect(m_facetEditorPage, &FacetEditorPage::facetsDefined,
+            this, &AppMainWindow::reloadFacets);
 
-    QPushButton* addBtn = new QPushButton("Add Entry");
+    // ── Wiki page navigation ───────────────────────────────────────────────────
+    auto showWiki = [this](const QString& tag) {
+        m_wikiPage->lookupTag(tag);
+        m_pages->setCurrentIndex(4);
+    };
+    connect(m_tileViewPage, &TileViewPage::wikiRequested,       this, showWiki);
+    connect(m_composerPage, &PromptComposerPage::wikiRequested, this, showWiki);
+    connect(m_wikiPage,     &TagWikiPage::wikiLinkClicked,      this, showWiki);
 
-    sidebar->addWidget(titleInput);
-    sidebar->addWidget(tagsInput);
-    //sidebar->addWidget(drop);
-    sidebar->addWidget(addBtn);
-    sidebar->addStretch();
+    // ── Facet editor navigation ───────────────────────────────────────────────
+    auto showFacetEditor = [this](const QString& tag) {
+        m_pages->setCurrentIndex(3);
+        m_facetEditorPage->selectTagByName(tag);
+    };
+    connect(m_tileViewPage, &TileViewPage::facetEditorRequested,       this, showFacetEditor);
+    connect(m_composerPage, &PromptComposerPage::facetEditorRequested, this, showFacetEditor);
 
-    QWidget* sidebarWidget = new QWidget;
-    sidebarWidget->setLayout(sidebar);
-    sidebarWidget->setFixedWidth(250);
+    // ── Workflow editor navigation ────────────────────────────────────────────
+    connect(m_composerPage, &PromptComposerPage::workflowEditorRequested, this, [this]() {
+        m_workflowEditPage->refresh();
+        m_pages->setCurrentIndex(5);
+    });
+    connect(m_composerPage, &PromptComposerPage::workflowVarsChanged,
+            m_workflowEditPage, &WorkflowEditPage::refresh);
 
-    QHBoxLayout* middle = new QHBoxLayout;
-    middle->addWidget(ev, 3);
-    middle->addWidget(sidebarWidget, 1);
-
-    mainLayout->addWidget(search);
-    mainLayout->addLayout(middle);
-    //mainLayout->addLayout(bottom);
-
-    root->setLayout(mainLayout);
-    setCentralWidget(root);
-    setStyleSheet("background: black; color: white;");
-
-
-    QTimer* debounce = new QTimer(this);
-    debounce->setSingleShot(true);
-    debounce->setInterval(150);
-
-    connect(search, &QLineEdit::textChanged, debounce, qOverload<>(&QTimer::start));
-    connect(debounce, &QTimer::timeout, this, [this, search, ev]() {
-        ev->query(search->text());
+    // ── Run with workflow: apply vars + positive tags, queue to ComfyUI ──────
+    connect(m_composerPage, &PromptComposerPage::runRequested, this, [this](int count) {
+        const core::WorkflowFile* wf = m_workflowManager.selectedFile();
+        if (!wf) return;
+        QFile f(wf->path);
+        if (!f.open(QIODevice::ReadOnly)) return;
+        const QString tmpl           = QString::fromUtf8(f.readAll());
+        const QString positivePrompt = m_composerPage->currentPromptString(true);
+        for (int i = 0; i < count; ++i) {
+            QString json = m_workflowManager.applyToJson(tmpl);
+            json.replace("__positive__", positivePrompt);
+            core::WorkflowManager::applyLoraStack(json, m_activeLoraStack, m_settings.loraBaseDir);
+            m_comfyClient->queuePrompt(json);
+        }
+        m_workflowManager.saveToFile(BASE_PATH + "/" + WORKFLOWS_PATH);
+        m_workflowEditPage->refresh();
     });
 
-    QTimer::singleShot(500, this, [ev, this]() {
-        showMaximized();
+    // ── Shift+cancel = clear pending queue ────────────────────────────────────
+    connect(m_composerPage, &PromptComposerPage::clearPendingRequested,
+            m_comfyClient,  &core::ComfyUiClient::clearPending);
+
+    // ── Settings page ─────────────────────────────────────────────────────────
+    connect(m_settingsPage, &SettingsPage::settingsChanged, this, [this]() {
+        applyComfySettings();
+        if (m_settings.danmakuEnabled) {
+            m_danmakuOverlay->setGeometry(m_pages->rect());
+            m_danmakuOverlay->lower();
+        }
+        m_danmakuOverlay->setActive(m_settings.danmakuEnabled);
+    });
+    connect(m_settingsPage, &SettingsPage::reconnectRequested, this, [this]() {
+        m_comfyClient->connectToServer();
+    });
+
+    connect(m_comfyClient, &core::ComfyUiClient::connected, this, [this]() {
+        m_settingsPage->setComfyStatus(true);
+    });
+    connect(m_comfyClient, &core::ComfyUiClient::disconnected, this, [this]() {
+        m_settingsPage->setComfyStatus(false);
+    });
+    connect(m_comfyClient, &core::ComfyUiClient::connectionError, this, [this](const QString& err) {
+        m_settingsPage->setComfyStatus(false, err);
+    });
+    connect(m_comfyClient, &core::ComfyUiClient::previewImageReady,
+            m_composerPage, &PromptComposerPage::setPreviewImage);
+    connect(m_comfyClient, &core::ComfyUiClient::queueCountChanged,
+            m_composerPage, &PromptComposerPage::setQueueCount);
+    connect(m_comfyClient, &core::ComfyUiClient::previewProgressChanged,
+            m_composerPage, &PromptComposerPage::setPreviewProgress);
+    connect(m_composerPage, &PromptComposerPage::interruptRequested,
+            m_comfyClient,  &core::ComfyUiClient::interrupt);
+
+    // ── Layout ────────────────────────────────────────────────────────────────
+    QWidget* content = new QWidget(this);
+    auto* hLayout = new QHBoxLayout(content);
+    hLayout->setContentsMargins(0, 0, 0, 0);
+    hLayout->setSpacing(0);
+    hLayout->addWidget(nav);
+    hLayout->addWidget(m_pages, 1);
+
+    m_statusBar = new StatusBar(this);
+
+    QWidget* central = new QWidget(this);
+    auto* vLayout = new QVBoxLayout(central);
+    vLayout->setContentsMargins(0, 0, 0, 0);
+    vLayout->setSpacing(0);
+    vLayout->addWidget(content, 1);
+    vLayout->addWidget(m_statusBar);
+
+    connect(m_composerPage, &PromptComposerPage::statusMessageRequested,
+            m_statusBar,    &StatusBar::showMessage);
+    connect(m_tileViewPage, &TileViewPage::statusMessageRequested,
+            m_statusBar,    &StatusBar::showMessage);
+
+    setCentralWidget(central);
+
+    // ── Background: load DanbooruIndex ────────────────────────────────────────
+    const QString csvPath = BASE_PATH + "/" + DANBOORU_CSV_PATH;
+    auto* watcher = new QFutureWatcher<core::DanbooruIndex*>(this);
+    connect(watcher, &QFutureWatcher<core::DanbooruIndex*>::finished, this,
+        [this, watcher]() {
+            m_danbooruIndex = watcher->result();
+            m_tileViewPage->setDanbooruIndex(m_danbooruIndex);
+            m_composerPage->setDanbooruIndex(m_danbooruIndex);
+            m_wikiPage->setDanbooruIndex(m_danbooruIndex);
+            watcher->deleteLater();
+        });
+    watcher->setFuture(QtConcurrent::run([csvPath]() {
+        return core::DanbooruIndex::loadFromFile(csvPath);
+    }));
+
+    QFile qss(":/system/styles.qss");
+    if (qss.open(QIODevice::ReadOnly))
+        qApp->setStyleSheet(QString::fromUtf8(qss.readAll()));
+
+    // ── Global keyboard shortcuts ─────────────────────────────────────────────
+    // Fired app-wide; guard skips action when a text input has keyboard focus.
+    auto textInput = []() -> bool {
+        const QWidget* fw = qApp->focusWidget();
+        return fw && (qobject_cast<const QLineEdit*>(fw) ||
+                      qobject_cast<const QPlainTextEdit*>(fw));
+    };
+    auto sc = [this](QKeySequence key, auto fn) {
+        auto* s = new QShortcut(key, this);
+        s->setContext(Qt::ApplicationShortcut);
+        connect(s, &QShortcut::activated, this, fn);
+    };
+
+    sc(QKeySequence("Shift+E"), [this, textInput]() {
+        if (textInput()) return;
+        m_composerPage->triggerRun();
+    });
+    sc(QKeySequence("Shift+R"), [this, textInput]() {
+        if (textInput()) return;
+        m_comfyClient->interrupt();
+    });
+    sc(QKeySequence("Shift+Alt+R"), [this, textInput]() {
+        if (textInput()) return;
+        m_comfyClient->clearPending();
+    });
+
+    sc(QKeySequence("F11"), [this]() {
+        m_isFullScreen = !m_isFullScreen;
+        if (m_isFullScreen)
+            showFullScreen();
+        else
+            showNormal();
+    });
+
+    sc(QKeySequence("Ctrl+W"), [this]() {
+        close();
+    });
+
+    sc(QKeySequence(Qt::CTRL | Qt::Key_PageUp), [this]() {
+        const int cur = m_pages->currentIndex();
+        m_pages->setCurrentIndex(cur > 0 ? cur - 1 : m_pages->count() - 1);
+    });
+    sc(QKeySequence(Qt::CTRL | Qt::Key_PageDown), [this]() {
+        const int cur = m_pages->currentIndex();
+        m_pages->setCurrentIndex(cur < m_pages->count() - 1 ? cur + 1 : 0);
+    });
+
+    QTimer::singleShot(500, this, [this]() {
+        show();
         propertyAnimate(this, "windowOpacity", 0.0, 1.0, 500, QEasingCurve::InOutSine);
-    });
+        m_composerPage->restoreSession(BASE_PATH + "/" + SESSION_PATH);
 
-    ev->query("");
+        if (m_settings.danmakuEnabled) {
+            m_danmakuOverlay->setGeometry(m_pages->rect());
+            m_danmakuOverlay->lower();
+            m_danmakuOverlay->setActive(true);
+        }
+
+        if (m_settings.comfyUiEnabled)
+            m_comfyClient->connectToServer();
+    });
 }
 
+bool AppMainWindow::eventFilter(QObject* obj, QEvent* event)
+{
+    if (obj == m_pages && event->type() == QEvent::Resize && m_danmakuOverlay) {
+        m_danmakuOverlay->setGeometry(m_pages->rect());
+        m_danmakuOverlay->lower();
+    }
+    return QObject::eventFilter(obj, event);
+}
+
+void AppMainWindow::applyComfySettings()
+{
+    m_comfyClient->setServerAddress(m_settings.comfyUiServerAddress);
+    m_comfyClient->setApiKey(m_settings.comfyUiApiKey);
+    m_composerPage->setOutputFolderPattern(m_settings.comfyUiOutputFolder);
+    m_composerPage->setTempFolder(m_settings.comfyUiTempFolder);
+
+    if (m_settings.comfyUiEnabled) {
+        m_comfyClient->connectToServer();
+    } else {
+        m_comfyClient->disconnectFromServer();
+    }
+}
+
+void AppMainWindow::reloadFacets()
+{
+    m_facetEditorPage->reload();
+    m_composerPage->repush();
+}
 
 void AppMainWindow::closeEvent(QCloseEvent* event)
 {
@@ -119,6 +340,10 @@ void AppMainWindow::closeEvent(QCloseEvent* event)
     qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
     isClosing = true;
 
+    m_settings.save(BASE_PATH + "/" + SETTINGS_PATH);
+    m_facetIndex.saveDefinitions(BASE_PATH + "/" + DEFINITIONS_PATH);
+    m_composerPage->saveSession(BASE_PATH + "/" + SESSION_PATH);
+
     connect(
         propertyAnimate(this, "windowOpacity", 1.0, 0.0, 500, QEasingCurve::InOutSine),
         &QPropertyAnimation::finished,
@@ -127,7 +352,4 @@ void AppMainWindow::closeEvent(QCloseEvent* event)
     );
 }
 
-}
-
-
-
+} // namespace gui

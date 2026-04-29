@@ -9,9 +9,8 @@ namespace io {
         EntryIO() = delete;
         static QList<core::Entry> loadAll(
             core::TagIndex& tagIndex,
-            const QString& basePath,
-            const core::EntryType entryType
+            const QString& basePath
         );
-        static void save(const core::Entry& e);
+        static void save(const core::Entry& e, const core::TagIndex& tagIndex);
     };
 }

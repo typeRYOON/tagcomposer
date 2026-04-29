@@ -1,10 +1,12 @@
 #include <io/entryio.h>
 #include <utils/stringutils.h>
+#include <utils/appconfig.h>
 #include <core/entry.h>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QDir>
+#include <QFile>
 
 using namespace core;
 using namespace utils;
@@ -13,8 +15,7 @@ namespace io {
 
     QList<Entry> EntryIO::loadAll(
         TagIndex& tagIndex,
-        const QString& basePath,
-        const EntryType entryType)
+        const QString& basePath)
     {
         static int32_t id{ 0 };
         QList<Entry> entries;
@@ -37,9 +38,19 @@ namespace io {
             Entry e;
             e.uuid         = obj["uuid"].toString();
             e.title        = obj["title"].toString();
+            e.comment      = obj["comment"].toString();
             e.creationTime = obj["creation"].toInteger();
-            e.type         = entryType;
             e.id           = id++;
+
+            if (obj.contains("lora") && obj["lora"].isObject()) {
+                const QJsonObject lo = obj["lora"].toObject();
+                LoraConfig lc;
+                lc.file     = lo["file"].toString();
+                lc.modelStr = lo["modelStr"].toDouble(0.9);
+                lc.clipStr  = lo["clipStr"].toDouble(2.0);
+                lc.sha256   = lo["sha256"].toString();
+                e.lora = lc;
+            }
 
             const QJsonArray imagesArr = obj["images"].toArray();
             for (const QJsonValueConstRef& v : imagesArr)
@@ -61,14 +72,74 @@ namespace io {
             }
             if (validEntry(e)) {
                 entries << e;
+            } else {
+                --id;
             }
         }
 
         return entries;
     }
 
-    void EntryIO::save(const Entry& e)
+    void EntryIO::save(const Entry& e, const TagIndex& tagIndex)
     {
+        const QString entryDir = utils::BASE_PATH + "/data/entry/" + e.uuid;
 
+        if (e.images.isEmpty()) {
+            QDir(entryDir).removeRecursively();
+            return;
+        }
+
+        QDir().mkpath(entryDir);
+        
+        
+        if (e.images.size() == 1)
+        {
+            QFile firstImg(entryDir + "/" + e.images[0].fileName);
+            if (!firstImg.exists())
+            {
+                QFile in(":/img/placeholder.png");
+                if (!in.open(QIODevice::ReadOnly)) {
+                    return;
+                }
+                if (!firstImg.open(QIODevice::WriteOnly)) {
+                    return;
+                }
+                firstImg.write(in.readAll());
+            }
+        }
+
+        QJsonArray imagesArr;
+        for (const ImageData& img : e.images) {
+            QJsonArray tagsArr;
+            for (int32_t tagId : img.tagIds)
+                tagsArr.append(tagIndex.getTag(tagId));
+
+            QJsonObject imgObj;
+            imgObj["file"] = img.fileName;
+            imgObj["tags"] = tagsArr;
+            imagesArr.append(imgObj);
+        }
+
+        QJsonObject root;
+        root["uuid"]     = e.uuid;
+        root["title"]    = e.title;
+        root["comment"]  = e.comment;
+        root["creation"] = (qint64)e.creationTime;
+        root["images"]   = imagesArr;
+
+        if (e.lora.has_value()) {
+            QJsonObject lo;
+            lo["file"]     = e.lora->file;
+            lo["modelStr"] = e.lora->modelStr;
+            lo["clipStr"]  = e.lora->clipStr;
+            lo["sha256"]   = e.lora->sha256;
+            root["lora"]   = lo;
+        } else {
+            root["lora"] = QJsonValue::Null;
+        }
+
+        QFile f(entryDir + "/__entry.json");
+        if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            f.write(QJsonDocument(root).toJson());
     }
 }
