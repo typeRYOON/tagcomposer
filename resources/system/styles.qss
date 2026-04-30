@@ -98,8 +98,8 @@ QMainWindow, QWidget {
     background: transparent;
     border: 1px solid transparent;
     border-radius: 4px;
-    padding: 2px 4px;
-    font-size: 13px;
+    padding: 0px;
+    font-size: 18px;
     font-weight: bold;
     color: #cccccc;
     font-family: "Hiragino Maru Gothic ProN W4";
@@ -697,8 +697,8 @@ QMainWindow, QWidget {
     background: #141414;
     color: #555555;
     border: 1px solid #1e1e1e;
-    border-radius: 0;
-    padding: 6px 12px;
+    border-radius: 3px;
+    padding: 3px 6px;
     font-size: 12px;
     text-align: left;
 }

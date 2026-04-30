@@ -119,7 +119,7 @@ void NavBar::showTooltip(const QString& text, QPoint globalPos)
     m_tooltip->adjustSize();
 
     const QPoint local = p->mapFromGlobal(globalPos);
-    m_tooltip->move(local.x() + 6, local.y() - m_tooltip->height() / 2);
+    m_tooltip->move(local.x() + 12, local.y() - m_tooltip->height() / 2);
     m_tooltip->raise();
     m_tooltip->show();
 }

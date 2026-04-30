@@ -151,7 +151,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     });
 
     // ── Action buttons ────────────────────────────────────────────────────────
-    m_composerBtn  = new QPushButton("Composer Toggle", this);
+    m_composerBtn  = new QPushButton("Composer toggle", this);
     m_composerBtn->setCheckable(true);
     m_copyBtn      = new QPushButton("Copy entry tags", this);
     m_deleteBtn    = new QPushButton("Delete entry", this);
@@ -174,7 +174,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     m_commentEdit->setObjectName("EntryComment");
     m_commentEdit->setPlaceholderText("Notes...");
     m_commentEdit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_commentEdit->setFixedHeight(76);
+    m_commentEdit->setFixedHeight(103);
 
     m_commentTimer = new QTimer(this);
     m_commentTimer->setSingleShot(true);
@@ -319,7 +319,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
         emit loraCleared(id);
     });
 
-    m_loraSha256Btn = new QPushButton("SHA256", this);
+    m_loraSha256Btn = new QPushButton("Hash", this);
     m_loraSha256Btn->setObjectName("EntryActionBtn");
     m_loraSha256Btn->setFixedHeight(22);
     m_loraSha256Btn->setEnabled(false);
@@ -331,11 +331,12 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
 
     auto makeSpinBox = [](double min, double max, double step, double val) {
         auto* s = new QDoubleSpinBox;
+        s->setButtonSymbols(QAbstractSpinBox::NoButtons);
         s->setRange(min, max);
         s->setSingleStep(step);
         s->setDecimals(2);
         s->setValue(val);
-        s->setFixedWidth(64);
+        s->setFixedWidth(36);
         s->setObjectName("LoraSpinBox");
         return s;
     };
@@ -357,42 +358,34 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     connect(m_loraClipStr,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, onSpinChanged);
 
     auto* loraHeaderRow = new QHBoxLayout;
-    loraHeaderRow->setContentsMargins(0, 4, 0, 0);
+    loraHeaderRow->setContentsMargins(0, 3, 0, 0);
     loraHeaderRow->setSpacing(6);
-    auto* loraLabel = new QLabel("LoRA", this);
-    loraLabel->setObjectName("EntrySubLabel");
-    loraHeaderRow->addWidget(loraLabel);
-    loraHeaderRow->addStretch();
-    loraHeaderRow->addWidget(m_loraSha256Btn);
-    loraHeaderRow->addWidget(m_loraClearBtn);
-
-    auto* loraSpinRow = new QHBoxLayout;
-    loraSpinRow->setSpacing(4);
+    
     auto makeSpinLabel = [this](const QString& t) {
         auto* l = new QLabel(t, this);
         l->setObjectName("LoraSpinLabel");
         return l;
     };
-    loraSpinRow->addWidget(makeSpinLabel("Model"));
-    loraSpinRow->addWidget(m_loraModelStr);
-    loraSpinRow->addSpacing(4);
-    loraSpinRow->addWidget(makeSpinLabel("Clip"));
-    loraSpinRow->addWidget(m_loraClipStr);
-    loraSpinRow->addStretch();
+
+    loraHeaderRow->addWidget(makeSpinLabel("Model"));
+    loraHeaderRow->addWidget(m_loraModelStr);
+    loraHeaderRow->addSpacing(4);
+    loraHeaderRow->addWidget(makeSpinLabel("Clip"));
+    loraHeaderRow->addWidget(m_loraClipStr);
+    loraHeaderRow->addWidget(m_loraSha256Btn);
+    loraHeaderRow->addWidget(m_loraClearBtn);
 
     m_loraSection = new QWidget(this);
     m_loraSection->setObjectName("LoraSection");
     auto* loraSectionLayout = new QVBoxLayout(m_loraSection);
-    loraSectionLayout->setContentsMargins(0, 0, 0, 0);
+    loraSectionLayout->setContentsMargins(0, 2, 0, 0);
+    loraSectionLayout->addWidget(loraDropZone);
     loraSectionLayout->setSpacing(2);
     loraSectionLayout->addLayout(loraHeaderRow);
-    loraSectionLayout->addWidget(loraDropZone);
-    loraSectionLayout->addLayout(loraSpinRow);
 
     auto* rightCol = new QVBoxLayout;
     rightCol->setSpacing(4);
     rightCol->addWidget(m_titleEdit);
-    rightCol->addSpacing(6);
     rightCol->addWidget(m_composerBtn);
     rightCol->addWidget(m_copyBtn);
     rightCol->addWidget(m_deleteBtn);
@@ -408,7 +401,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     m_headerWidget = new QWidget;
     m_headerWidget->setObjectName("EntryHeader");
     auto* headerLayout = new QVBoxLayout(m_headerWidget);
-    headerLayout->setContentsMargins(10, 10, 10, 10);
+    headerLayout->setContentsMargins(10, 10, 10, 6); // -----------------------------------------------
     headerLayout->addLayout(headerRow);
 
     // ── Tag search bar ────────────────────────────────────────────────────────
@@ -524,6 +517,7 @@ void EntryPanel::setEntry(core::Entry* entry)
     }
     m_stack->setCurrentIndex(1);
     m_titleEdit->setText(entry->title);
+    m_titleEdit->setCursorPosition(0);  
     m_commentEdit->blockSignals(true);
     m_commentEdit->setPlainText(entry->comment);
     m_commentEdit->blockSignals(false);

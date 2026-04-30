@@ -42,6 +42,7 @@
 #include <QPropertyAnimation>
 #include <QtConcurrent>
 #include <algorithm>
+#include <QShortcut>
 
 using namespace core;
 using namespace utils;
@@ -319,6 +320,8 @@ private:
     QFutureWatcher<QImage>* m_loadWatcher;
     QString                 m_tempFolder;
     QString                 m_lastTempPath;
+    bool                    m_isFullScreen{ true };
+
 };
 
 PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
@@ -360,6 +363,19 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
         m_tempLabel->show();
         m_tempLabel->raise();
     });
+
+    // TODO: fix, should be F11 but currently results in ambiguous shortcut call conflict.
+    auto* action = new QAction(this);
+    action->setShortcut(QKeySequence("F12"));
+    action->setShortcutContext(Qt::WindowShortcut);
+    connect(action, &QAction::triggered, this, [this]() {
+        m_isFullScreen = !m_isFullScreen;
+        if (m_isFullScreen)
+            showFullScreen();
+        else
+            showNormal();
+        });
+    addAction(action);
 }
 
 void PreviewPopoutWindow::setImage(const QPixmap& pix)
@@ -990,10 +1006,11 @@ PromptComposerPage::PromptComposerPage(
     m_runBtn->setCursor(Qt::PointingHandCursor);
 
     m_promptCountSpin = new QSpinBox(m_controlBar);
+    m_promptCountSpin->setButtonSymbols(QAbstractSpinBox::NoButtons);
     m_promptCountSpin->setObjectName("ComposerCountSpin");
     m_promptCountSpin->setRange(1, 99);
     m_promptCountSpin->setValue(1);
-    m_promptCountSpin->setFixedWidth(46);
+    m_promptCountSpin->setFixedWidth(40);
 
     m_interruptBtn = new QPushButton("×", m_controlBar);
     m_interruptBtn->setObjectName("ComposerInterruptBtn");

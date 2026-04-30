@@ -140,13 +140,6 @@ namespace gui {
         // Rounded placeholder
         m_placeholder = QPixmap(TileW, TileH);
         m_placeholder.fill(Qt::transparent);
-        {
-            QPainter pp(&m_placeholder);
-            pp.setRenderHint(QPainter::Antialiasing);
-            QPainterPath path;
-            path.addRoundedRect(QRectF(0, 0, TileW, TileH), Radius, Radius);
-            pp.fillPath(path, QColor(40, 40, 40));
-        }
 
         // Single shared animation timer (~60 fps).
         // Drives both load fade-in and hover scale/opacity transitions.
@@ -195,11 +188,11 @@ namespace gui {
                     m_animTimer->stop();
             });
 
-    // Floating entry nav panel
-    auto* navPanel = new EntryNavPanel(this);
-    m_navPanel = navPanel;
-    navPanel->onEntryClicked = [this](int idx) { scrollToEntry(idx); };
-    repositionNav();
+        // Floating entry nav panel
+        auto* navPanel = new EntryNavPanel(this);
+        m_navPanel = navPanel;
+        navPanel->onEntryClicked = [this](int idx) { scrollToEntry(idx); };
+        repositionNav();
     }
 
     // ── public ────────────────────────────────────────────────────────────────────
@@ -464,9 +457,7 @@ namespace gui {
     void EntryView::paintEvent(QPaintEvent*)
     {
         QPainter p(this);
-        static constexpr QColor bgColor{ 13, 13, 13 };
         p.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing);
-        //p.fillRect(rect(), bgColor);
 
         if (m_entries.isEmpty() || m_cols == 0) return;
 
