@@ -1,0 +1,122 @@
+/* ── SettingsPage ─────────────────────────────────────────────────────────── */
+
+#SettingsPage, #SettingsBody, #SettingsScroll {
+    background: transparent;
+}
+
+#SettingsSectionHeader {
+    color: #303030;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#SettingsGroup {
+    background: #0f0f0f;
+    border: 1px solid #1a1a1a;
+    border-radius: 6px;
+}
+
+#SettingsCheckBox {
+    color: #888888;
+    font-size: 16px;
+    spacing: 8px;
+}
+
+#SettingsCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #2a2a2a;
+    border-radius: 3px;
+    background: #141414;
+}
+
+#SettingsCheckBox::indicator:checked {
+    background: #336633;
+    border-color: #336633;
+}
+
+#SettingsFieldLabel {
+    color: #444444;
+    font-size: 12px;
+}
+
+#SettingsInput {
+    background: #141414;
+    color: #cccccc;
+    border: 1px solid #222222;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 14px;
+    selection-background-color: #2a2a2a;
+}
+
+#SettingsInput:focus {
+    border-color: #333333;
+    background: #181818;
+}
+
+#SettingsLaunchBtn {
+    background: #141414;
+    color: #448844;
+    border: 1px solid #223322;
+    border-radius: 4px;
+    padding: 5px 12px;
+    font-size: 14px;
+}
+
+#SettingsLaunchBtn:hover {
+    background: #192219;
+    color: #66aa66;
+    border-color: #336633;
+}
+
+#SettingsConnectBtn {
+    background: #141414;
+    color: #446688;
+    border: 1px solid #223344;
+    border-radius: 4px;
+    padding: 5px 12px;
+    font-size: 14px;
+}
+
+#SettingsConnectBtn:hover {
+    background: #19222e;
+    color: #6699cc;
+    border-color: #335588;
+}
+
+#SettingsSeparator {
+    color: #1a1a1a;
+}
+
+#SettingsStatusDot[status="disabled"]     { color: #2a2a2a; }
+#SettingsStatusDot[status="connecting"]   { color: #886622; }
+#SettingsStatusDot[status="connected"]    { color: #336633; }
+#SettingsStatusDot[status="disconnected"] { color: #553333; }
+#SettingsStatusDot[status="error"]        { color: #883333; }
+
+#SettingsStatusText {
+    color: #444444;
+    font-size: 11px;
+}
+
+#SettingsHintLabel {
+    color: #2a2a2a;
+    font-size: 11px;
+}
+
+#SettingsBrowseBtn {
+    background: #141414;
+    color: #555555;
+    border: 1px solid #222222;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+
+#SettingsBrowseBtn:hover {
+    background: #1a1a1a;
+    color: #999999;
+    border-color: #333333;
+}

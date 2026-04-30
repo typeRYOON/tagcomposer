@@ -1,0 +1,20 @@
+/* ── PreviewPopoutWindow ──────────────────────────────────────────────────── */
+
+#PreviewPopout {
+    background: #0d0d0d;
+}
+
+#PopoutImageLabel {
+    background: #080808;
+}
+
+#PopoutTempLabel {
+    background: #0a0a0a;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+}
+
+#PopoutTempLabel:hover {
+    border: 1px solid #3a3a3a;
+    background: #0f0f0f;
+}

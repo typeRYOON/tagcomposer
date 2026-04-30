@@ -129,6 +129,8 @@ static RuleAction parseAction(const QString& expr)
 
     if (expr == "skip")
         a.type = ActionType::Skip;
+    else if (expr == "delete")
+        a.type = ActionType::Delete;
     else if (expr.startsWith("add")) {
         a.type      = ActionType::Add;
         a.arguments = extractArgs(expr);
@@ -164,7 +166,7 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
         return eng;
     }
 
-    static const QStringList knownActions = { "skip", "add", "replace", "flag" };
+    static const QStringList knownActions = { "skip", "add", "replace", "flag", "delete" };
 
     Rule    current;
     bool    inRule     { false };
@@ -246,10 +248,11 @@ void RuleEngine::saveToFile(const QString& path) const
         };
 
         switch (r.action.type) {
-        case ActionType::Skip:    ts << "    action  = skip\n"; break;
-        case ActionType::Add:     joinArgs("add",     true);    break;
-        case ActionType::Replace: joinArgs("replace", true);    break;
-        case ActionType::Flag:    joinArgs("flag",    false);   break;
+        case ActionType::Skip:    ts << "    action  = skip\n";   break;
+        case ActionType::Delete:  ts << "    action  = delete\n"; break;
+        case ActionType::Add:     joinArgs("add",     true);      break;
+        case ActionType::Replace: joinArgs("replace", true);      break;
+        case ActionType::Flag:    joinArgs("flag",    false);     break;
         }
 
         ts << "\n";
@@ -330,6 +333,13 @@ QList<PipelineTag> RuleEngine::evaluate(
         case ActionType::Skip:
             for (int i : matched) {
                 working[i].result     = RuleResult::Skipped;
+                working[i].ruleSource = rule.name;
+            }
+            break;
+
+        case ActionType::Delete:
+            for (int i : matched) {
+                working[i].result     = RuleResult::Deleted;
                 working[i].ruleSource = rule.name;
             }
             break;

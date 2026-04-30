@@ -1,0 +1,12 @@
+/* ── App-wide ─────────────────────────────────────────────────────────────── */
+
+QMainWindow, QWidget {
+    background: transparent;
+    color: #e0e0e0;
+    font-family: "Hiragino Maru Gothic ProN W4";
+    font-size: 16px;
+}
+
+#MainPages {
+    background: #0d0d0d;
+}

@@ -4,6 +4,7 @@
 #include <QHash>
 #include <QSet>
 #include <QMap>
+#include <QJsonArray>
 #include <QJsonObject>
 
 namespace core {
@@ -21,10 +22,13 @@ struct SavedState {
     QHash<QString, float>  tagWeights;
     QSet<QString>          deactivatedTags;
     QList<EntryPush>       activePushes;     // uuid + imageIdx -> tags (stable across restarts)
-    QMap<QString, bool>    ruleStates;       // rule name -> enabled
-    QMap<QString, QString> varValues;        // var name -> value
+    QMap<QString, bool>           ruleStates;     // rule name -> enabled
+    QMap<QString, QList<QString>> ruleArguments;  // rule name -> action arguments (for Add/Replace)
+    QMap<QString, QString>        varValues;      // var name -> value
     QString                selectedWorkflowId;   // stable id from WorkflowFile::id
-    QJsonObject            workflowVarValues;    // placeholder -> value fields (opaque blob)
+    // Array of {placeholder, type, value-fields...} — array (not object) so the
+    // workflow's variable order is preserved across save/restore round-trips.
+    QJsonArray             workflowVarValues;
     QString                previewImagePath;
     QList<QString>         activeLoraUuids;      // ordered entry UUIDs with active LoRA
 

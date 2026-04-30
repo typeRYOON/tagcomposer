@@ -15,6 +15,13 @@ struct AppSettings {
     QString comfyUiTempFolder;   // flat folder watched for in-progress decode images
     QString loraBaseDir;         // base dir for LoRA relative-path computation (ComfyUI models/loras)
 
+    // ── Facets ────────────────────────────────────────────────────────────────
+    // Names of facets used by the composer's quick-add context menu.
+    // Empty by default — menu items are hidden when unset, so users with
+    // their own facet schema aren't forced to use a baked-in name.
+    QString quickCharacterFacet;
+    QString quickCopyrightFacet;
+
     // ─────────────────────────────────────────────────────────────────────────
     static AppSettings load(const QString& path);
     void save(const QString& path) const;

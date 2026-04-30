@@ -10,6 +10,10 @@ public:
     // schemaPath: @category blocks only — never rewritten by the app
     static FacetIndex loadFromFile(const QString& schemaPath);
 
+    // Re-reads the schema from disk into this instance, replacing categories
+    // and facet definitions but leaving tag → facet mappings untouched.
+    void reloadSchemaFromFile(const QString& schemaPath);
+
     // definitionsPath: tag=facet lines — loaded separately, saved at shutdown
     void loadDefinitionsFromFile(const QString& definitionsPath);
     void saveDefinitions(const QString& definitionsPath) const;

@@ -1,9 +1,10 @@
 #include <gui/workfloweditpage.h>
 #include <utils/appconfig.h>
-#include <gui/appscrollbar.h>
+#include <gui/widgets/appscrollbar.h>
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QLineEdit>
+#include <QPixmap>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
 #include <QRadioButton>
@@ -66,14 +67,14 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     setObjectName("WorkflowEditPage");
     setAttribute(Qt::WA_StyledBackground, true);
 
-    // ── Header bar ────────────────────────────────────────────────────────────
-    auto* headerBar = new QWidget;
-    headerBar->setObjectName("WfEditHeader");
-    headerBar->setAttribute(Qt::WA_StyledBackground, true);
+    // ── Left: workflow variables ──────────────────────────────────────────────
+    auto* leftHeader = new QWidget;
+    leftHeader->setObjectName("WfEditHeader");
+    leftHeader->setAttribute(Qt::WA_StyledBackground, true);
 
-    auto* headerLayout = new QHBoxLayout(headerBar);
-    headerLayout->setContentsMargins(20, 12, 20, 12);
-    headerLayout->setSpacing(16);
+    auto* leftHeaderLayout = new QHBoxLayout(leftHeader);
+    leftHeaderLayout->setContentsMargins(20, 12, 20, 12);
+    leftHeaderLayout->setSpacing(16);
 
     auto* sectionLabel = new QLabel("WORKFLOW VARIABLES");
     sectionLabel->setObjectName("WfEditTitle");
@@ -85,31 +86,76 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     addBtn->setObjectName("WfAddBtn");
     addBtn->setCursor(Qt::PointingHandCursor);
 
-    headerLayout->addWidget(sectionLabel);
-    headerLayout->addWidget(m_titleLabel, 1);
-    headerLayout->addWidget(addBtn);
+    leftHeaderLayout->addWidget(sectionLabel);
+    leftHeaderLayout->addWidget(m_titleLabel, 1);
+    leftHeaderLayout->addWidget(addBtn);
 
-    // ── Scroll area ───────────────────────────────────────────────────────────
     m_varContainer = new QWidget;
     m_varLayout    = new QVBoxLayout(m_varContainer);
     m_varLayout->setContentsMargins(20, 16, 20, 20);
     m_varLayout->setSpacing(10);
     m_varLayout->addStretch();
 
-    auto* scroll = new QScrollArea;
-    scroll->setObjectName("WfEditScroll");
-    scroll->setWidget(m_varContainer);
-    scroll->setWidgetResizable(true);
-    scroll->setFrameShape(QFrame::NoFrame);
-    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    scroll->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+    auto* leftScroll = new QScrollArea;
+    leftScroll->setObjectName("WfEditScroll");
+    leftScroll->setWidget(m_varContainer);
+    leftScroll->setWidgetResizable(true);
+    leftScroll->setFrameShape(QFrame::NoFrame);
+    leftScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    leftScroll->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+
+    auto* leftPanel = new QWidget;
+    auto* leftLayout = new QVBoxLayout(leftPanel);
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    leftLayout->setSpacing(0);
+    leftLayout->addWidget(leftHeader);
+    leftLayout->addWidget(leftScroll, 1);
+
+    // ── Right: LoRA stack viewer/editor ───────────────────────────────────────
+    auto* rightHeader = new QWidget;
+    rightHeader->setObjectName("WfEditHeader");
+    rightHeader->setAttribute(Qt::WA_StyledBackground, true);
+
+    auto* rightHeaderLayout = new QHBoxLayout(rightHeader);
+    rightHeaderLayout->setContentsMargins(20, 12, 20, 12);
+    rightHeaderLayout->setSpacing(16);
+
+    auto* loraSectionLabel = new QLabel("LORA STACK");
+    loraSectionLabel->setObjectName("WfEditTitle");
+
+    m_loraSubtitle = new QLabel("0 active");
+    m_loraSubtitle->setObjectName("WfEditSubtitle");
+
+    rightHeaderLayout->addWidget(loraSectionLabel);
+    rightHeaderLayout->addWidget(m_loraSubtitle, 1);
+
+    m_loraContainer = new QWidget;
+    m_loraLayout    = new QVBoxLayout(m_loraContainer);
+    m_loraLayout->setContentsMargins(20, 16, 20, 20);
+    m_loraLayout->setSpacing(10);
+    m_loraLayout->addStretch();
+
+    auto* rightScroll = new QScrollArea;
+    rightScroll->setObjectName("WfEditScroll");
+    rightScroll->setWidget(m_loraContainer);
+    rightScroll->setWidgetResizable(true);
+    rightScroll->setFrameShape(QFrame::NoFrame);
+    rightScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    rightScroll->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+
+    auto* rightPanel = new QWidget;
+    auto* rightLayout = new QVBoxLayout(rightPanel);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(0);
+    rightLayout->addWidget(rightHeader);
+    rightLayout->addWidget(rightScroll, 1);
 
     // ── Root ──────────────────────────────────────────────────────────────────
-    auto* root = new QVBoxLayout(this);
+    auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
-    root->addWidget(headerBar);
-    root->addWidget(scroll, 1);
+    root->addWidget(leftPanel,  1);
+    root->addWidget(rightPanel, 1);
 
     // ── Add variable menu ─────────────────────────────────────────────────────
     connect(addBtn, &QPushButton::clicked, this, [this, addBtn]() {
@@ -124,6 +170,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     });
 
     rebuildVarList();
+    rebuildLoraList();
 }
 
 void WorkflowEditPage::setWorkflowManager(core::WorkflowManager* wm, const QString& savePath)
@@ -131,6 +178,18 @@ void WorkflowEditPage::setWorkflowManager(core::WorkflowManager* wm, const QStri
     m_wm       = wm;
     m_savePath = savePath;
     refresh();
+}
+
+void WorkflowEditPage::setEntryModel(core::EntryModel* model)
+{
+    m_entryModel = model;
+    rebuildLoraList();
+}
+
+void WorkflowEditPage::setActiveLoraStack(const QList<core::LoraConfig>& stack)
+{
+    m_loraStack = stack;
+    rebuildLoraList();
 }
 
 void WorkflowEditPage::refresh()
@@ -551,6 +610,148 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     }
 
     } // switch
+
+    return card;
+}
+
+// ── LoRA stack panel ─────────────────────────────────────────────────────────
+
+void WorkflowEditPage::rebuildLoraList()
+{
+    // Drop everything except the trailing stretch
+    while (m_loraLayout->count() > 1) {
+        QLayoutItem* item = m_loraLayout->takeAt(0);
+        if (QWidget* w = item->widget()) w->deleteLater();
+        delete item;
+    }
+
+    m_loraSubtitle->setText(QString("%1 active").arg(m_loraStack.size()));
+
+    if (m_loraStack.isEmpty()) {
+        auto* hint = new QLabel("No active LoRAs.\nActivate them from the Tile View.");
+        hint->setObjectName("WfEmptyHint");
+        hint->setAlignment(Qt::AlignCenter);
+        m_loraLayout->insertWidget(0, hint);
+        return;
+    }
+
+    for (int i = 0; i < m_loraStack.size(); ++i)
+        m_loraLayout->insertWidget(i, makeLoraCard(i));
+}
+
+QFrame* WorkflowEditPage::makeLoraCard(int index)
+{
+    const core::LoraConfig& lc = m_loraStack[index];
+    core::Entry* entry = (m_entryModel && !lc.sha256.isEmpty())
+        ? m_entryModel->entryByLoraSha256(lc.sha256)
+        : nullptr;
+
+    auto* card = new QFrame;
+    card->setObjectName("WfVarCard");
+    card->setAttribute(Qt::WA_StyledBackground, true);
+
+    auto* row = new QHBoxLayout(card);
+    row->setContentsMargins(10, 10, 12, 10);
+    row->setSpacing(12);
+
+    // Left: image preview (first image of the entry, or placeholder)
+    auto* imgLabel = new QLabel;
+    imgLabel->setFixedSize(80, 100);
+    imgLabel->setAlignment(Qt::AlignCenter);
+    imgLabel->setAttribute(Qt::WA_StyledBackground, true);
+    imgLabel->setObjectName("LoraStackImage");
+
+    QPixmap pix;
+    if (entry && !entry->images.isEmpty()) {
+        const QString path = utils::BASE_PATH + "/data/entry/"
+                           + entry->uuid + "/" + entry->images[0].fileName;
+        pix.load(path);
+    }
+    if (pix.isNull())
+        pix.load(":/img/placeholder.png");
+    if (!pix.isNull())
+        imgLabel->setPixmap(pix.scaled(80, 100,
+            Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
+    row->addWidget(imgLabel);
+
+    // Right: position badge + filename + strength spinboxes
+    auto* infoCol = new QVBoxLayout;
+    infoCol->setSpacing(6);
+
+    auto* headerRow = new QHBoxLayout;
+    headerRow->setSpacing(6);
+    auto* posBadge = new QLabel(QString("#%1").arg(index + 1));
+    posBadge->setObjectName("WfTypeLabel");
+
+    const QString display = QFileInfo(lc.file).baseName();
+    auto* nameLabel = new QLabel(display.isEmpty() ? lc.file : display);
+    nameLabel->setObjectName("WfEditSubtitle");
+    nameLabel->setToolTip(lc.file);
+
+    headerRow->addWidget(posBadge);
+    headerRow->addWidget(nameLabel, 1);
+    infoCol->addLayout(headerRow);
+
+    auto makeSpinBox = [](double min, double max, double step, double val) {
+        auto* sb = new QDoubleSpinBox;
+        sb->setObjectName("WfSpinBox");
+        sb->setRange(min, max);
+        sb->setSingleStep(step);
+        sb->setValue(val);
+        sb->setDecimals(2);
+        return sb;
+    };
+
+    auto* modelSpin = makeSpinBox(0.0, 2.0, 0.05, lc.modelStr);
+    auto* clipSpin  = makeSpinBox(0.0, 4.0, 0.10, lc.clipStr);
+
+    auto* modelRow = new QHBoxLayout;
+    auto* modelLabel = new QLabel("Model");
+    modelLabel->setObjectName("WfFieldLabel");
+    modelRow->addWidget(modelLabel);
+    modelRow->addWidget(modelSpin, 1);
+    infoCol->addLayout(modelRow);
+
+    auto* clipRow = new QHBoxLayout;
+    auto* clipLabel = new QLabel("Clip");
+    clipLabel->setObjectName("WfFieldLabel");
+    clipRow->addWidget(clipLabel);
+    clipRow->addWidget(clipSpin, 1);
+    infoCol->addLayout(clipRow);
+
+    row->addLayout(infoCol, 1);
+
+    // If we couldn't find the entry, the spinboxes are display-only —
+    // editing won't be persisted because there's nothing to save.
+    if (!entry) {
+        modelSpin->setEnabled(false);
+        clipSpin->setEnabled(false);
+        nameLabel->setText(nameLabel->text() + "  (entry missing)");
+        return card;
+    }
+
+    auto onChanged = [this, index, modelSpin, clipSpin]() {
+        if (index < 0 || index >= m_loraStack.size()) return;
+        core::LoraConfig& cached = m_loraStack[index];
+        cached.modelStr = modelSpin->value();
+        cached.clipStr  = clipSpin->value();
+
+        if (m_entryModel) {
+            core::Entry* e = m_entryModel->entryByLoraSha256(cached.sha256);
+            if (e && e->lora.has_value()) {
+                e->lora->modelStr = cached.modelStr;
+                e->lora->clipStr  = cached.clipStr;
+                m_entryModel->saveEntry(e->id);
+            }
+        }
+
+        emit loraStrengthsChanged(m_loraStack);
+    };
+    connect(modelSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [onChanged](double) { onChanged(); });
+    connect(clipSpin,  QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [onChanged](double) { onChanged(); });
 
     return card;
 }

@@ -1,0 +1,136 @@
+/* ── DatasetHelpersPage ───────────────────────────────────────────────────── */
+
+#DatasetHelpersPage {
+    background: transparent;
+}
+
+#DatasetTabBar {
+    background: #111111;
+    border-right: 1px solid #1e1e1e;
+}
+
+#DatasetTabBtn {
+    background: transparent;
+    color: #555555;
+    border: none;
+    border-radius: 5px;
+    padding: 4px 8px;
+    font-size: 13px;
+    text-align: left;
+}
+
+#DatasetTabBtn:hover {
+    background: #1a1a1a;
+    color: #999999;
+}
+
+#DatasetTabBtn:checked {
+    background: #1e1e1e;
+    color: #dddddd;
+}
+
+#DatasetParamsPanel {
+    background: #111111;
+    border-right: 1px solid #1e1e1e;
+}
+
+#DatasetParamLabel {
+    color: #555555;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#DatasetSpin {
+    background: #161616;
+    color: #aaaaaa;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 12px;
+}
+
+#DatasetRunBtn {
+    background: #181e18;
+    color: #5a9a5a;
+    border: 1px solid #2a4a2a;
+    border-radius: 5px;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+#DatasetRunBtn:hover {
+    background: #1e2e1e;
+    color: #7acc7a;
+    border-color: #3a6a3a;
+}
+
+#DatasetRunBtn:disabled {
+    background: #141414;
+    color: #2a2a2a;
+    border-color: #1a1a1a;
+}
+
+#DatasetExcludeEdit {
+    background: #141414;
+    color: #666666;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}
+
+#DatasetStatusLabel {
+    color: #555555;
+    font-size: 12px;
+}
+
+#DatasetProgressBar {
+    background: #161616;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    color: #666666;
+    font-size: 11px;
+    text-align: center;
+}
+
+#DatasetProgressBar::chunk {
+    background: #2a4a2a;
+    border-radius: 2px;
+}
+
+#DatasetResultsList {
+    background: transparent;
+}
+
+#DatasetResultsScroll {
+    background: transparent;
+}
+
+#DatasetResultRow {
+    background: #111111;
+    border-radius: 3px;
+}
+
+#DatasetResultRow:hover {
+    background: #161616;
+}
+
+#DatasetResultTag {
+    color: #cccccc;
+    font-size: 13px;
+}
+
+#DatasetResultScore {
+    color: #444444;
+    font-size: 11px;
+}
+
+#DatasetCopyEdit {
+    background: #141414;
+    color: #777777;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}

@@ -1,7 +1,7 @@
 #include <gui/appmainwindow.h>
 #include <utils/appconfig.h>
 #include <core/entry.h>
-#include <io/entryio.h>
+#include <core/entryio.h>
 #include <QApplication>
 #include <QProxyStyle>
 #include <QThreadPool>

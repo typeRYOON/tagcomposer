@@ -1,0 +1,33 @@
+/* ── NavBar ───────────────────────────────────────────────────────────────── */
+
+#NavBar {
+    background: #111111;
+    border-right: 1px solid #222222;
+}
+
+#NavButton {
+    background: transparent;
+    color: #666666;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+}
+
+#NavButton:hover {
+    background: #1e1e1e;
+    color: #cccccc;
+}
+
+#NavButton:checked {
+    background: #252525;
+    color: #ffffff;
+}
+
+#NavTooltip {
+    background: rgba(28, 28, 28, 220);
+    color: #e0e0e0;
+    border: 1px solid #333333;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+}

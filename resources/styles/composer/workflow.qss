@@ -1,0 +1,222 @@
+/* ── Workflow sidebar (PromptComposerPage) ────────────────────────────────── */
+
+#WfSidebarHeaderLabel {
+    color: #333333;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#WfSidebarEditBtn {
+    background: transparent;
+    color: #3a3a3a;
+    border: none;
+    font-size: 14px;
+    padding: 0;
+}
+
+#WfSidebarEditBtn:hover {
+    color: #777777;
+    background: #1a1a1a;
+    border-radius: 3px;
+}
+
+#ComposerModeTab {
+    background: transparent;
+    color: #2a2a2a;
+    border: none;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 1px 5px;
+}
+
+#ComposerModeTab:checked {
+    color: #888888;
+}
+
+#ComposerModeTab:hover:!checked {
+    color: #444444;
+}
+
+#WfList {
+    background: #0f0f0f;
+    border: none;
+    border-left: 1px solid #1a1a1a;
+    outline: none;
+    font-size: 14px;
+    font-weight: bold;
+    color: #4a4a4a;
+}
+
+#StatesList {
+    background: #0f0f0f;
+    border: none;
+    border-left: 1px solid #1a1a1a;
+    outline: none;
+    font-size: 13px;
+    color: #4a4a4a;
+}
+
+#StatesList::item {
+    padding: 3px 12px;
+    border: none;
+}
+
+#StatesList::item:hover {
+    background: #141414;
+    color: #888888;
+}
+
+#StatesList::item:selected {
+    background: #141414;
+    color: #aaaaaa;
+}
+
+#WfList::item {
+    padding: 2px 14px;
+    border: none;
+}
+
+#WfList::item:hover {
+    background: #141414;
+    color: #888888;
+}
+
+#WfList::item:selected {
+    background: #141414;
+}
+
+#ComposerVarName {
+    color: #554433;
+    font-size: 12px;
+}
+
+#ComposerVarEdit {
+    background: #141414;
+    color: #886644;
+    border: 1px solid #1e1e1e;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 14px;
+    selection-background-color: #2a2a2a;
+}
+
+#ComposerVarEdit:focus {
+    border-color: #333333;
+    color: #bb9966;
+}
+
+#ComposerCenterBg {
+    background: transparent;
+}
+
+#ComposerPreviewLabel {
+    background: #0a0a0a;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+}
+
+#ComposerPreviewLabel:hover {
+    border: 1px solid #3a3a3a;
+    background: #0f0f0f;
+}
+/* Step text is painted directly in PreviewClickLabel::paintEvent — no separate widget */
+
+#ComposerControlBar {
+    background: #111111;
+    border: 1px solid #1e1e1e;
+    border-radius: 4px;
+}
+
+#ComposerRunBtn {
+    background: #16344f;
+    color: #5588bb;
+    border: none;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 12px;
+}
+
+#ComposerRunBtn:hover {
+    background: #1e4570;
+    color: #77aadd;
+}
+
+#ComposerRunBtn:pressed {
+    background: #122b40;
+}
+
+#ComposerInterruptBtn {
+    background: #3d1515;
+    color: #cc3333;
+    border: none;
+    border-radius: 3px;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0px;
+}
+
+#ComposerInterruptBtn:hover {
+    background: #551919;
+    color: #ee4444;
+}
+
+#ComposerInterruptBtn:pressed {
+    background: #2a0f0f;
+}
+
+#ComposerCountSpin {
+    background: #1a1a1a;
+    color: #aaaaaa;
+    border: 1px solid #252525;
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}
+
+#ComposerCountSpin::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 14px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #252525;
+    border-bottom: 1px solid #252525;
+}
+
+#ComposerCountSpin::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 14px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #252525;
+}
+
+#ComposerCountSpin::up-button:hover,
+#ComposerCountSpin::down-button:hover {
+    background: #282828;
+}
+
+#ComposerQueueLabel {
+    color: #555555;
+    font-size: 11px;
+    background: transparent;
+}
+
+#ComposerCopyBtn {
+    background: #141414;
+    color: #555555;
+    border: 1px solid #1e1e1e;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 12px;
+    text-align: left;
+}
+
+#ComposerCopyBtn:hover {
+    background: #1a1a1a;
+    color: #999999;
+}

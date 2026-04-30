@@ -25,8 +25,18 @@ static QList<QString> splitTrimmed(const QString& s, QChar sep)
 FacetIndex FacetIndex::loadFromFile(const QString& schemaPath)
 {
     FacetIndex idx;
+    idx.reloadSchemaFromFile(schemaPath);
+    return idx;
+}
+
+void FacetIndex::reloadSchemaFromFile(const QString& schemaPath)
+{
+    m_categories.clear();
+    m_facetList.clear();
+    m_facetToCategory.clear();
+
     QFile f(schemaPath);
-    if (!f.open(QIODevice::ReadOnly)) return idx;
+    if (!f.open(QIODevice::ReadOnly)) return;
 
     QString currentCat;
 
@@ -37,8 +47,8 @@ FacetIndex FacetIndex::loadFromFile(const QString& schemaPath)
 
         if (line.startsWith("@category")) {
             currentCat = line.mid(9).trimmed();
-            if (!idx.m_categories.contains(currentCat))
-                idx.m_categories << currentCat;
+            if (!m_categories.contains(currentCat))
+                m_categories << currentCat;
             continue;
         }
 
@@ -46,14 +56,12 @@ FacetIndex FacetIndex::loadFromFile(const QString& schemaPath)
 
         if (!currentCat.isEmpty()) {
             for (const QString& facet : splitTrimmed(line, ',')) {
-                if (!idx.m_facetToCategory.contains(facet))
-                    idx.m_facetList << facet;
-                idx.m_facetToCategory[facet] = currentCat;
+                if (!m_facetToCategory.contains(facet))
+                    m_facetList << facet;
+                m_facetToCategory[facet] = currentCat;
             }
         }
     }
-
-    return idx;
 }
 
 void FacetIndex::loadDefinitionsFromFile(const QString& definitionsPath)

@@ -1,0 +1,16 @@
+/* ── Clear button (top-right float, left of nav panel) ────────────── */
+
+#ComposerClearBtn {
+    background: #0e0e0e;
+    color: #555555;
+    border: 1px solid #1e1e1e;
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 0 10px;
+}
+
+#ComposerClearBtn:hover {
+    background: #1a1a1a;
+    color: #cc5555;
+    border-color: #3a2020;
+}

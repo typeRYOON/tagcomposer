@@ -1,19 +1,20 @@
 #include <gui/appmainwindow.h>
-#include <gui/navbar.h>
+#include <gui/widgets/navbar.h>
 #include <gui/homepage.h>
-#include <gui/tileviewpage.h>
-#include <gui/statusbar.h>
-#include <gui/promptcomposerpage.h>
+#include <gui/tileview/tileviewpage.h>
+#include <gui/widgets/statusbar.h>
+#include <gui/composer/promptcomposerpage.h>
 #include <gui/faceteditorpage.h>
 #include <gui/tagwikipage.h>
 #include <gui/settingspage.h>
 #include <gui/workfloweditpage.h>
 #include <gui/datasethelperspage.h>
-#include <gui/danmakuoverlay.h>
+#include <gui/widgets/danmakuoverlay.h>
 #include <utils/qutils.h>
 #include <utils/appconfig.h>
 #include <QApplication>
 #include <QEvent>
+#include <QDirIterator>
 #include <QFile>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -25,13 +26,12 @@
 #include <QtConcurrent>
 
 using namespace utils;
-using namespace model;
 
 namespace gui {
 
 AppMainWindow::AppMainWindow(QWidget* parent)
     : QMainWindow{ parent },
-    m_entryModel{ new EntryModel(this) }
+    m_entryModel{ new core::EntryModel(this) }
 {
     setWindowTitle("TagComposer");
     setWindowOpacity(0.0);
@@ -62,12 +62,16 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_composerPage->setEntryModel(m_entryModel);
     m_composerPage->setOutputFolderPattern(m_settings.comfyUiOutputFolder);
     m_composerPage->setTempFolder(m_settings.comfyUiTempFolder);
+    m_composerPage->setQuickFacets(m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet);
     m_facetEditorPage = new FacetEditorPage(&m_facetIndex, m_entryModel, this);
+    m_facetEditorPage->setActiveTagsProvider(
+        [this]() { return m_composerPage->currentActiveTags(); });
 
     m_wikiPage          = new TagWikiPage(this);
     m_settingsPage      = new SettingsPage(&m_settings, this);
     m_workflowEditPage  = new WorkflowEditPage(this);
     m_workflowEditPage->setWorkflowManager(&m_workflowManager, BASE_PATH + "/" + WORKFLOWS_PATH);
+    m_workflowEditPage->setEntryModel(m_entryModel);
 
     m_pages = new QStackedWidget(this);
     m_pages->setObjectName("MainPages");
@@ -88,12 +92,21 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(nav,     &NavBar::pageRequested,        m_pages, &QStackedWidget::setCurrentIndex);
     connect(m_pages, &QStackedWidget::currentChanged, nav,   &NavBar::setCurrentPage);
 
-    // ── LoRA stack: tile view → main window + composer ───────────────────────
+    // ── LoRA stack: tile view → main window + composer + workflow editor ─────
     connect(m_tileViewPage, &TileViewPage::loraStackChanged,
             this, [this](const QList<core::LoraConfig>& stack) {
                 m_activeLoraStack = stack;
                 m_activeLoraUuids = m_tileViewPage->activeLoraUuids();
                 m_composerPage->setActiveLoraUuids(m_activeLoraUuids);
+                m_workflowEditPage->setActiveLoraStack(stack);
+            });
+
+    // Strength edits in the workflow editor mutate the entries directly;
+    // mirror the new values into our cached stack so the next workflow run
+    // uses them without waiting for a tile-view re-emit.
+    connect(m_workflowEditPage, &WorkflowEditPage::loraStrengthsChanged,
+            this, [this](const QList<core::LoraConfig>& stack) {
+                m_activeLoraStack = stack;
             });
 
     // ── LoRA restore: composer session/state → tile view ─────────────────────
@@ -116,14 +129,42 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_facetEditorPage, &FacetEditorPage::facetsDefined,
             this, &AppMainWindow::reloadFacets);
 
+    // Schema reload — re-read facets.fct, keep tag definitions intact
+    connect(m_facetEditorPage, &FacetEditorPage::schemaReloadRequested,
+            this, [this]() {
+                m_facetIndex.reloadSchemaFromFile(BASE_PATH + "/" + FACETS_PATH);
+                reloadFacets();
+                m_statusBar->showMessage("Facet schema reloaded.");
+            });
+
+    // ── Composer quick-add facet shortcut ─────────────────────────────────────
+    // Right-click → "Quick add as character/copyright" mutates the FacetIndex
+    // here (composer doesn't own the index), persists, and reloads.
+    connect(m_composerPage, &PromptComposerPage::quickFacetRequested,
+            this, [this](const QString& tag, const QString& facetName) {
+                if (tag.isEmpty() || facetName.isEmpty()) return;
+                QList<QString> existing = m_facetIndex.facetsFor(tag);
+                if (existing.contains(facetName)) {
+                    m_statusBar->showMessage(
+                        QString("'%1' already has facet '%2'").arg(tag, facetName));
+                    return;
+                }
+                existing << facetName;
+                m_facetIndex.setDefinition(tag, existing);
+                reloadFacets();  // also persists via saveDefinitions
+                m_statusBar->showMessage(
+                    QString("Added facet '%1' to '%2'").arg(facetName, tag));
+            });
+
     // ── Wiki page navigation ───────────────────────────────────────────────────
     auto showWiki = [this](const QString& tag) {
         m_wikiPage->lookupTag(tag);
         m_pages->setCurrentIndex(4);
     };
-    connect(m_tileViewPage, &TileViewPage::wikiRequested,       this, showWiki);
-    connect(m_composerPage, &PromptComposerPage::wikiRequested, this, showWiki);
-    connect(m_wikiPage,     &TagWikiPage::wikiLinkClicked,      this, showWiki);
+    connect(m_tileViewPage,    &TileViewPage::wikiRequested,       this, showWiki);
+    connect(m_composerPage,    &PromptComposerPage::wikiRequested, this, showWiki);
+    connect(m_facetEditorPage, &FacetEditorPage::wikiRequested,    this, showWiki);
+    connect(m_wikiPage,        &TagWikiPage::wikiLinkClicked,      this, showWiki);
 
     // ── Facet editor navigation ───────────────────────────────────────────────
     auto showFacetEditor = [this](const QString& tag) {
@@ -171,6 +212,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             m_danmakuOverlay->lower();
         }
         m_danmakuOverlay->setActive(m_settings.danmakuEnabled);
+        m_composerPage->setQuickFacets(
+            m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet);
     });
     connect(m_settingsPage, &SettingsPage::reconnectRequested, this, [this]() {
         m_comfyClient->connectToServer();
@@ -233,9 +276,20 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         return core::DanbooruIndex::loadFromFile(csvPath);
     }));
 
-    QFile qss(":/system/styles.qss");
-    if (qss.open(QIODevice::ReadOnly))
-        qApp->setStyleSheet(QString::fromUtf8(qss.readAll()));
+    // Load and concatenate every .qss under :/styles. app.qss sorts first so
+    // its app-wide rules act as the base; subdir files override as needed.
+    QStringList qssPaths;
+    QDirIterator qssIt(":/styles", { "*.qss" }, QDir::Files, QDirIterator::Subdirectories);
+    while (qssIt.hasNext()) qssPaths << qssIt.next();
+    qssPaths.sort();
+
+    QString combinedQss;
+    for (const QString& path : qssPaths) {
+        QFile f(path);
+        if (f.open(QIODevice::ReadOnly))
+            combinedQss += QString::fromUtf8(f.readAll()) + '\n';
+    }
+    qApp->setStyleSheet(combinedQss);
 
     // ── Global keyboard shortcuts ─────────────────────────────────────────────
     // Fired app-wide; guard skips action when a text input has keyboard focus.
@@ -325,6 +379,10 @@ void AppMainWindow::applyComfySettings()
 
 void AppMainWindow::reloadFacets()
 {
+    // Persist on every facet mutation rather than relying on close-event save.
+    // Cheap (text file, ~few hundred lines) and keeps the on-disk state aligned
+    // with what the user just did, even across crashes.
+    m_facetIndex.saveDefinitions(BASE_PATH + "/" + DEFINITIONS_PATH);
     m_facetEditorPage->reload();
     m_composerPage->repush();
 }

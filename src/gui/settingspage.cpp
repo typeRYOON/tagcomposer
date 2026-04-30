@@ -187,6 +187,45 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     bodyLayout->addWidget(comfyGroup);
     bodyLayout->addSpacing(24);
 
+    // ── Section: Facets ───────────────────────────────────────────────────────
+    auto* facetsHeader = new QLabel("FACETS");
+    facetsHeader->setObjectName("SettingsSectionHeader");
+    bodyLayout->addWidget(facetsHeader);
+    bodyLayout->addSpacing(12);
+
+    auto* facetsGroup = new QWidget;
+    facetsGroup->setObjectName("SettingsGroup");
+    facetsGroup->setAttribute(Qt::WA_StyledBackground, true);
+    auto* facetsLayout = new QGridLayout(facetsGroup);
+    facetsLayout->setContentsMargins(16, 14, 16, 14);
+    facetsLayout->setHorizontalSpacing(12);
+    facetsLayout->setVerticalSpacing(10);
+    facetsLayout->setColumnStretch(1, 1);
+
+    m_quickCharFacet = new QLineEdit;
+    m_quickCharFacet->setObjectName("SettingsInput");
+    m_quickCharFacet->setPlaceholderText("rcharacter");
+    m_quickCharFacet->setText(settings->quickCharacterFacet);
+
+    m_quickCopyFacet = new QLineEdit;
+    m_quickCopyFacet->setObjectName("SettingsInput");
+    m_quickCopyFacet->setPlaceholderText("rcopyright");
+    m_quickCopyFacet->setText(settings->quickCopyrightFacet);
+
+    auto* facetsHint = new QLabel(
+        "Names of facets used by the composer's right-click \"Quick add\" actions.");
+    facetsHint->setObjectName("SettingsHintLabel");
+    facetsHint->setWordWrap(true);
+
+    facetsLayout->addWidget(makeLabel("Quick character facet"), 0, 0);
+    facetsLayout->addWidget(m_quickCharFacet,                    0, 1);
+    facetsLayout->addWidget(makeLabel("Quick copyright facet"), 1, 0);
+    facetsLayout->addWidget(m_quickCopyFacet,                    1, 1);
+    facetsLayout->addWidget(facetsHint,                          2, 1);
+
+    bodyLayout->addWidget(facetsGroup);
+    bodyLayout->addSpacing(24);
+
     // ── Section: Log ──────────────────────────────────────────────────────────
     auto* logHeader = new QLabel("LOG");
     logHeader->setObjectName("SettingsSectionHeader");
@@ -285,6 +324,18 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
         if (dir.isEmpty()) return;
         m_loraBaseDir->setText(dir);
         m_settings->loraBaseDir = dir;
+        emit settingsChanged();
+    });
+
+    // Empty value disables the corresponding menu item — placeholder text
+    // shows a conventional name as a suggestion, not as a fallback.
+    connect(m_quickCharFacet, &QLineEdit::editingFinished, this, [this]() {
+        m_settings->quickCharacterFacet = m_quickCharFacet->text().trimmed();
+        emit settingsChanged();
+    });
+
+    connect(m_quickCopyFacet, &QLineEdit::editingFinished, this, [this]() {
+        m_settings->quickCopyrightFacet = m_quickCopyFacet->text().trimmed();
         emit settingsChanged();
     });
 

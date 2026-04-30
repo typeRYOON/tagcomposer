@@ -1,0 +1,219 @@
+/* ── WorkflowEditPage ─────────────────────────────────────────────────────── */
+
+#WorkflowEditPage {
+    background: transparent;
+}
+
+#WfEditHeader {
+    background: #0f0f0f;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+#WfEditTitle {
+    color: #2a2a2a;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#WfEditSubtitle {
+    color: #555555;
+    font-size: 12px;
+}
+
+#WfAddBtn {
+    background: #141414;
+    color: #448844;
+    border: 1px solid #223322;
+    border-radius: 4px;
+    padding: 5px 14px;
+    font-size: 12px;
+}
+
+#WfAddBtn:hover {
+    background: #192219;
+    color: #66aa66;
+    border-color: #336633;
+}
+
+#WfEditScroll {
+    background: transparent;
+}
+
+#WfVarCard {
+    background: #0f0f0f;
+    border: 1px solid #1a1a1a;
+    border-radius: 5px;
+}
+
+#WfPlaceholderEdit {
+    background: #141414;
+    color: #cccccc;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-family: monospace;
+    selection-background-color: #2a2a2a;
+}
+
+#WfPlaceholderEdit:focus {
+    border-color: #333333;
+    background: #181818;
+}
+
+#WfTypeLabel {
+    color: #3a6a3a;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    background: #0f1a0f;
+    border: 1px solid #1a2a1a;
+    border-radius: 3px;
+}
+
+#WfRemoveBtn {
+    background: transparent;
+    border: none;
+    color: #3a3a3a;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0;
+}
+
+#WfRemoveBtn:hover {
+    color: #cc3333;
+}
+
+#WfRadio {
+    background: transparent;
+    color: #444444;
+    font-size: 12px;
+    spacing: 5px;
+}
+
+#WfRadio::indicator {
+    width: 11px;
+    height: 11px;
+    border-radius: 6px;
+    border: 1px solid #2a2a2a;
+    background: #141414;
+}
+
+#WfRadio::indicator:checked {
+    background: #336633;
+    border-color: #336633;
+}
+
+#WfRadio:checked {
+    color: #888888;
+}
+
+#WfFieldLabel {
+    color: #3a3a3a;
+    font-size: 11px;
+    min-width: 44px;
+}
+
+#WfSeedSpin, #WfSpinBox {
+    background: #141414;
+    color: #aaaaaa;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}
+
+#WfSeedSpin:focus, #WfSpinBox:focus {
+    border-color: #333333;
+}
+
+#WfSeedSpin::up-button, #WfSpinBox::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 14px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #222222;
+    border-bottom: 1px solid #222222;
+}
+
+#WfSeedSpin::down-button, #WfSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 14px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #222222;
+}
+
+#WfSeedSpin::up-button:hover,   #WfSpinBox::up-button:hover,
+#WfSeedSpin::down-button:hover, #WfSpinBox::down-button:hover {
+    background: #282828;
+}
+
+#WfValueEdit {
+    background: #141414;
+    color: #aaaaaa;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}
+
+#WfValueEdit:focus {
+    border-color: #333333;
+    color: #cccccc;
+}
+
+#WfBrowseBtn {
+    background: #141414;
+    color: #555555;
+    border: 1px solid #222222;
+    border-radius: 3px;
+    padding: 3px 10px;
+    font-size: 12px;
+}
+
+#WfBrowseBtn:hover {
+    background: #1a1a1a;
+    color: #999999;
+    border-color: #333333;
+}
+
+#WfFileList {
+    background: #111111;
+    color: #666666;
+    border: 1px solid #1e1e1e;
+    border-radius: 3px;
+    font-size: 12px;
+    outline: none;
+}
+
+#WfFileList::item {
+    padding: 3px 8px;
+    border: none;
+}
+
+#WfFileList::item:hover {
+    background: #1a1a1a;
+    color: #aaaaaa;
+}
+
+#WfFileList::item:selected {
+    background: #141414;
+}
+
+#WfEmptyHint {
+    color: #252525;
+    font-size: 13px;
+}
+
+#LoraStackImage {
+    background: #0a0a0a;
+    border: 1px solid #1a1a1a;
+    border-radius: 3px;
+}

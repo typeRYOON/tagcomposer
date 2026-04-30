@@ -43,6 +43,10 @@ private:
     QLabel*         m_statusDot;
     QLabel*         m_statusText;
 
+    // Facets section
+    QLineEdit*      m_quickCharFacet;
+    QLineEdit*      m_quickCopyFacet;
+
     // Log section
     QPlainTextEdit* m_log;
 };

@@ -1,5 +1,5 @@
 #include <gui/tagclusterpage.h>
-#include <gui/appscrollbar.h>
+#include <gui/widgets/appscrollbar.h>
 #include <utils/appconfig.h>
 #include <QHBoxLayout>
 #include <QVBoxLayout>

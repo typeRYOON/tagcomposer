@@ -38,12 +38,36 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
     for (auto it = rules.constBegin(); it != rules.constEnd(); ++it)
         s.ruleStates[it.key()] = it.value().toBool();
 
+    const QJsonObject ruleArgs = obj["ruleArguments"].toObject();
+    for (auto it = ruleArgs.constBegin(); it != ruleArgs.constEnd(); ++it) {
+        QList<QString> args;
+        for (const auto& a : it.value().toArray())
+            args << a.toString();
+        s.ruleArguments[it.key()] = args;
+    }
+
     const QJsonObject vars = obj["varValues"].toObject();
     for (auto it = vars.constBegin(); it != vars.constEnd(); ++it)
         s.varValues[it.key()] = it.value().toString();
 
     s.selectedWorkflowId  = obj["selectedWorkflowId"].toString();
-    s.workflowVarValues   = obj["workflowVarValues"].toObject();
+    {
+        // Accept both new array form and legacy object form. Object → array
+        // conversion picks up the placeholder from the object key.
+        const QJsonValue wfv = obj["workflowVarValues"];
+        if (wfv.isArray()) {
+            s.workflowVarValues = wfv.toArray();
+        } else if (wfv.isObject()) {
+            QJsonArray arr;
+            const QJsonObject o = wfv.toObject();
+            for (auto it = o.constBegin(); it != o.constEnd(); ++it) {
+                QJsonObject entry = it.value().toObject();
+                entry["placeholder"] = it.key();
+                arr.append(entry);
+            }
+            s.workflowVarValues = arr;
+        }
+    }
     s.previewImagePath    = obj["previewImage"].toString();
     for (const auto& v : obj["activeLoraUuids"].toArray())
         s.activeLoraUuids << v.toString();
@@ -85,6 +109,14 @@ QJsonObject SavedState::toJson() const
     for (auto it = ruleStates.constBegin(); it != ruleStates.constEnd(); ++it)
         rulesObj[it.key()] = it.value();
     obj["ruleStates"] = rulesObj;
+
+    QJsonObject ruleArgsObj;
+    for (auto it = ruleArguments.constBegin(); it != ruleArguments.constEnd(); ++it) {
+        QJsonArray arr;
+        for (const auto& a : it.value()) arr.append(a);
+        ruleArgsObj[it.key()] = arr;
+    }
+    obj["ruleArguments"] = ruleArgsObj;
 
     QJsonObject varsObj;
     for (auto it = varValues.constBegin(); it != varValues.constEnd(); ++it)

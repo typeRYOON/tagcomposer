@@ -1,0 +1,15 @@
+/* ── LogPage ──────────────────────────────────────────────────────────────── */
+
+#LogPage {
+    background: transparent;
+}
+
+#LogView {
+    background: #0a0a0a;
+    color: #505050;
+    border: none;
+    font-family: monospace;
+    font-size: 12px;
+    selection-background-color: #1e1e1e;
+    padding: 8px;
+}

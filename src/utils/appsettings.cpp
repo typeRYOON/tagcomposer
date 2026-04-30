@@ -27,6 +27,10 @@ AppSettings AppSettings::load(const QString& path)
     s.comfyUiTempFolder    = cui["tempFolder"].toString();
     s.loraBaseDir          = cui["loraBaseDir"].toString();
 
+    const QJsonObject facets = root["facets"].toObject();
+    s.quickCharacterFacet = facets["quickCharacter"].toString();
+    s.quickCopyrightFacet = facets["quickCopyright"].toString();
+
     return s;
 }
 
@@ -45,9 +49,14 @@ void AppSettings::save(const QString& path) const
     cui["tempFolder"]    = comfyUiTempFolder;
     cui["loraBaseDir"]   = loraBaseDir;
 
+    QJsonObject facets;
+    facets["quickCharacter"] = quickCharacterFacet;
+    facets["quickCopyright"] = quickCopyrightFacet;
+
     QJsonObject root;
     root["app"]    = app;
     root["comfyui"] = cui;
+    root["facets"] = facets;
 
     QFile f(path);
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))

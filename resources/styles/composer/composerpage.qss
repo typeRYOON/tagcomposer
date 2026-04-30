@@ -1,0 +1,217 @@
+/* ── PromptComposerPage ───────────────────────────────────────────────────── */
+
+#PromptComposerPage {
+    background: transparent;
+}
+
+#ComposerScroll, #ComposerGroupsContainer {
+    background: transparent;
+}
+
+#ComposerEmptyHint {
+    color: #2e2e2e;
+    font-size: 13px;
+}
+
+#ComposerGroupHeader {
+    color: #383838;
+    font-size: 24px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 10px 12px 2px 12px;
+}
+
+#ComposerTagRow {
+    background: transparent;
+    border-radius: 3px;
+}
+
+#ComposerTagRow:hover {
+    background: #141414;
+}
+
+#ComposerTagEdit {
+    background: transparent;
+    border: none;
+    color: #cccccc;
+    font-size: 20px;
+    padding: 0;
+    selection-background-color: #2a2a2a;
+}
+
+#ComposerTagEdit:focus {
+    background: #161616;
+    border-bottom: 1px solid #333333;
+    color: #e0e0e0;
+}
+
+#ComposerTagReadOnly {
+    background: transparent;
+    border: none;
+    color: #383838;
+    font-size: 20px;
+    padding: 0;
+}
+
+
+#ComposerVarBadge {
+    background: transparent;
+    color: #664422;
+    font-size: 16px;
+}
+
+#ComposerNoBadge {
+    background: transparent;
+    color: #334466;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#ComposerFlagBadge {
+    background: transparent;
+    color: #886622;
+    font-size: 16px;
+}
+
+#ComposerInjectedBadge {
+    background: transparent;
+    color: #336633;
+    font-size: 16px;
+}
+
+#ComposerSidebar {
+    background: #0f0f0f;
+    border-left: 1px solid #1a1a1a;
+}
+
+#ComposerRulesScroll, #ComposerRulesContainer {
+    background: transparent;
+    border-left: 1px solid #1a1a1a;
+}
+
+#WfList,
+#ComposerVarsContainer {
+    border-left: 1px solid #1a1a1a;
+}
+
+#ComposerHeaderRow {
+    border-bottom: 1px solid #1a1a1a;
+}
+
+
+#ComposerHeaderLabel {
+    color: #333333;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#SidebarBtn {
+    background: transparent;
+    color: #3a3a3a;
+    border: none;
+    font-size: 14px;
+    padding: 0;
+}
+
+#SidebarBtn:hover {
+    color: #777777;
+    background: #1a1a1a;
+    border-radius: 3px;
+}
+
+#ComposerRuleToggle {
+    background: transparent;
+    color: #555555;
+    font-size: 14px;
+    spacing: 6px;
+    border: none;
+    padding: 3px 0;
+}
+
+#ComposerRuleToggle:checked {
+    color: #909090;
+}
+
+#ComposerRuleToggle::indicator {
+    width: 12px;
+    height: 12px;
+    border: 1px solid #2a2a2a;
+    border-radius: 2px;
+    background: #141414;
+}
+
+#ComposerRuleToggle::indicator:checked {
+    background: #336633;
+    border-color: #336633;
+}
+
+#ComposerRuleAddBadge {
+    color: #336644;
+    font-size: 16px;
+    font-weight: bold;
+    background: transparent;
+}
+
+#ComposerRuleReplaceBadge {
+    color: #664422;
+    font-size: 16px;
+    font-weight: bold;
+    background: transparent;
+}
+
+#ComposerRuleForceBadge {
+    color: #664422;
+    font-size: 12px;
+    font-weight: bold;
+    background: transparent;
+}
+
+#ComposerRulesHint {
+    color: #282828;
+    font-size: 12px;
+    padding: 8px;
+}
+
+#ComposerRuleArgEdit {
+    background: #141414;
+    color: #557766;
+    border: 1px solid #1a1a1a;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 14px;
+    selection-background-color: #2a2a2a;
+}
+
+#ComposerRuleArgEdit:focus {
+    border-color: #2e2e2e;
+    color: #77aa88;
+}
+
+#ComposerWeightSpin {
+    background: transparent;
+    color: #2a2a2a;
+    border: none;
+    font-size: 11px;
+    padding: 0 2px;
+    selection-background-color: #2a2a2a;
+}
+
+#ComposerWeightSpin:focus {
+    color: #886644;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 2px;
+}
+
+#ComposerTagRow:hover #ComposerWeightSpin {
+    color: #404040;
+}
+
+#ComposerWeightSpin[weighted="true"] {
+    color: #c8a050;
+}
+
+#ComposerTagRow:hover #ComposerWeightSpin[weighted="true"] {
+    color: #d4b060;
+}

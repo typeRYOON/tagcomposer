@@ -1,0 +1,33 @@
+/* ── Category nav panel (top-right float) ──────────────────────────── */
+
+#CategoryNavPanel {
+    background: #0e0e0e;
+    border: 1px solid #1e1e1e;
+    border-radius: 4px;
+}
+
+#CategoryNavHandle {
+    color: #555555;
+    font-size: 12px;
+    background: transparent;
+    padding: 0 8px;
+}
+
+#CategoryNavList {
+    background: transparent;
+}
+
+#CategoryNavBtn {
+    background: transparent;
+    color: #666666;
+    border: none;
+    border-radius: 0;
+    font-size: 11px;
+    padding: 2px 10px;
+    text-align: left;
+}
+
+#CategoryNavBtn:hover {
+    background: #1a1a1a;
+    color: #aaaaaa;
+}

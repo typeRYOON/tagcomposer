@@ -1,6 +1,25 @@
 <RCC>
     <qresource prefix="/">
-        <file>system/styles.qss</file>
+        <file>styles/app.qss</file>
+        <file>styles/composer/categorynav.qss</file>
+        <file>styles/composer/clearbtn.qss</file>
+        <file>styles/composer/composerpage.qss</file>
+        <file>styles/composer/previewpopout.qss</file>
+        <file>styles/composer/workflow.qss</file>
+        <file>styles/pages/datasethelpers.qss</file>
+        <file>styles/pages/facets.qss</file>
+        <file>styles/pages/home.qss</file>
+        <file>styles/pages/log.qss</file>
+        <file>styles/pages/settings.qss</file>
+        <file>styles/pages/wiki.qss</file>
+        <file>styles/pages/workfloweditor.qss</file>
+        <file>styles/tileview/entrynavpanel.qss</file>
+        <file>styles/tileview/entrypanel.qss</file>
+        <file>styles/tileview/lora.qss</file>
+        <file>styles/tileview/tileviewpage.qss</file>
+        <file>styles/widgets/navbar.qss</file>
+        <file>styles/widgets/statusbar.qss</file>
+        <file>styles/widgets/tagsearchbar.qss</file>
         <file>icons/app_icon.ico</file>
         <file>icons/nav_home.png</file>
         <file>icons/nav_tiles.png</file>

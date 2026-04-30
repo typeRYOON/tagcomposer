@@ -1,0 +1,73 @@
+/* ── LoRA section (EntryPanel) ────────────────────────────────────────────── */
+
+#EntrySubLabel {
+    color: #333333;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#LoraDropZone {
+    background: #141414;
+    color: #383838;
+    border: 1px dashed #252525;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 11px;
+}
+
+#LoraDropZone:hover {
+    background: #1a1a1a;
+    color: #666666;
+    border-color: #3d3020;
+}
+
+#LoraSpinLabel {
+    color: #333333;
+    font-size: 10px;
+}
+
+#LoraSpinBox {
+    background: #141414;
+    color: #886644;
+    border: 1px solid #1e1e1e;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 11px;
+    selection-background-color: #2a2a2a;
+}
+
+#LoraSpinBox:focus {
+    border-color: #333333;
+    color: #bb9966;
+}
+
+#LoraSpinBox:disabled {
+    background: #111111;
+    color: #242424;
+    border-color: #181818;
+}
+
+#LoraSpinBox::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 12px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #1e1e1e;
+    border-bottom: 1px solid #1e1e1e;
+}
+
+#LoraSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 12px;
+    background: #1e1e1e;
+    border: none;
+    border-left: 1px solid #1e1e1e;
+}
+
+#LoraSpinBox::up-button:hover,
+#LoraSpinBox::down-button:hover {
+    background: #252525;
+}

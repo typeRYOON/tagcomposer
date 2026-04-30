@@ -38,6 +38,7 @@ enum class ActionType {
     Add,      // inject a new tag without removing anything
     Replace,  // remove matched tag(s) and inject a new one
     Flag,     // keep matched tag(s) but mark them with a label
+    Delete,   // permanently remove matched tag(s) from the composer's active set
 };
 
 struct RuleAction {
@@ -65,6 +66,7 @@ enum class RuleResult {
     Flagged,     // kept but marked by a Flag rule
     NoFacets,    // no definition in FacetIndex — passes through unaffected by rules
     Deactivated, // user-muted: excluded from pipeline and rules, displayed separately
+    Deleted,     // matched by a Delete rule — composer removes from active set
 };
 
 struct PipelineTag {

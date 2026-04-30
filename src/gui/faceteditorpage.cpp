@@ -1,17 +1,22 @@
 #include <gui/faceteditorpage.h>
-#include <gui/appscrollbar.h>
+#include <gui/widgets/appscrollbar.h>
+#include <gui/widgets/flowlayout.h>
+#include <utils/appconfig.h>
+#include <QCursor>
+#include <QDesktopServices>
+#include <QFrame>
 #include <QHBoxLayout>
-#include <QGridLayout>
+#include <QMenu>
 #include <QScrollArea>
 #include <QStackedWidget>
-#include <QFrame>
+#include <QUrl>
 #include <algorithm>
 
 namespace gui {
 
 FacetEditorPage::FacetEditorPage(
     core::FacetIndex*  facets,
-    model::EntryModel* model,
+    core::EntryModel*  model,
     QWidget*           parent)
     : QWidget(parent)
     , m_facets(facets)
@@ -29,6 +34,17 @@ FacetEditorPage::FacetEditorPage(
     m_searchEdit->setPlaceholderText("filter...");
     m_searchEdit->setClearButtonEnabled(true);
 
+    m_undefinedHeader = new QLabel;
+    m_undefinedHeader->setObjectName("FacetPanelHeader");
+    m_undefinedHeader->hide();  // shown by refreshUndefinedList when non-empty
+
+    m_undefinedList = new QListWidget;
+    m_undefinedList->setObjectName("FacetTagList");
+    m_undefinedList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_undefinedList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+    m_undefinedList->setMaximumHeight(160);  // ~6 rows; longer lists scroll
+    m_undefinedList->hide();
+
     m_countLabel = new QLabel;
     m_countLabel->setObjectName("FacetCountLabel");
 
@@ -38,17 +54,38 @@ FacetEditorPage::FacetEditorPage(
     m_tagList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_tagList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
 
+    // Both lists feed selectTag; clicking one clears the other's highlight
+    // so the selection is always visually unambiguous.
     connect(m_tagList, &QListWidget::currentTextChanged,
-            this, &FacetEditorPage::selectTag);
+            this, [this](const QString& text) {
+                if (!text.isEmpty()) m_undefinedList->setCurrentItem(nullptr);
+                selectTag(text);
+            });
+    connect(m_undefinedList, &QListWidget::currentTextChanged,
+            this, [this](const QString& text) {
+                if (!text.isEmpty()) m_tagList->setCurrentItem(nullptr);
+                selectTag(text);
+            });
 
-    connect(m_searchEdit, &QLineEdit::textChanged, this, [this](const QString& text) {
-        const QString lower = text.trimmed().toLower();
-        for (int i = 0; i < m_tagList->count(); ++i) {
-            auto* item = m_tagList->item(i);
-            item->setHidden(!lower.isEmpty() &&
-                            !item->text().contains(lower, Qt::CaseInsensitive));
-        }
-    });
+    connect(m_searchEdit, &QLineEdit::textChanged,
+            this, &FacetEditorPage::applyListFilter);
+
+    // Right-click → "Go to Wiki" on either list
+    auto installWikiMenu = [this](QListWidget* list) {
+        list->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(list, &QListWidget::customContextMenuRequested,
+            this, [this, list](const QPoint& pos) {
+                QListWidgetItem* item = list->itemAt(pos);
+                if (!item) return;
+                const QString tag = item->text();
+                QMenu menu;
+                QAction* wikiAct = menu.addAction("Go to Wiki");
+                if (menu.exec(QCursor::pos()) == wikiAct)
+                    emit wikiRequested(tag);
+            });
+    };
+    installWikiMenu(m_tagList);
+    installWikiMenu(m_undefinedList);
 
     auto* leftPanel = new QWidget;
     leftPanel->setObjectName("FacetLeftPanel");
@@ -58,12 +95,46 @@ FacetEditorPage::FacetEditorPage(
     leftLayout->setSpacing(0);
     leftLayout->addWidget(leftHeader);
     leftLayout->addWidget(m_searchEdit);
+    leftLayout->addWidget(m_undefinedHeader);
+    leftLayout->addWidget(m_undefinedList);
     leftLayout->addWidget(m_countLabel);
     leftLayout->addWidget(m_tagList, 1);
 
     // ── Right panel — facet assignment editor ─────────────────────────────────
     m_selectedLabel = new QLabel;
     m_selectedLabel->setObjectName("FacetSelectedTag");
+
+    auto* schemaOpenBtn = new QPushButton("↗");
+    schemaOpenBtn->setObjectName("SidebarBtn");
+    schemaOpenBtn->setFixedSize(20, 20);
+    schemaOpenBtn->setCursor(Qt::PointingHandCursor);
+    schemaOpenBtn->setToolTip("Open facets.fct in editor");
+    connect(schemaOpenBtn, &QPushButton::clicked, this, []() {
+        QDesktopServices::openUrl(
+            QUrl::fromLocalFile(utils::BASE_PATH + "/" + utils::FACETS_PATH));
+    });
+
+    auto* schemaReloadBtn = new QPushButton("↺");
+    schemaReloadBtn->setObjectName("SidebarBtn");
+    schemaReloadBtn->setFixedSize(20, 20);
+    schemaReloadBtn->setCursor(Qt::PointingHandCursor);
+    schemaReloadBtn->setToolTip("Reload facets.fct (does not touch tag definitions)");
+    connect(schemaReloadBtn, &QPushButton::clicked,
+            this, &FacetEditorPage::schemaReloadRequested);
+
+    auto* selectedRow = new QHBoxLayout;
+    selectedRow->setContentsMargins(0, 0, 0, 0);
+    selectedRow->setSpacing(4);
+    selectedRow->addWidget(m_selectedLabel, 1);
+    selectedRow->addWidget(schemaOpenBtn);
+    selectedRow->addWidget(schemaReloadBtn);
+
+    m_facetSearchEdit = new QLineEdit;
+    m_facetSearchEdit->setObjectName("FacetSearchBar");
+    m_facetSearchEdit->setPlaceholderText("filter facets...");
+    m_facetSearchEdit->setClearButtonEnabled(true);
+    connect(m_facetSearchEdit, &QLineEdit::textChanged,
+            this, &FacetEditorPage::applyFacetFilter);
 
     m_facetsContainer = new QWidget;
     m_facetsLayout    = new QVBoxLayout(m_facetsContainer);
@@ -87,7 +158,8 @@ FacetEditorPage::FacetEditorPage(
     auto* editorLayout = new QVBoxLayout(editorWidget);
     editorLayout->setContentsMargins(12, 12, 12, 12);
     editorLayout->setSpacing(8);
-    editorLayout->addWidget(m_selectedLabel);
+    editorLayout->addLayout(selectedRow);
+    editorLayout->addWidget(m_facetSearchEdit);
     editorLayout->addWidget(facetsScroll, 1);
     editorLayout->addWidget(m_saveBtn);
 
@@ -144,6 +216,84 @@ void FacetEditorPage::reload()
     }
 }
 
+void FacetEditorPage::setActiveTagsProvider(std::function<QList<QString>()> provider)
+{
+    m_activeTagsProvider = std::move(provider);
+}
+
+void FacetEditorPage::refreshUndefinedList()
+{
+    m_undefinedList->clear();
+
+    if (!m_activeTagsProvider) {
+        m_undefinedHeader->hide();
+        m_undefinedList->hide();
+        return;
+    }
+
+    const QList<QString> active    = m_activeTagsProvider();
+    const QList<QString> undefined = m_facets->undefined(active);
+
+    if (undefined.isEmpty()) {
+        m_undefinedHeader->hide();
+        m_undefinedList->hide();
+        return;
+    }
+
+    // Preserve composer's tag order — the user typed them in that order
+    for (const QString& tag : undefined)
+        m_undefinedList->addItem(new QListWidgetItem(tag));
+
+    m_undefinedHeader->setText(
+        QString("UNDEFINED IN COMPOSER  (%1)").arg(undefined.size()));
+    m_undefinedHeader->show();
+    m_undefinedList->show();
+    applyListFilter(m_searchEdit->text());
+}
+
+void FacetEditorPage::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+    refreshUndefinedList();
+}
+
+void FacetEditorPage::applyListFilter(const QString& query)
+{
+    const QString lower = query.trimmed().toLower();
+    auto applyTo = [&](QListWidget* list) {
+        for (int i = 0; i < list->count(); ++i) {
+            auto* item = list->item(i);
+            item->setHidden(!lower.isEmpty() &&
+                            !item->text().contains(lower, Qt::CaseInsensitive));
+        }
+    };
+    applyTo(m_tagList);
+    applyTo(m_undefinedList);
+}
+
+void FacetEditorPage::applyFacetFilter(const QString& query)
+{
+    const QString lower = query.trimmed().toLower();
+
+    // Match logic per block: empty query → show all. Otherwise, if the
+    // category name matches, show every pill in the block; else show only
+    // pills whose facet name matches. Hide blocks with zero visible pills.
+    for (auto* block : m_facetsContainer->findChildren<QFrame*>("FacetCategoryBlock")) {
+        const QString cat = block->property("_categoryName").toString().toLower();
+        const bool catMatches = !lower.isEmpty() && cat.contains(lower);
+
+        bool anyVisible = false;
+        for (auto* pill : block->findChildren<QPushButton*>("FacetPillBtn")) {
+            const bool match = lower.isEmpty()
+                            || catMatches
+                            || pill->text().toLower().contains(lower);
+            pill->setVisible(match);
+            if (match) anyVisible = true;
+        }
+        block->setVisible(anyVisible);
+    }
+}
+
 void FacetEditorPage::selectTagByName(const QString& tag)
 {
     if (tag.isEmpty()) return;
@@ -191,6 +341,7 @@ void FacetEditorPage::selectTag(const QString& tag)
         auto* block = new QFrame;
         block->setObjectName("FacetCategoryBlock");
         block->setAttribute(Qt::WA_StyledBackground);
+        block->setProperty("_categoryName", catName);  // for the filter below
 
         auto* blockLayout = new QVBoxLayout(block);
         blockLayout->setContentsMargins(10, 6, 10, 10);
@@ -202,24 +353,22 @@ void FacetEditorPage::selectTag(const QString& tag)
             blockLayout->addWidget(header);
         }
 
-        // Checkboxes in a compact grid (3 columns)
-        auto* grid = new QWidget;
-        auto* gl   = new QGridLayout(grid);
-        gl->setContentsMargins(0, 0, 0, 0);
-        gl->setHorizontalSpacing(12);
-        gl->setVerticalSpacing(2);
+        // Wrap-flowing toggle pills — bigger click target than a checkbox,
+        // visually quicker to scan, and shows selected state via :checked QSS.
+        auto* pillsHost = new QWidget;
+        auto* flow      = new FlowLayout(pillsHost, /*margin*/ 0, /*hSpace*/ 6, /*vSpace*/ 6);
 
-        constexpr int Cols = 3;
-        int r = 0, c = 0;
         for (const QString& f : facets) {
-            auto* cb = new QCheckBox(f);
-            cb->setObjectName("FacetCheckBox");
-            cb->setChecked(existing.contains(f));
-            gl->addWidget(cb, r, c);
-            if (++c >= Cols) { c = 0; ++r; }
+            auto* pill = new QPushButton(f);
+            pill->setObjectName("FacetPillBtn");
+            pill->setCheckable(true);
+            pill->setChecked(existing.contains(f));
+            pill->setCursor(Qt::PointingHandCursor);
+            pill->setFocusPolicy(Qt::NoFocus);
+            flow->addWidget(pill);
         }
 
-        blockLayout->addWidget(grid);
+        blockLayout->addWidget(pillsHost);
         m_facetsLayout->addWidget(block);
     };
 
@@ -238,6 +387,8 @@ void FacetEditorPage::selectTag(const QString& tag)
 
     m_facetsLayout->addStretch();
     m_rightStack->setCurrentIndex(1);
+
+    m_facetSearchEdit->clear();
 }
 
 void FacetEditorPage::saveSelected()
@@ -245,17 +396,26 @@ void FacetEditorPage::saveSelected()
     if (m_selectedTag.isEmpty()) return;
 
     QList<QString> checked;
-    for (auto* cb : m_facetsContainer->findChildren<QCheckBox*>())
-        if (cb->isChecked())
-            checked << cb->text();
-    if (checked.isEmpty()) return;
+    for (auto* pill : m_facetsContainer->findChildren<QPushButton*>())
+        if (pill->isChecked())
+            checked << pill->text();
+
+    // Empty list is valid: clears the tag's definition (FacetIndex removes
+    // the entry entirely). Don't return early — that left the on-disk file
+    // out of sync with the user's intent to "uncategorize" a tag.
+    const bool nowDefined = !checked.isEmpty();
+
+    // If selection came from the undefined list, advance to the next undefined
+    // tag after save. For tags selected from the all-tags list (refining an
+    // existing definition), stay where we are.
+    const bool wasFromUndefined = (m_undefinedList->currentItem() != nullptr);
 
     m_facets->setDefinition(m_selectedTag, checked);
 
     const auto items = m_tagList->findItems(m_selectedTag, Qt::MatchExactly);
     for (auto* item : items) {
-        item->setData(Qt::UserRole, true);
-        item->setForeground(QColor("#3a6a3a"));
+        item->setData(Qt::UserRole, nowDefined);
+        item->setForeground(nowDefined ? QColor("#3a6a3a") : QColor());
     }
 
     int definedCount = 0;
@@ -265,8 +425,16 @@ void FacetEditorPage::saveSelected()
     m_countLabel->setText(
         QString("  %1 / %2 defined").arg(definedCount).arg(m_tagList->count()));
 
-    m_saveBtn->setText("Update definition");
+    m_saveBtn->setText(nowDefined ? "Update definition" : "Save definition");
+    refreshUndefinedList();  // saved tag drops out (or back into) the undefined section
     emit facetsDefined();
+
+    if (wasFromUndefined) {
+        if (m_undefinedList->count() > 0)
+            m_undefinedList->setCurrentRow(0);  // fires currentTextChanged → selectTag
+        else
+            clearEditor();
+    }
 }
 
 void FacetEditorPage::clearEditor()

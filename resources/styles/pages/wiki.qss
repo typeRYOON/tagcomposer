@@ -1,0 +1,57 @@
+/* ── TagWikiPage ──────────────────────────────────────────────────────────── */
+
+#TagWikiPage {
+    background: transparent;
+}
+
+#WikiHeader {
+    background: #0f0f0f;
+    border-bottom: 1px solid #1e1e1e;
+}
+
+#WikiNavBtn {
+    background: transparent;
+    border: none;
+    color: #3a3a3a;
+    font-size: 16px;
+    padding: 0px 6px;
+    min-width: 24px;
+}
+
+#WikiNavBtn:hover:enabled {
+    color: #888888;
+}
+
+#WikiNavBtn:disabled {
+    color: #1e1e1e;
+}
+
+#WikiHeaderInner {
+    background: transparent;
+}
+
+#WikiTitle {
+    background: transparent;
+    color: #cccccc;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+#WikiAlias {
+    background: transparent;
+    color: #444444;
+    font-size: 11px;
+}
+
+#WikiBrowser {
+    background: transparent;
+    color: #c0c0c0;
+    border: none;
+    font-size: 13px;
+    selection-background-color: #2a2a2a;
+}
+
+#WikiStatusLabel {
+    color: #333333;
+    font-size: 13px;
+}

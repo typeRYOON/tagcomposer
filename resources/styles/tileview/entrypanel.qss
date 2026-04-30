@@ -1,0 +1,167 @@
+/* ── EntryPanel ───────────────────────────────────────────────────────────── */
+
+#EntryPanel {
+    background: #111111;
+    border-left: 1px solid #1e1e1e;
+}
+
+#EntryEmptyLabel {
+    color: #3a3a3a;
+    font-size: 13px;
+}
+
+#EntryHeader {
+    background: transparent;
+    border-bottom: 1px solid #1e1e1e;
+}
+
+#EntryTitle {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 0px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #cccccc;
+    font-family: "Hiragino Maru Gothic ProN W4";
+    selection-background-color: #3a3a3a;
+}
+
+#EntryTitle:hover {
+    border-color: #2a2a2a;
+    background: #181818;
+}
+
+#EntryTitle:focus {
+    border-color: #404040;
+    background: #1a1a1a;
+}
+
+#EntryActionBtn {
+    background: #1a1a1a;
+    color: #888888;
+    border: 1px solid #262626;
+    border-radius: 5px;
+    padding: 5px 8px;
+    text-align: left;
+    font-size: 12px;
+}
+
+#EntryActionBtn:hover {
+    background: #222222;
+    color: #cccccc;
+    border-color: #333333;
+}
+
+#EntryActionBtn:disabled {
+    background: #141414;
+    color: #3a3a3a;
+    border-color: #1e1e1e;
+}
+
+#EntryActionBtn:checked {
+    background: #182418;
+    color: #5a9a5a;
+    border-color: #2a4a2a;
+}
+
+#EntryActionBtn:checked:hover {
+    background: #1e2e1e;
+    color: #7acc7a;
+    border-color: #3a6a3a;
+}
+
+#EntryActionBtnDelete {
+    background: #1a1a1a;
+    color: #7a3535;
+    border: 1px solid #262626;
+    border-radius: 5px;
+    padding: 5px 8px;
+    text-align: left;
+    font-size: 12px;
+}
+
+#EntryActionBtnDelete:hover {
+    background: #221818;
+    color: #dd5555;
+    border-color: #442222;
+}
+
+#EntryPageBtn {
+    background: transparent;
+    border: none;
+    color: #555555;
+    font-size: 11px;
+}
+
+#EntryPageBtn:hover    { color: #aaaaaa; }
+#EntryPageBtn:disabled { color: #2a2a2a; }
+
+#EntryPageBtnRemove {
+    background: transparent;
+    border: none;
+    color: #5a2a2a;
+    font-size: 11px;
+}
+
+#EntryPageBtnRemove:hover    { color: #cc4444; }
+#EntryPageBtnRemove:disabled { color: #2a2a2a; }
+
+#EntryPageLabel {
+    color: #555555;
+    font-size: 11px;
+}
+
+#EntryComment {
+    background: #141414;
+    color: #888888;
+    border: 1px solid #1e1e1e;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 12px;
+    selection-background-color: #2a2a2a;
+}
+
+#EntryComment:focus {
+    border-color: #2e2e2e;
+    color: #aaaaaa;
+    background: #181818;
+}
+
+#EntryTagsSection {
+    background: transparent;
+}
+
+#EntryTagScroll {
+    background: transparent;
+    border: none;
+}
+
+#EntryTagList {
+    background: transparent;
+}
+
+#TagRow {
+    background: transparent;
+    border-radius: 4px;
+}
+
+#TagRow:hover {
+    background: #1a1a1a;
+}
+
+#TagRemoveBtn {
+    background: transparent;
+    border: none;
+    color: #3a3a3a;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0;
+}
+
+#TagRemoveBtn:hover { color: #cc3333; }
+
+#ImageDropper {
+    background: #181818;
+    border-radius: 8px;
+}

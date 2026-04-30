@@ -1,0 +1,12 @@
+/* ── StatusBar ────────────────────────────────────────────────────────────── */
+
+#StatusBar {
+    background: #000000;
+    border-top: 1px solid #1a1a1a;
+}
+
+#StatusBarLabel {
+    background: transparent;
+    color: #444444;
+    font-size: 11px;
+}

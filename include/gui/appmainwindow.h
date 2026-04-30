@@ -1,5 +1,5 @@
 #pragma once
-#include <model/entrymodel.h>
+#include <core/entrymodel.h>
 #include <core/danbooruindex.h>
 #include <core/facetindex.h>
 #include <core/ruleengine.h>
@@ -44,7 +44,7 @@ private:
     void reloadFacets();
     void applyComfySettings();
 
-    model::EntryModel*   m_entryModel;
+    core::EntryModel*   m_entryModel;
     QStackedWidget*      m_pages;
     bool                 m_isFullScreen{ false };
 

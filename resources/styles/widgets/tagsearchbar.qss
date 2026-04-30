@@ -1,0 +1,40 @@
+/* ── TagSearchBar ─────────────────────────────────────────────────────────── */
+
+#TagSearchInput {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #2a2a2a;
+    border-radius: 0px;
+    padding: 6px 10px;
+    font-size: 16px;
+    font-family: "Hiragino Maru Gothic ProN W4";
+    selection-background-color: #3a3a3a;
+}
+
+#TagSearchInput:focus {
+    border-color: #444444;
+}
+
+#TagSearchInput:disabled {
+    background: #141414;
+    color: #2a2a2a;
+    border-color: #1e1e1e;
+}
+
+#TagSearchPopup {
+    background: #161616;
+    border: 1px solid #2e2e2e;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+#TagSearchList {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+#TagSearchList::item {
+    border: none;
+    padding: 0px;
+}

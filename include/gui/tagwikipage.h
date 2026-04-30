@@ -1,5 +1,5 @@
 #pragma once
-#include <gui/tagsearchbar.h>
+#include <gui/widgets/tagsearchbar.h>
 #include <QWidget>
 #include <QLabel>
 #include <QTextBrowser>

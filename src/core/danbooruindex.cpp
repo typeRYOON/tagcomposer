@@ -1,6 +1,7 @@
 #include <core/danbooruindex.h>
 #include <utils/stringutils.h>
 #include <QFile>
+#include <QDebug>
 #include <QTextStream>
 #include <algorithm>
 #include <numeric>
@@ -19,8 +20,11 @@ static QStringList parseAliases(const QString& field)
 DanbooruIndex* DanbooruIndex::loadFromFile(const QString& path)
 {
     QFile file(path);
+    qDebug() << path;
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
         return nullptr;
+    qDebug() << "OUT";
+
 
     auto* idx = new DanbooruIndex;
     QTextStream in(&file);

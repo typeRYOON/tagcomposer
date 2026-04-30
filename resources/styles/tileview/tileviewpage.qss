@@ -1,0 +1,25 @@
+/* ── TileViewPage ─────────────────────────────────────────────────────────── */
+
+#SearchBar {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #2a2a2a;
+    border-radius: 0px;
+    padding: 6px 10px;
+    font-size: 16px;
+    selection-background-color: #3a3a3a;
+}
+
+#SearchBar:focus {
+    border-bottom: 1px solid #444444;
+    background: #1e1e1e;
+}
+
+#SearchBar::placeholder {
+    color: #444444;
+}
+
+#TileRightPanel {
+    background: #111111;
+    border-left: 1px solid #222222;
+}
