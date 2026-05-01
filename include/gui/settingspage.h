@@ -23,6 +23,8 @@ public slots:
 signals:
     void settingsChanged();
     void reconnectRequested();
+    void exportEntriesRequested();
+    void importEntriesRequested();
 
 private:
     void onComfyToggled(bool enabled);

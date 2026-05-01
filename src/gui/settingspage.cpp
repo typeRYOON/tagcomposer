@@ -226,6 +226,46 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     bodyLayout->addWidget(facetsGroup);
     bodyLayout->addSpacing(24);
 
+    // ── Section: Data (import / export) ───────────────────────────────────────
+    auto* dataHeader = new QLabel("DATA");
+    dataHeader->setObjectName("SettingsSectionHeader");
+    bodyLayout->addWidget(dataHeader);
+    bodyLayout->addSpacing(12);
+
+    auto* dataGroup = new QWidget;
+    dataGroup->setObjectName("SettingsGroup");
+    dataGroup->setAttribute(Qt::WA_StyledBackground, true);
+    auto* dataLayout = new QVBoxLayout(dataGroup);
+    dataLayout->setContentsMargins(16, 14, 16, 14);
+    dataLayout->setSpacing(10);
+
+    auto* dataHint = new QLabel(
+        "Export selected entries (with referenced tag definitions) to a folder, "
+        "or import a previously-exported folder. Imports merge into your data; "
+        "duplicate entries are skipped, and tag-definition collisions are handled "
+        "per the option selected in the import dialog.");
+    dataHint->setObjectName("SettingsHintLabel");
+    dataHint->setWordWrap(true);
+    dataLayout->addWidget(dataHint);
+
+    auto* dataBtnRow = new QHBoxLayout;
+    auto* exportBtn  = new QPushButton("Export entries…");
+    exportBtn->setObjectName("SettingsLaunchBtn");
+    exportBtn->setCursor(Qt::PointingHandCursor);
+    auto* importBtn  = new QPushButton("Import entries…");
+    importBtn->setObjectName("SettingsLaunchBtn");
+    importBtn->setCursor(Qt::PointingHandCursor);
+    dataBtnRow->addWidget(exportBtn);
+    dataBtnRow->addWidget(importBtn);
+    dataBtnRow->addStretch();
+    dataLayout->addLayout(dataBtnRow);
+
+    connect(exportBtn, &QPushButton::clicked, this, &SettingsPage::exportEntriesRequested);
+    connect(importBtn, &QPushButton::clicked, this, &SettingsPage::importEntriesRequested);
+
+    bodyLayout->addWidget(dataGroup);
+    bodyLayout->addSpacing(24);
+
     // ── Section: Log ──────────────────────────────────────────────────────────
     auto* logHeader = new QLabel("LOG");
     logHeader->setObjectName("SettingsSectionHeader");

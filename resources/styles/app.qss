@@ -10,3 +10,112 @@ QMainWindow, QWidget {
 #MainPages {
     background: #0d0d0d;
 }
+
+/* ── Dialogs ──────────────────────────────────────────────────────────────── */
+/* Scoped to QDialog so existing widget-specific styles (#SettingsInput, the
+   tag search bar, etc.) keep their look — but dialogs get readable defaults. */
+
+QDialog {
+    background: #0d0d0d;
+    color: #e0e0e0;
+}
+
+QDialog QLabel {
+    color: #e0e0e0;
+    background: transparent;
+}
+
+QDialog QLineEdit,
+QDialog QComboBox,
+QDialog QAbstractSpinBox {
+    background: #141414;
+    color: #e0e0e0;
+    border: 1px solid #222222;
+    border-radius: 4px;
+    padding: 5px 8px;
+    selection-background-color: #2a2a2a;
+    selection-color: #ffffff;
+}
+
+QDialog QLineEdit:focus,
+QDialog QComboBox:focus,
+QDialog QAbstractSpinBox:focus {
+    border-color: #3a3a3a;
+    background: #181818;
+}
+
+QDialog QLineEdit:read-only {
+    color: #aaaaaa;
+    background: #101010;
+}
+
+QDialog QComboBox::drop-down {
+    border: none;
+    width: 18px;
+}
+
+QDialog QComboBox QAbstractItemView {
+    background: #141414;
+    color: #e0e0e0;
+    border: 1px solid #222222;
+    selection-background-color: #2a2a2a;
+    selection-color: #ffffff;
+    outline: 0;
+}
+
+QDialog QPushButton {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    padding: 5px 14px;
+}
+
+QDialog QPushButton:hover {
+    background: #232323;
+    border-color: #3a3a3a;
+}
+
+QDialog QPushButton:pressed {
+    background: #141414;
+}
+
+QDialog QPushButton:disabled {
+    color: #555555;
+    border-color: #1a1a1a;
+}
+
+QDialog QPushButton:checked {
+    background: #2a1a1a;
+    border-color: #553333;
+    color: #cc6666;
+}
+
+QDialog QRadioButton,
+QDialog QCheckBox {
+    color: #e0e0e0;
+    spacing: 6px;
+    background: transparent;
+}
+
+QDialog QRadioButton::indicator,
+QDialog QCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #333333;
+    background: #141414;
+}
+
+QDialog QRadioButton::indicator {
+    border-radius: 8px;
+}
+
+QDialog QCheckBox::indicator {
+    border-radius: 3px;
+}
+
+QDialog QRadioButton::indicator:checked,
+QDialog QCheckBox::indicator:checked {
+    background: #4a7a4a;
+    border-color: #5a8a5a;
+}

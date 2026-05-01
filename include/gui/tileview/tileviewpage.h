@@ -23,6 +23,9 @@ public:
     void setLoraActiveByUuids(const QList<QString>& uuids);
     void setLoraBaseDir(const QString& dir);
     QList<QString> activeLoraUuids() const;
+    // Re-runs the current search-bar query against the entry model. Used after
+    // an import to surface newly-added entries without losing typed state.
+    void refreshEntries();
 
 signals:
     void tagsExported(int entryId, int imageIdx, QList<QString> tags);

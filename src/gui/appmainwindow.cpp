@@ -10,6 +10,8 @@
 #include <gui/workfloweditpage.h>
 #include <gui/datasethelperspage.h>
 #include <gui/widgets/danmakuoverlay.h>
+#include <gui/exportdialog.h>
+#include <gui/importdialog.h>
 #include <utils/qutils.h>
 #include <utils/appconfig.h>
 #include <QApplication>
@@ -226,6 +228,23 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     });
     connect(m_settingsPage, &SettingsPage::reconnectRequested, this, [this]() {
         m_comfyClient->connectToServer();
+    });
+
+    // Import / Export dialogs launched from Settings → DATA section.
+    connect(m_settingsPage, &SettingsPage::exportEntriesRequested, this, [this]() {
+        ExportDialog dlg(m_entryModel, &m_facetIndex, this);
+        dlg.exec();
+    });
+    connect(m_settingsPage, &SettingsPage::importEntriesRequested, this, [this]() {
+        ImportDialog dlg(m_entryModel, &m_facetIndex,
+                         BASE_PATH + "/data/entry",
+                         BASE_PATH + "/" + DEFINITIONS_PATH, this);
+        if (dlg.exec() == QDialog::Accepted) {
+            // Pick up new entries in the tile view, and refresh facet editor +
+            // composer so freshly-added/merged definitions take effect now.
+            m_tileViewPage->refreshEntries();
+            reloadFacets();
+        }
     });
 
     connect(m_comfyClient, &core::ComfyUiClient::connected, this, [this]() {

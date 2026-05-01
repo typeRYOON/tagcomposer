@@ -12,6 +12,56 @@ using namespace utils;
 
 namespace core {
 
+    std::optional<Entry> EntryIO::loadOne(
+        const QString& entryFolder,
+        TagIndex& tagIndex)
+    {
+        QFile f{ entryFolder + "/__entry.json" };
+        if (!f.open(QIODevice::ReadOnly)) return std::nullopt;
+
+        const QJsonObject obj{ QJsonDocument::fromJson(f.readAll()).object() };
+        if (!obj.contains("uuid")
+            || !obj.contains("title")
+            || !obj.contains("images")
+            || !obj.contains("creation")) {
+            return std::nullopt;
+        }
+
+        Entry e;
+        e.uuid         = obj["uuid"].toString();
+        e.title        = obj["title"].toString();
+        e.comment      = obj["comment"].toString();
+        e.creationTime = obj["creation"].toInteger();
+        // id left default — caller assigns
+
+        if (obj.contains("lora") && obj["lora"].isObject()) {
+            const QJsonObject lo = obj["lora"].toObject();
+            LoraConfig lc;
+            lc.file     = lo["file"].toString();
+            lc.modelStr = lo["modelStr"].toDouble(0.9);
+            lc.clipStr  = lo["clipStr"].toDouble(2.0);
+            lc.sha256   = lo["sha256"].toString();
+            e.lora = lc;
+        }
+
+        const QJsonArray imagesArr = obj["images"].toArray();
+        for (const QJsonValueConstRef& v : imagesArr) {
+            const QJsonObject imgObj = v.toObject();
+            if (!imgObj.contains("file") || !imgObj.contains("tags")) continue;
+
+            ImageData imgData;
+            imgData.fileName = imgObj["file"].toString();
+            for (const QJsonValueConstRef& t : imgObj["tags"].toArray()) {
+                imgData.tagIds << tagIndex.getOrCreate(
+                    normalizeTagInput(t.toString()));
+            }
+            e.images << imgData;
+        }
+
+        if (!validEntry(e)) return std::nullopt;
+        return e;
+    }
+
     QList<Entry> EntryIO::loadAll(
         TagIndex& tagIndex,
         const QString& basePath)
@@ -20,60 +70,11 @@ namespace core {
         QList<Entry> entries;
         QDir base{ basePath };
 
-        for (const QString& dir : base.entryList(QDir::Dirs | QDir::NoDotAndDotDot))
-        {
-            QFile f{ base.filePath(dir + "/__entry.json") };
-            if (!f.open(QIODevice::ReadOnly)) {
-                continue;
-            }
-            const QJsonObject obj{ QJsonDocument::fromJson(f.readAll()).object() };
-            if (!obj.contains("uuid")
-                || !obj.contains("title")
-                || !obj.contains("images")
-                || !obj.contains("creation")) {
-                continue;
-            }
-
-            Entry e;
-            e.uuid         = obj["uuid"].toString();
-            e.title        = obj["title"].toString();
-            e.comment      = obj["comment"].toString();
-            e.creationTime = obj["creation"].toInteger();
-            e.id           = id++;
-
-            if (obj.contains("lora") && obj["lora"].isObject()) {
-                const QJsonObject lo = obj["lora"].toObject();
-                LoraConfig lc;
-                lc.file     = lo["file"].toString();
-                lc.modelStr = lo["modelStr"].toDouble(0.9);
-                lc.clipStr  = lo["clipStr"].toDouble(2.0);
-                lc.sha256   = lo["sha256"].toString();
-                e.lora = lc;
-            }
-
-            const QJsonArray imagesArr = obj["images"].toArray();
-            for (const QJsonValueConstRef& v : imagesArr)
-            {
-                const QJsonObject imgObj = v.toObject();
-                if (!imgObj.contains("file") || !imgObj.contains("tags")) {
-                    continue;
-                }
-
-                ImageData imgData;
-                imgData.fileName = imgObj["file"].toString();
-                for (const QJsonValueConstRef& t : imgObj["tags"].toArray())
-                {
-                    imgData.tagIds << tagIndex.getOrCreate(
-                        normalizeTagInput(t.toString())
-                    );
-                }
-                e.images << imgData;
-            }
-            if (validEntry(e)) {
-                entries << e;
-            } else {
-                --id;
-            }
+        for (const QString& dir : base.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            auto e = loadOne(base.filePath(dir), tagIndex);
+            if (!e) continue;
+            e->id = id++;
+            entries << *e;
         }
 
         return entries;

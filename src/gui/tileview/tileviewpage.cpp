@@ -162,6 +162,11 @@ void TileViewPage::setLoraBaseDir(const QString& dir)
     m_entryPanel->setLoraBaseDir(dir);
 }
 
+void TileViewPage::refreshEntries()
+{
+    m_entryView->query(m_searchBar->text());
+}
+
 void TileViewPage::applyOrientation(bool portrait)
 {
     m_rootLayout->setDirection(QBoxLayout::LeftToRight);
