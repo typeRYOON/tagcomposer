@@ -14,9 +14,12 @@
 #include <utils/appconfig.h>
 #include <QApplication>
 #include <QEvent>
+#include <QDir>
 #include <QDirIterator>
 #include <QFile>
+#include <QFileInfo>
 #include <QHBoxLayout>
+#include <QImage>
 #include <QVBoxLayout>
 #include <QTimer>
 #include <QFutureWatcher>
@@ -55,6 +58,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     // ── Pages ─────────────────────────────────────────────────────────────────
     m_tileViewPage    = new TileViewPage(m_entryModel, this);
+    m_tileViewPage->setLoraBaseDir(m_settings.loraBaseDir);
     m_composerPage    = new PromptComposerPage(m_pipeline, &m_ruleEngine, m_tagGroupIndex, this);
     m_composerPage->setVariableIndex(&m_varIndex);
     m_composerPage->setWorkflowManager(&m_workflowManager, BASE_PATH + "/" + WORKFLOWS_PATH);
@@ -108,6 +112,10 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             this, [this](const QList<core::LoraConfig>& stack) {
                 m_activeLoraStack = stack;
             });
+
+    // ── Batch ─────────────────────────────────────────────────────────────────
+    connect(m_workflowEditPage, &WorkflowEditPage::batchRunRequested,
+            this, &AppMainWindow::runBatch);
 
     // ── LoRA restore: composer session/state → tile view ─────────────────────
     connect(m_composerPage, &PromptComposerPage::loraUuidsRestored,
@@ -214,6 +222,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         m_danmakuOverlay->setActive(m_settings.danmakuEnabled);
         m_composerPage->setQuickFacets(
             m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet);
+        m_tileViewPage->setLoraBaseDir(m_settings.loraBaseDir);
     });
     connect(m_settingsPage, &SettingsPage::reconnectRequested, this, [this]() {
         m_comfyClient->connectToServer();
@@ -232,10 +241,39 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             m_composerPage, &PromptComposerPage::setPreviewImage);
     connect(m_comfyClient, &core::ComfyUiClient::queueCountChanged,
             m_composerPage, &PromptComposerPage::setQueueCount);
+    connect(m_comfyClient, &core::ComfyUiClient::queueCountChanged,
+            this, [this](int count) {
+                const bool jobFinished = (count < m_lastQueueCount);
+                m_lastQueueCount = count;
+
+                if (count <= 0) m_statusBar->clearProgress();
+
+                // Each queue decrement = a prompt just completed. Load its
+                // decoded output if we observed progress for it. Skip when the
+                // user just interrupted / cleared — that prompt didn't finish
+                // so any "newest" temp image is stale. Small delay gives
+                // ComfyUI time to write the file before we scan.
+                if (jobFinished && m_skipNextFinalLoad) {
+                    m_skipNextFinalLoad = false;
+                    m_pendingFinalLoad  = false;
+                    return;
+                }
+                if (jobFinished && m_pendingFinalLoad) {
+                    m_pendingFinalLoad = false;
+                    QTimer::singleShot(500, this, [this]() { loadFinalPreview(); });
+                }
+            });
     connect(m_comfyClient, &core::ComfyUiClient::previewProgressChanged,
-            m_composerPage, &PromptComposerPage::setPreviewProgress);
+            this, [this](int step, int total) {
+                m_statusBar->setProgress(step, total);
+                if (step > 0 && total > 0)
+                    m_pendingFinalLoad = true;
+            });
     connect(m_composerPage, &PromptComposerPage::interruptRequested,
-            m_comfyClient,  &core::ComfyUiClient::interrupt);
+            this, [this]() {
+                m_skipNextFinalLoad = true;
+                m_comfyClient->interrupt();
+            });
 
     // ── Layout ────────────────────────────────────────────────────────────────
     QWidget* content = new QWidget(this);
@@ -300,7 +338,10 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     };
     auto sc = [this](QKeySequence key, auto fn) {
         auto* s = new QShortcut(key, this);
-        s->setContext(Qt::ApplicationShortcut);
+        // Per-window so shortcuts on top-level child windows (e.g., the
+        // preview popout) can register the same keys without ambiguity —
+        // each window's shortcut fires only when it has focus.
+        s->setContext(Qt::WindowShortcut);
         connect(s, &QShortcut::activated, this, fn);
     };
 
@@ -310,6 +351,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     });
     sc(QKeySequence("Shift+R"), [this, textInput]() {
         if (textInput()) return;
+        m_skipNextFinalLoad = true;
         m_comfyClient->interrupt();
     });
     sc(QKeySequence("Shift+Alt+R"), [this, textInput]() {
@@ -387,6 +429,101 @@ void AppMainWindow::reloadFacets()
     m_composerPage->repush();
 }
 
+// ── Batch run ───────────────────────────────────────────────────────────────
+// Fire-and-forget: resolve query → for each entry build prompt (composer
+// state ∪ entry tags) → queue `count` prompts to ComfyUI per entry. Returns
+// immediately; ComfyUI handles the actual generation in its own queue.
+
+void AppMainWindow::runBatch(const QString& query)
+{
+    const core::WorkflowFile* wf = m_workflowManager.selectedFile();
+    if (!wf) {
+        m_statusBar->showMessage("Batch: no workflow selected");
+        return;
+    }
+
+    const QList<core::Entry*> matched = m_entryModel->filter(query);
+    if (matched.isEmpty()) {
+        m_statusBar->showMessage(
+            QString("Batch: query \"%1\" matched 0 entries").arg(query));
+        return;
+    }
+
+    QFile f(wf->path);
+    if (!f.open(QIODevice::ReadOnly)) {
+        m_statusBar->showMessage("Batch: workflow file unreadable");
+        return;
+    }
+    const QString tmpl = QString::fromUtf8(f.readAll());
+
+    const int count = m_composerPage->currentPromptCount();
+    int dispatched = 0;
+    int skipped    = 0;
+
+    for (core::Entry* entry : matched) {
+        QList<QString> tags;
+        if (!entry->images.isEmpty())
+            tags = m_entryModel->getTags(entry->images[0].tagIds);
+
+        // Skip entries with no tags — they'd all produce the same prompt
+        // (just the composer's state), which isn't useful for a batch.
+        if (tags.isEmpty()) {
+            ++skipped;
+            continue;
+        }
+
+        // Entry's own tags get unioned with the current composer state, then
+        // the full pipeline (rules + vars) runs over the merged set.
+        const QString positivePrompt =
+            m_composerPage->computePromptWithExtraTags(tags, true);
+
+        // Stack: current LoRAs + entry's own LoRA if it has one.
+        QList<core::LoraConfig> stackForEntry = m_activeLoraStack;
+        if (entry->lora.has_value())
+            stackForEntry << entry->lora.value();
+
+        for (int i = 0; i < count; ++i) {
+            QString json = m_workflowManager.applyToJson(tmpl);
+            json.replace("__positive__", positivePrompt);
+            core::WorkflowManager::applyLoraStack(
+                json, stackForEntry, m_settings.loraBaseDir);
+            m_comfyClient->queuePrompt(json);
+            ++dispatched;
+        }
+    }
+
+    m_workflowManager.saveToFile(BASE_PATH + "/" + WORKFLOWS_PATH);
+    m_workflowEditPage->refresh();
+
+    const QString summary = (skipped > 0)
+        ? QString("Dispatched %1 prompts (%2 entries × %3) — %4 skipped")
+            .arg(dispatched).arg(matched.size() - skipped).arg(count).arg(skipped)
+        : QString("Dispatched %1 prompts (%2 entries × %3)")
+            .arg(dispatched).arg(matched.size()).arg(count);
+
+    m_statusBar->showMessage("Batch: " + summary);
+    m_workflowEditPage->setBatchResult(summary);
+}
+
+void AppMainWindow::loadFinalPreview()
+{
+    const QString folder = m_settings.comfyUiTempFolder;
+    if (folder.isEmpty()) return;
+
+    static const QStringList filters = { "*.png", "*.jpg", "*.jpeg", "*.webp" };
+    const QFileInfoList files = QDir(folder).entryInfoList(filters, QDir::Files);
+    if (files.isEmpty()) return;
+
+    // Newest by mtime — the run that just finished should have written it.
+    const QFileInfo* newest = &files[0];
+    for (const QFileInfo& fi : files)
+        if (fi.lastModified() > newest->lastModified()) newest = &fi;
+
+    QImage img(newest->absoluteFilePath());
+    if (!img.isNull())
+        m_composerPage->setPreviewImage(img);
+}
+
 void AppMainWindow::closeEvent(QCloseEvent* event)
 {
     static bool isClosing{ false };
@@ -406,7 +543,19 @@ void AppMainWindow::closeEvent(QCloseEvent* event)
         propertyAnimate(this, "windowOpacity", 1.0, 0.0, 500, QEasingCurve::InOutSine),
         &QPropertyAnimation::finished,
         this,
-        []() { qApp->quit(); }
+        [this]() {
+            // Hide main + force-close any other top-level windows (popout)
+            // so they don't linger on the taskbar past the fade.
+            hide();
+            for (QWidget* w : qApp->topLevelWidgets()) {
+                if (w != this && w->isWindow()) {
+                    w->setAttribute(Qt::WA_DeleteOnClose, false);
+                    w->hide();
+                    w->deleteLater();
+                }
+            }
+            qApp->quit();
+        }
     );
 }
 

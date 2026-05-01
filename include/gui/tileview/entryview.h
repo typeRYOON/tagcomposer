@@ -98,7 +98,9 @@ namespace gui {
         QSet<int>            m_pending;
         QMutex               m_cacheMutex;
 
-        QPixmap m_placeholder;
+        QPixmap m_placeholder;       // transparent — drawn while a tile loads
+        QImage  m_emptyTileBg;       // resource-backed; fed into makeTileImage
+                                     // when an entry has no (or a missing) image
 
         // Per-tile animation state
         struct TileAnim {

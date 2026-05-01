@@ -32,6 +32,8 @@
 #include <QDate>
 #include <QDateTime>
 #include <QFrame>
+#include <QGraphicsOpacityEffect>
+#include <QPropertyAnimation>
 #include <QScreen>
 #include <QMouseEvent>
 #include <QDoubleSpinBox>
@@ -612,6 +614,15 @@ PromptComposerPage::PromptComposerPage(
         emit interruptRequested();
     });
 
+    // Inset preview opacity: starts at 0 so it fades in when the first preview
+    // image arrives. Also driven down/up when the popout opens/closes.
+    m_previewInsetFx = new QGraphicsOpacityEffect(m_previewLabel);
+    m_previewInsetFx->setOpacity(0.0);
+    m_previewLabel->setGraphicsEffect(m_previewInsetFx);
+    m_previewInsetFade = new QPropertyAnimation(m_previewInsetFx, "opacity", this);
+    m_previewInsetFade->setDuration(350);
+    m_previewInsetFade->setEasingCurve(QEasingCurve::InOutSine);
+
     // ── Open popout on preview click ──────────────────────────────────────────
     connect(m_previewLabel, &PreviewClickLabel::clicked, this, [this]() {
         if (!m_popout) {
@@ -619,15 +630,33 @@ PromptComposerPage::PromptComposerPage(
             popout->setAttribute(Qt::WA_DeleteOnClose);
             m_popout = popout;
             m_popout->installEventFilter(this);
-            connect(m_popout, &QObject::destroyed, this, [this]() { m_popout = nullptr; });
+            connect(m_popout, &QObject::destroyed, this, [this]() {
+                m_popout = nullptr;
+                // Only fade back in if the inset was actually visible — if the
+                // popout was opened before any preview arrived, leave the inset
+                // hidden until setPreviewImage shows it for real.
+                if (m_previewLabel->isVisible())
+                    fadePreviewInset(1.0);
+            });
             if (!m_tempFolder.isEmpty())
                 popout->setTempFolder(m_tempFolder);
+
+            // Forward popout's keyboard-shortcut intents to composer signals
+            // so they reach AppMainWindow / ComfyUiClient just like the
+            // main-window versions.
+            connect(popout, &PreviewPopoutWindow::runRequested,
+                this, [this]() { emit runRequested(m_promptCountSpin->value()); });
+            connect(popout, &PreviewPopoutWindow::interruptRequested,
+                this, &PromptComposerPage::interruptRequested);
+            connect(popout, &PreviewPopoutWindow::clearPendingRequested,
+                this, &PromptComposerPage::clearPendingRequested);
         }
         if (!m_currentPix.isNull())
             static_cast<PreviewPopoutWindow*>(m_popout)->setImage(m_currentPix);
         m_popout->show();
         m_popout->raise();
         m_popout->activateWindow();
+        fadePreviewInset(0.0);  // popout taking over → hide the inset
     });
 
     // ── Wire pipeline ─────────────────────────────────────────────────────────
@@ -684,6 +713,7 @@ void PromptComposerPage::setPreviewImage(const QImage& image)
     if (!popoutOpen) {
         m_previewLabel->show();
         m_previewLabel->raise();
+        fadePreviewInset(1.0);  // first show fades 0→1; subsequent calls no-op
     }
     repositionFloats();
 
@@ -691,16 +721,20 @@ void PromptComposerPage::setPreviewImage(const QImage& image)
         static_cast<PreviewPopoutWindow*>(m_popout)->setImage(m_currentPix);
 }
 
+void PromptComposerPage::fadePreviewInset(qreal target)
+{
+    if (!m_previewInsetFx || !m_previewInsetFade) return;
+    if (qFuzzyCompare(m_previewInsetFx->opacity(), target)) return;
+    m_previewInsetFade->stop();
+    m_previewInsetFade->setStartValue(m_previewInsetFx->opacity());
+    m_previewInsetFade->setEndValue(target);
+    m_previewInsetFade->start();
+}
+
 void PromptComposerPage::setQueueCount(int count)
 {
     m_queueLabel->setText(QString("%1 active").arg(count));
     repositionFloats();
-}
-
-void PromptComposerPage::setPreviewProgress(int step, int total)
-{
-    if (total > 0 && step > 0)
-        m_previewLabel->setStepText(QString("%1 / %2").arg(step).arg(total));
 }
 
 void PromptComposerPage::triggerRun()
@@ -785,6 +819,68 @@ QString PromptComposerPage::currentPromptString(bool forJson) const
     }
 
     return PromptPipeline::buildPromptString(ordered, forJson);
+}
+
+QString PromptComposerPage::computePromptForTags(const QList<QString>& tags, bool forJson) const
+{
+    if (!m_pipeline) return {};
+
+    QList<core::CategoryGroup> groups = m_pipeline->evaluate(tags);
+
+    // Apply user weights — only meaningful for tags that happen to overlap
+    // m_tagWeights (typically batch tags differ from the composer's set).
+    for (auto& g : groups)
+        for (auto& pt : g.tags)
+            pt.weight = m_tagWeights.value(pt.tag, 1.0f);
+
+    // Re-bucket in groups.fct order, mirroring currentPromptString's logic.
+    QHash<QString, QList<PipelineTag>> buckets;
+    QList<QString> order;
+    for (const TagGroup& tg : m_groups.groups())
+        order << tg.name;
+    order << ""; // uncategorized
+
+    for (const auto& g : groups)
+        for (const PipelineTag& pt : g.tags) {
+            if (pt.result == RuleResult::Deactivated) continue;
+            buckets[m_groups.groupFor(pt.facets)] << pt;
+        }
+
+    QList<CategoryGroup> ordered;
+    for (const QString& name : order) {
+        if (!buckets.contains(name) || buckets[name].isEmpty()) continue;
+        CategoryGroup cg;
+        cg.category = name;
+        cg.tags     = buckets[name];
+        ordered << cg;
+    }
+
+    return PromptPipeline::buildPromptString(ordered, forJson);
+}
+
+QString PromptComposerPage::computePromptWithExtraTags(const QList<QString>& extraTags, bool forJson) const
+{
+    // Merge: current effective tags (active − deactivated) ∪ extraTags.
+    // Dedupe to keep a stable order with composer-state first.
+    QList<QString> merged;
+    QSet<QString>  seen;
+    for (const QString& t : m_activeTags) {
+        if (m_deactivatedTags.contains(t)) continue;
+        if (seen.contains(t)) continue;
+        seen.insert(t);
+        merged << t;
+    }
+    for (const QString& t : extraTags) {
+        if (seen.contains(t)) continue;
+        seen.insert(t);
+        merged << t;
+    }
+    return computePromptForTags(merged, forJson);
+}
+
+int PromptComposerPage::currentPromptCount() const
+{
+    return m_promptCountSpin ? m_promptCountSpin->value() : 1;
 }
 
 void PromptComposerPage::setDanbooruIndex(core::DanbooruIndex* index)

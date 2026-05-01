@@ -8,6 +8,7 @@
 #include <QJsonObject>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QDebug>
 
 namespace core {
 
@@ -49,9 +50,14 @@ private slots:
             const QJsonObject data = msg["data"].toObject();
             const int step  = data["step"].toInt();
             const int total = data["total_steps"].toInt();
-            emit previewProgressChanged(step, total);
-            if (step == 0) return;
+            // Comfy emits steps 0..total-1 (the decoded final image arrives
+            // *after* the last preview and isn't sent over the WS); +1 so the
+            // user-visible range is 1..total instead of 0..total-1.
+            emit previewProgressChanged(step + 1, total);
 
+            // Preview bytes from last gen gets passed for some reason from comfyui.
+            if (step == 0)
+                return;
             const QByteArray imgBytes =
                 QByteArray::fromBase64(data["image"].toString().toUtf8());
             QImage img;

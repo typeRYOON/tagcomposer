@@ -22,6 +22,8 @@
 #include <QSpinBox>
 
 class QVBoxLayout;
+class QGraphicsOpacityEffect;
+class QPropertyAnimation;
 
 namespace core { class EntryModel; }
 
@@ -52,6 +54,19 @@ public:
     QString currentPromptString(bool forJson) const;
     QList<QString> currentActiveTags() const { return m_activeTags; }
 
+    // Synchronously runs the pipeline for an arbitrary tag list and returns
+    // the prompt string. Used by the batch runner to build per-entry prompts
+    // without disturbing composer state. Applies user weights from m_tagWeights
+    // for any tag that appears there; re-orders groups via groups.fct.
+    QString computePromptForTags(const QList<QString>& tags, bool forJson) const;
+
+    // Same as currentPromptString but with `extraTags` unioned on top of the
+    // composer's current effective tag set (active minus deactivated). Used
+    // by the batch runner to build "composer state + this entry's tags".
+    QString computePromptWithExtraTags(const QList<QString>& extraTags, bool forJson) const;
+
+    int     currentPromptCount() const;
+
     void saveSession(const QString& path) const;
     void restoreSession(const QString& path);
 
@@ -63,7 +78,6 @@ public slots:
     void onEntryTagRemoved(int entryId, int imageIdx, const QString& tag);
     void setPreviewImage(const QImage& image);
     void setQueueCount(int count);
-    void setPreviewProgress(int step, int total);
     void setOutputFolderPattern(const QString& pattern);
     void setTempFolder(const QString& folder);
     void setActiveLoraUuids(const QList<QString>& uuids);
@@ -91,6 +105,7 @@ protected:
 
 private:
     void rebuildGroupsDisplay(const QList<core::PipelineTag>& flat);
+    void fadePreviewInset(qreal target);
     void applyTagFilter();
     void rebuildRulesSidebar();
     void rebuildVarsSidebar();
@@ -137,8 +152,10 @@ private:
     QWidget*           m_centerBg;
 
     // Floating preview widgets (bottom-right, above control bar)
-    PreviewClickLabel* m_previewLabel;  // floating preview image (step text drawn inside it)
-    QWidget*           m_controlBar;    // floating control bar below preview
+    PreviewClickLabel*       m_previewLabel = nullptr;  // floating preview image
+    QGraphicsOpacityEffect*  m_previewInsetFx   = nullptr;  // opacity effect for fade
+    QPropertyAnimation*      m_previewInsetFade = nullptr;  // animation driving the effect
+    QWidget*                 m_controlBar = nullptr;        // floating control bar below preview
     QPushButton*       m_runBtn;
     QSpinBox*          m_promptCountSpin;
     QPushButton*       m_interruptBtn;

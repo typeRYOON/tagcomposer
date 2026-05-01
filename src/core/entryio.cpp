@@ -90,23 +90,6 @@ namespace core {
 
         QDir().mkpath(entryDir);
 
-
-        if (e.images.size() == 1)
-        {
-            QFile firstImg(entryDir + "/" + e.images[0].fileName);
-            if (!firstImg.exists())
-            {
-                QFile in(":/img/placeholder.png");
-                if (!in.open(QIODevice::ReadOnly)) {
-                    return;
-                }
-                if (!firstImg.open(QIODevice::WriteOnly)) {
-                    return;
-                }
-                firstImg.write(in.readAll());
-            }
-        }
-
         QJsonArray imagesArr;
         for (const ImageData& img : e.images) {
             QJsonArray tagsArr;

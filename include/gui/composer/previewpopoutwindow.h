@@ -14,8 +14,10 @@ class ScaledImageLabel;
 class ClickableLabel;
 
 // Separate top-level window (Qt::Window) parented to PromptComposerPage so Qt
-// handles cleanup. No Q_OBJECT needed — all connections use lambdas.
+// handles cleanup. Has Q_OBJECT so it can forward keyboard-shortcut intents
+// (run / interrupt / clear) up to the composer when this window is focused.
 class PreviewPopoutWindow : public QWidget {
+    Q_OBJECT
 public:
     explicit PreviewPopoutWindow(QWidget* parent = nullptr);
 
@@ -23,9 +25,15 @@ public:
     void setOutputFolder(const QString&) {}
     void setTempFolder(const QString& folder);
 
+signals:
+    void runRequested();
+    void interruptRequested();
+    void clearPendingRequested();
+
 protected:
     void resizeEvent(QResizeEvent* e) override;
     void showEvent(QShowEvent* e) override;
+    void closeEvent(QCloseEvent* e) override;
 
 private:
     void loadNewestTempImage();
@@ -38,6 +46,7 @@ private:
     QString                 m_tempFolder;
     QString                 m_lastTempPath;
     bool                    m_isFullScreen{ true };
+    bool                    m_isClosing{ false };
 };
 
 } // namespace gui

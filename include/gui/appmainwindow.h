@@ -44,6 +44,21 @@ private:
     void reloadFacets();
     void applyComfySettings();
 
+    // Resolve query to entries, build per-entry prompts (composer state ∪
+    // each entry's tags) and push them all to ComfyUI. Fire-and-forget.
+    void runBatch(const QString& query);
+
+    // After the last comfy job in a queue completes, load the newest image
+    // from the temp folder and pin it as the inline preview (so the preview
+    // shows the actual decoded output, not the last latent step).
+    void loadFinalPreview();
+    bool m_pendingFinalLoad   = false;
+    int  m_lastQueueCount     = 0;
+    // Set on interrupt / clearPending; consumed by the next queue-decrement
+    // event to suppress the final-image load (the just-killed prompt's output
+    // either doesn't exist or is stale from a previous run).
+    bool m_skipNextFinalLoad  = false;
+
     core::EntryModel*   m_entryModel;
     QStackedWidget*      m_pages;
     bool                 m_isFullScreen{ false };

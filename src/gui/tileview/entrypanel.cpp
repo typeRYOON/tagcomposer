@@ -1,5 +1,12 @@
 #include <gui/tileview/entrypanel.h>
 #include <utils/appconfig.h>
+#include <gui/widgets/appscrollbar.h>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QDirIterator>
+#include <QListWidget>
+#include <QListWidgetItem>
+#include <QPushButton>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLineEdit>
@@ -91,6 +98,147 @@ static void saveResized(const QString& src, const QString& dst)
     }
     scaled.save(dst, "PNG");
 }
+
+// ── LoRA import dialog ───────────────────────────────────────────────────────
+// Shown when a dropped LoRA file lives outside the configured lora folder.
+// User picks a relative path (auto-completed against existing files); the file
+// is moved into {loraBaseDir}/{relpath}. Extension must be .safetensors;
+// missing extension is auto-appended.
+
+class LoraImportDialog : public QDialog {
+public:
+    LoraImportDialog(const QString& sourcePath,
+                     const QString& loraBaseDir,
+                     QWidget* parent = nullptr)
+        : QDialog(parent), m_loraBaseDir(loraBaseDir)
+    {
+        setWindowTitle("Import LoRA");
+        setMinimumSize(800, 480);
+
+        // Pre-scan existing safetensors in the lora folder for autocompletion
+        QDirIterator it(loraBaseDir,
+                        QStringList() << "*.safetensors",
+                        QDir::Files, QDirIterator::Subdirectories);
+        const QDir base(loraBaseDir);
+        while (it.hasNext()) {
+            const QString abs = it.next();
+            m_allRelPaths << base.relativeFilePath(abs).replace('\\', '/');
+        }
+        m_allRelPaths.sort(Qt::CaseInsensitive);
+
+        const QFileInfo srcInfo(sourcePath);
+        auto* root = new QVBoxLayout(this);
+        root->setSpacing(8);
+
+        auto* sourceLabel = new QLabel(QString("Source: %1").arg(srcInfo.fileName()));
+        sourceLabel->setWordWrap(true);
+        root->addWidget(sourceLabel);
+
+        auto* prompt = new QLabel(
+            "Enter a relative path under the lora folder.\n"
+            "Use '/' for subfolders. Extension defaults to .safetensors.");
+        prompt->setWordWrap(true);
+        root->addWidget(prompt);
+
+        m_input = new QLineEdit;
+        m_input->setObjectName("SettingsInput");
+        m_input->setPlaceholderText("e.g. illustrious/style/myname");
+        m_input->setText(srcInfo.completeBaseName());
+        m_input->selectAll();
+        root->addWidget(m_input);
+
+        m_destPreview = new QLabel;
+        m_destPreview->setWordWrap(true);
+        root->addWidget(m_destPreview);
+
+        m_validation = new QLabel;
+        m_validation->setWordWrap(true);
+        m_validation->setStyleSheet("color: #cc6666;");
+        root->addWidget(m_validation);
+
+        auto* matchHeader = new QLabel("Existing files with this prefix:");
+        root->addWidget(matchHeader);
+
+        m_matchList = new QListWidget;
+        m_matchList->setObjectName("WfFileList");
+        m_matchList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_matchList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+        root->addWidget(m_matchList, 1);
+
+        auto* btns = new QDialogButtonBox(QDialogButtonBox::Cancel);
+        m_okBtn = btns->addButton("Move", QDialogButtonBox::AcceptRole);
+        root->addWidget(btns);
+
+        connect(m_input, &QLineEdit::textChanged,
+                this, &LoraImportDialog::refresh);
+        connect(m_matchList, &QListWidget::itemDoubleClicked, this,
+            [this](QListWidgetItem* item) {
+                m_input->setText(item->text());
+            });
+        connect(btns, &QDialogButtonBox::accepted, this, [this]() {
+            m_acceptedRelPath = computeFinalPath(m_input->text().trimmed());
+            accept();
+        });
+        connect(btns, &QDialogButtonBox::rejected, this, &QDialog::reject);
+
+        refresh();
+    }
+
+    QString relativePath() const { return m_acceptedRelPath; }
+
+private:
+    static QString computeFinalPath(const QString& input)
+    {
+        if (input.isEmpty()) return {};
+        const int lastSep = std::max(input.lastIndexOf('/'), input.lastIndexOf('\\'));
+        const int lastDot = input.lastIndexOf('.');
+        const bool hasExt = (lastDot > lastSep);
+        return hasExt ? input : input + ".safetensors";
+    }
+
+    QString validate(const QString& input, const QString& finalRel) const
+    {
+        if (input.isEmpty()) return "Enter a relative path";
+        const int lastSep = std::max(input.lastIndexOf('/'), input.lastIndexOf('\\'));
+        const int lastDot = input.lastIndexOf('.');
+        if (lastDot > lastSep) {
+            const QString ext = input.mid(lastDot).toLower();
+            if (ext != ".safetensors")
+                return QString("Extension must be .safetensors (got %1)").arg(ext);
+        }
+        if (QFile::exists(m_loraBaseDir + "/" + finalRel))
+            return "Destination file already exists";
+        return {};
+    }
+
+    void refresh()
+    {
+        const QString input = m_input->text().trimmed();
+        const QString finalRel = computeFinalPath(input);
+        m_destPreview->setText(
+            QString("Destination: %1/%2").arg(m_loraBaseDir, finalRel));
+
+        const QString err = validate(input, finalRel);
+        m_validation->setText(err);
+        m_okBtn->setEnabled(err.isEmpty());
+
+        m_matchList->clear();
+        const QString prefix = input;
+        for (const QString& rel : m_allRelPaths) {
+            if (prefix.isEmpty() || rel.startsWith(prefix, Qt::CaseInsensitive))
+                m_matchList->addItem(rel);
+        }
+    }
+
+    QString      m_loraBaseDir;
+    QStringList  m_allRelPaths;
+    QLineEdit*   m_input        = nullptr;
+    QLabel*      m_destPreview  = nullptr;
+    QLabel*      m_validation   = nullptr;
+    QListWidget* m_matchList    = nullptr;
+    QPushButton* m_okBtn        = nullptr;
+    QString      m_acceptedRelPath;
+};
 
 } // anonymous namespace
 
@@ -277,6 +425,8 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
                 // Verify the entry is still loaded and valid
                 if (m_model->entryById(targetEntry->id) != targetEntry) return;
 
+                // Reject duplicates before any file move so we don't shuffle
+                // a file across disks just to throw it away.
                 if (!hash.isEmpty()) {
                     core::Entry* existing = m_model->entryByLoraSha256(hash);
                     if (existing && existing != targetEntry) {
@@ -286,15 +436,57 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
                     }
                 }
 
+                // Determine where the LoRA file should live. If the dropped
+                // file is outside the configured lora folder, prompt the user
+                // for a relative path and move it in. Reject the drop entirely
+                // if no lora folder is configured — silently using a path
+                // outside the canonical folder breaks workflow JSON paths.
+                QString finalPath = path;
+                {
+                    if (m_loraBaseDir.isEmpty()) {
+                        emit statusMessageRequested(
+                            "LoRA folder not set in Settings — drop rejected");
+                        return;
+                    }
+                    const QString absPath = QDir::cleanPath(QDir(path).absolutePath());
+                    const QString absBase = QDir::cleanPath(QDir(m_loraBaseDir).absolutePath());
+                    const bool insideLoraDir =
+                        absPath.startsWith(absBase + "/", Qt::CaseInsensitive)
+                     || absPath.startsWith(absBase + "\\", Qt::CaseInsensitive);
+
+                    if (!insideLoraDir) {
+                        LoraImportDialog dlg(path, m_loraBaseDir, this);
+                        if (dlg.exec() != QDialog::Accepted) return;
+                        const QString rel  = dlg.relativePath();
+                        const QString dest = m_loraBaseDir + "/" + rel;
+
+                        QDir().mkpath(QFileInfo(dest).absolutePath());
+
+                        // QFile::rename can fail across drives on Windows;
+                        // fall back to copy + remove for that case.
+                        if (!QFile::rename(path, dest)) {
+                            if (!QFile::copy(path, dest)) {
+                                emit statusMessageRequested(
+                                    "Failed to move LoRA into the lora folder");
+                                return;
+                            }
+                            QFile::remove(path);
+                        }
+                        finalPath = dest;
+                        emit statusMessageRequested(
+                            QString("LoRA moved to: %1").arg(rel));
+                    }
+                }
+
                 if (!targetEntry->lora.has_value())
                     targetEntry->lora = core::LoraConfig{};
-                targetEntry->lora->file   = path;
+                targetEntry->lora->file   = finalPath;
                 targetEntry->lora->sha256 = hash;
                 m_model->saveEntry(targetEntry->id);
 
                 if (m_entry == targetEntry) refreshLoraSection();
                 emit statusMessageRequested(
-                    QString("LoRA assigned: %1").arg(QFileInfo(path).fileName()));
+                    QString("LoRA assigned: %1").arg(QFileInfo(finalPath).fileName()));
             });
         watcher->setFuture(QtConcurrent::run([path]() -> QString {
             QFile f(path);
@@ -505,6 +697,11 @@ void EntryPanel::setActiveGroups(const QMap<int, QList<int>>& groups)
 {
     m_activeGroups = groups;
     updateExtraBtnState();
+}
+
+void EntryPanel::setLoraBaseDir(const QString& dir)
+{
+    m_loraBaseDir = dir;
 }
 
 void EntryPanel::setEntry(core::Entry* entry)

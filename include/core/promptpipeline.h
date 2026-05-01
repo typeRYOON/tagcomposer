@@ -20,6 +20,11 @@ public:
     // Emits pipelineReady when done.
     void push(const QList<QString>& tags);
 
+    // Same logic as push() but synchronous — returns the resulting groups
+    // directly without emitting. Used by the batch runner to compute prompts
+    // for arbitrary entry tag sets without disturbing composer state.
+    QList<CategoryGroup> evaluate(const QList<QString>& tags) const;
+
     // Formats the groups into a prompt string (only Include + Injected tags).
     static QString buildPromptString(const QList<CategoryGroup>& groups, bool forJson);
 

@@ -13,6 +13,11 @@ PromptPipeline::PromptPipeline(FacetIndex* facets, RuleEngine* rules, VariableIn
 
 void PromptPipeline::push(const QList<QString>& tags)
 {
+    emit pipelineReady(evaluate(tags));
+}
+
+QList<CategoryGroup> PromptPipeline::evaluate(const QList<QString>& tags) const
+{
     // 1. Resolve facets for every tag.
     //    Tags with no facet definition are marked NoFacets and bypass the rule
     //    engine — they still appear in the output so the user can see them.
@@ -70,8 +75,7 @@ void PromptPipeline::push(const QList<QString>& tags)
             final << pt;
     final << afterRules;
 
-    // 4. Group by category and emit.
-    emit pipelineReady(groupByCategory(final));
+    return groupByCategory(final);
 }
 
 // ── Grouping ──────────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 #include <gui/workfloweditpage.h>
 #include <utils/appconfig.h>
 #include <gui/widgets/appscrollbar.h>
+#include <QDesktopServices>
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QLineEdit>
@@ -19,6 +20,8 @@
 #include <QMenu>
 #include <QPainter>
 #include <QSet>
+#include <QTimer>
+#include <QUrl>
 #include <climits>
 
 // ── RatioPreview ─────────────────────────────────────────────────────────────
@@ -68,9 +71,12 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     setAttribute(Qt::WA_StyledBackground, true);
 
     // ── Left: workflow variables ──────────────────────────────────────────────
+    constexpr int kHeaderHeight = 50;  // same for all section headers
+
     auto* leftHeader = new QWidget;
     leftHeader->setObjectName("WfEditHeader");
     leftHeader->setAttribute(Qt::WA_StyledBackground, true);
+    leftHeader->setFixedHeight(kHeaderHeight);
 
     auto* leftHeaderLayout = new QHBoxLayout(leftHeader);
     leftHeaderLayout->setContentsMargins(20, 12, 20, 12);
@@ -82,13 +88,26 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     m_titleLabel = new QLabel("No workflow selected");
     m_titleLabel->setObjectName("WfEditSubtitle");
 
-    auto* addBtn = new QPushButton("+ Add Variable");
-    addBtn->setObjectName("WfAddBtn");
-    addBtn->setCursor(Qt::PointingHandCursor);
+    auto* openWfBtn = new QPushButton("↗");
+    openWfBtn->setObjectName("SidebarBtn");
+    openWfBtn->setFixedSize(24, 24);
+    openWfBtn->setCursor(Qt::PointingHandCursor);
+    openWfBtn->setToolTip("Open the selected workflow JSON in your editor");
+    connect(openWfBtn, &QPushButton::clicked, this, [this]() {
+        if (!m_wm) return;
+        const core::WorkflowFile* wf = m_wm->selectedFile();
+        if (!wf || wf->path.isEmpty()) return;
+        QDesktopServices::openUrl(QUrl::fromLocalFile(wf->path));
+    });
+
+    m_addBtn = new QPushButton("+ Add Variable");
+    m_addBtn->setObjectName("WfAddBtn");
+    m_addBtn->setCursor(Qt::PointingHandCursor);
 
     leftHeaderLayout->addWidget(sectionLabel);
     leftHeaderLayout->addWidget(m_titleLabel, 1);
-    leftHeaderLayout->addWidget(addBtn);
+    leftHeaderLayout->addWidget(openWfBtn);
+    leftHeaderLayout->addWidget(m_addBtn);
 
     m_varContainer = new QWidget;
     m_varLayout    = new QVBoxLayout(m_varContainer);
@@ -111,14 +130,15 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     leftLayout->addWidget(leftHeader);
     leftLayout->addWidget(leftScroll, 1);
 
-    // ── Right: LoRA stack viewer/editor ───────────────────────────────────────
-    auto* rightHeader = new QWidget;
-    rightHeader->setObjectName("WfEditHeader");
-    rightHeader->setAttribute(Qt::WA_StyledBackground, true);
+    // ── Middle: LoRA stack viewer/editor ──────────────────────────────────────
+    auto* middleHeader = new QWidget;
+    middleHeader->setObjectName("WfEditHeader");
+    middleHeader->setAttribute(Qt::WA_StyledBackground, true);
+    middleHeader->setFixedHeight(kHeaderHeight);
 
-    auto* rightHeaderLayout = new QHBoxLayout(rightHeader);
-    rightHeaderLayout->setContentsMargins(20, 12, 20, 12);
-    rightHeaderLayout->setSpacing(16);
+    auto* middleHeaderLayout = new QHBoxLayout(middleHeader);
+    middleHeaderLayout->setContentsMargins(20, 12, 20, 12);
+    middleHeaderLayout->setSpacing(16);
 
     auto* loraSectionLabel = new QLabel("LORA STACK");
     loraSectionLabel->setObjectName("WfEditTitle");
@@ -126,8 +146,8 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     m_loraSubtitle = new QLabel("0 active");
     m_loraSubtitle->setObjectName("WfEditSubtitle");
 
-    rightHeaderLayout->addWidget(loraSectionLabel);
-    rightHeaderLayout->addWidget(m_loraSubtitle, 1);
+    middleHeaderLayout->addWidget(loraSectionLabel);
+    middleHeaderLayout->addWidget(m_loraSubtitle, 1);
 
     m_loraContainer = new QWidget;
     m_loraLayout    = new QVBoxLayout(m_loraContainer);
@@ -135,30 +155,130 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     m_loraLayout->setSpacing(10);
     m_loraLayout->addStretch();
 
-    auto* rightScroll = new QScrollArea;
-    rightScroll->setObjectName("WfEditScroll");
-    rightScroll->setWidget(m_loraContainer);
-    rightScroll->setWidgetResizable(true);
-    rightScroll->setFrameShape(QFrame::NoFrame);
-    rightScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    rightScroll->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+    auto* middleScroll = new QScrollArea;
+    middleScroll->setObjectName("WfEditScroll");
+    middleScroll->setWidget(m_loraContainer);
+    middleScroll->setWidgetResizable(true);
+    middleScroll->setFrameShape(QFrame::NoFrame);
+    middleScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    middleScroll->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+
+    auto* middlePanel = new QWidget;
+    auto* middleLayout = new QVBoxLayout(middlePanel);
+    middleLayout->setContentsMargins(0, 0, 0, 0);
+    middleLayout->setSpacing(0);
+    middleLayout->addWidget(middleHeader);
+    middleLayout->addWidget(middleScroll, 1);
+
+    // ── Right: Batch ──────────────────────────────────────────────────────────
+    // Fire-and-forget: query → resolve entries → for each, build a prompt
+    // (composer state ∪ entry tags) → push N prompts to ComfyUI. Doesn't
+    // block the UI; ComfyUI processes the queue serially on its own.
+    auto* rightHeader = new QWidget;
+    rightHeader->setObjectName("WfEditHeader");
+    rightHeader->setAttribute(Qt::WA_StyledBackground, true);
+    rightHeader->setFixedHeight(kHeaderHeight);
+
+    auto* rightHeaderLayout = new QHBoxLayout(rightHeader);
+    rightHeaderLayout->setContentsMargins(20, 12, 20, 12);
+    rightHeaderLayout->setSpacing(16);
+
+    auto* batchTitle = new QLabel("BATCH");
+    batchTitle->setObjectName("WfEditTitle");
+    rightHeaderLayout->addWidget(batchTitle);
+    rightHeaderLayout->addStretch();
+
+    auto* batchBody = new QWidget;
+    auto* batchBodyLayout = new QVBoxLayout(batchBody);
+    batchBodyLayout->setContentsMargins(20, 16, 20, 20);
+    batchBodyLayout->setSpacing(8);
+
+    auto* batchHint = new QLabel(
+        "Run the current composer prompt across every entry matching the\n"
+        "query — same syntax as the tile-view search bar.");
+    batchHint->setObjectName("WfEmptyHint");
+    batchHint->setWordWrap(true);
+    batchBodyLayout->addWidget(batchHint);
+
+    auto* batchQueryEdit = new QLineEdit;
+    batchQueryEdit->setObjectName("WfValueEdit");
+    batchQueryEdit->setPlaceholderText("entry query, e.g. \"kantai collection, -nsfw\"");
+    batchBodyLayout->addWidget(batchQueryEdit);
+
+    m_batchCountLabel = new QLabel("0 entries");
+    m_batchCountLabel->setObjectName("WfEditSubtitle");
+    batchBodyLayout->addWidget(m_batchCountLabel);
+
+    m_batchResultsList = new QListWidget;
+    m_batchResultsList->setObjectName("WfFileList");
+    m_batchResultsList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_batchResultsList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+    m_batchResultsList->setSelectionMode(QAbstractItemView::NoSelection);
+    m_batchResultsList->setFocusPolicy(Qt::NoFocus);
+    batchBodyLayout->addWidget(m_batchResultsList, 1);
+
+    auto* batchRunBtn = new QPushButton("▶ Run Batch");
+    batchRunBtn->setObjectName("WfAddBtn");
+    batchRunBtn->setCursor(Qt::PointingHandCursor);
+
+    m_batchStatus = new QLabel;
+    m_batchStatus->setObjectName("WfEditSubtitle");
+    m_batchStatus->setWordWrap(true);
+
+    auto* batchBtnRow = new QHBoxLayout;
+    batchBtnRow->setSpacing(10);
+    batchBtnRow->addWidget(batchRunBtn);
+    batchBtnRow->addWidget(m_batchStatus, 1);
+    batchBodyLayout->addLayout(batchBtnRow);
+
+    connect(batchRunBtn, &QPushButton::clicked, this, [this, batchQueryEdit]() {
+        emit batchRunRequested(batchQueryEdit->text().trimmed());
+    });
+    // Enter in the query field triggers the run too.
+    connect(batchQueryEdit, &QLineEdit::returnPressed, this, [this, batchQueryEdit]() {
+        emit batchRunRequested(batchQueryEdit->text().trimmed());
+    });
+
+    // Live results preview: debounce keystrokes, then resolve via EntryModel.
+    m_batchQueryDebounce = new QTimer(this);
+    m_batchQueryDebounce->setSingleShot(true);
+    m_batchQueryDebounce->setInterval(120);
+    connect(batchQueryEdit, &QLineEdit::textChanged,
+            m_batchQueryDebounce, qOverload<>(&QTimer::start));
+    connect(m_batchQueryDebounce, &QTimer::timeout, this,
+        [this, batchQueryEdit]() {
+            m_batchResultsList->clear();
+            if (!m_entryModel) {
+                m_batchCountLabel->setText("entries unavailable");
+                return;
+            }
+            const auto matched = m_entryModel->filter(batchQueryEdit->text().trimmed());
+            m_batchCountLabel->setText(
+                QString("%1 entr%2 matched").arg(matched.size())
+                                            .arg(matched.size() == 1 ? "y" : "ies"));
+            for (const auto* e : matched) {
+                const QString display = e->title.isEmpty() ? e->uuid : e->title;
+                m_batchResultsList->addItem(display);
+            }
+        });
 
     auto* rightPanel = new QWidget;
     auto* rightLayout = new QVBoxLayout(rightPanel);
     rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->setSpacing(0);
     rightLayout->addWidget(rightHeader);
-    rightLayout->addWidget(rightScroll, 1);
+    rightLayout->addWidget(batchBody, 1);  // body fills the column
 
-    // ── Root ──────────────────────────────────────────────────────────────────
+    // ── Root: three equal columns spanning the full page width ───────────────
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
-    root->addWidget(leftPanel,  1);
-    root->addWidget(rightPanel, 1);
+    root->addWidget(leftPanel,   1);
+    root->addWidget(middlePanel, 1);
+    root->addWidget(rightPanel,  1);
 
     // ── Add variable menu ─────────────────────────────────────────────────────
-    connect(addBtn, &QPushButton::clicked, this, [this, addBtn]() {
+    connect(m_addBtn, &QPushButton::clicked, this, [this]() {
         QMenu menu(this);
         menu.addAction("Seed",        this, [this]() { addVariable(core::WorkflowVarType::Seed); });
         menu.addAction("String",      this, [this]() { addVariable(core::WorkflowVarType::String); });
@@ -166,7 +286,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
         menu.addAction("Float",       this, [this]() { addVariable(core::WorkflowVarType::Float); });
         menu.addAction("Dir Search",  this, [this]() { addVariable(core::WorkflowVarType::DirSearch); });
         menu.addAction("Latent Size", this, [this]() { addVariable(core::WorkflowVarType::LatentSize); });
-        menu.exec(addBtn->mapToGlobal(QPoint(0, addBtn->height())));
+        menu.exec(m_addBtn->mapToGlobal(QPoint(0, m_addBtn->height())));
     });
 
     rebuildVarList();
@@ -184,6 +304,13 @@ void WorkflowEditPage::setEntryModel(core::EntryModel* model)
 {
     m_entryModel = model;
     rebuildLoraList();
+    // Populate the batch preview now that we can resolve queries.
+    if (m_batchQueryDebounce) m_batchQueryDebounce->start();
+}
+
+void WorkflowEditPage::setBatchResult(const QString& message)
+{
+    if (m_batchStatus) m_batchStatus->setText(message);
 }
 
 void WorkflowEditPage::setActiveLoraStack(const QList<core::LoraConfig>& stack)
@@ -256,6 +383,9 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     auto* card = new QFrame;
     card->setObjectName("WfVarCard");
     card->setAttribute(Qt::WA_StyledBackground, true);
+    // Cap height to sizeHint so cards don't stretch vertically when the
+    // m_varLayout has extra space — extra space goes to the trailing stretch.
+    card->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
     auto* cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(12, 10, 12, 12);
@@ -325,6 +455,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         valLabel->setObjectName("WfFieldLabel");
 
         auto* seedEdit = new QLineEdit;
+        seedEdit->setObjectName("WfValueEdit");  // dark themed; matches other value fields
         seedEdit->setText(QString::number(var.seedValue));
 
         connect(seedEdit, &QLineEdit::editingFinished, this, [this, index, seedEdit]() {

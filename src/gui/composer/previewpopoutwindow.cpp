@@ -1,7 +1,9 @@
 #include <gui/composer/previewpopoutwindow.h>
 #include <gui/composer/scaledimagelabel.h>
 #include <gui/composer/clickablelabel.h>
+#include <utils/qutils.h>
 #include <QAction>
+#include <QCloseEvent>
 #include <QDir>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
@@ -9,6 +11,7 @@
 #include <QImage>
 #include <QKeySequence>
 #include <QPixmap>
+#include <QPropertyAnimation>
 #include <QResizeEvent>
 #include <QShowEvent>
 #include <QTimer>
@@ -25,6 +28,7 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
     resize(900, 700);
     setMinimumSize(400, 300);
     setAttribute(Qt::WA_StyledBackground);
+    setWindowOpacity(0.0);  // fade in on first showEvent
 
     m_imageLabel = new ScaledImageLabel(this);
 
@@ -57,18 +61,25 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
         m_tempLabel->raise();
     });
 
-    // TODO: fix, should be F11 but currently results in ambiguous shortcut call conflict.
-    auto* action = new QAction(this);
-    action->setShortcut(QKeySequence("F12"));
-    action->setShortcutContext(Qt::WindowShortcut);
-    connect(action, &QAction::triggered, this, [this]() {
+    // Per-window shortcuts. Main window's shortcuts are also WindowShortcut,
+    // so each window owns its own copies of these keys with no ambiguity.
+    auto addShortcut = [this](const QString& seq, auto handler) {
+        auto* a = new QAction(this);
+        a->setShortcut(QKeySequence(seq));
+        a->setShortcutContext(Qt::WindowShortcut);
+        connect(a, &QAction::triggered, this, handler);
+        addAction(a);
+    };
+
+    addShortcut("F11", [this]() {
         m_isFullScreen = !m_isFullScreen;
-        if (m_isFullScreen)
-            showFullScreen();
-        else
-            showNormal();
-        });
-    addAction(action);
+        if (m_isFullScreen) showFullScreen();
+        else                showNormal();
+    });
+    addShortcut("Shift+E",     [this]() { emit runRequested(); });
+    addShortcut("Shift+R",     [this]() { emit interruptRequested(); });
+    addShortcut("Shift+Alt+R", [this]() { emit clearPendingRequested(); });
+    addShortcut("Ctrl+W",      [this]() { close(); });
 }
 
 void PreviewPopoutWindow::setImage(const QPixmap& pix)
@@ -99,6 +110,25 @@ void PreviewPopoutWindow::showEvent(QShowEvent* e)
 {
     QWidget::showEvent(e);
     loadNewestTempImage();
+    if (windowOpacity() < 0.99) {
+        utils::propertyAnimate(this, "windowOpacity",
+                               windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+    }
+}
+
+void PreviewPopoutWindow::closeEvent(QCloseEvent* e)
+{
+    // First close → swallow event, fade out, then re-close which lets through.
+    // Mirror of AppMainWindow's closeEvent fade pattern.
+    if (m_isClosing) {
+        e->accept();
+        return;
+    }
+    e->ignore();
+    m_isClosing = true;
+    auto* anim = utils::propertyAnimate(this, "windowOpacity",
+                                        windowOpacity(), 0.0, 200, QEasingCurve::InOutSine);
+    connect(anim, &QPropertyAnimation::finished, this, [this]() { close(); });
 }
 
 void PreviewPopoutWindow::loadNewestTempImage()

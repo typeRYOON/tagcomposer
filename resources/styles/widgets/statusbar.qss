@@ -10,3 +10,17 @@
     color: #444444;
     font-size: 11px;
 }
+
+#StatusBarProgress {
+    background: #0a0a0a;
+    border: 1px solid #1a1a1a;
+    border-radius: 2px;
+    color: #6a6a6a;
+    font-size: 10px;
+    text-align: center;
+}
+
+#StatusBarProgress::chunk {
+    background: #2a4a2a;
+    border-radius: 1px;
+}

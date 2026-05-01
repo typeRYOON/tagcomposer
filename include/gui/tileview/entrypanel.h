@@ -29,6 +29,10 @@ public:
     void setDanbooruIndex(core::DanbooruIndex* index);
     void setActiveGroups(const QMap<int, QList<int>>& groups);
     void applyOrientation(bool portrait);
+    // Required so dropped LoRAs from outside the lora folder can be moved
+    // into a user-named relative path under it. Empty disables the prompt
+    // and falls back to using the dropped file's original path.
+    void setLoraBaseDir(const QString& dir);
 
 signals:
     void entryListChanged();
@@ -57,6 +61,7 @@ private:
     int                  m_imageIdx      = 0;
     QSet<QString>        m_activeTags;
     QMap<int, QList<int>> m_activeGroups;
+    QString              m_loraBaseDir;
 
     // Layout
     QStackedWidget* m_stack;

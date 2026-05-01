@@ -21,6 +21,7 @@ public:
     void setDanbooruIndex(core::DanbooruIndex* index);
     void setActiveGroups(const QMap<int, QList<int>>& groups);
     void setLoraActiveByUuids(const QList<QString>& uuids);
+    void setLoraBaseDir(const QString& dir);
     QList<QString> activeLoraUuids() const;
 
 signals:

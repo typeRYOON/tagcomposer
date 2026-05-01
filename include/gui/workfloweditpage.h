@@ -4,9 +4,12 @@
 #include <core/workflowmanager.h>
 #include <QWidget>
 #include <QScrollArea>
+#include <QListWidget>
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QFrame>
+
+class QPushButton;
 
 namespace gui {
 
@@ -29,6 +32,15 @@ signals:
     // cached active stack with the new values.
     void loraStrengthsChanged(const QList<core::LoraConfig>& stack);
 
+    // Right-side batch panel: query string entered by user. Fire-and-forget;
+    // AppMainWindow resolves entries and queues per-entry prompts to ComfyUI.
+    void batchRunRequested(const QString& query);
+
+public slots:
+    // AppMainWindow pushes the post-run summary here so it can show next to
+    // the Run Batch button (mirrors what's in the status bar).
+    void setBatchResult(const QString& message);
+
 private:
     void   rebuildVarList();
     QFrame* makeVarCard(int index);
@@ -44,12 +56,19 @@ private:
     QList<core::LoraConfig> m_loraStack;
 
     QLabel*      m_titleLabel    = nullptr;
+    QPushButton* m_addBtn        = nullptr;
     QWidget*     m_varContainer  = nullptr;
     QVBoxLayout* m_varLayout     = nullptr;
 
     QLabel*      m_loraSubtitle  = nullptr;
     QWidget*     m_loraContainer = nullptr;
     QVBoxLayout* m_loraLayout    = nullptr;
+
+    // Batch column
+    QLabel*      m_batchStatus      = nullptr;
+    QLabel*      m_batchCountLabel  = nullptr;
+    QListWidget* m_batchResultsList = nullptr;
+    QTimer*      m_batchQueryDebounce = nullptr;
 };
 
 } // namespace gui

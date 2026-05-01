@@ -141,9 +141,29 @@ namespace gui {
         // the cap, and scrolling through more entries than this evicts oldest.
         m_pixCache.setMaxCost(200);
 
-        // Rounded placeholder
+        // Transparent in-flight placeholder — keeps the initial paint clean
+        // (no flash of the placeholder image while real images stream in).
         m_placeholder = QPixmap(TileW, TileH);
         m_placeholder.fill(Qt::transparent);
+
+        // Pre-scaled resource image used by makeTileImage when an entry has
+        // no image (or its image file is missing). Center-cropped to tile size.
+        {
+            QImage src(":/img/placeholder.png");
+            if (src.isNull()) {
+                src = QImage(TileW, TileH, QImage::Format_ARGB32_Premultiplied);
+                src.fill(QColor(28, 28, 28));
+            }
+            const QImage scaled = src.scaled(
+                TileW, TileH, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+            m_emptyTileBg = QImage(TileW, TileH, QImage::Format_ARGB32_Premultiplied);
+            m_emptyTileBg.fill(Qt::transparent);
+            QPainter p(&m_emptyTileBg);
+            p.setRenderHint(QPainter::SmoothPixmapTransform);
+            const int dx = (TileW - scaled.width())  / 2;
+            const int dy = (TileH - scaled.height()) / 2;
+            p.drawImage(dx, dy, scaled);
+        }
 
         // Single shared animation timer (~60 fps).
         // Drives both load fade-in and hover scale/opacity transitions.
@@ -572,9 +592,7 @@ namespace gui {
         const Entry* e = m_entries[entryIndex];
 
         if (e->images.isEmpty()) {
-            const QImage composed = makeTileImage(
-                m_placeholder.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied),
-                e->title);
+            const QImage composed = makeTileImage(m_emptyTileBg, e->title);
             QMutexLocker lk(&m_cacheMutex);
             m_pixCache.insert(entryIndex, new QPixmap(QPixmap::fromImage(composed)));
             m_pending.remove(entryIndex);
@@ -591,10 +609,18 @@ namespace gui {
                 QImage img(path);
 
                 if (img.isNull()) {
-                    QMetaObject::invokeMethod(this, [this, entryIndex, generation]() {
-                        if (m_generation != generation) return;
-                        QMutexLocker lk(&m_cacheMutex);
-                        m_pending.remove(entryIndex);
+                    // File missing or unreadable — fall back to a placeholder
+                    // tile (with title), same as entries with no images at all.
+                    // Without this, paint requests would refire on every paint
+                    // and the cache would never fill, looping indefinitely.
+                    QMetaObject::invokeMethod(this,
+                        [this, entryIndex, title, generation]() {
+                            if (m_generation != generation) return;
+                            const QImage composed = makeTileImage(m_emptyTileBg, title);
+                            QMutexLocker lk(&m_cacheMutex);
+                            m_pixCache.insert(entryIndex, new QPixmap(QPixmap::fromImage(composed)));
+                            m_pending.remove(entryIndex);
+                            update();
                         }, Qt::QueuedConnection);
                     return;
                 }

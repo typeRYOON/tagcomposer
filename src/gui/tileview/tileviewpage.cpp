@@ -157,6 +157,11 @@ QList<QString> TileViewPage::activeLoraUuids() const
     return m_entryView->activeLoraUuids();
 }
 
+void TileViewPage::setLoraBaseDir(const QString& dir)
+{
+    m_entryPanel->setLoraBaseDir(dir);
+}
+
 void TileViewPage::applyOrientation(bool portrait)
 {
     m_rootLayout->setDirection(QBoxLayout::LeftToRight);

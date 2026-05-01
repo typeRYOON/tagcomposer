@@ -3,24 +3,18 @@
 
 namespace gui {
 
-// QLabel that supports hover QSS, click signal, and an in-frame step overlay.
+// QLabel with hover QSS support and a click signal. Used for the inline
+// preview tile in the composer; clicking pops out a larger viewer window.
 class PreviewClickLabel : public QLabel {
     Q_OBJECT
 public:
     explicit PreviewClickLabel(QWidget* parent = nullptr);
-
-    // empty = hide overlay
-    void setStepText(const QString& text);
 
 signals:
     void clicked();
 
 protected:
     void mousePressEvent(QMouseEvent* e) override;
-    void paintEvent(QPaintEvent* e) override;
-
-private:
-    QString m_stepText;
 };
 
 } // namespace gui

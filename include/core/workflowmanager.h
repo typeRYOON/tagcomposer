@@ -64,7 +64,7 @@ public:
     static void applyLoraStack(QString& json,
                                const QList<LoraConfig>& loras,
                                const QString& baseDir,
-                               int maxSlots = 6);
+                               int maxSlots = 10);
 
     // Parses a latent_sizes.txt file (format: "width height" per line, # comments).
     static QList<LatentSizeEntry> loadLatentSizes(const QString& path);
