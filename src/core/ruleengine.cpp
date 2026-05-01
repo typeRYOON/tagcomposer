@@ -1,6 +1,7 @@
 #include <core/ruleengine.h>
 #include <core/facetindex.h>
 #include <QFile>
+#include <QSet>
 #include <QTextStream>
 #include <QRegularExpression>
 
@@ -171,8 +172,11 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
     Rule    current;
     bool    inRule     { false };
     bool    actionSet  { false };
+    bool    skipBlock  { false };  // current @rule is a duplicate — drop until next @rule
+    QSet<QString> seenNames;
 
     auto finaliseRule = [&]() {
+        if (skipBlock) return;
         if (!actionSet && errors)
             *errors << QString("Rule \"%1\": missing action").arg(current.name);
         eng.m_rules << current;
@@ -185,14 +189,27 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
 
         if (line.startsWith("@rule")) {
             if (inRule) finaliseRule();
-            current   = Rule{};
-            actionSet = false;
+            current      = Rule{};
+            actionSet    = false;
             current.name = line.mid(5).trimmed();
             inRule       = true;
+            skipBlock    = false;
+
+            if (current.name.isEmpty()) {
+                skipBlock = true;
+                if (errors) *errors << "Rule with empty name skipped";
+            } else if (seenNames.contains(current.name)) {
+                skipBlock = true;
+                if (errors)
+                    *errors << QString("Duplicate rule \"%1\" skipped (first definition kept)")
+                                .arg(current.name);
+            } else {
+                seenNames.insert(current.name);
+            }
             continue;
         }
 
-        if (!inRule || !line.contains('=')) continue;
+        if (!inRule || skipBlock || !line.contains('=')) continue;
 
         const int     eq  = line.indexOf('=');
         const QString key = line.left(eq).trimmed();

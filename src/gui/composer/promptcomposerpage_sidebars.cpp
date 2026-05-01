@@ -8,20 +8,121 @@
 #include <core/variableindex.h>
 #include <core/workflowmanager.h>
 #include <utils/appconfig.h>
+#include <QApplication>
 #include <QCheckBox>
 #include <QColor>
+#include <QEnterEvent>
+#include <QFile>
 #include <QFont>
+#include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QPixmap>
+#include <QPushButton>
+#include <QResizeEvent>
 #include <QVBoxLayout>
 
 using namespace core;
 using namespace utils;
 
 namespace gui {
+
+namespace {
+
+// QLabel that elides its text on resize so adjacent badges stay visible
+// when a rule's name is longer than the column.
+class ElidingLabel : public QLabel {
+public:
+    explicit ElidingLabel(const QString& full, QWidget* parent = nullptr)
+        : QLabel(parent), m_full(full)
+    {
+        setText(full);
+        setToolTip(full);
+        setMinimumWidth(0);
+        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    }
+protected:
+    void resizeEvent(QResizeEvent* e) override
+    {
+        QLabel::resizeEvent(e);
+        QFontMetrics fm(font());
+        setText(fm.elidedText(m_full, Qt::ElideRight, e->size().width()));
+    }
+private:
+    QString m_full;
+};
+
+// Rule container that collapses its args area unless the row is hovered or
+// one of its descendants has focus — keeps the rules sidebar compact.
+class RuleRow : public QWidget {
+public:
+    explicit RuleRow(QWidget* parent = nullptr) : QWidget(parent) {}
+
+    void setArgsArea(QWidget* a)
+    {
+        m_args = a;
+        if (!m_args) return;
+        m_args->setVisible(false);
+        // Watch focus on every child so we can keep open while typing.
+        for (QWidget* w : m_args->findChildren<QWidget*>())
+            w->installEventFilter(this);
+    }
+
+protected:
+    void enterEvent(QEnterEvent*) override
+    {
+        if (m_args) m_args->setVisible(true);
+    }
+    void leaveEvent(QEvent*) override { maybeHide(); }
+
+    bool eventFilter(QObject*, QEvent* e) override
+    {
+        if (e->type() == QEvent::FocusIn) {
+            if (m_args) m_args->setVisible(true);
+        } else if (e->type() == QEvent::FocusOut) {
+            // Defer — focus may be moving to a sibling within the same row.
+            QMetaObject::invokeMethod(this, [this] { maybeHide(); },
+                                      Qt::QueuedConnection);
+        }
+        return false;
+    }
+
+private:
+    void maybeHide()
+    {
+        if (!m_args) return;
+        if (underMouse()) return;
+        if (QWidget* fw = QApplication::focusWidget())
+            if (isAncestorOf(fw)) return;
+        m_args->setVisible(false);
+    }
+
+    QWidget* m_args = nullptr;
+};
+
+// Build a small status badge. Prefers an icon resource when one is present,
+// falling back to text — drop a PNG/SVG at the resource path to upgrade.
+QLabel* makeBadge(const QString& iconRes,
+                  const QString& fallbackText,
+                  const QString& objectName)
+{
+    auto* lbl = new QLabel;
+    lbl->setObjectName(objectName);
+    if (!iconRes.isEmpty() && QFile::exists(iconRes)) {
+        QPixmap pm(iconRes);
+        if (!pm.isNull()) {
+            lbl->setPixmap(pm);
+            return lbl;
+        }
+    }
+    lbl->setText(fallbackText);
+    return lbl;
+}
+
+} // namespace
 
 void PromptComposerPage::reloadRules()
 {
@@ -73,18 +174,20 @@ void PromptComposerPage::rebuildRulesSidebar()
         for (int i = 0; i < rules.size(); ++i) {
             const bool hasArgEdit = (rules[i].action.type == ActionType::Add
                                   || rules[i].action.type == ActionType::Replace);
+            const bool isReplace  = (rules[i].action.type == ActionType::Replace);
 
-            auto* ruleWidget = new QWidget;
+            auto* ruleWidget = new RuleRow;
             auto* rwl = new QVBoxLayout(ruleWidget);
             rwl->setContentsMargins(0, 0, 0, 2);
             rwl->setSpacing(2);
 
+            // ── Header row: indicator-only checkbox + elided name + badges ──
             auto* cbRow  = new QWidget;
             auto* cbRowL = new QHBoxLayout(cbRow);
             cbRowL->setContentsMargins(0, 0, 0, 0);
             cbRowL->setSpacing(4);
 
-            auto* cb = new QCheckBox(rules[i].name);
+            auto* cb = new QCheckBox;
             cb->setObjectName("ComposerRuleToggle");
             cb->setChecked(rules[i].enabled);
             connect(cb, &QCheckBox::toggled, this, [this, i](bool on) {
@@ -94,43 +197,100 @@ void PromptComposerPage::rebuildRulesSidebar()
                 QMetaObject::invokeMethod(
                     this, &PromptComposerPage::repush, Qt::QueuedConnection);
             });
-            cbRowL->addWidget(cb, 1);
+            cbRowL->addWidget(cb);
+
+            auto* nameLabel = new ElidingLabel(rules[i].name);
+            nameLabel->setObjectName("ComposerRuleName");
+            cbRowL->addWidget(nameLabel, 1);
 
             if (rules[i].force) {
-                auto* forceBadge = new QLabel("F");
-                forceBadge->setObjectName("ComposerRuleForceBadge");
-                cbRowL->addWidget(forceBadge);
+                cbRowL->addWidget(makeBadge(
+                    ":/icons/rule_force.png", "F", "ComposerRuleForceBadge"));
+            }
+
+            if (hasArgEdit) {
+                cbRowL->addWidget(makeBadge(
+                    isReplace ? ":/icons/rule_replace.png" : ":/icons/rule_add.png",
+                    isReplace ? "→" : "+",
+                    isReplace ? "ComposerRuleReplaceBadge" : "ComposerRuleAddBadge"));
             }
 
             rwl->addWidget(cbRow);
 
+            // ── Per-tag rows: one QLineEdit per argument + trailing add row ──
             if (hasArgEdit) {
-                auto* argEdit = new QLineEdit(rules[i].action.arguments.join(", "));
-                argEdit->setObjectName("ComposerRuleArgEdit");
-                argEdit->setPlaceholderText("tag to inject…");
-                connect(argEdit, &QLineEdit::editingFinished, this, [this, i, argEdit]() {
-                    QList<QString> args;
-                    for (const QString& a : argEdit->text().split(','))
-                        if (const QString t = a.trimmed(); !t.isEmpty())
-                            args << t;
-                    m_rules->rules()[i].action.arguments = args;
-                    m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
-                    QMetaObject::invokeMethod(
-                        this, &PromptComposerPage::repush, Qt::QueuedConnection);
-                });
+                auto* argsCol = new QWidget;
+                auto* acl = new QVBoxLayout(argsCol);
+                acl->setContentsMargins(18, 0, 0, 0);
+                acl->setSpacing(2);
 
-                const bool isReplace = (rules[i].action.type == ActionType::Replace);
-                auto* actionBadge = new QLabel(isReplace ? "→" : "+");
-                actionBadge->setObjectName(isReplace ? "ComposerRuleReplaceBadge"
-                                                     : "ComposerRuleAddBadge");
+                const QList<QString>& args = rules[i].action.arguments;
+                for (int k = 0; k < args.size(); ++k) {
+                    auto* row = new QWidget;
+                    auto* rl  = new QHBoxLayout(row);
+                    rl->setContentsMargins(0, 0, 0, 0);
+                    rl->setSpacing(4);
 
-                auto* argRow = new QWidget;
-                auto* arl = new QHBoxLayout(argRow);
-                arl->setContentsMargins(18, 0, 0, 0);
-                arl->setSpacing(4);
-                arl->addWidget(actionBadge);
-                arl->addWidget(argEdit, 1);
-                rwl->addWidget(argRow);
+                    auto* edit = new QLineEdit(args[k]);
+                    edit->setObjectName("ComposerRuleArgEdit");
+                    edit->setPlaceholderText("tag…");
+                    connect(edit, &QLineEdit::editingFinished, this,
+                        [this, i, k, edit]() {
+                            QList<QString>& a =
+                                m_rules->rules()[i].action.arguments;
+                            if (k >= a.size()) return;
+                            const QString t = edit->text().trimmed();
+                            if (t == a[k]) return;
+                            if (t.isEmpty()) a.removeAt(k); else a[k] = t;
+                            m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
+                            rebuildRulesSidebar();
+                            QMetaObject::invokeMethod(
+                                this, &PromptComposerPage::repush,
+                                Qt::QueuedConnection);
+                        });
+
+                    auto* delBtn = new QPushButton("✕");
+                    delBtn->setObjectName("ComposerRuleArgDelBtn");
+                    delBtn->setCursor(Qt::PointingHandCursor);
+                    delBtn->setFocusPolicy(Qt::NoFocus);
+                    delBtn->setFixedSize(20, 20);
+                    connect(delBtn, &QPushButton::clicked, this,
+                        [this, i, k]() {
+                            QList<QString>& a =
+                                m_rules->rules()[i].action.arguments;
+                            if (k >= a.size()) return;
+                            a.removeAt(k);
+                            m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
+                            rebuildRulesSidebar();
+                            QMetaObject::invokeMethod(
+                                this, &PromptComposerPage::repush,
+                                Qt::QueuedConnection);
+                        });
+
+                    rl->addWidget(edit, 1);
+                    rl->addWidget(delBtn);
+                    acl->addWidget(row);
+                }
+
+                // Trailing add row — committing pushes a new arg and rebuilds.
+                auto* addEdit = new QLineEdit;
+                addEdit->setObjectName("ComposerRuleArgEdit");
+                addEdit->setPlaceholderText("add tag…");
+                connect(addEdit, &QLineEdit::editingFinished, this,
+                    [this, i, addEdit]() {
+                        const QString t = addEdit->text().trimmed();
+                        if (t.isEmpty()) return;
+                        m_rules->rules()[i].action.arguments << t;
+                        m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
+                        rebuildRulesSidebar();
+                        QMetaObject::invokeMethod(
+                            this, &PromptComposerPage::repush,
+                            Qt::QueuedConnection);
+                    });
+                acl->addWidget(addEdit);
+
+                rwl->addWidget(argsCol);
+                ruleWidget->setArgsArea(argsCol);
             }
 
             m_rulesLayout->addWidget(ruleWidget);

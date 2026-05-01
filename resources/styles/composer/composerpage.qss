@@ -146,6 +146,30 @@
     border-color: #336633;
 }
 
+#ComposerRuleName {
+    color: #555555;
+    font-size: 14px;
+    background: transparent;
+    padding: 3px 0;
+}
+
+#ComposerRuleToggle:checked + #ComposerRuleName,
+#ComposerRuleName[active="true"] {
+    color: #909090;
+}
+
+#ComposerRuleArgDelBtn {
+    background: transparent;
+    color: #444444;
+    border: none;
+    font-size: 12px;
+    padding: 0;
+}
+
+#ComposerRuleArgDelBtn:hover {
+    color: #aa6666;
+}
+
 #ComposerRuleAddBadge {
     color: #336644;
     font-size: 16px;

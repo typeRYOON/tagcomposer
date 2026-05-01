@@ -212,7 +212,10 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     // ── Shift+cancel = clear pending queue ────────────────────────────────────
     connect(m_composerPage, &PromptComposerPage::clearPendingRequested,
-            m_comfyClient,  &core::ComfyUiClient::clearPending);
+            this, [this]() {
+                m_skipFinalOnPendingClear = true;
+                m_comfyClient->clearPending();
+            });
 
     // ── Settings page ─────────────────────────────────────────────────────────
     connect(m_settingsPage, &SettingsPage::settingsChanged, this, [this]() {
@@ -276,6 +279,10 @@ AppMainWindow::AppMainWindow(QWidget* parent)
                     m_skipNextFinalLoad = false;
                     m_pendingFinalLoad  = false;
                     return;
+                }
+                if (jobFinished && m_skipFinalOnPendingClear) {
+                    m_skipFinalOnPendingClear = false;
+                    return;  // running prompt still in flight; keep pending state
                 }
                 if (jobFinished && m_pendingFinalLoad) {
                     m_pendingFinalLoad = false;
@@ -375,6 +382,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     });
     sc(QKeySequence("Shift+Alt+R"), [this, textInput]() {
         if (textInput()) return;
+        m_skipFinalOnPendingClear = true;
         m_comfyClient->clearPending();
     });
 

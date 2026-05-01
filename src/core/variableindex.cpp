@@ -1,5 +1,6 @@
 #include <core/variableindex.h>
 #include <QFile>
+#include <QSet>
 #include <QTextStream>
 #include <QRegularExpression>
 
@@ -17,6 +18,7 @@ VariableIndex VariableIndex::loadFromFile(const QString& path)
     static const QRegularExpression lineRe(
         R"(^\$([A-Za-z0-9_]+)\$\s*=\s*(.*)$)"
     );
+    QSet<QString> seenNames;
     QTextStream in(&f);
     while (!in.atEnd()) {
         const QString line = in.readLine().trimmed();
@@ -24,7 +26,10 @@ VariableIndex VariableIndex::loadFromFile(const QString& path)
         if (line.isEmpty() || line.startsWith('#')) continue;
         const auto m = lineRe.match(line);
         if (!m.hasMatch()) continue;
-        idx.m_variables << Variable{ m.captured(1), m.captured(2).trimmed() };
+        const QString name = m.captured(1);
+        if (seenNames.contains(name)) continue;  // first definition wins
+        seenNames.insert(name);
+        idx.m_variables << Variable{ name, m.captured(2).trimmed() };
     }
     return idx;
 }

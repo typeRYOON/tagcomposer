@@ -54,10 +54,15 @@ private:
     void loadFinalPreview();
     bool m_pendingFinalLoad   = false;
     int  m_lastQueueCount     = 0;
-    // Set on interrupt / clearPending; consumed by the next queue-decrement
-    // event to suppress the final-image load (the just-killed prompt's output
-    // either doesn't exist or is stale from a previous run).
+    // Set on interrupt; consumed by the next queue-decrement event to
+    // suppress the final-image load (the just-killed prompt's output either
+    // doesn't exist or is stale).
     bool m_skipNextFinalLoad  = false;
+    // Set on clearPending; suppresses the next queue-decrement final load
+    // (which is the cleared-pending drop, not a finished prompt) but leaves
+    // m_pendingFinalLoad alone so the still-running prompt still loads when
+    // it actually finishes.
+    bool m_skipFinalOnPendingClear = false;
 
     core::EntryModel*   m_entryModel;
     QStackedWidget*      m_pages;
