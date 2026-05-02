@@ -12,6 +12,7 @@
 #include <utils/appsettings.h>
 #include <QMainWindow>
 #include <QCloseEvent>
+#include <QKeyEvent>
 #include <QSet>
 #include <QStackedWidget>
 #include <functional>
@@ -26,6 +27,7 @@ class WorkflowEditPage;
 class DatasetHelpersPage;
 class StatusBar;
 class DanmakuOverlay;
+class TitleBar;
 
 class AppMainWindow : public QMainWindow {
     Q_OBJECT
@@ -42,6 +44,7 @@ public:
 protected:
     void closeEvent(QCloseEvent* event) override;
     void changeEvent(QEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
@@ -77,7 +80,6 @@ private:
 
     core::EntryModel*   m_entryModel;
     QStackedWidget*      m_pages;
-    bool                 m_isFullScreen{ false };
 
     gui::TileViewPage*        m_tileViewPage      = nullptr;
     gui::PromptComposerPage*  m_composerPage      = nullptr;
@@ -87,6 +89,21 @@ private:
     gui::WorkflowEditPage*    m_workflowEditPage  = nullptr;
     gui::StatusBar*           m_statusBar         = nullptr;
     gui::DanmakuOverlay*      m_danmakuOverlay    = nullptr;
+    gui::TitleBar*            m_titleBar          = nullptr;
+    QWidget*                  m_frame             = nullptr;
+    QWidget*                  m_resizeOverlay     = nullptr;
+    QWidget*                  m_resizeOutline     = nullptr;  // lazy
+
+    // Active outline-resize drag (AIMP-style: preview rectangle while
+    // dragging, commit geometry on release). m_dragEdges == 0 means no drag.
+    Qt::Edges                 m_dragEdges{};
+    QRect                     m_dragStartGeo;
+    QPoint                    m_dragStartGlobal;
+
+    void  beginResizeDrag(Qt::Edges edges, const QPoint& globalStart);
+    void  updateResizeOutline(const QPoint& globalNow);
+    void  endResizeDrag(const QPoint& globalNow);
+    QRect computeResizeGeometry(const QPoint& globalNow) const;
 
     core::DanbooruIndex*      m_danbooruIndex = nullptr;
     core::ComfyUiClient*      m_comfyClient   = nullptr;

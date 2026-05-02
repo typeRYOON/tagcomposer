@@ -1,8 +1,11 @@
 #pragma once
-#include <QWidget>
+#include <QPoint>
+#include <QRect>
 #include <QString>
+#include <QWidget>
 
 class QFileSystemWatcher;
+class QKeyEvent;
 class QTimer;
 template <typename T> class QFutureWatcher;
 class QImage;
@@ -12,6 +15,7 @@ namespace gui {
 
 class ScaledImageLabel;
 class ClickableLabel;
+class TitleBar;
 
 // Separate top-level window (Qt::Window) parented to PromptComposerPage so Qt
 // handles cleanup. Has Q_OBJECT so it can forward keyboard-shortcut intents
@@ -35,9 +39,16 @@ protected:
     void showEvent(QShowEvent* e) override;
     void closeEvent(QCloseEvent* e) override;
     void changeEvent(QEvent* e) override;
+    void keyPressEvent(QKeyEvent* e) override;
+    bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
     void loadNewestTempImage();
+
+    void  beginResizeDrag(Qt::Edges edges, const QPoint& globalStart);
+    void  updateResizeOutline(const QPoint& globalNow);
+    void  endResizeDrag(const QPoint& globalNow);
+    QRect computeResizeGeometry(const QPoint& globalNow) const;
 
     ScaledImageLabel*       m_imageLabel;
     ClickableLabel*         m_tempLabel;
@@ -46,8 +57,17 @@ private:
     QFutureWatcher<QImage>* m_loadWatcher;
     QString                 m_tempFolder;
     QString                 m_lastTempPath;
-    bool                    m_isFullScreen{ false };
     bool                    m_isClosing{ false };
+
+    // Frameless chrome (mirrors AppMainWindow's setup).
+    TitleBar*               m_titleBar      = nullptr;
+    QWidget*                m_frame         = nullptr;
+    QWidget*                m_resizeOverlay = nullptr;
+    QWidget*                m_resizeOutline = nullptr;  // lazy
+
+    Qt::Edges               m_dragEdges{};
+    QRect                   m_dragStartGeo;
+    QPoint                  m_dragStartGlobal;
 };
 
 } // namespace gui

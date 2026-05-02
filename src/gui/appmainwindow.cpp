@@ -1,5 +1,7 @@
 #include <gui/appmainwindow.h>
+#include <gui/widgets/framelesschrome.h>
 #include <gui/widgets/navbar.h>
+#include <gui/widgets/titlebar.h>
 #include <gui/homepage.h>
 #include <gui/tileview/tileviewpage.h>
 #include <gui/widgets/statusbar.h>
@@ -16,6 +18,9 @@
 #include <utils/appconfig.h>
 #include <QApplication>
 #include <QEvent>
+#include <QPainter>
+#include <QPaintEvent>
+#include <QWindow>
 #include <QWindowStateChangeEvent>
 #include <QDir>
 #include <QDirIterator>
@@ -23,6 +28,7 @@
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QImage>
+#include <QMouseEvent>
 #include <QVBoxLayout>
 #include <QTimer>
 #include <QFutureWatcher>
@@ -32,6 +38,11 @@
 #include <QtConcurrent>
 
 using namespace utils;
+using gui::framelesschrome::kResizeBorder;
+using gui::framelesschrome::kResizeHit;
+using gui::framelesschrome::edgesAt;
+using gui::framelesschrome::cursorForEdges;
+using gui::framelesschrome::ResizeOutline;
 
 namespace gui {
 
@@ -39,8 +50,17 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     : QMainWindow{ parent },
     m_entryModel{ new core::EntryModel(this) }
 {
-    setWindowTitle("TagComposer");
+    setWindowTitle("Tag Composer");
     setWindowOpacity(0.0);
+
+    // Frameless: we draw our own titlebar (gui::TitleBar) and a thin border
+    // around the central frame for resize hit-testing. The Min/Max/Close
+    // hints stay set so the OS still treats us as a normal app window in the
+    // taskbar (snap, animations, alt-tab) even with no native chrome.
+    setWindowFlags(Qt::Window | Qt::FramelessWindowHint
+                   | Qt::WindowMinimizeButtonHint
+                   | Qt::WindowMaximizeButtonHint
+                   | Qt::WindowCloseButtonHint);
 
     // ── Load settings ─────────────────────────────────────────────────────────
     m_settings = AppSettings::load(BASE_PATH + "/" + SETTINGS_PATH);
@@ -337,20 +357,40 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     hLayout->addWidget(m_pages, 1);
 
     m_statusBar = new StatusBar(this);
+    m_titleBar  = new TitleBar(this);
 
-    QWidget* central = new QWidget(this);
-    auto* vLayout = new QVBoxLayout(central);
-    vLayout->setContentsMargins(0, 0, 0, 0);
+    // m_frame is the central widget. Layout margin = visible 1px frame.
+    m_frame = new QWidget(this);
+    m_frame->setObjectName("MainFrame");
+    m_frame->setAttribute(Qt::WA_StyledBackground, true);
+    m_frame->installEventFilter(this);  // for Resize → reshape overlay
+
+    auto* vLayout = new QVBoxLayout(m_frame);
+    vLayout->setContentsMargins(kResizeBorder, kResizeBorder,
+                                kResizeBorder, kResizeBorder);
     vLayout->setSpacing(0);
+    vLayout->addWidget(m_titleBar);
     vLayout->addWidget(content, 1);
     vLayout->addWidget(m_statusBar);
+
+    // Resize hit-test overlay: kResizeHit-wide ring sitting on top of the
+    // content. Translucent background + setMask carves out the inner area so
+    // mouse events there pass through to the widgets below — only the ring
+    // intercepts clicks. Geometry & mask refreshed on every m_frame resize.
+    m_resizeOverlay = new QWidget(m_frame);
+    m_resizeOverlay->setObjectName("ResizeOverlay");
+    m_resizeOverlay->setAttribute(Qt::WA_NoSystemBackground);
+    m_resizeOverlay->setAttribute(Qt::WA_TranslucentBackground);
+    m_resizeOverlay->setMouseTracking(true);
+    m_resizeOverlay->installEventFilter(this);
+    m_resizeOverlay->raise();
 
     connect(m_composerPage, &PromptComposerPage::statusMessageRequested,
             m_statusBar,    &StatusBar::showMessage);
     connect(m_tileViewPage, &TileViewPage::statusMessageRequested,
             m_statusBar,    &StatusBar::showMessage);
 
-    setCentralWidget(central);
+    setCentralWidget(m_frame);
 
     // ── Background: load DanbooruIndex ────────────────────────────────────────
     const QString csvPath = BASE_PATH + "/" + DANBOORU_CSV_PATH;
@@ -414,11 +454,14 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     });
 
     sc(QKeySequence("F11"), [this]() {
-        m_isFullScreen = !m_isFullScreen;
-        if (m_isFullScreen)
-            showFullScreen();
-        else
-            showNormal();
+        auto* anim = utils::propertyAnimate(this, "windowOpacity",
+            windowOpacity(), 0.0, 200, QEasingCurve::InOutSine);
+        connect(anim, &QPropertyAnimation::finished, this, [this]() {
+            if (isFullScreen()) showNormal();
+            else                showFullScreen();
+            utils::propertyAnimate(this, "windowOpacity",
+                windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+        });
     });
 
     sc(QKeySequence("Ctrl+W"), [this]() {
@@ -465,7 +508,120 @@ bool AppMainWindow::eventFilter(QObject* obj, QEvent* event)
         m_danmakuOverlay->setGeometry(m_pages->rect());
         m_danmakuOverlay->lower();
     }
+
+    // Keep the resize overlay in sync with m_frame's geometry, and re-cut its
+    // mask so only the kResizeHit-wide outer ring is mouse-active.
+    if (obj == m_frame && event->type() == QEvent::Resize && m_resizeOverlay) {
+        m_resizeOverlay->setGeometry(m_frame->rect());
+        m_resizeOverlay->raise();
+        const QRect r = m_resizeOverlay->rect();
+        if (r.width() > 2 * kResizeHit && r.height() > 2 * kResizeHit) {
+            const QRegion full(r);
+            const QRegion inner(r.adjusted(kResizeHit, kResizeHit,
+                                          -kResizeHit, -kResizeHit));
+            m_resizeOverlay->setMask(full - inner);
+        } else {
+            m_resizeOverlay->clearMask();
+        }
+    }
+
+    // Frameless edge-resize (AIMP-style): outline preview during drag, commit
+    // geometry on release. Qt auto-grabs the mouse to m_resizeOverlay between
+    // press and release, so move/release events keep coming here even when
+    // the cursor is outside the window.
+    if (obj == m_resizeOverlay && !isMaximized() && !isFullScreen()) {
+        if (event->type() == QEvent::MouseMove) {
+            auto* me = static_cast<QMouseEvent*>(event);
+            if (m_dragEdges) {
+                updateResizeOutline(me->globalPosition().toPoint());
+            } else {
+                const Qt::Edges e = edgesAt(me->position().toPoint(),
+                                            m_resizeOverlay->size());
+                if (e) m_resizeOverlay->setCursor(cursorForEdges(e));
+                else   m_resizeOverlay->unsetCursor();
+            }
+        } else if (event->type() == QEvent::MouseButtonPress) {
+            auto* me = static_cast<QMouseEvent*>(event);
+            if (me->button() == Qt::LeftButton) {
+                const Qt::Edges e = edgesAt(me->position().toPoint(),
+                                            m_resizeOverlay->size());
+                if (e) {
+                    beginResizeDrag(e, me->globalPosition().toPoint());
+                    return true;
+                }
+            }
+        } else if (event->type() == QEvent::MouseButtonRelease) {
+            auto* me = static_cast<QMouseEvent*>(event);
+            if (m_dragEdges && me->button() == Qt::LeftButton) {
+                endResizeDrag(me->globalPosition().toPoint());
+                return true;
+            }
+        } else if (event->type() == QEvent::Leave) {
+            // Don't reset the cursor mid-drag (cursor naturally leaves the
+            // overlay when the user drags past the window's old edge).
+            if (!m_dragEdges) m_resizeOverlay->unsetCursor();
+        }
+    }
+
     return QObject::eventFilter(obj, event);
+}
+
+void AppMainWindow::beginResizeDrag(Qt::Edges edges, const QPoint& globalStart)
+{
+    m_dragEdges       = edges;
+    m_dragStartGeo    = geometry();
+    m_dragStartGlobal = globalStart;
+
+    if (!m_resizeOutline) m_resizeOutline = new ResizeOutline();
+    m_resizeOutline->setGeometry(m_dragStartGeo);
+    m_resizeOutline->show();
+    m_resizeOutline->raise();
+
+    // Keep the resize cursor visible app-wide for the duration of the drag.
+    // The mouse routinely leaves m_resizeOverlay (it's anchored to the old
+    // window edge while the user pulls beyond it), so widget-local cursors
+    // aren't enough.
+    QApplication::setOverrideCursor(QCursor(cursorForEdges(edges)));
+}
+
+void AppMainWindow::updateResizeOutline(const QPoint& globalNow)
+{
+    if (!m_dragEdges || !m_resizeOutline) return;
+    m_resizeOutline->setGeometry(computeResizeGeometry(globalNow));
+}
+
+void AppMainWindow::endResizeDrag(const QPoint& globalNow)
+{
+    if (!m_dragEdges) return;
+    const QRect target = computeResizeGeometry(globalNow);
+    if (m_resizeOutline) m_resizeOutline->hide();
+    m_dragEdges = Qt::Edges{};
+    QApplication::restoreOverrideCursor();
+    setGeometry(target);
+}
+
+QRect AppMainWindow::computeResizeGeometry(const QPoint& globalNow) const
+{
+    QRect g = m_dragStartGeo;
+    const QPoint d = globalNow - m_dragStartGlobal;
+    if (m_dragEdges & Qt::LeftEdge)   g.setLeft  (g.left()   + d.x());
+    if (m_dragEdges & Qt::RightEdge)  g.setRight (g.right()  + d.x());
+    if (m_dragEdges & Qt::TopEdge)    g.setTop   (g.top()    + d.y());
+    if (m_dragEdges & Qt::BottomEdge) g.setBottom(g.bottom() + d.y());
+
+    // Clamp to the window's minimum size; when dragging from the top/left,
+    // pin the moving edge so the opposite edge stays put.
+    const QSize minSz = minimumSizeHint().expandedTo(minimumSize())
+                                         .expandedTo(QSize(320, 200));
+    if (g.width() < minSz.width()) {
+        if (m_dragEdges & Qt::LeftEdge) g.setLeft(g.right() - minSz.width() + 1);
+        else                            g.setRight(g.left() + minSz.width() - 1);
+    }
+    if (g.height() < minSz.height()) {
+        if (m_dragEdges & Qt::TopEdge)  g.setTop(g.bottom() - minSz.height() + 1);
+        else                            g.setBottom(g.top() + minSz.height() - 1);
+    }
+    return g;
 }
 
 void AppMainWindow::applyComfySettings()
@@ -654,6 +810,25 @@ void AppMainWindow::ensureImageInputsUploaded(std::function<void()> done)
     }
 }
 
+void AppMainWindow::keyPressEvent(QKeyEvent* event)
+{
+    // Esc only fires here if no focused child consumed it first (popups,
+    // dropdowns, dialogs, line-edit IME, etc.) — so this exits fullscreen
+    // without stealing Esc from any of them.
+    if (event->key() == Qt::Key_Escape && isFullScreen()) {
+        auto* anim = utils::propertyAnimate(this, "windowOpacity",
+            windowOpacity(), 0.0, 200, QEasingCurve::InOutSine);
+        connect(anim, &QPropertyAnimation::finished, this, [this]() {
+            showNormal();
+            utils::propertyAnimate(this, "windowOpacity",
+                windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+        });
+        event->accept();
+        return;
+    }
+    QMainWindow::keyPressEvent(event);
+}
+
 void AppMainWindow::changeEvent(QEvent* event)
 {
     QMainWindow::changeEvent(event);
@@ -664,6 +839,21 @@ void AppMainWindow::changeEvent(QEvent* event)
     if (wasMinimized && !isMinimized && windowOpacity() < 0.99) {
         utils::propertyAnimate(this, "windowOpacity",
             windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+    }
+
+    // Frameless chrome adapts to window state: no visible border when the OS
+    // is managing geometry (maximized/fullscreen), titlebar hidden in
+    // fullscreen, and the resize overlay hidden too so it doesn't steal the
+    // outer pixels of content (scrollbars, etc.) when resize isn't usable.
+    if (m_frame && m_titleBar) {
+        const bool fullscreen = isFullScreen();
+        const bool maximized  = isMaximized();
+        m_titleBar->setVisible(!fullscreen);
+        if (auto* lay = m_frame->layout()) {
+            const int b = (fullscreen || maximized) ? 0 : kResizeBorder;
+            lay->setContentsMargins(b, b, b, b);
+        }
+        if (m_resizeOverlay) m_resizeOverlay->setVisible(!fullscreen && !maximized);
     }
 }
 

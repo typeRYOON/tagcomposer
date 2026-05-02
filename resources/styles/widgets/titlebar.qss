@@ -1,0 +1,47 @@
+/* ── TitleBar ─────────────────────────────────────────────────────────────── */
+
+#TitleBar {
+    background: #0a0a0a;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+#TitleBarTitle {
+    background: transparent;
+    color: #888888;
+    font-size: 12px;
+    padding-left: 4px;
+}
+
+#TitleBarMin,
+#TitleBarMax,
+#TitleBarClose {
+    background: transparent;
+    color: #888888;
+    border: none;
+    font-size: 13px;
+}
+
+#TitleBarMin:hover,
+#TitleBarMax:hover {
+    background: #1a1a1a;
+    color: #e0e0e0;
+}
+
+#TitleBarMin:pressed,
+#TitleBarMax:pressed {
+    background: #222222;
+}
+
+#TitleBarClose:hover {
+    background: #c42b1c;
+    color: #ffffff;
+}
+
+#TitleBarClose:pressed {
+    background: #8a1f15;
+}
+
+/* Wrapper that hosts the resize border around the window contents. */
+#MainFrame {
+    background: #0a0a0a;
+}
