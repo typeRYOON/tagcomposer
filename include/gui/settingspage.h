@@ -41,6 +41,7 @@ private:
     QLineEdit*      m_outputFolder;
     QLineEdit*      m_tempFolder;
     QLineEdit*      m_loraBaseDir;
+    QLineEdit*      m_inputFolder;
     QWidget*        m_comfyDetails; // shown/hidden by toggle
     QLabel*         m_statusDot;
     QLabel*         m_statusText;
@@ -48,6 +49,8 @@ private:
     // Facets section
     QLineEdit*      m_quickCharFacet;
     QLineEdit*      m_quickCopyFacet;
+    QLineEdit*      m_quickTriggerFacet;
+    QLineEdit*      m_quickStyleFacet;
 
     // Log section
     QPlainTextEdit* m_log;

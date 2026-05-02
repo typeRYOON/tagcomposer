@@ -4,6 +4,7 @@
 #include <QImage>
 #include <QString>
 #include <QNetworkAccessManager>
+#include <functional>
 
 namespace core {
 
@@ -25,6 +26,18 @@ public:
     void interrupt();
     void clearPending();
     void queuePrompt(const QString& workflowJson);
+    // POSTs /free with unload_models + free_memory so ComfyUI releases its
+    // hold on model files (mainly so Windows lets us delete a .safetensors
+    // it just used). cb fires when the HTTP reply finishes.
+    void freeMemory(std::function<void(bool ok, QString error)> cb);
+
+    // Uploads localPath to ComfyUI's input folder. If localInputFolder is set
+    // and writable, uses a direct file copy (fast path). Otherwise POSTs
+    // multipart/form-data to /upload/image. cb fires on completion.
+    void uploadInput(const QString& localPath,
+                     const QString& subfolder,
+                     const QString& localInputFolder,
+                     std::function<void(bool ok, QString error)> cb);
 
 signals:
     void connected();

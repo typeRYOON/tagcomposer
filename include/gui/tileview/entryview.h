@@ -40,6 +40,9 @@ namespace gui {
         void setActiveGroups(const QMap<int, QList<int>>& groups);
         void clearLoraForEntry(int entryId);
         void setLoraActiveByUuids(const QList<QString>& uuids);
+        // Scroll-with-animation to the given entry and emit entryClicked.
+        // No-op if the entry isn't currently in the visible/queried list.
+        void selectAndScrollToEntry(int32_t entryId);
 
     public:
         QList<QString> activeLoraUuids() const;

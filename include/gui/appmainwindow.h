@@ -8,10 +8,13 @@
 #include <core/promptpipeline.h>
 #include <core/comfyuiclient.h>
 #include <core/workflowmanager.h>
+#include <core/workflowinputcache.h>
 #include <utils/appsettings.h>
 #include <QMainWindow>
 #include <QCloseEvent>
+#include <QSet>
 #include <QStackedWidget>
+#include <functional>
 
 namespace gui {
 class TileViewPage;
@@ -38,15 +41,23 @@ public:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
+    void changeEvent(QEvent* event) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
     void reloadFacets();
     void applyComfySettings();
+    // Adds `facetName` to `tag`'s facet list (no-op if already present),
+    // persists, and reloads. Shared by composer + entry-panel quick-add menus.
+    void applyQuickFacet(const QString& tag, const QString& facetName);
 
     // Resolve query to entries, build per-entry prompts (composer state ∪
     // each entry's tags) and push them all to ComfyUI. Fire-and-forget.
     void runBatch(const QString& query);
+
+    // Walks the selected workflow's image vars and uploads every uuid not
+    // already pushed this session. Calls done() once every upload settled.
+    void ensureImageInputsUploaded(std::function<void()> done);
 
     // After the last comfy job in a queue completes, load the newest image
     // from the temp folder and pin it as the inline preview (so the preview
@@ -77,8 +88,10 @@ private:
     gui::StatusBar*           m_statusBar         = nullptr;
     gui::DanmakuOverlay*      m_danmakuOverlay    = nullptr;
 
-    core::DanbooruIndex* m_danbooruIndex = nullptr;
-    core::ComfyUiClient* m_comfyClient   = nullptr;
+    core::DanbooruIndex*      m_danbooruIndex = nullptr;
+    core::ComfyUiClient*      m_comfyClient   = nullptr;
+    core::WorkflowInputCache* m_inputCache    = nullptr;
+    QSet<QString>             m_uploadedThisSession;
 
     utils::AppSettings m_settings;
 

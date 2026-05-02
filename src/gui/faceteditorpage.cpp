@@ -231,8 +231,24 @@ void FacetEditorPage::refreshUndefinedList()
         return;
     }
 
-    const QList<QString> active    = m_activeTagsProvider();
-    const QList<QString> undefined = m_facets->undefined(active);
+    const QList<QString> active = m_activeTagsProvider();
+
+    // Mirror PromptPipeline::evaluate's facet lookup so this list reflects
+    // exactly which tags will show up uncategorised in the composer.
+    //   1. Expand vars and try the expanded form ("somedescriptor thighhighs").
+    //   2. If that has no facets, fall back to the stripped base ("thighhighs").
+    // Display the raw tag the user typed regardless of which step matched.
+    QList<QString> undefined;
+    for (const QString& tag : active) {
+        const QString expanded = m_varIndex ? m_varIndex->expand(tag) : tag;
+        if (m_facets->hasFacets(expanded)) continue;
+
+        if (core::VariableIndex::hasVariable(tag)) {
+            const QString base = core::VariableIndex::stripVariables(tag);
+            if (!base.isEmpty() && m_facets->hasFacets(base)) continue;
+        }
+        undefined << tag;
+    }
 
     if (undefined.isEmpty()) {
         m_undefinedHeader->hide();

@@ -7,6 +7,7 @@
 #include <core/promptpipeline.h>
 #include <core/danbooruindex.h>
 #include <core/workflowmanager.h>
+#include <core/workflowinputcache.h>
 #include <gui/widgets/tagsearchbar.h>
 #include <QWidget>
 #include <QSet>
@@ -49,7 +50,11 @@ public:
     void setWorkflowManager(core::WorkflowManager* wm, const QString& savePath);
     void setStatesDir(const QString& dir);
     void setEntryModel(core::EntryModel* model);
-    void setQuickFacets(const QString& characterFacet, const QString& copyrightFacet);
+    void setInputCache(core::WorkflowInputCache* cache) { m_inputCache = cache; }
+    void setQuickFacets(const QString& characterFacet,
+                        const QString& copyrightFacet,
+                        const QString& triggerWordFacet,
+                        const QString& styleFacet);
 
     QString currentPromptString(bool forJson) const;
     QList<QString> currentActiveTags() const { return m_activeTags; }
@@ -77,7 +82,6 @@ public slots:
     void onEntryTagAdded(int entryId, int imageIdx, const QString& tag);
     void onEntryTagRemoved(int entryId, int imageIdx, const QString& tag);
     void setPreviewImage(const QImage& image);
-    void setQueueCount(int count);
     void setOutputFolderPattern(const QString& pattern);
     void setTempFolder(const QString& folder);
     void setActiveLoraUuids(const QList<QString>& uuids);
@@ -121,17 +125,24 @@ private:
 
     QWidget* makeTagRow(const core::PipelineTag& pt);
 
+    // Rewrites every $foo$ in oldKey to $newVarName$ (or strips them when
+    // newVarName is empty), updates the active set, and triggers a repush.
+    void replaceTagVariable(const QString& oldKey, const QString& newVarName);
+
     core::PromptPipeline*  m_pipeline;
     core::RuleEngine*      m_rules;
     core::TagGroupIndex    m_groups;
     core::VariableIndex*   m_varIndex   = nullptr;
-    core::WorkflowManager* m_wfManager  = nullptr;
-    core::EntryModel*      m_entryModel = nullptr;
-    QString                m_wfSavePath;
+    core::WorkflowManager*    m_wfManager  = nullptr;
+    core::EntryModel*         m_entryModel = nullptr;
+    core::WorkflowInputCache* m_inputCache = nullptr;
+    QString                   m_wfSavePath;
 
     // Empty when the user hasn't opted in via settings — menu items hidden.
     QString                m_quickCharFacet;
     QString                m_quickCopyFacet;
+    QString                m_quickTriggerFacet;
+    QString                m_quickStyleFacet;
 
     QString                  m_filterQuery;
     QList<QString>           m_activeLoraUuids;
@@ -159,7 +170,6 @@ private:
     QPushButton*       m_runBtn;
     QSpinBox*          m_promptCountSpin;
     QPushButton*       m_interruptBtn;
-    QLabel*            m_queueLabel;
 
     // Preview popout window (created on first click, Qt::Window)
     QWidget*           m_popout = nullptr;

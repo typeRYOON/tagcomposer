@@ -2,6 +2,9 @@
 #include <utils/appconfig.h>
 #include <gui/widgets/appscrollbar.h>
 #include <QDesktopServices>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QLineEdit>
@@ -60,6 +63,52 @@ protected:
     }
 private:
     int m_w = 0, m_h = 0;
+};
+
+// ── DropImageLabel ───────────────────────────────────────────────────────────
+// QLabel that accepts dropped image files and emits the local path of the
+// first one. Used as the thumbnail/drop target on the Image var card.
+
+class DropImageLabel : public QLabel {
+    Q_OBJECT
+public:
+    explicit DropImageLabel(QWidget* parent = nullptr) : QLabel(parent) {
+        setAcceptDrops(true);
+    }
+signals:
+    void filePathDropped(QString path);
+protected:
+    void dragEnterEvent(QDragEnterEvent* e) override {
+        if (hasImageUrl(e->mimeData())) e->acceptProposedAction();
+    }
+    void dragMoveEvent(QDragMoveEvent* e) override {
+        if (hasImageUrl(e->mimeData())) e->acceptProposedAction();
+    }
+    void dropEvent(QDropEvent* e) override {
+        for (const QUrl& u : e->mimeData()->urls()) {
+            if (!u.isLocalFile()) continue;
+            const QString p = u.toLocalFile();
+            if (looksLikeImage(p)) {
+                emit filePathDropped(p);
+                e->acceptProposedAction();
+                return;
+            }
+        }
+    }
+private:
+    static bool looksLikeImage(const QString& path) {
+        const QString lower = path.toLower();
+        return lower.endsWith(".png")  || lower.endsWith(".jpg")
+            || lower.endsWith(".jpeg") || lower.endsWith(".bmp")
+            || lower.endsWith(".webp") || lower.endsWith(".tif")
+            || lower.endsWith(".tiff");
+    }
+    static bool hasImageUrl(const QMimeData* md) {
+        if (!md->hasUrls()) return false;
+        for (const QUrl& u : md->urls())
+            if (u.isLocalFile() && looksLikeImage(u.toLocalFile())) return true;
+        return false;
+    }
 };
 
 namespace gui {
@@ -286,6 +335,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
         menu.addAction("Float",       this, [this]() { addVariable(core::WorkflowVarType::Float); });
         menu.addAction("Dir Search",  this, [this]() { addVariable(core::WorkflowVarType::DirSearch); });
         menu.addAction("Latent Size", this, [this]() { addVariable(core::WorkflowVarType::LatentSize); });
+        menu.addAction("Image",       this, [this]() { addVariable(core::WorkflowVarType::Image); });
         menu.exec(m_addBtn->mapToGlobal(QPoint(0, m_addBtn->height())));
     });
 
@@ -298,6 +348,12 @@ void WorkflowEditPage::setWorkflowManager(core::WorkflowManager* wm, const QStri
     m_wm       = wm;
     m_savePath = savePath;
     refresh();
+}
+
+void WorkflowEditPage::setInputCache(core::WorkflowInputCache* cache)
+{
+    m_inputCache = cache;
+    rebuildVarList();
 }
 
 void WorkflowEditPage::setEntryModel(core::EntryModel* model)
@@ -404,7 +460,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         save();
     });
 
-    static const char* kTypeNames[] = { "Seed", "String", "Integer", "Float", "Dir Search", "Latent Size" };
+    static const char* kTypeNames[] = { "Seed", "String", "Integer", "Float", "Dir Search", "Latent Size", "Image" };
     auto* typeLabel = new QLabel(kTypeNames[int(var.type)]);
     typeLabel->setObjectName("WfTypeLabel");
 
@@ -740,6 +796,104 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         break;
     }
 
+    case core::WorkflowVarType::Image: {
+        auto* bodyRow = new QHBoxLayout;
+        bodyRow->setSpacing(8);
+        bodyRow->setAlignment(Qt::AlignTop);
+
+        auto* thumb = new DropImageLabel;
+        thumb->setObjectName("WfImageThumb");
+        thumb->setFixedSize(96, 96);
+        thumb->setAlignment(Qt::AlignCenter);
+        thumb->setFrameShape(QFrame::StyledPanel);
+        thumb->setToolTip("Drop an image file here, or use Browse…");
+
+        auto* nameLabel = new QLabel;
+        nameLabel->setObjectName("WfFieldLabel");
+        nameLabel->setWordWrap(true);
+
+        auto refresh = [thumb, nameLabel, this](const QString& uuid) {
+            if (!uuid.isEmpty() && m_inputCache && m_inputCache->has(uuid)) {
+                QPixmap pm(m_inputCache->localPath(uuid));
+                if (!pm.isNull()) {
+                    thumb->setPixmap(pm.scaled(thumb->size(),
+                        Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                } else {
+                    thumb->setText("(broken)");
+                }
+                const auto rec = m_inputCache->get(uuid);
+                nameLabel->setText(rec.displayName.isEmpty()
+                    ? uuid : rec.displayName);
+            } else {
+                thumb->clear();
+                thumb->setText("(no image)");
+                nameLabel->setText(uuid.isEmpty()
+                    ? QStringLiteral("No image selected")
+                    : QStringLiteral("Missing: %1").arg(uuid));
+            }
+        };
+        refresh(var.imageUuid);
+
+        auto* browseBtn = new QPushButton("Browse…");
+        browseBtn->setObjectName("WfBrowseBtn");
+        browseBtn->setCursor(Qt::PointingHandCursor);
+
+        auto* clearBtn = new QPushButton("Clear");
+        clearBtn->setObjectName("WfBrowseBtn");
+        clearBtn->setCursor(Qt::PointingHandCursor);
+
+        connect(browseBtn, &QPushButton::clicked, this,
+            [this, index, refresh]() {
+                if (!m_wm || !m_inputCache || index >= m_wm->variables().size())
+                    return;
+                const QString src = QFileDialog::getOpenFileName(
+                    this, "Select image",
+                    QString(),
+                    "Images (*.png *.jpg *.jpeg *.bmp *.webp *.tiff)");
+                if (src.isEmpty()) return;
+                const QString uuid = m_inputCache->importFromFile(src);
+                if (uuid.isEmpty()) return;
+                m_wm->variables()[index].imageUuid = uuid;
+                save();
+                refresh(uuid);
+            });
+
+        connect(clearBtn, &QPushButton::clicked, this,
+            [this, index, refresh]() {
+                if (!m_wm || index >= m_wm->variables().size()) return;
+                m_wm->variables()[index].imageUuid.clear();
+                save();
+                refresh(QString());
+            });
+
+        connect(thumb, &DropImageLabel::filePathDropped, this,
+            [this, index, refresh](const QString& src) {
+                if (!m_wm || !m_inputCache || index >= m_wm->variables().size())
+                    return;
+                const QString uuid = m_inputCache->importFromFile(src);
+                if (uuid.isEmpty()) return;
+                m_wm->variables()[index].imageUuid = uuid;
+                save();
+                refresh(uuid);
+            });
+
+        auto* btnCol = new QVBoxLayout;
+        btnCol->setSpacing(4);
+        btnCol->addWidget(nameLabel);
+        auto* btnRow = new QHBoxLayout;
+        btnRow->setSpacing(4);
+        btnRow->addWidget(browseBtn);
+        btnRow->addWidget(clearBtn);
+        btnRow->addStretch();
+        btnCol->addLayout(btnRow);
+        btnCol->addStretch();
+
+        bodyRow->addWidget(thumb, 0, Qt::AlignTop);
+        bodyRow->addLayout(btnCol, 1);
+        cardLayout->addLayout(bodyRow);
+        break;
+    }
+
     } // switch
 
     return card;
@@ -888,3 +1042,5 @@ QFrame* WorkflowEditPage::makeLoraCard(int index)
 }
 
 } // namespace gui
+
+#include "workfloweditpage.moc"

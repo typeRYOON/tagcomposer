@@ -16,6 +16,7 @@
 #include <utils/appconfig.h>
 #include <QApplication>
 #include <QEvent>
+#include <QWindowStateChangeEvent>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
@@ -49,6 +50,15 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_comfyClient->setServerAddress(m_settings.comfyUiServerAddress);
     m_comfyClient->setApiKey(m_settings.comfyUiApiKey);
 
+    // ── Workflow input cache ──────────────────────────────────────────────────
+    m_inputCache = new core::WorkflowInputCache(
+        BASE_PATH + "/" + WORKFLOW_INPUTS_DIR, this);
+    // Forget upload state on (re)connect so a server restart re-uploads inputs.
+    connect(m_comfyClient, &core::ComfyUiClient::connected,
+            this, [this]() { m_uploadedThisSession.clear(); });
+    connect(m_comfyClient, &core::ComfyUiClient::disconnected,
+            this, [this]() { m_uploadedThisSession.clear(); });
+
     // ── Load pipeline data ────────────────────────────────────────────────────
     m_facetIndex       = core::FacetIndex::loadFromFile(BASE_PATH + "/" + FACETS_PATH);
     m_facetIndex.loadDefinitionsFromFile(BASE_PATH + "/" + DEFINITIONS_PATH);
@@ -61,15 +71,25 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     // ── Pages ─────────────────────────────────────────────────────────────────
     m_tileViewPage    = new TileViewPage(m_entryModel, this);
     m_tileViewPage->setLoraBaseDir(m_settings.loraBaseDir);
+    m_tileViewPage->setComfyClient(m_comfyClient);
     m_composerPage    = new PromptComposerPage(m_pipeline, &m_ruleEngine, m_tagGroupIndex, this);
     m_composerPage->setVariableIndex(&m_varIndex);
     m_composerPage->setWorkflowManager(&m_workflowManager, BASE_PATH + "/" + WORKFLOWS_PATH);
     m_composerPage->setStatesDir(BASE_PATH + "/" + STATES_DIR);
     m_composerPage->setEntryModel(m_entryModel);
+    m_composerPage->setInputCache(m_inputCache);
     m_composerPage->setOutputFolderPattern(m_settings.comfyUiOutputFolder);
     m_composerPage->setTempFolder(m_settings.comfyUiTempFolder);
-    m_composerPage->setQuickFacets(m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet);
+    m_composerPage->setQuickFacets(m_settings.quickCharacterFacet,
+                                   m_settings.quickCopyrightFacet,
+                                   m_settings.quickTriggerWordFacet,
+                                   m_settings.quickStyleFacet);
+    m_tileViewPage->setQuickFacets(m_settings.quickCharacterFacet,
+                                   m_settings.quickCopyrightFacet,
+                                   m_settings.quickTriggerWordFacet,
+                                   m_settings.quickStyleFacet);
     m_facetEditorPage = new FacetEditorPage(&m_facetIndex, m_entryModel, this);
+    m_facetEditorPage->setVariableIndex(&m_varIndex);
     m_facetEditorPage->setActiveTagsProvider(
         [this]() { return m_composerPage->currentActiveTags(); });
 
@@ -78,18 +98,21 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_workflowEditPage  = new WorkflowEditPage(this);
     m_workflowEditPage->setWorkflowManager(&m_workflowManager, BASE_PATH + "/" + WORKFLOWS_PATH);
     m_workflowEditPage->setEntryModel(m_entryModel);
+    m_workflowEditPage->setInputCache(m_inputCache);
 
     m_pages = new QStackedWidget(this);
     m_pages->setObjectName("MainPages");
     m_pages->installEventFilter(this);
-    m_pages->addWidget(new HomePage(this));          // 0
-    m_pages->addWidget(m_tileViewPage);              // 1
-    m_pages->addWidget(m_composerPage);              // 2
-    m_pages->addWidget(m_facetEditorPage);           // 3
-    m_pages->addWidget(m_wikiPage);                  // 4
-    m_pages->addWidget(m_workflowEditPage);          // 5
-    m_pages->addWidget(new DatasetHelpersPage(this)); // 6
-    m_pages->addWidget(m_settingsPage);              // 7
+    // Order must match gui::Page enum (navbar.h) and the navbar's addButton
+    // sequence. Adding/reordering pages = touch all three together.
+    m_pages->addWidget(new HomePage(this));           // Page::Home
+    m_pages->addWidget(m_tileViewPage);               // Page::EntryViewer
+    m_pages->addWidget(m_composerPage);               // Page::TagComposer
+    m_pages->addWidget(m_facetEditorPage);            // Page::FacetEditor
+    m_pages->addWidget(m_workflowEditPage);           // Page::WorkflowEditor
+    m_pages->addWidget(new DatasetHelpersPage(this)); // Page::DatasetHelpers
+    m_pages->addWidget(m_wikiPage);                   // Page::DanbooruWiki
+    m_pages->addWidget(m_settingsPage);               // Page::Settings
 
     // ── Danmaku overlay (behind all pages) ────────────────────────────────────
     m_danmakuOverlay = new DanmakuOverlay(m_pages);
@@ -147,29 +170,19 @@ AppMainWindow::AppMainWindow(QWidget* parent)
                 m_statusBar->showMessage("Facet schema reloaded.");
             });
 
-    // ── Composer quick-add facet shortcut ─────────────────────────────────────
-    // Right-click → "Quick add as character/copyright" mutates the FacetIndex
-    // here (composer doesn't own the index), persists, and reloads.
+    // ── Quick-add facet shortcut ──────────────────────────────────────────────
+    // Right-click → "Quick add as <kind>" mutates the FacetIndex here
+    // (the panels don't own the index), persists, and reloads. Both the
+    // composer and the entry panel emit the same (tag, facetName) signal.
     connect(m_composerPage, &PromptComposerPage::quickFacetRequested,
-            this, [this](const QString& tag, const QString& facetName) {
-                if (tag.isEmpty() || facetName.isEmpty()) return;
-                QList<QString> existing = m_facetIndex.facetsFor(tag);
-                if (existing.contains(facetName)) {
-                    m_statusBar->showMessage(
-                        QString("'%1' already has facet '%2'").arg(tag, facetName));
-                    return;
-                }
-                existing << facetName;
-                m_facetIndex.setDefinition(tag, existing);
-                reloadFacets();  // also persists via saveDefinitions
-                m_statusBar->showMessage(
-                    QString("Added facet '%1' to '%2'").arg(facetName, tag));
-            });
+            this, &AppMainWindow::applyQuickFacet);
+    connect(m_tileViewPage, &TileViewPage::quickFacetRequested,
+            this, &AppMainWindow::applyQuickFacet);
 
     // ── Wiki page navigation ───────────────────────────────────────────────────
     auto showWiki = [this](const QString& tag) {
         m_wikiPage->lookupTag(tag);
-        m_pages->setCurrentIndex(4);
+        m_pages->setCurrentIndex(int(Page::DanbooruWiki));
     };
     connect(m_tileViewPage,    &TileViewPage::wikiRequested,       this, showWiki);
     connect(m_composerPage,    &PromptComposerPage::wikiRequested, this, showWiki);
@@ -187,7 +200,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     // ── Workflow editor navigation ────────────────────────────────────────────
     connect(m_composerPage, &PromptComposerPage::workflowEditorRequested, this, [this]() {
         m_workflowEditPage->refresh();
-        m_pages->setCurrentIndex(5);
+        m_pages->setCurrentIndex(int(Page::WorkflowEditor));
     });
     connect(m_composerPage, &PromptComposerPage::workflowVarsChanged,
             m_workflowEditPage, &WorkflowEditPage::refresh);
@@ -200,14 +213,17 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         if (!f.open(QIODevice::ReadOnly)) return;
         const QString tmpl           = QString::fromUtf8(f.readAll());
         const QString positivePrompt = m_composerPage->currentPromptString(true);
-        for (int i = 0; i < count; ++i) {
-            QString json = m_workflowManager.applyToJson(tmpl);
-            json.replace("__positive__", positivePrompt);
-            core::WorkflowManager::applyLoraStack(json, m_activeLoraStack, m_settings.loraBaseDir);
-            m_comfyClient->queuePrompt(json);
-        }
-        m_workflowManager.saveToFile(BASE_PATH + "/" + WORKFLOWS_PATH);
-        m_workflowEditPage->refresh();
+
+        ensureImageInputsUploaded([this, tmpl, positivePrompt, count]() {
+            for (int i = 0; i < count; ++i) {
+                QString json = m_workflowManager.applyToJson(tmpl);
+                json.replace("__positive__", positivePrompt);
+                core::WorkflowManager::applyLoraStack(json, m_activeLoraStack, m_settings.loraBaseDir);
+                m_comfyClient->queuePrompt(json);
+            }
+            m_workflowManager.saveToFile(BASE_PATH + "/" + WORKFLOWS_PATH);
+            m_workflowEditPage->refresh();
+        });
     });
 
     // ── Shift+cancel = clear pending queue ────────────────────────────────────
@@ -225,8 +241,14 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             m_danmakuOverlay->lower();
         }
         m_danmakuOverlay->setActive(m_settings.danmakuEnabled);
-        m_composerPage->setQuickFacets(
-            m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet);
+        m_composerPage->setQuickFacets(m_settings.quickCharacterFacet,
+                                       m_settings.quickCopyrightFacet,
+                                       m_settings.quickTriggerWordFacet,
+                                       m_settings.quickStyleFacet);
+        m_tileViewPage->setQuickFacets(m_settings.quickCharacterFacet,
+                                       m_settings.quickCopyrightFacet,
+                                       m_settings.quickTriggerWordFacet,
+                                       m_settings.quickStyleFacet);
         m_tileViewPage->setLoraBaseDir(m_settings.loraBaseDir);
     });
     connect(m_settingsPage, &SettingsPage::reconnectRequested, this, [this]() {
@@ -262,13 +284,18 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_comfyClient, &core::ComfyUiClient::previewImageReady,
             m_composerPage, &PromptComposerPage::setPreviewImage);
     connect(m_comfyClient, &core::ComfyUiClient::queueCountChanged,
-            m_composerPage, &PromptComposerPage::setQueueCount);
-    connect(m_comfyClient, &core::ComfyUiClient::queueCountChanged,
             this, [this](int count) {
+                // Routed through a lambda because m_statusBar is constructed
+                // further down in this ctor; the receiver pointer would be
+                // null at connect time if we wired the signal directly.
+                m_statusBar->setActiveCount(count);
+
                 const bool jobFinished = (count < m_lastQueueCount);
                 m_lastQueueCount = count;
 
-                if (count <= 0) m_statusBar->clearProgress();
+                // Progress bar fade-out is owned by StatusBar::setActiveCount
+                // (called above), so the bar and the active-count label drop
+                // together when the queue drains.
 
                 // Each queue decrement = a prompt just completed. Load its
                 // decoded output if we observed progress for it. Skip when the
@@ -398,6 +425,15 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         close();
     });
 
+    sc(QKeySequence("Ctrl+H"), [this]() {
+        if (windowState() & Qt::WindowMinimized) return;
+        auto* anim = utils::propertyAnimate(this, "windowOpacity",
+            windowOpacity(), 0.0, 200, QEasingCurve::InOutSine);
+        connect(anim, &QPropertyAnimation::finished, this, [this]() {
+            showMinimized();
+        });
+    });
+
     sc(QKeySequence(Qt::CTRL | Qt::Key_PageUp), [this]() {
         const int cur = m_pages->currentIndex();
         m_pages->setCurrentIndex(cur > 0 ? cur - 1 : m_pages->count() - 1);
@@ -456,6 +492,22 @@ void AppMainWindow::reloadFacets()
     m_composerPage->repush();
 }
 
+void AppMainWindow::applyQuickFacet(const QString& tag, const QString& facetName)
+{
+    if (tag.isEmpty() || facetName.isEmpty()) return;
+    QList<QString> existing = m_facetIndex.facetsFor(tag);
+    if (existing.contains(facetName)) {
+        m_statusBar->showMessage(
+            QString("'%1' already has facet '%2'").arg(tag, facetName));
+        return;
+    }
+    existing << facetName;
+    m_facetIndex.setDefinition(tag, existing);
+    reloadFacets();  // also persists via saveDefinitions
+    m_statusBar->showMessage(
+        QString("Added facet '%1' to '%2'").arg(facetName, tag));
+}
+
 // ── Batch run ───────────────────────────────────────────────────────────────
 // Fire-and-forget: resolve query → for each entry build prompt (composer
 // state ∪ entry tags) → queue `count` prompts to ComfyUI per entry. Returns
@@ -484,52 +536,55 @@ void AppMainWindow::runBatch(const QString& query)
     const QString tmpl = QString::fromUtf8(f.readAll());
 
     const int count = m_composerPage->currentPromptCount();
-    int dispatched = 0;
-    int skipped    = 0;
 
-    for (core::Entry* entry : matched) {
-        QList<QString> tags;
-        if (!entry->images.isEmpty())
-            tags = m_entryModel->getTags(entry->images[0].tagIds);
+    ensureImageInputsUploaded([this, matched, tmpl, count]() {
+        int dispatched = 0;
+        int skipped    = 0;
 
-        // Skip entries with no tags — they'd all produce the same prompt
-        // (just the composer's state), which isn't useful for a batch.
-        if (tags.isEmpty()) {
-            ++skipped;
-            continue;
+        for (core::Entry* entry : matched) {
+            QList<QString> tags;
+            if (!entry->images.isEmpty())
+                tags = m_entryModel->getTags(entry->images[0].tagIds);
+
+            // Skip entries with no tags — they'd all produce the same prompt
+            // (just the composer's state), which isn't useful for a batch.
+            if (tags.isEmpty()) {
+                ++skipped;
+                continue;
+            }
+
+            // Entry's own tags get unioned with the current composer state, then
+            // the full pipeline (rules + vars) runs over the merged set.
+            const QString positivePrompt =
+                m_composerPage->computePromptWithExtraTags(tags, true);
+
+            // Stack: current LoRAs + entry's own LoRA if it has one.
+            QList<core::LoraConfig> stackForEntry = m_activeLoraStack;
+            if (entry->lora.has_value())
+                stackForEntry << entry->lora.value();
+
+            for (int i = 0; i < count; ++i) {
+                QString json = m_workflowManager.applyToJson(tmpl);
+                json.replace("__positive__", positivePrompt);
+                core::WorkflowManager::applyLoraStack(
+                    json, stackForEntry, m_settings.loraBaseDir);
+                m_comfyClient->queuePrompt(json);
+                ++dispatched;
+            }
         }
 
-        // Entry's own tags get unioned with the current composer state, then
-        // the full pipeline (rules + vars) runs over the merged set.
-        const QString positivePrompt =
-            m_composerPage->computePromptWithExtraTags(tags, true);
+        m_workflowManager.saveToFile(BASE_PATH + "/" + WORKFLOWS_PATH);
+        m_workflowEditPage->refresh();
 
-        // Stack: current LoRAs + entry's own LoRA if it has one.
-        QList<core::LoraConfig> stackForEntry = m_activeLoraStack;
-        if (entry->lora.has_value())
-            stackForEntry << entry->lora.value();
+        const QString summary = (skipped > 0)
+            ? QString("Dispatched %1 prompts (%2 entries × %3) — %4 skipped")
+                .arg(dispatched).arg(matched.size() - skipped).arg(count).arg(skipped)
+            : QString("Dispatched %1 prompts (%2 entries × %3)")
+                .arg(dispatched).arg(matched.size()).arg(count);
 
-        for (int i = 0; i < count; ++i) {
-            QString json = m_workflowManager.applyToJson(tmpl);
-            json.replace("__positive__", positivePrompt);
-            core::WorkflowManager::applyLoraStack(
-                json, stackForEntry, m_settings.loraBaseDir);
-            m_comfyClient->queuePrompt(json);
-            ++dispatched;
-        }
-    }
-
-    m_workflowManager.saveToFile(BASE_PATH + "/" + WORKFLOWS_PATH);
-    m_workflowEditPage->refresh();
-
-    const QString summary = (skipped > 0)
-        ? QString("Dispatched %1 prompts (%2 entries × %3) — %4 skipped")
-            .arg(dispatched).arg(matched.size() - skipped).arg(count).arg(skipped)
-        : QString("Dispatched %1 prompts (%2 entries × %3)")
-            .arg(dispatched).arg(matched.size()).arg(count);
-
-    m_statusBar->showMessage("Batch: " + summary);
-    m_workflowEditPage->setBatchResult(summary);
+        m_statusBar->showMessage("Batch: " + summary);
+        m_workflowEditPage->setBatchResult(summary);
+    });
 }
 
 void AppMainWindow::loadFinalPreview()
@@ -549,6 +604,67 @@ void AppMainWindow::loadFinalPreview()
     QImage img(newest->absoluteFilePath());
     if (!img.isNull())
         m_composerPage->setPreviewImage(img);
+}
+
+// Walk the selected workflow's vars; for each Image var with a known uuid we
+// haven't pushed this session, upload it. After every upload settles, run done.
+void AppMainWindow::ensureImageInputsUploaded(std::function<void()> done)
+{
+    QStringList toUpload;
+    if (m_inputCache && m_workflowManager.selectedFile()) {
+        for (const auto& var : m_workflowManager.variables()) {
+            if (var.type != core::WorkflowVarType::Image) continue;
+            if (var.imageUuid.isEmpty()) continue;
+            if (m_uploadedThisSession.contains(var.imageUuid)) continue;
+            if (!m_inputCache->has(var.imageUuid)) {
+                m_statusBar->showMessage(
+                    QString("Image input %1 missing — skipped").arg(var.placeholder));
+                continue;
+            }
+            toUpload << var.imageUuid;
+        }
+    }
+
+    if (toUpload.isEmpty()) {
+        if (done) done();
+        return;
+    }
+
+    // Sequential upload chain. Counter tracks completion of all uploads
+    // (including failures — failure is logged but doesn't block the run).
+    auto remaining = std::make_shared<int>(toUpload.size());
+    auto fired     = std::make_shared<bool>(false);
+    const QString inputFolder = m_settings.comfyUiInputFolder;
+
+    for (const QString& uuid : toUpload) {
+        const QString local = m_inputCache->localPath(uuid);
+        m_comfyClient->uploadInput(
+            local, core::WorkflowInputCache::serverSubfolder(), inputFolder,
+            [this, uuid, remaining, fired, done](bool ok, QString err) {
+                if (ok) m_uploadedThisSession.insert(uuid);
+                else if (m_statusBar) {
+                    m_statusBar->showMessage(
+                        QString("Upload failed (%1): %2").arg(uuid.left(8), err));
+                }
+                if (--(*remaining) == 0 && !*fired) {
+                    *fired = true;
+                    if (done) done();
+                }
+            });
+    }
+}
+
+void AppMainWindow::changeEvent(QEvent* event)
+{
+    QMainWindow::changeEvent(event);
+    if (event->type() != QEvent::WindowStateChange) return;
+    auto* e = static_cast<QWindowStateChangeEvent*>(event);
+    const bool wasMinimized = (e->oldState() & Qt::WindowMinimized);
+    const bool isMinimized  = (windowState()  & Qt::WindowMinimized);
+    if (wasMinimized && !isMinimized && windowOpacity() < 0.99) {
+        utils::propertyAnimate(this, "windowOpacity",
+            windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+    }
 }
 
 void AppMainWindow::closeEvent(QCloseEvent* event)

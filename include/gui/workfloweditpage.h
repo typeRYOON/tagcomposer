@@ -2,6 +2,7 @@
 #include <core/entry.h>
 #include <core/entrymodel.h>
 #include <core/workflowmanager.h>
+#include <core/workflowinputcache.h>
 #include <QWidget>
 #include <QScrollArea>
 #include <QListWidget>
@@ -20,6 +21,7 @@ public:
 
     void setWorkflowManager(core::WorkflowManager* wm, const QString& savePath);
     void setEntryModel(core::EntryModel* model);
+    void setInputCache(core::WorkflowInputCache* cache);
     void refresh();
 
 public slots:
@@ -50,9 +52,10 @@ private:
     void   removeVariable(int index);
     void   save();
 
-    core::WorkflowManager* m_wm        = nullptr;
-    core::EntryModel*      m_entryModel = nullptr;
-    QString                m_savePath;
+    core::WorkflowManager*    m_wm         = nullptr;
+    core::EntryModel*         m_entryModel = nullptr;
+    core::WorkflowInputCache* m_inputCache = nullptr;
+    QString                   m_savePath;
     QList<core::LoraConfig> m_loraStack;
 
     QLabel*      m_titleLabel    = nullptr;

@@ -1,6 +1,7 @@
 #pragma once
 #include <core/facetindex.h>
 #include <core/entrymodel.h>
+#include <core/variableindex.h>
 #include <QWidget>
 #include <QListWidget>
 #include <QLabel>
@@ -28,6 +29,7 @@ public:
     // show of this page so the "undefined in composer" list stays fresh
     // without needing to plumb a signal through the composer.
     void setActiveTagsProvider(std::function<QList<QString>()> provider);
+    void setVariableIndex(core::VariableIndex* vars) { m_varIndex = vars; }
 
 public slots:
     void selectTagByName(const QString& tag);
@@ -52,9 +54,10 @@ private:
     void applyListFilter(const QString& query);
     void applyFacetFilter(const QString& query);
 
-    core::FacetIndex*  m_facets;
-    core::EntryModel* m_model;
-    QString            m_selectedTag;
+    core::FacetIndex*    m_facets;
+    core::EntryModel*    m_model;
+    core::VariableIndex* m_varIndex = nullptr;
+    QString              m_selectedTag;
 
     std::function<QList<QString>()> m_activeTagsProvider;
 

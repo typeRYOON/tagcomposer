@@ -157,6 +157,27 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     loraRow->addWidget(m_loraBaseDir, 1);
     loraRow->addWidget(loraBrowseBtn);
 
+    m_inputFolder = new QLineEdit;
+    m_inputFolder->setObjectName("SettingsInput");
+    m_inputFolder->setPlaceholderText("e.g. C:/ComfyUI/input  (optional — enables direct file copy)");
+    m_inputFolder->setText(settings->comfyUiInputFolder);
+
+    auto* inputBrowseBtn = new QPushButton("Browse");
+    inputBrowseBtn->setObjectName("SettingsBrowseBtn");
+    inputBrowseBtn->setCursor(Qt::PointingHandCursor);
+    inputBrowseBtn->setFixedWidth(70);
+
+    auto* inputRow = new QHBoxLayout;
+    inputRow->setSpacing(6);
+    inputRow->addWidget(m_inputFolder, 1);
+    inputRow->addWidget(inputBrowseBtn);
+
+    auto* inputHint = new QLabel(
+        "Image-typed workflow vars upload to ComfyUI on each run. "
+        "Set this to ComfyUI's input/ folder to skip HTTP and copy directly.");
+    inputHint->setObjectName("SettingsHintLabel");
+    inputHint->setWordWrap(true);
+
     auto* connectBtn = new QPushButton("Connect");
     connectBtn->setObjectName("SettingsConnectBtn");
     connectBtn->setCursor(Qt::PointingHandCursor);
@@ -177,11 +198,14 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     detailLayout->addLayout(tempRow,                       5, 1);
     detailLayout->addWidget(makeLabel("LoRA folder"),      6, 0);
     detailLayout->addLayout(loraRow,                       6, 1);
+    detailLayout->addWidget(makeLabel("Input folder"),     7, 0);
+    detailLayout->addLayout(inputRow,                      7, 1);
+    detailLayout->addWidget(inputHint,                     8, 1);
     auto* btnRow = new QHBoxLayout;
     btnRow->setSpacing(8);
     btnRow->addWidget(connectBtn);
     btnRow->addStretch();
-    detailLayout->addLayout(btnRow,                        7, 1);
+    detailLayout->addLayout(btnRow,                        9, 1);
 
     comfyLayout->addWidget(m_comfyDetails);
     bodyLayout->addWidget(comfyGroup);
@@ -212,16 +236,30 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     m_quickCopyFacet->setPlaceholderText("rcopyright");
     m_quickCopyFacet->setText(settings->quickCopyrightFacet);
 
+    m_quickTriggerFacet = new QLineEdit;
+    m_quickTriggerFacet->setObjectName("SettingsInput");
+    m_quickTriggerFacet->setPlaceholderText("rtrigger_word");
+    m_quickTriggerFacet->setText(settings->quickTriggerWordFacet);
+
+    m_quickStyleFacet = new QLineEdit;
+    m_quickStyleFacet->setObjectName("SettingsInput");
+    m_quickStyleFacet->setPlaceholderText("rstyle");
+    m_quickStyleFacet->setText(settings->quickStyleFacet);
+
     auto* facetsHint = new QLabel(
         "Names of facets used by the composer's right-click \"Quick add\" actions.");
     facetsHint->setObjectName("SettingsHintLabel");
     facetsHint->setWordWrap(true);
 
-    facetsLayout->addWidget(makeLabel("Quick character facet"), 0, 0);
-    facetsLayout->addWidget(m_quickCharFacet,                    0, 1);
-    facetsLayout->addWidget(makeLabel("Quick copyright facet"), 1, 0);
-    facetsLayout->addWidget(m_quickCopyFacet,                    1, 1);
-    facetsLayout->addWidget(facetsHint,                          2, 1);
+    facetsLayout->addWidget(makeLabel("Quick character facet"),    0, 0);
+    facetsLayout->addWidget(m_quickCharFacet,                       0, 1);
+    facetsLayout->addWidget(makeLabel("Quick copyright facet"),    1, 0);
+    facetsLayout->addWidget(m_quickCopyFacet,                       1, 1);
+    facetsLayout->addWidget(makeLabel("Quick trigger word facet"), 2, 0);
+    facetsLayout->addWidget(m_quickTriggerFacet,                    2, 1);
+    facetsLayout->addWidget(makeLabel("Quick style facet"),        3, 0);
+    facetsLayout->addWidget(m_quickStyleFacet,                      3, 1);
+    facetsLayout->addWidget(facetsHint,                             4, 1);
 
     bodyLayout->addWidget(facetsGroup);
     bodyLayout->addSpacing(24);
@@ -291,6 +329,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
@@ -367,6 +406,20 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
         emit settingsChanged();
     });
 
+    connect(m_inputFolder, &QLineEdit::editingFinished, this, [this]() {
+        m_settings->comfyUiInputFolder = m_inputFolder->text().trimmed();
+        emit settingsChanged();
+    });
+
+    connect(inputBrowseBtn, &QPushButton::clicked, this, [this]() {
+        const QString dir = QFileDialog::getExistingDirectory(
+            this, "Select ComfyUI Input Folder", m_inputFolder->text().trimmed());
+        if (dir.isEmpty()) return;
+        m_inputFolder->setText(dir);
+        m_settings->comfyUiInputFolder = dir;
+        emit settingsChanged();
+    });
+
     // Empty value disables the corresponding menu item — placeholder text
     // shows a conventional name as a suggestion, not as a fallback.
     connect(m_quickCharFacet, &QLineEdit::editingFinished, this, [this]() {
@@ -376,6 +429,16 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
 
     connect(m_quickCopyFacet, &QLineEdit::editingFinished, this, [this]() {
         m_settings->quickCopyrightFacet = m_quickCopyFacet->text().trimmed();
+        emit settingsChanged();
+    });
+
+    connect(m_quickTriggerFacet, &QLineEdit::editingFinished, this, [this]() {
+        m_settings->quickTriggerWordFacet = m_quickTriggerFacet->text().trimmed();
+        emit settingsChanged();
+    });
+
+    connect(m_quickStyleFacet, &QLineEdit::editingFinished, this, [this]() {
+        m_settings->quickStyleFacet = m_quickStyleFacet->text().trimmed();
         emit settingsChanged();
     });
 

@@ -8,6 +8,21 @@
 
 namespace gui {
 
+// Page identifiers for the main window's QStackedWidget. Values are the index
+// into the stack — adding a page means appending here AND inserting an
+// addWidget()/addButton() in the matching visual position. Reordering means
+// touching all three. Keeps page references self-documenting at the call site.
+enum class Page : int {
+    Home           = 0,
+    EntryViewer    = 1,
+    TagComposer    = 2,
+    FacetEditor    = 3,
+    WorkflowEditor = 4,
+    DatasetHelpers = 5,
+    DanbooruWiki   = 6,
+    Settings       = 7,
+};
+
 class NavButton : public QPushButton {
     Q_OBJECT
 public:

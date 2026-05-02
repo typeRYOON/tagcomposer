@@ -5,6 +5,8 @@
 #include <gui/widgets/tagsearchbar.h>
 #include <gui/tileview/imagedropper.h>
 #include <gui/tileview/addnewentrydialog.h>
+
+namespace core { class ComfyUiClient; }
 #include <QWidget>
 #include <QLabel>
 #include <QLineEdit>
@@ -28,6 +30,11 @@ public:
     void setEntry(core::Entry* entry);
     void setDanbooruIndex(core::DanbooruIndex* index);
     void setActiveGroups(const QMap<int, QList<int>>& groups);
+    void setComfyClient(core::ComfyUiClient* client);
+    void setQuickFacets(const QString& characterFacet,
+                        const QString& copyrightFacet,
+                        const QString& triggerWordFacet,
+                        const QString& styleFacet);
     void applyOrientation(bool portrait);
     // Required so dropped LoRAs from outside the lora folder can be moved
     // into a user-named relative path under it. Empty disables the prompt
@@ -36,6 +43,7 @@ public:
 
 signals:
     void entryListChanged();
+    void entrySelectRequested(int32_t entryId);
     void entryModified(int32_t entryId);
     void loraCleared(int32_t entryId);
     void entryTagAdded(int32_t entryId, int imageIdx, const QString& tag);
@@ -45,6 +53,7 @@ signals:
     void tagsExported(int entryId, int imageIdx, QList<QString> tags);
     void wikiRequested(const QString& tag);
     void facetEditorRequested(const QString& tag);
+    void quickFacetRequested(const QString& tag, const QString& facetName);
     void statusMessageRequested(const QString& message);
 
 private:
@@ -57,11 +66,16 @@ private:
 
     core::EntryModel*   m_model;
     core::DanbooruIndex* m_danbooruIndex = nullptr;
+    core::ComfyUiClient* m_comfyClient   = nullptr;
     core::Entry*         m_entry         = nullptr;
     int                  m_imageIdx      = 0;
     QSet<QString>        m_activeTags;
     QMap<int, QList<int>> m_activeGroups;
     QString              m_loraBaseDir;
+    QString              m_quickCharFacet;
+    QString              m_quickCopyFacet;
+    QString              m_quickTriggerFacet;
+    QString              m_quickStyleFacet;
 
     // Layout
     QStackedWidget* m_stack;

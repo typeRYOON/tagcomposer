@@ -41,6 +41,7 @@ QString wfVarTypeToString(core::WorkflowVarType t)
     case core::WorkflowVarType::Float:      return "Float";
     case core::WorkflowVarType::DirSearch:  return "DirSearch";
     case core::WorkflowVarType::LatentSize: return "LatentSize";
+    case core::WorkflowVarType::Image:      return "Image";
     }
     return "String";
 }
@@ -52,6 +53,7 @@ core::WorkflowVarType wfVarTypeFromString(const QString& s)
     if (s == "Float")      return core::WorkflowVarType::Float;
     if (s == "DirSearch")  return core::WorkflowVarType::DirSearch;
     if (s == "LatentSize") return core::WorkflowVarType::LatentSize;
+    if (s == "Image")      return core::WorkflowVarType::Image;
     return core::WorkflowVarType::String;
 }
 
@@ -162,6 +164,9 @@ void PromptComposerPage::saveCurrentState()
                 o["searchDir"]       = var.searchDir;
                 o["selectedFile"]    = var.selectedFile;
                 o["extensionFilter"] = var.extensionFilter;
+                break;
+            case core::WorkflowVarType::Image:
+                o["imageUuid"] = var.imageUuid;
                 break;
             }
             varValues.append(o);
@@ -313,6 +318,16 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
                 v.searchDir       = o["searchDir"].toString();
                 v.selectedFile    = o["selectedFile"].toString();
                 v.extensionFilter = o["extensionFilter"].toString();
+                break;
+            case core::WorkflowVarType::Image:
+                v.imageUuid = o["imageUuid"].toString();
+                if (!v.imageUuid.isEmpty() && m_inputCache
+                    && !m_inputCache->has(v.imageUuid)) {
+                    emit statusMessageRequested(QString(
+                        "Image input %1 missing from cache (%2) — repick")
+                        .arg(v.placeholder, v.imageUuid.left(8)));
+                    v.imageUuid.clear();
+                }
                 break;
             }
             newVars << v;

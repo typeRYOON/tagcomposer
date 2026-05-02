@@ -11,11 +11,17 @@
     font-size: 11px;
 }
 
+#StatusBarActiveLabel {
+    background: transparent;
+    color: #555555;
+    font-size: 11px;
+}
+
 #StatusBarProgress {
     background: #0a0a0a;
     border: 1px solid #1a1a1a;
     border-radius: 2px;
-    color: #6a6a6a;
+    color: #ffffff;
     font-size: 10px;
     text-align: center;
 }

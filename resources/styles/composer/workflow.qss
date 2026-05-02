@@ -200,12 +200,6 @@
     background: #282828;
 }
 
-#ComposerQueueLabel {
-    color: #555555;
-    font-size: 11px;
-    background: transparent;
-}
-
 #ComposerCopyBtn {
     background: #141414;
     color: #555555;

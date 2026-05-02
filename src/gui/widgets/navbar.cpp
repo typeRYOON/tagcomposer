@@ -82,9 +82,10 @@ NavBar::NavBar(QWidget* tooltipParent, QWidget* parent)
     QButtonGroup* group = new QButtonGroup(this);
     group->setExclusive(true);
 
-    auto addButton = [&](const QString& label, const QString& tip, int pageIdx,
+    auto addButton = [&](Page page, const QString& tip,
                          const QString& iconPath = {}) -> NavButton* {
-        NavButton* btn = new NavButton(label, tip, this);
+        const int pageIdx = int(page);
+        NavButton* btn = new NavButton(QString::number(pageIdx), tip, this);
         layout->addWidget(btn, 0, Qt::AlignHCenter);
         group->addButton(btn);
         m_buttons.append(btn);
@@ -101,15 +102,15 @@ NavBar::NavBar(QWidget* tooltipParent, QWidget* parent)
         return btn;
     };
 
-    addButton("0", "Home",            0, ":/icons/nav_home.png"    )->setChecked(true);
-    addButton("1", "Entry Viewer",    1, ":/icons/nav_tiles.png"   );
-    addButton("2", "Tag Composer",    2, ":/icons/nav_composer.png");
-    addButton("3", "Facet Editor",    3, ":/icons/nav_facets.png"  );
-    addButton("4", "Danbooru Wiki",   4, ":/icons/nav_wiki.png"    );
-    addButton("5", "Workflow Editor", 5, ":/icons/nav_workflow.png");
-    addButton("6", "Dataset Helpers", 6, ":/icons/nav_dataset.png" );
+    addButton(Page::Home,           "Home",            ":/icons/nav_home.png"    )->setChecked(true);
+    addButton(Page::EntryViewer,    "Entry Viewer",    ":/icons/nav_tiles.png"   );
+    addButton(Page::TagComposer,    "Tag Composer",    ":/icons/nav_composer.png");
+    addButton(Page::FacetEditor,    "Facet Editor",    ":/icons/nav_facets.png"  );
+    addButton(Page::WorkflowEditor, "Workflow Editor", ":/icons/nav_workflow.png");
+    addButton(Page::DatasetHelpers, "Dataset Helpers", ":/icons/nav_dataset.png" );
+    addButton(Page::DanbooruWiki,   "Danbooru Wiki",   ":/icons/nav_wiki.png"    );
     layout->addStretch();
-    addButton("7", "Settings",        7, ":/icons/nav_settings.png");
+    addButton(Page::Settings,       "Settings",        ":/icons/nav_settings.png");
 }
 
 void NavBar::showTooltip(const QString& text, QPoint globalPos)

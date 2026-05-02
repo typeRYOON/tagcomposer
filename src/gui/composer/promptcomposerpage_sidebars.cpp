@@ -11,6 +11,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QColor>
+#include <QCursor>
 #include <QEnterEvent>
 #include <QFile>
 #include <QFont>
@@ -23,6 +24,7 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QTimer>
 #include <QVBoxLayout>
 
 using namespace core;
@@ -57,9 +59,19 @@ private:
 
 // Rule container that collapses its args area unless the row is hovered or
 // one of its descendants has focus — keeps the rules sidebar compact.
+//
+// Hide is debounced through a short timer and the final check uses the global
+// cursor position rather than QWidget::underMouse() — the latter only updates
+// on enter/leave, which can lag while the row's geometry shifts on collapse.
 class RuleRow : public QWidget {
 public:
-    explicit RuleRow(QWidget* parent = nullptr) : QWidget(parent) {}
+    explicit RuleRow(QWidget* parent = nullptr) : QWidget(parent)
+    {
+        m_hideTimer = new QTimer(this);
+        m_hideTimer->setSingleShot(true);
+        m_hideTimer->setInterval(150);
+        connect(m_hideTimer, &QTimer::timeout, this, [this]() { tryHide(); });
+    }
 
     void setArgsArea(QWidget* a)
     {
@@ -74,33 +86,37 @@ public:
 protected:
     void enterEvent(QEnterEvent*) override
     {
+        m_hideTimer->stop();
         if (m_args) m_args->setVisible(true);
     }
-    void leaveEvent(QEvent*) override { maybeHide(); }
+    void leaveEvent(QEvent*) override { m_hideTimer->start(); }
 
     bool eventFilter(QObject*, QEvent* e) override
     {
         if (e->type() == QEvent::FocusIn) {
+            m_hideTimer->stop();
             if (m_args) m_args->setVisible(true);
         } else if (e->type() == QEvent::FocusOut) {
-            // Defer — focus may be moving to a sibling within the same row.
-            QMetaObject::invokeMethod(this, [this] { maybeHide(); },
-                                      Qt::QueuedConnection);
+            m_hideTimer->start();
         }
         return false;
     }
 
 private:
-    void maybeHide()
+    void tryHide()
     {
-        if (!m_args) return;
-        if (underMouse()) return;
+        if (!m_args || !m_args->isVisible()) return;
+        // Use the live cursor position; underMouse() lags geometry changes.
+        const QPoint g  = QCursor::pos();
+        const QRect  rg = QRect(mapToGlobal(QPoint(0, 0)), size());
+        if (rg.contains(g)) return;
         if (QWidget* fw = QApplication::focusWidget())
             if (isAncestorOf(fw)) return;
         m_args->setVisible(false);
     }
 
-    QWidget* m_args = nullptr;
+    QWidget* m_args      = nullptr;
+    QTimer*  m_hideTimer = nullptr;
 };
 
 // Build a small status badge. Prefers an icon resource when one is present,

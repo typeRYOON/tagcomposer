@@ -9,6 +9,8 @@
 #include <QResizeEvent>
 #include <QMap>
 
+namespace core { class ComfyUiClient; }
+
 namespace gui {
 class EntryView;
 class EntryPanel;
@@ -22,6 +24,11 @@ public:
     void setActiveGroups(const QMap<int, QList<int>>& groups);
     void setLoraActiveByUuids(const QList<QString>& uuids);
     void setLoraBaseDir(const QString& dir);
+    void setComfyClient(core::ComfyUiClient* client);
+    void setQuickFacets(const QString& characterFacet,
+                        const QString& copyrightFacet,
+                        const QString& triggerWordFacet,
+                        const QString& styleFacet);
     QList<QString> activeLoraUuids() const;
     // Re-runs the current search-bar query against the entry model. Used after
     // an import to surface newly-added entries without losing typed state.
@@ -33,6 +40,7 @@ signals:
     void entryTagRemoved(int entryId, int imageIdx, const QString& tag);
     void wikiRequested(const QString& tag);
     void facetEditorRequested(const QString& tag);
+    void quickFacetRequested(const QString& tag, const QString& facetName);
     void loraStackChanged(QList<core::LoraConfig> stack);
     void statusMessageRequested(const QString& message);
 

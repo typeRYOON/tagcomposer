@@ -87,11 +87,17 @@ TileViewPage::TileViewPage(core::EntryModel* model, QWidget* parent)
     // Entry click opens the panel
     connect(m_entryView, &EntryView::entryClicked, m_entryPanel, &EntryPanel::setEntry);
 
+    // Auto-select + scroll-animate to a freshly-created entry. The view's
+    // scrollToEntry already emits entryClicked, which routes to setEntry above.
+    connect(m_entryPanel, &EntryPanel::entrySelectRequested,
+            m_entryView, &EntryView::selectAndScrollToEntry);
+
     // Re-emit export, wiki, and facet-editor signals from panel and tile right-click
     connect(m_entryPanel, &EntryPanel::tagsExported, this, &TileViewPage::tagsExported);
     connect(m_entryView,  &EntryView::tagsExported,  this, &TileViewPage::tagsExported);
     connect(m_entryPanel, &EntryPanel::wikiRequested,           this, &TileViewPage::wikiRequested);
     connect(m_entryPanel, &EntryPanel::facetEditorRequested,    this, &TileViewPage::facetEditorRequested);
+    connect(m_entryPanel, &EntryPanel::quickFacetRequested,     this, &TileViewPage::quickFacetRequested);
     connect(m_entryPanel, &EntryPanel::statusMessageRequested,  this, &TileViewPage::statusMessageRequested);
 
     // LoRA: forward stack changes from EntryView; clear from EntryPanel on lora removal
@@ -160,6 +166,20 @@ QList<QString> TileViewPage::activeLoraUuids() const
 void TileViewPage::setLoraBaseDir(const QString& dir)
 {
     m_entryPanel->setLoraBaseDir(dir);
+}
+
+void TileViewPage::setComfyClient(core::ComfyUiClient* client)
+{
+    m_entryPanel->setComfyClient(client);
+}
+
+void TileViewPage::setQuickFacets(const QString& characterFacet,
+                                  const QString& copyrightFacet,
+                                  const QString& triggerWordFacet,
+                                  const QString& styleFacet)
+{
+    m_entryPanel->setQuickFacets(characterFacet, copyrightFacet,
+                                 triggerWordFacet, styleFacet);
 }
 
 void TileViewPage::refreshEntries()

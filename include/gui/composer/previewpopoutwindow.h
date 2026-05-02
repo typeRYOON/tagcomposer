@@ -34,6 +34,7 @@ protected:
     void resizeEvent(QResizeEvent* e) override;
     void showEvent(QShowEvent* e) override;
     void closeEvent(QCloseEvent* e) override;
+    void changeEvent(QEvent* e) override;
 
 private:
     void loadNewestTempImage();
@@ -45,7 +46,7 @@ private:
     QFutureWatcher<QImage>* m_loadWatcher;
     QString                 m_tempFolder;
     QString                 m_lastTempPath;
-    bool                    m_isFullScreen{ true };
+    bool                    m_isFullScreen{ false };
     bool                    m_isClosing{ false };
 };
 

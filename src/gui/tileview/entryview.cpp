@@ -369,8 +369,10 @@ namespace gui {
         }
 
         if (event->button() == Qt::LeftButton) {
-            m_selectedEntryId = m_entries[idx]->id;
-            emit entryClicked(m_entries[idx]);
+            // scrollToEntry centers the tile (clamped to scroll bounds), kicks
+            // the smooth-scroll timer, and emits entryClicked. When the tile
+            // is already centered the diff is ~0 and the timer self-stops.
+            scrollToEntry(idx);
             return;
         }
 
@@ -421,6 +423,16 @@ namespace gui {
             }
         }
         static_cast<EntryNavPanel*>(m_navPanel)->updateEntries(items);
+    }
+
+    void EntryView::selectAndScrollToEntry(int32_t entryId)
+    {
+        for (int i = 0; i < m_entries.size(); ++i) {
+            if (m_entries[i]->id == entryId) {
+                scrollToEntry(i);
+                return;
+            }
+        }
     }
 
     void EntryView::scrollToEntry(int idx)

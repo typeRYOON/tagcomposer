@@ -17,6 +17,7 @@ namespace utils {
     inline constexpr const char* SESSION_PATH       = "data/system/session.json";
     inline constexpr const char* WORKFLOWS_PATH     = "data/system/workflows.json";
     inline constexpr const char* STATES_DIR         = "data/states";
+    inline constexpr const char* WORKFLOW_INPUTS_DIR = "data/workflow_inputs";
     inline constexpr const char* LATENT_SIZES_PATH  = "data/system/latent_sizes.txt";
     inline constexpr const char* BOORU_CACHE_PATH   = "data/system/global_tag_cache.json";
 

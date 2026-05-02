@@ -13,9 +13,11 @@
 #include <QPixmap>
 #include <QPropertyAnimation>
 #include <QResizeEvent>
+#include <QShortcut>
 #include <QShowEvent>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QWindowStateChangeEvent>
 #include <QtConcurrent>
 
 namespace gui {
@@ -80,6 +82,14 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
     addShortcut("Shift+R",     [this]() { emit interruptRequested(); });
     addShortcut("Shift+Alt+R", [this]() { emit clearPendingRequested(); });
     addShortcut("Ctrl+W",      [this]() { close(); });
+    addShortcut("Ctrl+H",      [this]() {
+        if (windowState() & Qt::WindowMinimized) return;
+        auto* anim = utils::propertyAnimate(this, "windowOpacity",
+            windowOpacity(), 0.0, 200, QEasingCurve::InOutSine);
+        connect(anim, &QPropertyAnimation::finished, this, [this]() {
+            showMinimized();
+        });
+    });
 }
 
 void PreviewPopoutWindow::setImage(const QPixmap& pix)
@@ -113,6 +123,19 @@ void PreviewPopoutWindow::showEvent(QShowEvent* e)
     if (windowOpacity() < 0.99) {
         utils::propertyAnimate(this, "windowOpacity",
                                windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+    }
+}
+
+void PreviewPopoutWindow::changeEvent(QEvent* e)
+{
+    QWidget::changeEvent(e);
+    if (e->type() != QEvent::WindowStateChange) return;
+    auto* ev = static_cast<QWindowStateChangeEvent*>(e);
+    const bool wasMinimized = (ev->oldState()  & Qt::WindowMinimized);
+    const bool isMinimized  = (windowState()   & Qt::WindowMinimized);
+    if (wasMinimized && !isMinimized && windowOpacity() < 0.99) {
+        utils::propertyAnimate(this, "windowOpacity",
+            windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
     }
 }
 

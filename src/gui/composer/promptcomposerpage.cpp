@@ -593,9 +593,6 @@ PromptComposerPage::PromptComposerPage(
     m_interruptBtn->setCursor(Qt::PointingHandCursor);
     m_interruptBtn->setToolTip("Interrupt");
 
-    m_queueLabel = new QLabel("0 active", m_controlBar);
-    m_queueLabel->setObjectName("ComposerQueueLabel");
-
     auto* barLayout = new QHBoxLayout(m_controlBar);
     barLayout->setContentsMargins(5, 4, 8, 4);
     barLayout->setSpacing(4);
@@ -603,8 +600,6 @@ PromptComposerPage::PromptComposerPage(
     barLayout->addWidget(m_runBtn, 1);
     barLayout->addWidget(m_promptCountSpin);
     barLayout->addWidget(m_interruptBtn);
-    barLayout->addSpacing(2);
-    barLayout->addWidget(m_queueLabel);
     m_controlBar->adjustSize();
 
     connect(m_runBtn, &QPushButton::clicked, this, [this]() {
@@ -729,12 +724,6 @@ void PromptComposerPage::fadePreviewInset(qreal target)
     m_previewInsetFade->setStartValue(m_previewInsetFx->opacity());
     m_previewInsetFade->setEndValue(target);
     m_previewInsetFade->start();
-}
-
-void PromptComposerPage::setQueueCount(int count)
-{
-    m_queueLabel->setText(QString("%1 active").arg(count));
-    repositionFloats();
 }
 
 void PromptComposerPage::triggerRun()
@@ -1038,9 +1027,9 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
             m_tagWeights.remove(tag);
             m_deactivatedTags.remove(tag);
         }
-        emit statusMessageRequested(
-            QString("Rule deleted %1 tag(s): %2")
-                .arg(deleted.size()).arg(deleted.join(", ")));
+        //emit statusMessageRequested(
+        //    QString("Rule deleted %1 tag(s): %2")
+        //        .arg(deleted.size()).arg(deleted.join(", ")));
     }
 
     // Apply user-set weights before storing or displaying
@@ -1178,6 +1167,44 @@ void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
 }
 
 // ── Tag row ───────────────────────────────────────────────────────────────────
+
+void PromptComposerPage::replaceTagVariable(const QString& oldKey,
+                                            const QString& newVarName)
+{
+    const int i = m_activeTags.indexOf(oldKey);
+    if (i < 0) return;
+
+    static const QRegularExpression varRe(R"(\$([A-Za-z0-9_]+)\$)");
+    QString newKey = oldKey;
+
+    if (newVarName.isEmpty()) {
+        newKey = VariableIndex::stripVariables(newKey);
+    } else {
+        const QString token = "$" + newVarName + "$";
+        // Replace every occurrence of any $name$ with the chosen one.
+        // Matches behaviour of the badge, which collapses all vars into one
+        // pill — swapping every placeholder keeps the displayed pill in sync.
+        newKey.replace(varRe, token);
+    }
+
+    newKey = newKey.trimmed();
+    if (newKey.isEmpty() || newKey == oldKey) return;
+
+    // Skip if the rewritten tag would collide with another active tag.
+    if (m_activeTagSet.contains(newKey) && newKey != oldKey) {
+        // Already present elsewhere — drop the old one rather than dupe.
+        m_activeTags.removeAt(i);
+        m_activeTagSet.remove(oldKey);
+    } else {
+        m_activeTags[i] = newKey;
+        m_activeTagSet.remove(oldKey);
+        m_activeTagSet.insert(newKey);
+    }
+    m_deactivatedTags.remove(oldKey);
+
+    QMetaObject::invokeMethod(this, &PromptComposerPage::repush,
+                              Qt::QueuedConnection);
+}
 
 QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
 {
@@ -1331,27 +1358,59 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
         auto installMenu = [&](QWidget* w) {
             w->setContextMenuPolicy(Qt::CustomContextMenu);
             connect(w, &QWidget::customContextMenuRequested, this,
-                [this, wikiTag, onRemove, onToggleDeactivate, isDeactivated](const QPoint&) {
+                [this, wikiTag, activeKey, hasVar, onRemove, onToggleDeactivate, isDeactivated](const QPoint&) {
                     QMenu menu;
                     QAction* wikiAct   = menu.addAction("Wiki");
                     QAction* facetAct  = menu.addAction("Edit facets");
                     QAction* deactAct  = menu.addAction(isDeactivated ? "Activate" : "Deactivate");
                     QAction* removeAct = menu.addAction("Remove");
-                    QAction* charAct = nullptr;
-                    QAction* copyAct = nullptr;
-                    if (!m_quickCharFacet.isEmpty() || !m_quickCopyFacet.isEmpty())
-                        menu.addSeparator();
-                    if (!m_quickCharFacet.isEmpty())
-                        charAct = menu.addAction(QString("Quick add as character (%1)").arg(m_quickCharFacet));
-                    if (!m_quickCopyFacet.isEmpty())
-                        copyAct = menu.addAction(QString("Quick add as copyright (%1)").arg(m_quickCopyFacet));
+
+                    // Variable swap — only meaningful if the tag carries one
+                    // already. Lets the user retarget every $foo$ in the tag
+                    // to a different declared variable, or strip vars entirely.
+                    QMenu* varMenu = nullptr;
+                    QAction* dropVarAct = nullptr;
+                    QHash<QAction*, QString> setVarActs;
+                    if (hasVar && m_varIndex) {
+                        varMenu = menu.addMenu("Change variable");
+                        dropVarAct = varMenu->addAction("Remove variable");
+                        if (!m_varIndex->variables().isEmpty())
+                            varMenu->addSeparator();
+                        for (const auto& v : m_varIndex->variables()) {
+                            QAction* a = varMenu->addAction("$" + v.name + "$");
+                            setVarActs.insert(a, v.name);
+                        }
+                    }
+
+                    QHash<QAction*, QString> quickFacetActs;
+                    {
+                        const QList<QPair<QString, QString>> entries{
+                            { "character",    m_quickCharFacet    },
+                            { "copyright",    m_quickCopyFacet    },
+                            { "trigger word", m_quickTriggerFacet },
+                            { "style",        m_quickStyleFacet   },
+                        };
+                        bool any = false;
+                        for (const auto& e : entries) if (!e.second.isEmpty()) { any = true; break; }
+                        if (any) menu.addSeparator();
+                        for (const auto& e : entries) {
+                            if (e.second.isEmpty()) continue;
+                            QAction* a = menu.addAction(
+                                QString("Quick add as %1 (%2)").arg(e.first, e.second));
+                            quickFacetActs.insert(a, e.second);
+                        }
+                    }
                     QAction* chosen = menu.exec(QCursor::pos());
                     if      (chosen == wikiAct)   emit wikiRequested(wikiTag);
                     else if (chosen == facetAct)  emit facetEditorRequested(wikiTag);
                     else if (chosen == deactAct)  onToggleDeactivate();
                     else if (chosen == removeAct) onRemove();
-                    else if (charAct && chosen == charAct) emit quickFacetRequested(wikiTag, m_quickCharFacet);
-                    else if (copyAct && chosen == copyAct) emit quickFacetRequested(wikiTag, m_quickCopyFacet);
+                    else if (chosen && quickFacetActs.contains(chosen))
+                        emit quickFacetRequested(wikiTag, quickFacetActs.value(chosen));
+                    else if (dropVarAct && chosen == dropVarAct)
+                        replaceTagVariable(activeKey, QString());
+                    else if (chosen && setVarActs.contains(chosen))
+                        replaceTagVariable(activeKey, setVarActs.value(chosen));
                 });
         };
         installMenu(row);
@@ -1364,19 +1423,29 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                     QMenu menu;
                     QAction* wikiAct  = menu.addAction("Wiki");
                     QAction* facetAct = menu.addAction("Edit facets");
-                    QAction* charAct = nullptr;
-                    QAction* copyAct = nullptr;
-                    if (!m_quickCharFacet.isEmpty() || !m_quickCopyFacet.isEmpty())
-                        menu.addSeparator();
-                    if (!m_quickCharFacet.isEmpty())
-                        charAct = menu.addAction(QString("Quick add as character (%1)").arg(m_quickCharFacet));
-                    if (!m_quickCopyFacet.isEmpty())
-                        copyAct = menu.addAction(QString("Quick add as copyright (%1)").arg(m_quickCopyFacet));
+                    QHash<QAction*, QString> quickFacetActs;
+                    {
+                        const QList<QPair<QString, QString>> entries{
+                            { "character",    m_quickCharFacet    },
+                            { "copyright",    m_quickCopyFacet    },
+                            { "trigger word", m_quickTriggerFacet },
+                            { "style",        m_quickStyleFacet   },
+                        };
+                        bool any = false;
+                        for (const auto& e : entries) if (!e.second.isEmpty()) { any = true; break; }
+                        if (any) menu.addSeparator();
+                        for (const auto& e : entries) {
+                            if (e.second.isEmpty()) continue;
+                            QAction* a = menu.addAction(
+                                QString("Quick add as %1 (%2)").arg(e.first, e.second));
+                            quickFacetActs.insert(a, e.second);
+                        }
+                    }
                     QAction* chosen   = menu.exec(QCursor::pos());
                     if (chosen == wikiAct)       emit wikiRequested(wikiTag);
                     else if (chosen == facetAct) emit facetEditorRequested(wikiTag);
-                    else if (charAct && chosen == charAct) emit quickFacetRequested(wikiTag, m_quickCharFacet);
-                    else if (copyAct && chosen == copyAct) emit quickFacetRequested(wikiTag, m_quickCopyFacet);
+                    else if (chosen && quickFacetActs.contains(chosen))
+                        emit quickFacetRequested(wikiTag, quickFacetActs.value(chosen));
                 });
         };
         installWiki(row);
@@ -1393,10 +1462,15 @@ void PromptComposerPage::setEntryModel(core::EntryModel* model)
     m_entryModel = model;
 }
 
-void PromptComposerPage::setQuickFacets(const QString& characterFacet, const QString& copyrightFacet)
+void PromptComposerPage::setQuickFacets(const QString& characterFacet,
+                                        const QString& copyrightFacet,
+                                        const QString& triggerWordFacet,
+                                        const QString& styleFacet)
 {
-    m_quickCharFacet = characterFacet;
-    m_quickCopyFacet = copyrightFacet;
+    m_quickCharFacet    = characterFacet;
+    m_quickCopyFacet    = copyrightFacet;
+    m_quickTriggerFacet = triggerWordFacet;
+    m_quickStyleFacet   = styleFacet;
 }
 
 void PromptComposerPage::setActiveLoraUuids(const QList<QString>& uuids)

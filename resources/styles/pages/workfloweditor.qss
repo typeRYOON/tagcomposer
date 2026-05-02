@@ -73,6 +73,13 @@
     border-radius: 3px;
 }
 
+#WfImageThumb {
+    background: #141414;
+    border: 1px solid #1a1a1a;
+    color: #444444;
+    font-size: 11px;
+}
+
 #WfRemoveBtn {
     background: transparent;
     border: none;

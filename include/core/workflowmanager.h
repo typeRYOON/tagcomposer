@@ -6,7 +6,7 @@
 namespace core {
 
 enum class SeedBehavior    { Fixed, Increment, Randomize };
-enum class WorkflowVarType { Seed, String, Integer, Float, DirSearch, LatentSize };
+enum class WorkflowVarType { Seed, String, Integer, Float, DirSearch, LatentSize, Image };
 
 struct LatentSizeEntry {
     int     w, h;
@@ -24,6 +24,7 @@ struct WorkflowVar {
     QString         searchDir;
     QString         selectedFile;   // absolute path
     QString         extensionFilter;
+    QString         imageUuid;      // for Image type — references WorkflowInputCache
 };
 
 struct WorkflowFile {

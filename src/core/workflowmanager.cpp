@@ -1,4 +1,5 @@
 #include <core/workflowmanager.h>
+#include <core/workflowinputcache.h>
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -20,6 +21,7 @@ static QString varTypeToStr(WorkflowVarType t)
     case WorkflowVarType::Float:      return "float";
     case WorkflowVarType::DirSearch:  return "dirSearch";
     case WorkflowVarType::LatentSize: return "latentSize";
+    case WorkflowVarType::Image:      return "image";
     }
     return "string";
 }
@@ -31,6 +33,7 @@ static WorkflowVarType varTypeFromStr(const QString& s)
     if (s == "float")      return WorkflowVarType::Float;
     if (s == "dirSearch")  return WorkflowVarType::DirSearch;
     if (s == "latentSize") return WorkflowVarType::LatentSize;
+    if (s == "image")      return WorkflowVarType::Image;
     return WorkflowVarType::String;
 }
 
@@ -79,6 +82,9 @@ static QJsonObject varToJson(const WorkflowVar& var)
     case WorkflowVarType::LatentSize:
         o["stringValue"] = var.stringValue;
         break;
+    case WorkflowVarType::Image:
+        o["imageUuid"] = var.imageUuid;
+        break;
     }
     return o;
 }
@@ -109,6 +115,9 @@ static WorkflowVar varFromJson(const QJsonObject& o)
         break;
     case WorkflowVarType::LatentSize:
         var.stringValue = o["stringValue"].toString();
+        break;
+    case WorkflowVarType::Image:
+        var.imageUuid = o["imageUuid"].toString();
         break;
     }
     return var;
@@ -252,6 +261,14 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
         }
         case WorkflowVarType::LatentSize:
             replacement = "\"" + var.stringValue + "\"";
+            break;
+        case WorkflowVarType::Image:
+            // Empty when unset — produces an empty JSON string, which ComfyUI
+            // will reject downstream with a clearer error than a parse failure.
+            replacement = "\"" + (var.imageUuid.isEmpty()
+                ? QString()
+                : WorkflowInputCache::serverSubfolder() + "/" + var.imageUuid + ".png")
+                + "\"";
             break;
         }
 
