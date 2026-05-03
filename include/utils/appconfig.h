@@ -20,6 +20,9 @@ namespace utils {
     inline constexpr const char* WORKFLOW_INPUTS_DIR = "data/workflow_inputs";
     inline constexpr const char* LATENT_SIZES_PATH  = "data/system/latent_sizes.txt";
     inline constexpr const char* BOORU_CACHE_PATH   = "data/system/global_tag_cache.json";
+    inline constexpr const char* CLUSTER_FILTERS_PATH = "data/system/cluster_filters.fct";
+    inline constexpr const char* MODELS_DIR             = "data/models";
+    inline constexpr const char* COLLECTIONS_DIR        = "data/collections";
 
     inline constexpr int SAVE_IMAGE_W = 468;
     inline constexpr int SAVE_IMAGE_H = 600;

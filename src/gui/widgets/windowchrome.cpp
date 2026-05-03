@@ -166,6 +166,7 @@ void WindowChrome::endResizeDrag(const QPoint& globalNow)
     if (!m_dragEdges) return;
     if (m_opt.modalGrab && m_resizeOverlay) m_resizeOverlay->releaseMouse();
     const QRect target = computeResizeGeometry(globalNow);
+    qDebug() << target;
     if (m_resizeOutline) m_resizeOutline->hide();
     m_dragEdges = Qt::Edges{};
     QApplication::restoreOverrideCursor();

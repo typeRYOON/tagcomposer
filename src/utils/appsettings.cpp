@@ -44,6 +44,24 @@ AppSettings AppSettings::load(const QString& path)
     if (facets.contains("quickStyle"))
         s.quickStyleFacet = facets["quickStyle"].toString();
 
+    const QJsonObject autotag = root["autotag"].toObject();
+    s.activeAutoTagModel  = autotag["activeModel"].toString();
+    if (autotag.contains("threshold"))
+        s.autoTagThreshold = float(autotag["threshold"].toDouble(0.35));
+    if (autotag.contains("cooldownMs"))
+        s.autoTagCooldownMs = autotag["cooldownMs"].toInt(100);
+    s.autoTagInputFolder  = autotag["inputFolder"].toString();
+    s.autoTagOutputFolder = autotag["outputFolder"].toString();
+    s.tagEditorFolder     = autotag["editorFolder"].toString();
+
+    const QJsonObject collector = root["collector"].toObject();
+    s.collectorWatchFolder      = collector["watchFolder"].toString();
+    s.collectorActiveCollection = collector["activeCollection"].toString();
+    if (collector.contains("threshold"))
+        s.collectorThreshold = collector["threshold"].toInt(4);
+    if (collector.contains("pollSeconds"))
+        s.collectorPollSeconds = collector["pollSeconds"].toInt(5);
+
     return s;
 }
 
@@ -72,10 +90,26 @@ void AppSettings::save(const QString& path) const
     facets["quickTriggerWord"] = quickTriggerWordFacet;
     facets["quickStyle"]       = quickStyleFacet;
 
+    QJsonObject autotag;
+    autotag["activeModel"]  = activeAutoTagModel;
+    autotag["threshold"]    = autoTagThreshold;
+    autotag["cooldownMs"]   = autoTagCooldownMs;
+    autotag["inputFolder"]  = autoTagInputFolder;
+    autotag["outputFolder"] = autoTagOutputFolder;
+    autotag["editorFolder"] = tagEditorFolder;
+
+    QJsonObject collector;
+    collector["watchFolder"]      = collectorWatchFolder;
+    collector["activeCollection"] = collectorActiveCollection;
+    collector["threshold"]        = collectorThreshold;
+    collector["pollSeconds"]      = collectorPollSeconds;
+
     QJsonObject root;
-    root["app"]    = app;
-    root["comfyui"] = cui;
-    root["facets"] = facets;
+    root["app"]       = app;
+    root["comfyui"]   = cui;
+    root["facets"]    = facets;
+    root["autotag"]   = autotag;
+    root["collector"] = collector;
 
     QFile f(path);
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))

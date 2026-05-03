@@ -37,6 +37,29 @@ struct AppSettings {
     QString quickTriggerWordFacet = "rtrigger_word";
     QString quickStyleFacet       = "rstyle";
 
+    // ── AutoTag ──────────────────────────────────────────────────────────────
+    // Name of the active AutoTagger model dir under data/models/. Empty until
+    // AutoTaggerLibrary picks the first available one on boot.
+    QString activeAutoTagModel;
+    // Default threshold for the AutoTag page (per-image overrides live in the
+    // page's UI state, not here).
+    float   autoTagThreshold = 0.35f;
+    // Per-image cooldown applied between inferences. Default 100 ms keeps
+    // the CPU from pegging on long batches; 0 = run as fast as possible.
+    int     autoTagCooldownMs = 100;
+    // Last-used input/output roots for the AutoTag page — convenience so the
+    // page reopens onto the same folders.
+    QString autoTagInputFolder;
+    QString autoTagOutputFolder;
+    // Last-used folder for the Tag Editor page.
+    QString tagEditorFolder;
+
+    // ── Auto-collect (Collector page) ────────────────────────────────────────
+    QString collectorWatchFolder;        // user's downloads dir
+    QString collectorActiveCollection;   // last picked collection name
+    int     collectorThreshold   = 4;    // Hamming bits cutoff (0–16)
+    int     collectorPollSeconds = 5;    // QTimer cadence
+
     // ─────────────────────────────────────────────────────────────────────────
     static AppSettings load(const QString& path);
     void save(const QString& path) const;

@@ -9,6 +9,7 @@
 #include <core/comfyuiclient.h>
 #include <core/workflowmanager.h>
 #include <core/workflowinputcache.h>
+#include <core/autotaggerlibrary.h>
 #include <utils/appsettings.h>
 #include <QMainWindow>
 #include <QCloseEvent>
@@ -16,6 +17,7 @@
 #include <QSet>
 #include <QStackedWidget>
 #include <functional>
+#include <memory>
 
 namespace gui {
 class TileViewPage;
@@ -88,16 +90,17 @@ private:
     core::EntryModel*   m_entryModel;
     QStackedWidget*      m_pages;
 
-    gui::TileViewPage*        m_tileViewPage      = nullptr;
-    gui::PromptComposerPage*  m_composerPage      = nullptr;
-    gui::FacetEditorPage*     m_facetEditorPage   = nullptr;
-    gui::TagWikiPage*         m_wikiPage          = nullptr;
-    gui::SettingsPage*        m_settingsPage      = nullptr;
-    gui::WorkflowEditPage*    m_workflowEditPage  = nullptr;
-    gui::OutputViewerPage*    m_outputViewerPage  = nullptr;
-    gui::StatusBar*           m_statusBar         = nullptr;
-    gui::DanmakuOverlay*      m_danmakuOverlay    = nullptr;
-    gui::WindowChrome*        m_chrome            = nullptr;
+    gui::TileViewPage*        m_tileViewPage       = nullptr;
+    gui::PromptComposerPage*  m_composerPage       = nullptr;
+    gui::FacetEditorPage*     m_facetEditorPage    = nullptr;
+    gui::TagWikiPage*         m_wikiPage           = nullptr;
+    gui::SettingsPage*        m_settingsPage       = nullptr;
+    gui::WorkflowEditPage*    m_workflowEditPage   = nullptr;
+    gui::OutputViewerPage*    m_outputViewerPage   = nullptr;
+    gui::DatasetHelpersPage*  m_datasetHelpersPage = nullptr;
+    gui::StatusBar*           m_statusBar          = nullptr;
+    gui::DanmakuOverlay*      m_danmakuOverlay     = nullptr;
+    gui::WindowChrome*        m_chrome             = nullptr;
 
     core::DanbooruIndex*      m_danbooruIndex = nullptr;
     core::ComfyUiClient*      m_comfyClient   = nullptr;
@@ -116,6 +119,10 @@ private:
     core::VariableIndex   m_varIndex;
     core::WorkflowManager m_workflowManager;
     core::PromptPipeline* m_pipeline = nullptr;
+
+    // Lazy registry of AutoTagger ONNX models under data/models/. Constructed
+    // here so the whole app shares one Ort::Env + one cache of loaded sessions.
+    std::unique_ptr<core::AutoTaggerLibrary> m_taggerLibrary;
 };
 
 }

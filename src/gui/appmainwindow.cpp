@@ -10,7 +10,10 @@
 #include <gui/settingspage.h>
 #include <gui/workfloweditpage.h>
 #include <gui/outputviewerpage.h>
-#include <gui/datasethelperspage.h>
+#include <gui/dataset/datasethelperspage.h>
+#include <gui/dataset/tagclusterpage.h>
+#include <gui/dataset/tageditorpage.h>
+#include <gui/dataset/collectorpage.h>
 #include <gui/widgets/danmakuoverlay.h>
 #include <gui/exportdialog.h>
 #include <gui/importdialog.h>
@@ -55,8 +58,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     // Initial size + floor. Most window managers honor these; tiling WMs
     // ignore them and tile the window however they prefer.
-    resize(1280, 800);
-    setMinimumSize(960, 600);
+    resize(1420, 920);
+    setMinimumSize(1420, 920);
 
     // ── Load settings ─────────────────────────────────────────────────────────
     m_settings = AppSettings::load(BASE_PATH + "/" + SETTINGS_PATH);
@@ -135,7 +138,19 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_pages->addWidget(m_facetEditorPage);            // Page::FacetEditor
     m_pages->addWidget(m_workflowEditPage);           // Page::WorkflowEditor
     m_pages->addWidget(m_outputViewerPage);           // Page::OutputViewer
-    m_pages->addWidget(new DatasetHelpersPage(this)); // Page::DatasetHelpers
+    m_taggerLibrary = std::make_unique<core::AutoTaggerLibrary>(
+        BASE_PATH + "/" + MODELS_DIR);
+    // Settle on a default active model if the user hasn't picked one yet —
+    // first available wins. AutoTagPage and any other consumer reads
+    // AppSettings::activeAutoTagModel from there.
+    if (m_settings.activeAutoTagModel.isEmpty()) {
+        const auto names = m_taggerLibrary->availableModels();
+        if (!names.isEmpty()) m_settings.activeAutoTagModel = names.first();
+    }
+
+    m_datasetHelpersPage = new DatasetHelpersPage(
+        &m_facetIndex, m_taggerLibrary.get(), &m_settings, this);
+    m_pages->addWidget(m_datasetHelpersPage);                          // Page::DatasetHelpers
     m_pages->addWidget(m_wikiPage);                   // Page::DanbooruWiki
     m_pages->addWidget(m_settingsPage);               // Page::Settings
 
@@ -203,6 +218,14 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             this, &AppMainWindow::applyQuickFacet);
     connect(m_tileViewPage, &TileViewPage::quickFacetRequested,
             this, &AppMainWindow::applyQuickFacet);
+    if (auto* tcp = m_datasetHelpersPage->tagClusterPage()) {
+        connect(tcp, &TagClusterPage::quickFacetRequested,
+                this, &AppMainWindow::applyQuickFacet);
+        tcp->setQuickFacets(m_settings.quickCharacterFacet,
+                            m_settings.quickCopyrightFacet,
+                            m_settings.quickTriggerWordFacet,
+                            m_settings.quickStyleFacet);
+    }
 
     // ── Wiki page navigation ───────────────────────────────────────────────────
     auto showWiki = [this](const QString& tag) {
@@ -213,6 +236,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_composerPage,    &PromptComposerPage::wikiRequested, this, showWiki);
     connect(m_facetEditorPage, &FacetEditorPage::wikiRequested,    this, showWiki);
     connect(m_wikiPage,        &TagWikiPage::wikiLinkClicked,      this, showWiki);
+    if (auto* tcp = m_datasetHelpersPage->tagClusterPage())
+        connect(tcp, &TagClusterPage::wikiRequested, this, showWiki);
 
     // ── Facet editor navigation ───────────────────────────────────────────────
     auto showFacetEditor = [this](const QString& tag) {
@@ -221,6 +246,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     };
     connect(m_tileViewPage, &TileViewPage::facetEditorRequested,       this, showFacetEditor);
     connect(m_composerPage, &PromptComposerPage::facetEditorRequested, this, showFacetEditor);
+    if (auto* tcp = m_datasetHelpersPage->tagClusterPage())
+        connect(tcp, &TagClusterPage::facetEditorRequested, this, showFacetEditor);
 
     // ── Workflow editor navigation ────────────────────────────────────────────
     connect(m_composerPage, &PromptComposerPage::workflowEditorRequested, this, [this]() {
@@ -274,6 +301,12 @@ AppMainWindow::AppMainWindow(QWidget* parent)
                                        m_settings.quickCopyrightFacet,
                                        m_settings.quickTriggerWordFacet,
                                        m_settings.quickStyleFacet);
+        if (auto* tcp = m_datasetHelpersPage->tagClusterPage()) {
+            tcp->setQuickFacets(m_settings.quickCharacterFacet,
+                                m_settings.quickCopyrightFacet,
+                                m_settings.quickTriggerWordFacet,
+                                m_settings.quickStyleFacet);
+        }
         m_tileViewPage->setLoraBaseDir(m_settings.loraBaseDir);
     });
     connect(m_settingsPage, &SettingsPage::reconnectRequested, this, [this]() {
@@ -394,6 +427,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             m_composerPage->setDanbooruIndex(m_danbooruIndex);
             m_wikiPage->setDanbooruIndex(m_danbooruIndex);
             m_facetEditorPage->setDanbooruIndex(m_danbooruIndex);
+            if (auto* tep = m_datasetHelpersPage->tagEditorPage())
+                tep->setDanbooruIndex(m_danbooruIndex);
             watcher->deleteLater();
         });
     watcher->setFuture(QtConcurrent::run([csvPath]() {
@@ -834,6 +869,14 @@ void AppMainWindow::closeEvent(QCloseEvent* event)
     m_settings.save(BASE_PATH + "/" + SETTINGS_PATH);
     m_facetIndex.saveDefinitions(BASE_PATH + "/" + DEFINITIONS_PATH);
     m_composerPage->saveSession(BASE_PATH + "/" + SESSION_PATH);
+
+    // The collector watcher polls a folder on a QTimer; if we let the app
+    // tear down without stopping it, an extra tick can fire on a half-
+    // destroyed widget. Stop it now while everything's still alive.
+    if (m_datasetHelpersPage) {
+        if (auto* cp = m_datasetHelpersPage->collectorPage())
+            cp->stopWatcher();
+    }
 
     // Fade other top-level windows (preview popout, any open dialog) out in
     // parallel with the main window. Same 500 ms duration so they all reach

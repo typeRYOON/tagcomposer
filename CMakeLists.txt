@@ -13,6 +13,8 @@ if (WIN32)
 endif()
 find_package(OpenCV REQUIRED)
 
+set(ONNXRUNTIME_DIR "${CMAKE_SOURCE_DIR}/third_party/onnxruntime")
+
 
 file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
     src/*.cpp
@@ -38,12 +40,21 @@ qt_add_executable(${PROJECT_NAME}
 # Includes
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/include
+    ${ONNXRUNTIME_DIR}/include
 )
 
 if (WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${OpenCV_DIR}/x64/vc16/bin/opencv_world4120$<$<CONFIG:Debug>:d>.dll"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+    )
+    # ONNX Runtime ships its own runtime + provider DLLs; both must sit next
+    # to the executable (Windows DLL search order) or sessions fail to load.
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${ONNXRUNTIME_DIR}/lib/onnxruntime.dll"
+            #"${ONNXRUNTIME_DIR}/lib/onnxruntime_providers_shared.dll"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
     )
     set(APP_ICON_RESOURCE_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/icon.rc")
@@ -80,4 +91,5 @@ target_link_libraries(${PROJECT_NAME}
         Qt::Network
         Qt::WebSockets
         ${OpenCV_LIBS}
+        "${ONNXRUNTIME_DIR}/lib/onnxruntime.lib"
 )
