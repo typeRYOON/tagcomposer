@@ -2,6 +2,7 @@
 #include <gui/composer/clipeditordialog.h>
 #include <utils/appconfig.h>
 #include <gui/widgets/appscrollbar.h>
+#include <gui/widgets/composericons.h>
 #include <QImage>
 #include <QDesktopServices>
 #include <QDragEnterEvent>
@@ -139,9 +140,11 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     m_titleLabel = new QLabel("No workflow selected");
     m_titleLabel->setObjectName("WfEditSubtitle");
 
-    auto* openWfBtn = new QPushButton("↗");
+    auto* openWfBtn = new QPushButton;
     openWfBtn->setObjectName("SidebarBtn");
     openWfBtn->setFixedSize(24, 24);
+    openWfBtn->setIcon(gui::icons::openExternal());
+    openWfBtn->setIconSize(QSize(14, 14));
     openWfBtn->setCursor(Qt::PointingHandCursor);
     openWfBtn->setToolTip("Open the selected workflow JSON in your editor");
     connect(openWfBtn, &QPushButton::clicked, this, [this]() {
@@ -268,8 +271,10 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     m_batchResultsList->setFocusPolicy(Qt::NoFocus);
     batchBodyLayout->addWidget(m_batchResultsList, 1);
 
-    auto* batchRunBtn = new QPushButton("▶ Run Batch");
+    auto* batchRunBtn = new QPushButton(" Run Batch");
     batchRunBtn->setObjectName("WfAddBtn");
+    batchRunBtn->setIcon(gui::icons::play(14, QColor(0x77, 0xaa, 0xdd)));
+    batchRunBtn->setIconSize(QSize(12, 12));
     batchRunBtn->setCursor(Qt::PointingHandCursor);
 
     m_batchStatus = new QLabel;

@@ -43,6 +43,13 @@ namespace gui {
         // Scroll-with-animation to the given entry and emit entryClicked.
         // No-op if the entry isn't currently in the visible/queried list.
         void selectAndScrollToEntry(int32_t entryId);
+        // Set the tile-bottom gradient. Called once at startup from
+        // AppMainWindow before any tiles are baked, so no cache clear is
+        // needed; mid-session edits in Settings persist but don't apply
+        // until the next launch.
+        void setTileGradient(qreal start, int alpha);
+        // Same startup-only semantics as setTileGradient.
+        void setTileTitleColor(const QColor& color);
 
     public:
         QList<QString> activeLoraUuids() const;
@@ -104,6 +111,12 @@ namespace gui {
         QPixmap m_placeholder;       // transparent — drawn while a tile loads
         QImage  m_emptyTileBg;       // resource-backed; fed into makeTileImage
                                      // when an entry has no (or a missing) image
+
+        // Bottom-fade gradient + title text colour — defaults match the
+        // original hardcoded look, overridden once at startup from settings.
+        qreal  m_gradStart  = 0.6;
+        int    m_gradAlpha  = 180;
+        QColor m_titleColor = Qt::white;
 
         // Per-tile animation state
         struct TileAnim {

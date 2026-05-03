@@ -18,6 +18,12 @@ AppSettings AppSettings::load(const QString& path)
 
     const QJsonObject app = root["app"].toObject();
     s.danmakuEnabled = app["danmaku"].toBool(false);
+    if (app.contains("tileGradientStart"))
+        s.tileGradientStart = app["tileGradientStart"].toDouble(0.6);
+    if (app.contains("tileGradientAlpha"))
+        s.tileGradientAlpha = app["tileGradientAlpha"].toInt(180);
+    if (app.contains("tileTitleColor"))
+        s.tileTitleColor = app["tileTitleColor"].toString("#ffffff");
 
     const QJsonObject cui = root["comfyui"].toObject();
     s.comfyUiEnabled       = cui["enabled"].toBool(false);
@@ -46,7 +52,10 @@ void AppSettings::save(const QString& path) const
     QDir().mkpath(QFileInfo(path).absolutePath());
 
     QJsonObject app;
-    app["danmaku"] = danmakuEnabled;
+    app["danmaku"]           = danmakuEnabled;
+    app["tileGradientStart"] = tileGradientStart;
+    app["tileGradientAlpha"] = tileGradientAlpha;
+    app["tileTitleColor"]    = tileTitleColor;
 
     QJsonObject cui;
     cui["enabled"]       = comfyUiEnabled;

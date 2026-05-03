@@ -351,7 +351,9 @@ OutputViewerPage::OutputViewerPage(QWidget* parent)
     // bold title on the left and a dimmer subtitle that the page updates as
     // the user navigates. Returns the (header widget, subtitle label) pair so
     // the page can write into the subtitle later.
-    constexpr int kHeaderHeight = 40;
+    // Match WorkflowEditPage's section-header dimensions so flipping between
+    // the two pages doesn't shift the title row vertically.
+    constexpr int kHeaderHeight = 50;
     auto buildHeader = [&](const QString& title) -> QPair<QWidget*, QLabel*> {
         auto* header = new QWidget;
         header->setObjectName("OvHeader");
@@ -359,8 +361,8 @@ OutputViewerPage::OutputViewerPage(QWidget* parent)
         header->setFixedHeight(kHeaderHeight);
 
         auto* lay = new QHBoxLayout(header);
-        lay->setContentsMargins(16, 8, 16, 8);
-        lay->setSpacing(12);
+        lay->setContentsMargins(20, 12, 20, 12);
+        lay->setSpacing(16);
 
         auto* titleLabel = new QLabel(title);
         titleLabel->setObjectName("OvTitle");

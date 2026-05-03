@@ -1,4 +1,5 @@
 #include <gui/settingspage.h>
+#include <gui/chromeddialog.h>
 #include <utils/logger.h>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -8,6 +9,9 @@
 #include <QStyle>
 #include <QFrame>
 #include <QFileDialog>
+#include <QAbstractSpinBox>
+#include <QColorDialog>
+#include <QDialogButtonBox>
 
 namespace gui {
 
@@ -47,6 +51,118 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     auto* danmakuHint = new QLabel("キタ━━━(゜∀゜)━━━!!!!!");
     danmakuHint->setObjectName("SettingsHintLabel");
     appearanceLayout->addWidget(danmakuHint);
+
+    // ── Tile gradient ─────────────────────────────────────────────────────
+    auto* tileGradGrid = new QGridLayout;
+    tileGradGrid->setContentsMargins(0, 6, 0, 0);
+    tileGradGrid->setHorizontalSpacing(12);
+    tileGradGrid->setVerticalSpacing(8);
+    tileGradGrid->setColumnStretch(1, 1);
+
+    auto makeGradLabel = [](const QString& text) {
+        auto* l = new QLabel(text);
+        l->setObjectName("SettingsFieldLabel");
+        return l;
+    };
+
+    m_tileGradStart = new QDoubleSpinBox;
+    m_tileGradStart->setObjectName("SettingsInput");
+    m_tileGradStart->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    m_tileGradStart->setRange(0.0, 1.0);
+    m_tileGradStart->setDecimals(2);
+    m_tileGradStart->setSingleStep(0.05);
+    m_tileGradStart->setValue(settings->tileGradientStart);
+    m_tileGradStart->setFixedWidth(80);
+
+    m_tileGradAlpha = new QSpinBox;
+    m_tileGradAlpha->setObjectName("SettingsInput");
+    m_tileGradAlpha->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    m_tileGradAlpha->setRange(0, 255);
+    m_tileGradAlpha->setValue(settings->tileGradientAlpha);
+    m_tileGradAlpha->setFixedWidth(80);
+
+    auto wrapLeft = [](QWidget* w) {
+        auto* row = new QHBoxLayout;
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(w);
+        row->addStretch();
+        return row;
+    };
+
+    m_tileTitleColor = new QPushButton;
+    m_tileTitleColor->setFixedSize(110, 32);
+    m_tileTitleColor->setCursor(Qt::PointingHandCursor);
+
+    // Pick a readable foreground (black on light backgrounds, white on dark)
+    // so the hex string stays legible regardless of the chosen colour.
+    auto applyTitleSwatch = [this]() {
+        const QColor c(m_settings->tileTitleColor);
+        const bool dark = c.isValid() &&
+                          (0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue()) < 128;
+        m_tileTitleColor->setStyleSheet(
+            QString("background-color: %1; color: %2; "
+                    "border: 1px solid #2a2a2a; border-radius: 3px; "
+                    "font-family: monospace; font-size: 12px;")
+                .arg(m_settings->tileTitleColor, dark ? "#ffffff" : "#000000"));
+        m_tileTitleColor->setText(m_settings->tileTitleColor);
+    };
+    applyTitleSwatch();
+
+    connect(m_tileTitleColor, &QPushButton::clicked, this,
+        [this, applyTitleSwatch]() {
+            // Embed Qt's built-in QColorDialog as a widget inside a
+            // ChromedDialog so the picker carries the same custom titlebar
+            // and resize behaviour as the rest of the app's modals.
+            const QColor initial(m_settings->tileTitleColor);
+
+            ChromedDialog wrapper(this);
+            wrapper.setWindowTitle("Tile title colour");
+
+            auto* picker = new QColorDialog(
+                initial.isValid() ? initial : Qt::white, wrapper.contentArea());
+            picker->setOptions(QColorDialog::DontUseNativeDialog
+                             | QColorDialog::NoButtons);
+            picker->setWindowFlags(Qt::Widget);  // embed as child, not top-level
+            picker->setSizeGripEnabled(false);
+
+            auto* btns = new QDialogButtonBox(
+                QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                wrapper.contentArea());
+            connect(btns, &QDialogButtonBox::accepted, &wrapper, &QDialog::accept);
+            connect(btns, &QDialogButtonBox::rejected, &wrapper, &QDialog::reject);
+            // Double-click on a swatch counts as confirmation, just like the
+            // native dialog.
+            connect(picker, &QColorDialog::colorSelected,
+                    &wrapper, [&wrapper](const QColor&) { wrapper.accept(); });
+
+            auto* layout = new QVBoxLayout(wrapper.contentArea());
+            layout->setContentsMargins(0, 0, 0, 0);
+            layout->setSpacing(8);
+            layout->addWidget(picker, 1);
+            layout->addWidget(btns);
+
+            if (wrapper.exec() != QDialog::Accepted) return;
+            const QColor chosen = picker->currentColor();
+            if (!chosen.isValid()) return;
+            m_settings->tileTitleColor = chosen.name();
+            applyTitleSwatch();
+            emit settingsChanged();
+        });
+
+    tileGradGrid->addWidget(makeGradLabel("Tile gradient start (0–1)"), 0, 0);
+    tileGradGrid->addLayout(wrapLeft(m_tileGradStart),                  0, 1);
+    tileGradGrid->addWidget(makeGradLabel("Tile gradient opacity (0–255)"), 1, 0);
+    tileGradGrid->addLayout(wrapLeft(m_tileGradAlpha),                  1, 1);
+    tileGradGrid->addWidget(makeGradLabel("Tile title colour"),         2, 0);
+    tileGradGrid->addLayout(wrapLeft(m_tileTitleColor),                 2, 1);
+
+    auto* tileGradHint = new QLabel(
+        "Bottom fade and title text behind tile thumbnails. Restart to apply.");
+    tileGradHint->setObjectName("SettingsHintLabel");
+    tileGradHint->setWordWrap(true);
+
+    appearanceLayout->addLayout(tileGradGrid);
+    appearanceLayout->addWidget(tileGradHint);
 
     bodyLayout->addWidget(appearanceGroup);
     bodyLayout->addSpacing(24);
@@ -375,6 +491,19 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     // ── Connections ───────────────────────────────────────────────────────────
     connect(m_enableDanmaku, &QCheckBox::toggled, this, [this](bool on) {
         m_settings->danmakuEnabled = on;
+        emit settingsChanged();
+    });
+
+    // Tile-gradient values are read once at startup by EntryView, so these
+    // just persist to the settings file — they take effect on next launch.
+    connect(m_tileGradStart, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [this](double v) {
+        m_settings->tileGradientStart = v;
+        emit settingsChanged();
+    });
+    connect(m_tileGradAlpha, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v) {
+        m_settings->tileGradientAlpha = v;
         emit settingsChanged();
     });
 

@@ -10,11 +10,11 @@
 }
 
 #FacetPanelHeader {
-    color: #2e2e2e;
-    font-size: 11px;
+    color: #888888;
+    font-size: 10px;
     font-weight: bold;
     letter-spacing: 1px;
-    padding: 10px 12px 8px 12px;
+    padding: 10px 12px 6px 12px;
     border-bottom: 1px solid #1a1a1a;
 }
 
@@ -69,12 +69,15 @@
     font-size: 13px;
 }
 
+#FacetSelectedTagRow {
+    border-bottom: 1px solid #1a1a1a;
+}
+
 #FacetSelectedTag {
     color: #888888;
     font-size: 20px;
     font-weight: bold;
     padding: 4px 0 8px 0;
-    border-bottom: 1px solid #1a1a1a;
 }
 
 #FacetCheckScroll {
@@ -104,7 +107,7 @@
     border: 1px solid #262626;
     border-radius: 12px;
     padding: 4px 12px;
-    font-size: 13px;
+    font-size: 15px;
 }
 
 #FacetPillBtn:hover {
@@ -138,4 +141,19 @@
     background: #192219;
     color: #66aa66;
     border-color: #336633;
+}
+
+#FacetPreviewPanel {
+    background: #0f0f0f;
+    border-left: 1px solid #1a1a1a;
+}
+
+#FacetPreviewImage {
+    background: transparent;
+}
+
+#FacetPreviewStatus {
+    color: #3a3a3a;
+    font-size: 11px;
+    padding: 4px 0;
 }

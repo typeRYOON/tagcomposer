@@ -6,6 +6,8 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QPlainTextEdit>
+#include <QSpinBox>
+#include <QDoubleSpinBox>
 
 namespace gui {
 
@@ -34,6 +36,9 @@ private:
 
     // Appearance section
     QCheckBox*      m_enableDanmaku;
+    QDoubleSpinBox* m_tileGradStart;
+    QSpinBox*       m_tileGradAlpha;
+    QPushButton*    m_tileTitleColor;
 
     // ComfyUI section
     QCheckBox*      m_enableComfyUi;

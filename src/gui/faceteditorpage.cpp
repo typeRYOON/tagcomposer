@@ -1,18 +1,53 @@
 #include <gui/faceteditorpage.h>
 #include <gui/widgets/appscrollbar.h>
+#include <gui/widgets/composericons.h>
 #include <gui/widgets/flowlayout.h>
 #include <utils/appconfig.h>
 #include <QCursor>
 #include <QDesktopServices>
+#include <QEvent>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMenu>
+#include <QMouseEvent>
+#include <QNetworkReply>
+#include <QPainter>
+#include <QPainterPath>
+#include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QScrollArea>
 #include <QStackedWidget>
 #include <QUrl>
+#include <QUrlQuery>
 #include <algorithm>
 
 namespace gui {
+
+namespace {
+QColor danbooruCategoryColor(int cat)
+{
+    switch (cat) {
+    case 0:  return { 0xb4, 0xc7, 0xd9 }; // general
+    case 1:  return { 0xf2, 0xac, 0x08 }; // artist
+    case 3:  return { 0xdd, 0x00, 0xdd }; // copyright
+    case 4:  return { 0x00, 0xaa, 0x00 }; // character
+    case 5:  return { 0xaa, 0xaa, 0xaa }; // meta
+    default: return { 0x88, 0x88, 0x88 };
+    }
+}
+
+// In-app tags use spaces; the Danbooru API expects underscores.
+// Parens stay literal (URL-safe in path component).
+QString tagToApiSlug(const QString& tag)
+{
+    QString s = tag.toLower();
+    s.replace(' ', '_');
+    return s;
+}
+} // namespace
 
 FacetEditorPage::FacetEditorPage(
     core::FacetIndex*  facets,
@@ -104,9 +139,11 @@ FacetEditorPage::FacetEditorPage(
     m_selectedLabel = new QLabel;
     m_selectedLabel->setObjectName("FacetSelectedTag");
 
-    auto* schemaOpenBtn = new QPushButton("↗");
+    auto* schemaOpenBtn = new QPushButton;
     schemaOpenBtn->setObjectName("SidebarBtn");
     schemaOpenBtn->setFixedSize(20, 20);
+    schemaOpenBtn->setIcon(gui::icons::openExternal());
+    schemaOpenBtn->setIconSize(QSize(14, 14));
     schemaOpenBtn->setCursor(Qt::PointingHandCursor);
     schemaOpenBtn->setToolTip("Open facets.fct in editor");
     connect(schemaOpenBtn, &QPushButton::clicked, this, []() {
@@ -114,20 +151,27 @@ FacetEditorPage::FacetEditorPage(
             QUrl::fromLocalFile(utils::BASE_PATH + "/" + utils::FACETS_PATH));
     });
 
-    auto* schemaReloadBtn = new QPushButton("↺");
+    auto* schemaReloadBtn = new QPushButton;
     schemaReloadBtn->setObjectName("SidebarBtn");
     schemaReloadBtn->setFixedSize(20, 20);
+    schemaReloadBtn->setIcon(gui::icons::reload());
+    schemaReloadBtn->setIconSize(QSize(14, 14));
     schemaReloadBtn->setCursor(Qt::PointingHandCursor);
     schemaReloadBtn->setToolTip("Reload facets.fct (does not touch tag definitions)");
     connect(schemaReloadBtn, &QPushButton::clicked,
             this, &FacetEditorPage::schemaReloadRequested);
 
-    auto* selectedRow = new QHBoxLayout;
-    selectedRow->setContentsMargins(0, 0, 0, 0);
-    selectedRow->setSpacing(4);
-    selectedRow->addWidget(m_selectedLabel, 1);
-    selectedRow->addWidget(schemaOpenBtn);
-    selectedRow->addWidget(schemaReloadBtn);
+    // Wrap the row in a styled container so the underline runs the full width
+    // (under the open/reload buttons too), not just under the label.
+    auto* selectedRow = new QWidget;
+    selectedRow->setObjectName("FacetSelectedTagRow");
+    selectedRow->setAttribute(Qt::WA_StyledBackground, true);
+    auto* selectedRowLayout = new QHBoxLayout(selectedRow);
+    selectedRowLayout->setContentsMargins(0, 0, 0, 0);
+    selectedRowLayout->setSpacing(4);
+    selectedRowLayout->addWidget(m_selectedLabel, 1);
+    selectedRowLayout->addWidget(schemaOpenBtn);
+    selectedRowLayout->addWidget(schemaReloadBtn);
 
     m_facetSearchEdit = new QLineEdit;
     m_facetSearchEdit->setObjectName("FacetSearchBar");
@@ -155,21 +199,68 @@ FacetEditorPage::FacetEditorPage(
     connect(m_saveBtn, &QPushButton::clicked, this, &FacetEditorPage::saveSelected);
 
     auto* editorWidget = new QWidget;
+    editorWidget->setMinimumWidth(200);
     auto* editorLayout = new QVBoxLayout(editorWidget);
     editorLayout->setContentsMargins(12, 12, 12, 12);
     editorLayout->setSpacing(8);
-    editorLayout->addLayout(selectedRow);
+    editorLayout->addWidget(selectedRow);
     editorLayout->addWidget(m_facetSearchEdit);
     editorLayout->addWidget(facetsScroll, 1);
     editorLayout->addWidget(m_saveBtn);
+
+    // ── Danbooru preview rail (placed inline with the editor below) ───────────
+    m_nam = new QNetworkAccessManager(this);
+
+    m_previewPanel = new QWidget;
+    m_previewPanel->setObjectName("FacetPreviewPanel");
+    m_previewPanel->setAttribute(Qt::WA_StyledBackground, true);
+    m_previewPanel->setFixedWidth(380);
+
+    auto* previewHeader = new QLabel("IMAGE");
+    previewHeader->setObjectName("FacetPanelHeader");
+
+    m_previewImage = new QLabel;
+    m_previewImage->setObjectName("FacetPreviewImage");
+    m_previewImage->setAlignment(Qt::AlignCenter);
+    m_previewImage->setMinimumHeight(380);
+    m_previewImage->installEventFilter(this);  // for click-through to the post page
+
+    m_previewStatus = new QLabel;
+    m_previewStatus->setObjectName("FacetPreviewStatus");
+    m_previewStatus->setAlignment(Qt::AlignCenter);
+    m_previewStatus->setWordWrap(true);
+
+    auto* previewLayout = new QVBoxLayout(m_previewPanel);
+    previewLayout->setContentsMargins(0, 0, 0, 0);
+    previewLayout->setSpacing(8);
+    previewLayout->addWidget(previewHeader);
+    auto* previewBody = new QVBoxLayout;
+    previewBody->setContentsMargins(12, 8, 12, 12);
+    previewBody->setSpacing(8);
+    previewBody->addStretch();
+    previewBody->addWidget(m_previewImage);
+    previewBody->addWidget(m_previewStatus);
+    previewBody->addStretch();
+    previewLayout->addLayout(previewBody);
+
+    // Only fixed pieces are the 24px gaps on either side of the editor;
+    // the editor takes all remaining width between TAGS and the preview panel.
+    auto* editorOuter = new QWidget;
+    auto* editorOuterLayout = new QHBoxLayout(editorOuter);
+    editorOuterLayout->setContentsMargins(0, 0, 0, 0);
+    editorOuterLayout->setSpacing(0);
+    editorOuterLayout->addSpacing(24);
+    editorOuterLayout->addWidget(editorWidget, 1);
+    editorOuterLayout->addSpacing(24);
+    editorOuterLayout->addWidget(m_previewPanel);
 
     auto* hintLabel = new QLabel("Select a tag from the list\nto assign facets.");
     hintLabel->setObjectName("FacetEditorHint");
     hintLabel->setAlignment(Qt::AlignCenter);
 
     m_rightStack = new QStackedWidget;
-    m_rightStack->addWidget(hintLabel);    // 0
-    m_rightStack->addWidget(editorWidget); // 1
+    m_rightStack->addWidget(hintLabel);   // 0
+    m_rightStack->addWidget(editorOuter); // 1
 
     // ── Root layout ───────────────────────────────────────────────────────────
     auto* root = new QHBoxLayout(this);
@@ -340,6 +431,17 @@ void FacetEditorPage::selectTag(const QString& tag)
     m_selectedTag = tag;
     m_selectedLabel->setText(tag);
 
+    // Match the entry-panel tag list: color the header by danbooru category
+    // so the selected tag's type is recognisable at a glance.
+    const int    cat = m_danbooruIndex ? m_danbooruIndex->tagCategory(tag) : -1;
+    const QColor col = danbooruCategoryColor(cat);
+    m_selectedLabel->setStyleSheet(QString("color: %1;").arg(col.name()));
+
+    // Drive the right-rail Danbooru preview. cat == -1 means the tag isn't
+    // known to Danbooru, so don't waste a request.
+    if (cat >= 0) fetchPreview(tag);
+    else          clearPreview();
+
     const QList<QString> existing = m_facets->facetsFor(tag);
     m_saveBtn->setText(m_facets->hasFacets(tag) ? "Update definition" : "Save definition");
 
@@ -457,6 +559,223 @@ void FacetEditorPage::clearEditor()
 {
     m_selectedTag.clear();
     m_rightStack->setCurrentIndex(0);
+    clearPreview();
+}
+
+// ── Danbooru preview ──────────────────────────────────────────────────────────
+
+void FacetEditorPage::clearPreview()
+{
+    m_previewPostId = -1;
+    if (m_previewImage) {
+        m_previewImage->clear();
+        m_previewImage->hide();
+        m_previewImage->setCursor(Qt::ArrowCursor);
+    }
+    if (m_previewStatus) {
+        m_previewStatus->clear();
+        m_previewStatus->hide();
+    }
+}
+
+void FacetEditorPage::setPreviewPixmap(const QPixmap& pix)
+{
+    if (!m_previewImage) return;
+    m_previewStatus->hide();
+    m_previewStatus->clear();
+
+    constexpr int maxW   = 356;  // panel inner width (380 - 12*2 margins)
+    constexpr int maxH   = 520;
+    constexpr qreal kRad = 6.0;
+
+    const QPixmap scaled = pix.scaled(
+        maxW, maxH, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+    // QSS border-radius on QLabel doesn't clip the pixmap content — paint into
+    // a transparent canvas with a rounded clip path so the corners are actually
+    // rounded on the image itself.
+    QPixmap rounded(scaled.size());
+    rounded.fill(Qt::transparent);
+    {
+        QPainter p(&rounded);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        QPainterPath path;
+        path.addRoundedRect(QRectF(rounded.rect()), kRad, kRad);
+        p.setClipPath(path);
+        p.drawPixmap(0, 0, scaled);
+    }
+
+    m_previewImage->setPixmap(rounded);
+    m_previewImage->show();
+    m_previewImage->setCursor(m_previewPostId > 0
+                                  ? Qt::PointingHandCursor
+                                  : Qt::ArrowCursor);
+}
+
+bool FacetEditorPage::eventFilter(QObject* obj, QEvent* ev)
+{
+    if (obj == m_previewImage
+        && ev->type() == QEvent::MouseButtonRelease
+        && m_previewPostId > 0)
+    {
+        auto* me = static_cast<QMouseEvent*>(ev);
+        if (me->button() == Qt::LeftButton
+            && m_previewImage->rect().contains(me->pos()))
+        {
+            QDesktopServices::openUrl(QUrl(
+                QString("https://danbooru.donmai.us/posts/%1")
+                    .arg(m_previewPostId)));
+            return true;
+        }
+    }
+    return QWidget::eventFilter(obj, ev);
+}
+
+void FacetEditorPage::fetchPreview(const QString& tag)
+{
+    clearPreview();
+
+    if (m_previewCache.contains(tag)) {
+        m_previewPostId = m_previewPostIds.value(tag, -1);
+        setPreviewPixmap(m_previewCache.value(tag));
+        return;
+    }
+
+    m_previewStatus->show();
+    m_previewStatus->setText("Loading…");
+
+    // Step 1: try the tag's wiki page and look for the first !post #N. Matches
+    // what TagWikiPage surfaces in its inline gallery, so the previews stay
+    // consistent between the two pages.
+    const QString slug = tagToApiSlug(tag);
+    const QByteArray encoded = QUrl::toPercentEncoding(slug);
+    QUrl url(QString("https://danbooru.donmai.us/wiki_pages/%1.json")
+                 .arg(QString::fromLatin1(encoded)));
+
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
+    req.setRawHeader("Accept", "application/json");
+
+    auto* reply = m_nam->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, tag, reply]() {
+        reply->deleteLater();
+        if (tag != m_selectedTag) return;  // user moved on
+
+        if (reply->error() != QNetworkReply::NoError) {
+            // 404 (no wiki) or any network failure → fall through to a posts search.
+            fetchFirstPostByTag(tag);
+            return;
+        }
+
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        if (!doc.isObject()) { fetchFirstPostByTag(tag); return; }
+
+        const QString body = doc.object().value("body").toString();
+        static const QRegularExpression postRe(R"(!post\s+#(\d+))");
+        const auto m = postRe.match(body);
+        if (m.hasMatch()) fetchPostById(tag, m.captured(1).toInt());
+        else              fetchFirstPostByTag(tag);
+    });
+}
+
+void FacetEditorPage::fetchPostById(const QString& tag, int postId)
+{
+    QUrl url(QString("https://danbooru.donmai.us/posts/%1.json").arg(postId));
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
+    req.setRawHeader("Accept", "application/json");
+
+    auto* reply = m_nam->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, tag, postId, reply]() {
+        reply->deleteLater();
+        if (tag != m_selectedTag) return;
+
+        if (reply->error() != QNetworkReply::NoError) {
+            fetchFirstPostByTag(tag);
+            return;
+        }
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        if (!doc.isObject()) { fetchFirstPostByTag(tag); return; }
+
+        const QJsonObject post = doc.object();
+        QString imgUrl = post.value("large_file_url").toString();
+        if (imgUrl.isEmpty()) imgUrl = post.value("preview_file_url").toString();
+        if (imgUrl.isEmpty()) { fetchFirstPostByTag(tag); return; }
+        m_previewPostId        = postId;
+        m_previewPostIds[tag]  = postId;
+        fetchPreviewImage(tag, imgUrl);
+    });
+}
+
+void FacetEditorPage::fetchFirstPostByTag(const QString& tag)
+{
+    const QString slug = tagToApiSlug(tag);
+    QUrl url("https://danbooru.donmai.us/posts.json");
+    QUrlQuery q;
+    q.addQueryItem("tags", slug);
+    q.addQueryItem("limit", "1");
+    url.setQuery(q);
+
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
+    req.setRawHeader("Accept", "application/json");
+
+    auto* reply = m_nam->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, tag, reply]() {
+        reply->deleteLater();
+        if (tag != m_selectedTag) return;
+
+        if (reply->error() != QNetworkReply::NoError) {
+            m_previewStatus->show();
+            m_previewStatus->setText("(no preview)");
+            return;
+        }
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        if (!doc.isArray() || doc.array().isEmpty()) {
+            m_previewStatus->show();
+            m_previewStatus->setText("(no posts)");
+            return;
+        }
+        const QJsonObject post = doc.array().first().toObject();
+        QString imgUrl = post.value("large_file_url").toString();
+        if (imgUrl.isEmpty()) imgUrl = post.value("preview_file_url").toString();
+        if (imgUrl.isEmpty()) {
+            m_previewStatus->show();
+            m_previewStatus->setText("(no preview)");
+            return;
+        }
+        const int postId      = post.value("id").toInt();
+        m_previewPostId       = postId;
+        m_previewPostIds[tag] = postId;
+        fetchPreviewImage(tag, imgUrl);
+    });
+}
+
+void FacetEditorPage::fetchPreviewImage(const QString& tag, const QString& imageUrl)
+{
+    QNetworkRequest req((QUrl(imageUrl)));
+    req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
+
+    auto* reply = m_nam->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, tag, reply]() {
+        reply->deleteLater();
+        if (tag != m_selectedTag) return;
+
+        if (reply->error() != QNetworkReply::NoError) {
+            m_previewStatus->show();
+            m_previewStatus->setText("(image fetch failed)");
+            return;
+        }
+        QPixmap pix;
+        if (!pix.loadFromData(reply->readAll()) || pix.isNull()) {
+            m_previewStatus->show();
+            m_previewStatus->setText("(image decode failed)");
+            return;
+        }
+        m_previewCache[tag] = pix;
+        setPreviewPixmap(pix);
+    });
 }
 
 } // namespace gui

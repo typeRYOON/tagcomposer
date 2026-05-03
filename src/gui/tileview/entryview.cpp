@@ -1,7 +1,7 @@
 ﻿#include <gui/tileview/entryview.h>
 #include <utils/appconfig.h>
 #include <utils/qutils.h>
-#include <QtConcurrent>
+#include <QThreadPool>
 #include <QFontDatabase>
 #include <QMenu>
 #include <QCursor>
@@ -456,6 +456,17 @@ namespace gui {
         m_navPanel->raise();
     }
 
+    void EntryView::setTileGradient(qreal start, int alpha)
+    {
+        m_gradStart = std::clamp(start, 0.0, 1.0);
+        m_gradAlpha = std::clamp(alpha, 0, 255);
+    }
+
+    void EntryView::setTileTitleColor(const QColor& color)
+    {
+        if (color.isValid()) m_titleColor = color;
+    }
+
     void EntryView::clearLoraForEntry(int entryId)
     {
         if (m_loraActiveOrder.removeAll(entryId) > 0) {
@@ -616,7 +627,11 @@ namespace gui {
             + "/" + e->images[0].fileName;
         const QString title = e->title;
 
-        QtConcurrent::run([this, entryIndex, path, title, generation]()
+        // QtConcurrent::run is [[nodiscard]] in Qt 6 — we don't need the
+        // future (the worker hops back via QMetaObject::invokeMethod), so
+        // queue directly on the global pool to avoid the warning.
+        QThreadPool::globalInstance()->start(
+            [this, entryIndex, path, title, generation]()
             {
                 QImage img(path);
 
@@ -685,11 +700,13 @@ namespace gui {
         p.setClipPath(clip);
         p.drawImage(QRect(0, 0, TileW, TileH), img);
 
-        // Bottom gradient overlay
-        QLinearGradient grad(0, TileH * 0.6, 0, TileH);
+        // Bottom gradient overlay (start position + bottom-edge alpha come
+        // from settings; defaults preserve the original 0.6 / 180 look).
+        const qreal startY = TileH * m_gradStart;
+        QLinearGradient grad(0, startY, 0, TileH);
         grad.setColorAt(0.0, QColor(0, 0, 0, 0));
-        grad.setColorAt(1.0, QColor(0, 0, 0, 180));
-        p.fillRect(QRect(0, TileH * 0.6, TileW, TileH * 0.4), grad);
+        grad.setColorAt(1.0, QColor(0, 0, 0, m_gradAlpha));
+        p.fillRect(QRectF(0, startY, TileW, TileH - startY), grad);
 
         // Title text — set all font properties before setFont/QFontMetrics
         QFont f(QFontDatabase::applicationFontFamilies(0).at(0));
@@ -697,7 +714,7 @@ namespace gui {
         f.setHintingPreference(QFont::PreferFullHinting);
         f.setStyleStrategy(QFont::PreferAntialias);
         p.setFont(f);
-        p.setPen(Qt::white);
+        p.setPen(m_titleColor);
 
         QFontMetrics fm(f);
         const QString elided = fm.elidedText(title, Qt::ElideRight, TileW - 16);

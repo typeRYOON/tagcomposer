@@ -6,6 +6,16 @@ namespace utils {
 struct AppSettings {
     // ── Appearance ───────────────────────────────────────────────────────────
     bool    danmakuEnabled       = false;
+    // Tile-view bottom gradient. start = where the fade begins as a fraction
+    // of tile height (0.0 = top, 1.0 = bottom edge); alpha = 0–255 darkness
+    // at the bottom edge. Defaults match the values previously hardcoded in
+    // EntryView::makeTileImage. Read once at startup; mid-session changes
+    // are persisted but require a restart to take effect.
+    qreal   tileGradientStart    = 0.6;
+    int     tileGradientAlpha    = 180;
+    // Hex "#rrggbb" — colour of the tile title text. Same startup-only
+    // semantics as the gradient.
+    QString tileTitleColor       = "#ffffff";
 
     // ── ComfyUI ───────────────────────────────────────────────────────────────
     bool    comfyUiEnabled       = false;

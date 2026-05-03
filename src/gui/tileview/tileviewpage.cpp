@@ -187,6 +187,16 @@ void TileViewPage::refreshEntries()
     m_entryView->query(m_searchBar->text());
 }
 
+void TileViewPage::setTileGradient(qreal start, int alpha)
+{
+    m_entryView->setTileGradient(start, alpha);
+}
+
+void TileViewPage::setTileTitleColor(const QColor& color)
+{
+    m_entryView->setTileTitleColor(color);
+}
+
 void TileViewPage::applyOrientation(bool portrait)
 {
     m_rootLayout->setDirection(QBoxLayout::LeftToRight);

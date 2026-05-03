@@ -88,6 +88,11 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_tileViewPage    = new TileViewPage(m_entryModel, this);
     m_tileViewPage->setLoraBaseDir(m_settings.loraBaseDir);
     m_tileViewPage->setComfyClient(m_comfyClient);
+    // Tile gradient + title colour are read once at startup; mid-session
+    // edits in Settings are persisted but require a restart to take effect.
+    m_tileViewPage->setTileGradient(
+        m_settings.tileGradientStart, m_settings.tileGradientAlpha);
+    m_tileViewPage->setTileTitleColor(QColor(m_settings.tileTitleColor));
     m_composerPage    = new PromptComposerPage(m_pipeline, &m_ruleEngine, m_tagGroupIndex, this);
     m_composerPage->setVariableIndex(&m_varIndex);
     m_composerPage->setWorkflowManager(&m_workflowManager, BASE_PATH + "/" + WORKFLOWS_PATH);
@@ -388,6 +393,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             m_tileViewPage->setDanbooruIndex(m_danbooruIndex);
             m_composerPage->setDanbooruIndex(m_danbooruIndex);
             m_wikiPage->setDanbooruIndex(m_danbooruIndex);
+            m_facetEditorPage->setDanbooruIndex(m_danbooruIndex);
             watcher->deleteLater();
         });
     watcher->setFuture(QtConcurrent::run([csvPath]() {

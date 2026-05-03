@@ -2,6 +2,7 @@
 #include <core/entrymodel.h>
 #include <core/entry.h>
 #include <core/danbooruindex.h>
+#include <QColor>
 #include <QWidget>
 #include <QLineEdit>
 #include <QTimer>
@@ -29,6 +30,8 @@ public:
                         const QString& copyrightFacet,
                         const QString& triggerWordFacet,
                         const QString& styleFacet);
+    void setTileGradient(qreal start, int alpha);
+    void setTileTitleColor(const QColor& color);
     QList<QString> activeLoraUuids() const;
     // Re-runs the current search-bar query against the entry model. Used after
     // an import to surface newly-added entries without losing typed state.
