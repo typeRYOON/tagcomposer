@@ -1,6 +1,8 @@
 #include <gui/workfloweditpage.h>
+#include <gui/composer/clipeditordialog.h>
 #include <utils/appconfig.h>
 #include <gui/widgets/appscrollbar.h>
+#include <QImage>
 #include <QDesktopServices>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -812,7 +814,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         nameLabel->setObjectName("WfFieldLabel");
         nameLabel->setWordWrap(true);
 
-        auto refresh = [thumb, nameLabel, this](const QString& uuid) {
+        auto refresh = [thumb, nameLabel, this, index](const QString& uuid) {
             if (!uuid.isEmpty() && m_inputCache && m_inputCache->has(uuid)) {
                 QPixmap pm(m_inputCache->localPath(uuid));
                 if (!pm.isNull()) {
@@ -822,8 +824,18 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
                     thumb->setText("(broken)");
                 }
                 const auto rec = m_inputCache->get(uuid);
-                nameLabel->setText(rec.displayName.isEmpty()
-                    ? uuid : rec.displayName);
+                QString name = rec.displayName.isEmpty() ? uuid : rec.displayName;
+                // Surface active edits in the label so the user can tell at a
+                // glance that the upload won't be the raw source.
+                if (m_wm && index < m_wm->variables().size()
+                    && m_wm->variables()[index].imageEdits.enabled) {
+                    const auto& e = m_wm->variables()[index].imageEdits;
+                    const QRect r = e.cropRect;
+                    name += e.trimToCrop
+                        ? QStringLiteral("  •  cropped %1×%2").arg(r.width()).arg(r.height())
+                        : QStringLiteral("  •  mask %1×%2").arg(r.width()).arg(r.height());
+                }
+                nameLabel->setText(name);
             } else {
                 thumb->clear();
                 thumb->setText("(no image)");
@@ -838,12 +850,40 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         browseBtn->setObjectName("WfBrowseBtn");
         browseBtn->setCursor(Qt::PointingHandCursor);
 
+        auto* editBtn = new QPushButton("Edit…");
+        editBtn->setObjectName("WfBrowseBtn");
+        editBtn->setCursor(Qt::PointingHandCursor);
+        editBtn->setEnabled(!var.imageUuid.isEmpty()
+            && m_inputCache && m_inputCache->has(var.imageUuid));
+
         auto* clearBtn = new QPushButton("Clear");
         clearBtn->setObjectName("WfBrowseBtn");
         clearBtn->setCursor(Qt::PointingHandCursor);
 
+        // Re-evaluate edit-button state after any image change. Captured by
+        // both Browse and drop handlers below.
+        auto updateEditEnabled = [editBtn, this, index]() {
+            if (!m_wm || index >= m_wm->variables().size()) {
+                editBtn->setEnabled(false);
+                return;
+            }
+            const QString uuid = m_wm->variables()[index].imageUuid;
+            editBtn->setEnabled(!uuid.isEmpty()
+                && m_inputCache && m_inputCache->has(uuid));
+        };
+
+        // Common reset path: image source changed → drop edits. Also remove
+        // the old mask file so unreferenced masks don't accumulate on disk.
+        auto resetEdits = [this, index]() {
+            if (!m_wm || index >= m_wm->variables().size()) return;
+            const QString oldMaskId = m_wm->variables()[index].imageEdits.maskId;
+            m_wm->variables()[index].imageEdits = core::ImageEdits{};
+            if (m_inputCache && !oldMaskId.isEmpty())
+                m_inputCache->removeMask(oldMaskId);
+        };
+
         connect(browseBtn, &QPushButton::clicked, this,
-            [this, index, refresh]() {
+            [this, index, refresh, updateEditEnabled, resetEdits]() {
                 if (!m_wm || !m_inputCache || index >= m_wm->variables().size())
                     return;
                 const QString src = QFileDialog::getOpenFileName(
@@ -853,26 +893,63 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
                 if (src.isEmpty()) return;
                 const QString uuid = m_inputCache->importFromFile(src);
                 if (uuid.isEmpty()) return;
+                resetEdits();
                 m_wm->variables()[index].imageUuid = uuid;
                 save();
                 refresh(uuid);
+                updateEditEnabled();
             });
 
         connect(clearBtn, &QPushButton::clicked, this,
-            [this, index, refresh]() {
+            [this, index, refresh, updateEditEnabled, resetEdits]() {
                 if (!m_wm || index >= m_wm->variables().size()) return;
+                resetEdits();
                 m_wm->variables()[index].imageUuid.clear();
                 save();
                 refresh(QString());
+                updateEditEnabled();
             });
 
         connect(thumb, &DropImageLabel::filePathDropped, this,
-            [this, index, refresh](const QString& src) {
+            [this, index, refresh, updateEditEnabled, resetEdits](const QString& src) {
                 if (!m_wm || !m_inputCache || index >= m_wm->variables().size())
                     return;
                 const QString uuid = m_inputCache->importFromFile(src);
                 if (uuid.isEmpty()) return;
+                resetEdits();
                 m_wm->variables()[index].imageUuid = uuid;
+                save();
+                refresh(uuid);
+                updateEditEnabled();
+            });
+
+        connect(editBtn, &QPushButton::clicked, this,
+            [this, index, refresh]() {
+                if (!m_wm || !m_inputCache || index >= m_wm->variables().size())
+                    return;
+                const QString uuid = m_wm->variables()[index].imageUuid;
+                if (uuid.isEmpty() || !m_inputCache->has(uuid)) return;
+
+                QImage src(m_inputCache->localPath(uuid));
+                if (src.isNull()) return;
+
+                const QString oldMaskId =
+                    m_wm->variables()[index].imageEdits.maskId;
+
+                gui::ClipEditorDialog dlg(
+                    src, m_wm->variables()[index].imageEdits,
+                    m_inputCache, this);
+                if (dlg.exec() != QDialog::Accepted) return;
+                m_wm->variables()[index].imageEdits = dlg.result();
+
+                // Drop the previous mask file if it was replaced (or cleared)
+                // — saveMask always mints a fresh uuid, so any change leaves
+                // the old file orphaned.
+                const QString newMaskId =
+                    m_wm->variables()[index].imageEdits.maskId;
+                if (!oldMaskId.isEmpty() && oldMaskId != newMaskId)
+                    m_inputCache->removeMask(oldMaskId);
+
                 save();
                 refresh(uuid);
             });
@@ -883,6 +960,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         auto* btnRow = new QHBoxLayout;
         btnRow->setSpacing(4);
         btnRow->addWidget(browseBtn);
+        btnRow->addWidget(editBtn);
         btnRow->addWidget(clearBtn);
         btnRow->addStretch();
         btnCol->addLayout(btnRow);

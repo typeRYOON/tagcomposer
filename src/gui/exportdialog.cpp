@@ -18,12 +18,13 @@ namespace gui {
 ExportDialog::ExportDialog(core::EntryModel* model,
                            const core::FacetIndex* facets,
                            QWidget* parent)
-    : QDialog(parent), m_model(model), m_facets(facets)
+    : ChromedDialog(parent), m_model(model), m_facets(facets)
 {
     setWindowTitle("Export Entries");
     setMinimumSize(720, 520);
 
-    auto* root = new QVBoxLayout(this);
+    auto* root = new QVBoxLayout(contentArea());
+    root->setContentsMargins(20, 16, 20, 16);
     root->setSpacing(8);
 
     auto* prompt = new QLabel(

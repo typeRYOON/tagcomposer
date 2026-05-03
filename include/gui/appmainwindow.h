@@ -24,10 +24,11 @@ class FacetEditorPage;
 class TagWikiPage;
 class SettingsPage;
 class WorkflowEditPage;
+class OutputViewerPage;
 class DatasetHelpersPage;
 class StatusBar;
 class DanmakuOverlay;
-class TitleBar;
+class WindowChrome;
 
 class AppMainWindow : public QMainWindow {
     Q_OBJECT
@@ -62,6 +63,12 @@ private:
     // already pushed this session. Calls done() once every upload settled.
     void ensureImageInputsUploaded(std::function<void()> done);
 
+    // Walks every workflow var across every workflow, collects the set of
+    // referenced image uuids / mask ids / edits hashes, and removes any
+    // cache entry not in those sets. Also clears m_uploadedThisSession
+    // entries that point at removed files.
+    void clearUnusedInputs();
+
     // After the last comfy job in a queue completes, load the newest image
     // from the temp folder and pin it as the inline preview (so the preview
     // shows the actual decoded output, not the last latent step).
@@ -87,23 +94,10 @@ private:
     gui::TagWikiPage*         m_wikiPage          = nullptr;
     gui::SettingsPage*        m_settingsPage      = nullptr;
     gui::WorkflowEditPage*    m_workflowEditPage  = nullptr;
+    gui::OutputViewerPage*    m_outputViewerPage  = nullptr;
     gui::StatusBar*           m_statusBar         = nullptr;
     gui::DanmakuOverlay*      m_danmakuOverlay    = nullptr;
-    gui::TitleBar*            m_titleBar          = nullptr;
-    QWidget*                  m_frame             = nullptr;
-    QWidget*                  m_resizeOverlay     = nullptr;
-    QWidget*                  m_resizeOutline     = nullptr;  // lazy
-
-    // Active outline-resize drag (AIMP-style: preview rectangle while
-    // dragging, commit geometry on release). m_dragEdges == 0 means no drag.
-    Qt::Edges                 m_dragEdges{};
-    QRect                     m_dragStartGeo;
-    QPoint                    m_dragStartGlobal;
-
-    void  beginResizeDrag(Qt::Edges edges, const QPoint& globalStart);
-    void  updateResizeOutline(const QPoint& globalNow);
-    void  endResizeDrag(const QPoint& globalNow);
-    QRect computeResizeGeometry(const QPoint& globalNow) const;
+    gui::WindowChrome*        m_chrome            = nullptr;
 
     core::DanbooruIndex*      m_danbooruIndex = nullptr;
     core::ComfyUiClient*      m_comfyClient   = nullptr;

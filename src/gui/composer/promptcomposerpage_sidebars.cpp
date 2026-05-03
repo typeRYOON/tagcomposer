@@ -110,8 +110,12 @@ private:
         const QPoint g  = QCursor::pos();
         const QRect  rg = QRect(mapToGlobal(QPoint(0, 0)), size());
         if (rg.contains(g)) return;
+        // Only stay open when focus is *inside the args area* (a line edit the
+        // user is typing into). Earlier this checked the whole row, which kept
+        // the args area open after toggling the rule's checkbox — the checkbox
+        // is also a row descendant, so it falsely triggered the keep-open path.
         if (QWidget* fw = QApplication::focusWidget())
-            if (isAncestorOf(fw)) return;
+            if (m_args->isAncestorOf(fw)) return;
         m_args->setVisible(false);
     }
 
@@ -352,13 +356,23 @@ void PromptComposerPage::rebuildVarsSidebar()
         delete item;
     }
 
-    if (!m_varIndex || m_varIndex->variables().isEmpty()) {
-        auto* hint = new QLabel("No variables defined.\nEdit data/vars.fct to add some.");
+    if (!m_varIndex) {
+        auto* hint = new QLabel("Variable index unavailable.");
         hint->setObjectName("ComposerRulesHint");
         hint->setWordWrap(true);
         m_varsLayout->addWidget(hint);
         return;
     }
+
+    // Persist + repush helper. Used by the per-row delete and the trailing
+    // add row; rebuild restores the sidebar (recreates rows, keeps focus
+    // anchored to the "add name" field for easy successive adds).
+    auto persistAndRepush = [this]() {
+        m_varIndex->saveToFile(BASE_PATH + "/" + VARS_PATH);
+        rebuildVarsSidebar();
+        QMetaObject::invokeMethod(
+            this, &PromptComposerPage::repush, Qt::QueuedConnection);
+    };
 
     QList<Variable>& vars = m_varIndex->variables();
     for (int i = 0; i < vars.size(); ++i) {
@@ -376,16 +390,75 @@ void PromptComposerPage::rebuildVarsSidebar()
         edit->setPlaceholderText("(empty)");
 
         connect(edit, &QLineEdit::editingFinished, this, [this, i, edit]() {
+            if (i >= m_varIndex->variables().size()) return;
             m_varIndex->variables()[i].value = edit->text().trimmed();
             m_varIndex->saveToFile(BASE_PATH + "/" + VARS_PATH);
             QMetaObject::invokeMethod(
                 this, &PromptComposerPage::repush, Qt::QueuedConnection);
         });
 
+        // Reuse the rules-arg delete button styling — same dim ✕ that brightens
+        // on hover. NoFocus so Tab traversal stays on the value edits.
+        auto* delBtn = new QPushButton("✕");
+        delBtn->setObjectName("ComposerRuleArgDelBtn");
+        delBtn->setCursor(Qt::PointingHandCursor);
+        delBtn->setFocusPolicy(Qt::NoFocus);
+        delBtn->setFixedSize(20, 20);
+        delBtn->setToolTip("Remove variable");
+        connect(delBtn, &QPushButton::clicked, this, [this, i, persistAndRepush]() {
+            if (i >= m_varIndex->variables().size()) return;
+            m_varIndex->variables().removeAt(i);
+            persistAndRepush();
+        });
+
         rl->addWidget(nameLabel);
         rl->addWidget(edit, 1);
+        rl->addWidget(delBtn);
         m_varsLayout->addWidget(row);
     }
+
+    // Trailing add row — name + value side by side. Pressing Enter on either
+    // field appends a new variable. editingFinished is intentionally NOT used
+    // here: tabbing between the two fields would trigger it with a half-typed
+    // value, so the explicit Enter keeps the commit unambiguous.
+    auto* addRow = new QWidget;
+    auto* arl    = new QHBoxLayout(addRow);
+    arl->setContentsMargins(0, 0, 0, 0);
+    arl->setSpacing(6);
+
+    auto* addName = new QLineEdit;
+    addName->setObjectName("ComposerVarEdit");
+    addName->setPlaceholderText("name…");
+    addName->setFixedWidth(70);
+
+    auto* addValue = new QLineEdit;
+    addValue->setObjectName("ComposerVarEdit");
+    addValue->setPlaceholderText("value…");
+
+    auto commit = [this, addName, addValue, persistAndRepush]() {
+        const QString name = addName->text().trimmed();
+        if (name.isEmpty()) return;
+        // Quietly ignore a duplicate name — the placeholder + reset below
+        // makes it obvious nothing was added.
+        for (const Variable& v : m_varIndex->variables())
+            if (v.name == name) {
+                addName->clear();
+                addValue->clear();
+                addName->setFocus();
+                return;
+            }
+        Variable nv;
+        nv.name  = name;
+        nv.value = addValue->text().trimmed();
+        m_varIndex->variables() << nv;
+        persistAndRepush();
+    };
+    connect(addName,  &QLineEdit::returnPressed, this, commit);
+    connect(addValue, &QLineEdit::returnPressed, this, commit);
+
+    arl->addWidget(addName);
+    arl->addWidget(addValue, 1);
+    m_varsLayout->addWidget(addRow);
 }
 
 } // namespace gui

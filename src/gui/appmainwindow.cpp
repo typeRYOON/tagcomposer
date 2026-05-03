@@ -1,7 +1,6 @@
 #include <gui/appmainwindow.h>
-#include <gui/widgets/framelesschrome.h>
 #include <gui/widgets/navbar.h>
-#include <gui/widgets/titlebar.h>
+#include <gui/widgets/windowchrome.h>
 #include <gui/homepage.h>
 #include <gui/tileview/tileviewpage.h>
 #include <gui/widgets/statusbar.h>
@@ -10,6 +9,7 @@
 #include <gui/tagwikipage.h>
 #include <gui/settingspage.h>
 #include <gui/workfloweditpage.h>
+#include <gui/outputviewerpage.h>
 #include <gui/datasethelperspage.h>
 #include <gui/widgets/danmakuoverlay.h>
 #include <gui/exportdialog.h>
@@ -18,9 +18,6 @@
 #include <utils/appconfig.h>
 #include <QApplication>
 #include <QEvent>
-#include <QPainter>
-#include <QPaintEvent>
-#include <QWindow>
 #include <QWindowStateChangeEvent>
 #include <QDir>
 #include <QDirIterator>
@@ -28,7 +25,6 @@
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QImage>
-#include <QMouseEvent>
 #include <QVBoxLayout>
 #include <QTimer>
 #include <QFutureWatcher>
@@ -38,11 +34,6 @@
 #include <QtConcurrent>
 
 using namespace utils;
-using gui::framelesschrome::kResizeBorder;
-using gui::framelesschrome::kResizeHit;
-using gui::framelesschrome::edgesAt;
-using gui::framelesschrome::cursorForEdges;
-using gui::framelesschrome::ResizeOutline;
 
 namespace gui {
 
@@ -61,6 +52,11 @@ AppMainWindow::AppMainWindow(QWidget* parent)
                    | Qt::WindowMinimizeButtonHint
                    | Qt::WindowMaximizeButtonHint
                    | Qt::WindowCloseButtonHint);
+
+    // Initial size + floor. Most window managers honor these; tiling WMs
+    // ignore them and tile the window however they prefer.
+    resize(1280, 800);
+    setMinimumSize(960, 600);
 
     // ── Load settings ─────────────────────────────────────────────────────────
     m_settings = AppSettings::load(BASE_PATH + "/" + SETTINGS_PATH);
@@ -120,6 +116,9 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_workflowEditPage->setEntryModel(m_entryModel);
     m_workflowEditPage->setInputCache(m_inputCache);
 
+    m_outputViewerPage = new OutputViewerPage(this);
+    m_outputViewerPage->setOutputFolder(m_settings.comfyUiOutputFolder);
+
     m_pages = new QStackedWidget(this);
     m_pages->setObjectName("MainPages");
     m_pages->installEventFilter(this);
@@ -130,6 +129,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_pages->addWidget(m_composerPage);               // Page::TagComposer
     m_pages->addWidget(m_facetEditorPage);            // Page::FacetEditor
     m_pages->addWidget(m_workflowEditPage);           // Page::WorkflowEditor
+    m_pages->addWidget(m_outputViewerPage);           // Page::OutputViewer
     m_pages->addWidget(new DatasetHelpersPage(this)); // Page::DatasetHelpers
     m_pages->addWidget(m_wikiPage);                   // Page::DanbooruWiki
     m_pages->addWidget(m_settingsPage);               // Page::Settings
@@ -292,6 +292,9 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         }
     });
 
+    connect(m_settingsPage, &SettingsPage::clearUnusedInputsRequested,
+            this, &AppMainWindow::clearUnusedInputs);
+
     connect(m_comfyClient, &core::ComfyUiClient::connected, this, [this]() {
         m_settingsPage->setComfyStatus(true);
     });
@@ -357,40 +360,24 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     hLayout->addWidget(m_pages, 1);
 
     m_statusBar = new StatusBar(this);
-    m_titleBar  = new TitleBar(this);
 
-    // m_frame is the central widget. Layout margin = visible 1px frame.
-    m_frame = new QWidget(this);
-    m_frame->setObjectName("MainFrame");
-    m_frame->setAttribute(Qt::WA_StyledBackground, true);
-    m_frame->installEventFilter(this);  // for Resize → reshape overlay
+    // Frameless chrome: titlebar + cosmetic border + edge-resize, all owned
+    // by WindowChrome. The body widget hosts the actual app content (nav +
+    // pages + statusbar). Top-level window so all three chrome buttons.
+    m_chrome = new WindowChrome(this);
 
-    auto* vLayout = new QVBoxLayout(m_frame);
-    vLayout->setContentsMargins(kResizeBorder, kResizeBorder,
-                                kResizeBorder, kResizeBorder);
-    vLayout->setSpacing(0);
-    vLayout->addWidget(m_titleBar);
-    vLayout->addWidget(content, 1);
-    vLayout->addWidget(m_statusBar);
-
-    // Resize hit-test overlay: kResizeHit-wide ring sitting on top of the
-    // content. Translucent background + setMask carves out the inner area so
-    // mouse events there pass through to the widgets below — only the ring
-    // intercepts clicks. Geometry & mask refreshed on every m_frame resize.
-    m_resizeOverlay = new QWidget(m_frame);
-    m_resizeOverlay->setObjectName("ResizeOverlay");
-    m_resizeOverlay->setAttribute(Qt::WA_NoSystemBackground);
-    m_resizeOverlay->setAttribute(Qt::WA_TranslucentBackground);
-    m_resizeOverlay->setMouseTracking(true);
-    m_resizeOverlay->installEventFilter(this);
-    m_resizeOverlay->raise();
+    auto* bodyLayout = new QVBoxLayout(m_chrome->bodyWidget());
+    bodyLayout->setContentsMargins(0, 0, 0, 0);
+    bodyLayout->setSpacing(0);
+    bodyLayout->addWidget(content, 1);
+    bodyLayout->addWidget(m_statusBar);
 
     connect(m_composerPage, &PromptComposerPage::statusMessageRequested,
             m_statusBar,    &StatusBar::showMessage);
     connect(m_tileViewPage, &TileViewPage::statusMessageRequested,
             m_statusBar,    &StatusBar::showMessage);
 
-    setCentralWidget(m_frame);
+    setCentralWidget(m_chrome->frame());
 
     // ── Background: load DanbooruIndex ────────────────────────────────────────
     const QString csvPath = BASE_PATH + "/" + DANBOORU_CSV_PATH;
@@ -504,124 +491,14 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
 bool AppMainWindow::eventFilter(QObject* obj, QEvent* event)
 {
+    // Danmaku overlay tracks the m_pages widget's size. Chrome events
+    // (resize-overlay sync, edge-drag) are handled internally by m_chrome's
+    // own event filter on m_chrome->frame() and m_chrome->resizeOverlay().
     if (obj == m_pages && event->type() == QEvent::Resize && m_danmakuOverlay) {
         m_danmakuOverlay->setGeometry(m_pages->rect());
         m_danmakuOverlay->lower();
     }
-
-    // Keep the resize overlay in sync with m_frame's geometry, and re-cut its
-    // mask so only the kResizeHit-wide outer ring is mouse-active.
-    if (obj == m_frame && event->type() == QEvent::Resize && m_resizeOverlay) {
-        m_resizeOverlay->setGeometry(m_frame->rect());
-        m_resizeOverlay->raise();
-        const QRect r = m_resizeOverlay->rect();
-        if (r.width() > 2 * kResizeHit && r.height() > 2 * kResizeHit) {
-            const QRegion full(r);
-            const QRegion inner(r.adjusted(kResizeHit, kResizeHit,
-                                          -kResizeHit, -kResizeHit));
-            m_resizeOverlay->setMask(full - inner);
-        } else {
-            m_resizeOverlay->clearMask();
-        }
-    }
-
-    // Frameless edge-resize (AIMP-style): outline preview during drag, commit
-    // geometry on release. Qt auto-grabs the mouse to m_resizeOverlay between
-    // press and release, so move/release events keep coming here even when
-    // the cursor is outside the window.
-    if (obj == m_resizeOverlay && !isMaximized() && !isFullScreen()) {
-        if (event->type() == QEvent::MouseMove) {
-            auto* me = static_cast<QMouseEvent*>(event);
-            if (m_dragEdges) {
-                updateResizeOutline(me->globalPosition().toPoint());
-            } else {
-                const Qt::Edges e = edgesAt(me->position().toPoint(),
-                                            m_resizeOverlay->size());
-                if (e) m_resizeOverlay->setCursor(cursorForEdges(e));
-                else   m_resizeOverlay->unsetCursor();
-            }
-        } else if (event->type() == QEvent::MouseButtonPress) {
-            auto* me = static_cast<QMouseEvent*>(event);
-            if (me->button() == Qt::LeftButton) {
-                const Qt::Edges e = edgesAt(me->position().toPoint(),
-                                            m_resizeOverlay->size());
-                if (e) {
-                    beginResizeDrag(e, me->globalPosition().toPoint());
-                    return true;
-                }
-            }
-        } else if (event->type() == QEvent::MouseButtonRelease) {
-            auto* me = static_cast<QMouseEvent*>(event);
-            if (m_dragEdges && me->button() == Qt::LeftButton) {
-                endResizeDrag(me->globalPosition().toPoint());
-                return true;
-            }
-        } else if (event->type() == QEvent::Leave) {
-            // Don't reset the cursor mid-drag (cursor naturally leaves the
-            // overlay when the user drags past the window's old edge).
-            if (!m_dragEdges) m_resizeOverlay->unsetCursor();
-        }
-    }
-
-    return QObject::eventFilter(obj, event);
-}
-
-void AppMainWindow::beginResizeDrag(Qt::Edges edges, const QPoint& globalStart)
-{
-    m_dragEdges       = edges;
-    m_dragStartGeo    = geometry();
-    m_dragStartGlobal = globalStart;
-
-    if (!m_resizeOutline) m_resizeOutline = new ResizeOutline();
-    m_resizeOutline->setGeometry(m_dragStartGeo);
-    m_resizeOutline->show();
-    m_resizeOutline->raise();
-
-    // Keep the resize cursor visible app-wide for the duration of the drag.
-    // The mouse routinely leaves m_resizeOverlay (it's anchored to the old
-    // window edge while the user pulls beyond it), so widget-local cursors
-    // aren't enough.
-    QApplication::setOverrideCursor(QCursor(cursorForEdges(edges)));
-}
-
-void AppMainWindow::updateResizeOutline(const QPoint& globalNow)
-{
-    if (!m_dragEdges || !m_resizeOutline) return;
-    m_resizeOutline->setGeometry(computeResizeGeometry(globalNow));
-}
-
-void AppMainWindow::endResizeDrag(const QPoint& globalNow)
-{
-    if (!m_dragEdges) return;
-    const QRect target = computeResizeGeometry(globalNow);
-    if (m_resizeOutline) m_resizeOutline->hide();
-    m_dragEdges = Qt::Edges{};
-    QApplication::restoreOverrideCursor();
-    setGeometry(target);
-}
-
-QRect AppMainWindow::computeResizeGeometry(const QPoint& globalNow) const
-{
-    QRect g = m_dragStartGeo;
-    const QPoint d = globalNow - m_dragStartGlobal;
-    if (m_dragEdges & Qt::LeftEdge)   g.setLeft  (g.left()   + d.x());
-    if (m_dragEdges & Qt::RightEdge)  g.setRight (g.right()  + d.x());
-    if (m_dragEdges & Qt::TopEdge)    g.setTop   (g.top()    + d.y());
-    if (m_dragEdges & Qt::BottomEdge) g.setBottom(g.bottom() + d.y());
-
-    // Clamp to the window's minimum size; when dragging from the top/left,
-    // pin the moving edge so the opposite edge stays put.
-    const QSize minSz = minimumSizeHint().expandedTo(minimumSize())
-                                         .expandedTo(QSize(320, 200));
-    if (g.width() < minSz.width()) {
-        if (m_dragEdges & Qt::LeftEdge) g.setLeft(g.right() - minSz.width() + 1);
-        else                            g.setRight(g.left() + minSz.width() - 1);
-    }
-    if (g.height() < minSz.height()) {
-        if (m_dragEdges & Qt::TopEdge)  g.setTop(g.bottom() - minSz.height() + 1);
-        else                            g.setBottom(g.top() + minSz.height() - 1);
-    }
-    return g;
+    return QMainWindow::eventFilter(obj, event);
 }
 
 void AppMainWindow::applyComfySettings()
@@ -630,6 +507,7 @@ void AppMainWindow::applyComfySettings()
     m_comfyClient->setApiKey(m_settings.comfyUiApiKey);
     m_composerPage->setOutputFolderPattern(m_settings.comfyUiOutputFolder);
     m_composerPage->setTempFolder(m_settings.comfyUiTempFolder);
+    m_outputViewerPage->setOutputFolder(m_settings.comfyUiOutputFolder);
 
     if (m_settings.comfyUiEnabled) {
         m_comfyClient->connectToServer();
@@ -764,49 +642,141 @@ void AppMainWindow::loadFinalPreview()
 
 // Walk the selected workflow's vars; for each Image var with a known uuid we
 // haven't pushed this session, upload it. After every upload settles, run done.
+//
+// Tracking key is (uuid + editsHash) — editing an already-uploaded image
+// produces a different hash, so the rendered variant gets uploaded fresh.
 void AppMainWindow::ensureImageInputsUploaded(std::function<void()> done)
 {
-    QStringList toUpload;
+    struct UploadTask {
+        QString trackingKey;  // m_uploadedThisSession key
+        QString localPath;    // file to upload (may be a rendered edited variant)
+    };
+    QList<UploadTask> tasks;
+
     if (m_inputCache && m_workflowManager.selectedFile()) {
         for (const auto& var : m_workflowManager.variables()) {
             if (var.type != core::WorkflowVarType::Image) continue;
             if (var.imageUuid.isEmpty()) continue;
-            if (m_uploadedThisSession.contains(var.imageUuid)) continue;
             if (!m_inputCache->has(var.imageUuid)) {
                 m_statusBar->showMessage(
                     QString("Image input %1 missing — skipped").arg(var.placeholder));
                 continue;
             }
-            toUpload << var.imageUuid;
+            const QString trackingKey = var.imageUuid + ":" + var.imageEdits.hash();
+            if (m_uploadedThisSession.contains(trackingKey)) continue;
+            const QString local = m_inputCache->resolveEdited(
+                var.imageUuid, var.imageEdits);
+            if (local.isEmpty()) continue;
+            tasks << UploadTask{ trackingKey, local };
         }
     }
 
-    if (toUpload.isEmpty()) {
+    if (tasks.isEmpty()) {
         if (done) done();
         return;
     }
 
-    // Sequential upload chain. Counter tracks completion of all uploads
-    // (including failures — failure is logged but doesn't block the run).
-    auto remaining = std::make_shared<int>(toUpload.size());
+    auto remaining = std::make_shared<int>(tasks.size());
     auto fired     = std::make_shared<bool>(false);
     const QString inputFolder = m_settings.comfyUiInputFolder;
 
-    for (const QString& uuid : toUpload) {
-        const QString local = m_inputCache->localPath(uuid);
+    for (const UploadTask& task : tasks) {
         m_comfyClient->uploadInput(
-            local, core::WorkflowInputCache::serverSubfolder(), inputFolder,
-            [this, uuid, remaining, fired, done](bool ok, QString err) {
-                if (ok) m_uploadedThisSession.insert(uuid);
+            task.localPath, core::WorkflowInputCache::serverSubfolder(), inputFolder,
+            [this, key = task.trackingKey, remaining, fired, done](bool ok, QString err) {
+                if (ok) m_uploadedThisSession.insert(key);
                 else if (m_statusBar) {
                     m_statusBar->showMessage(
-                        QString("Upload failed (%1): %2").arg(uuid.left(8), err));
+                        QString("Upload failed (%1): %2").arg(key.left(8), err));
                 }
                 if (--(*remaining) == 0 && !*fired) {
                     *fired = true;
                     if (done) done();
                 }
             });
+    }
+}
+
+void AppMainWindow::clearUnusedInputs()
+{
+    if (!m_inputCache) return;
+
+    // 1. Walk every workflow's vars and collect the set of references that
+    //    keep cache entries alive. Anything not in these sets is orphaned.
+    QSet<QString> usedImageUuids;
+    QSet<QString> usedMaskIds;
+    QSet<QString> usedEditsHashes;
+    for (const core::WorkflowFile& wf : m_workflowManager.files()) {
+        for (const core::WorkflowVar& v : wf.vars) {
+            if (v.type != core::WorkflowVarType::Image) continue;
+            if (!v.imageUuid.isEmpty())
+                usedImageUuids.insert(v.imageUuid);
+            if (!v.imageEdits.maskId.isEmpty())
+                usedMaskIds.insert(v.imageEdits.maskId);
+            if (v.imageEdits.enabled)
+                usedEditsHashes.insert(v.imageEdits.hash());
+        }
+    }
+
+    int imagesRemoved  = 0;
+    int masksRemoved   = 0;
+    int rendersRemoved = 0;
+
+    // 2. Source images. Snapshot all() first since remove() mutates the map.
+    for (const core::WorkflowInput& inp : m_inputCache->all()) {
+        if (!usedImageUuids.contains(inp.uuid)) {
+            m_inputCache->remove(inp.uuid);
+            ++imagesRemoved;
+        }
+    }
+
+    // 3. Painted masks under _masks/<id>.png.
+    QDir masksDir(m_inputCache->cacheDir() + "/_masks");
+    if (masksDir.exists()) {
+        for (const QFileInfo& fi : masksDir.entryInfoList(
+                 QStringList{ "*.png" }, QDir::Files)) {
+            const QString id = fi.completeBaseName();
+            if (!usedMaskIds.contains(id)) {
+                m_inputCache->removeMask(id);
+                ++masksRemoved;
+            }
+        }
+    }
+
+    // 4. Rendered edit variants under _edited/<editsHash>/<uuid>.png. The
+    //    directory is per-hash so we just nuke whole subdirectories that no
+    //    active edits hash references.
+    QDir editedDir(m_inputCache->cacheDir() + "/_edited");
+    if (editedDir.exists()) {
+        for (const QFileInfo& fi : editedDir.entryInfoList(
+                 QDir::Dirs | QDir::NoDotAndDotDot)) {
+            if (!usedEditsHashes.contains(fi.fileName())) {
+                if (QDir(fi.absoluteFilePath()).removeRecursively())
+                    ++rendersRemoved;
+            }
+        }
+    }
+
+    // Drop session-upload tracking entries that pointed at removed renderings
+    // — rebuild the keep-set from current var references the same way
+    // ensureImageInputsUploaded constructs upload keys.
+    QSet<QString> stillUsed;
+    for (const core::WorkflowFile& wf : m_workflowManager.files()) {
+        for (const core::WorkflowVar& v : wf.vars) {
+            if (v.type != core::WorkflowVarType::Image) continue;
+            if (v.imageUuid.isEmpty()) continue;
+            stillUsed.insert(v.imageUuid + ":" + v.imageEdits.hash());
+        }
+    }
+    QSet<QString> pruned;
+    for (const QString& key : m_uploadedThisSession)
+        if (stillUsed.contains(key)) pruned.insert(key);
+    m_uploadedThisSession = pruned;
+
+    if (m_statusBar) {
+        m_statusBar->showMessage(
+            QString("Cleared unused inputs: %1 images, %2 masks, %3 renders")
+                .arg(imagesRemoved).arg(masksRemoved).arg(rendersRemoved));
     }
 }
 
@@ -841,20 +811,7 @@ void AppMainWindow::changeEvent(QEvent* event)
             windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
     }
 
-    // Frameless chrome adapts to window state: no visible border when the OS
-    // is managing geometry (maximized/fullscreen), titlebar hidden in
-    // fullscreen, and the resize overlay hidden too so it doesn't steal the
-    // outer pixels of content (scrollbars, etc.) when resize isn't usable.
-    if (m_frame && m_titleBar) {
-        const bool fullscreen = isFullScreen();
-        const bool maximized  = isMaximized();
-        m_titleBar->setVisible(!fullscreen);
-        if (auto* lay = m_frame->layout()) {
-            const int b = (fullscreen || maximized) ? 0 : kResizeBorder;
-            lay->setContentsMargins(b, b, b, b);
-        }
-        if (m_resizeOverlay) m_resizeOverlay->setVisible(!fullscreen && !maximized);
-    }
+    if (m_chrome) m_chrome->onWindowStateChanged();
 }
 
 void AppMainWindow::closeEvent(QCloseEvent* event)
@@ -872,13 +829,26 @@ void AppMainWindow::closeEvent(QCloseEvent* event)
     m_facetIndex.saveDefinitions(BASE_PATH + "/" + DEFINITIONS_PATH);
     m_composerPage->saveSession(BASE_PATH + "/" + SESSION_PATH);
 
+    // Fade other top-level windows (preview popout, any open dialog) out in
+    // parallel with the main window. Same 500 ms duration so they all reach
+    // opacity 0 at the same moment — without this, the popout sits at full
+    // opacity through the whole main-window fade and snap-hides at the end.
+    for (QWidget* w : qApp->topLevelWidgets()) {
+        if (w != this && w->isWindow() && w->isVisible()) {
+            propertyAnimate(w, "windowOpacity",
+                            w->windowOpacity(), 0.0, 500,
+                            QEasingCurve::InOutSine);
+        }
+    }
+
     connect(
         propertyAnimate(this, "windowOpacity", 1.0, 0.0, 500, QEasingCurve::InOutSine),
         &QPropertyAnimation::finished,
         this,
         [this]() {
             // Hide main + force-close any other top-level windows (popout)
-            // so they don't linger on the taskbar past the fade.
+            // so they don't linger on the taskbar past the fade. They've
+            // already faded to 0 in parallel above, so hide() is invisible.
             hide();
             for (QWidget* w : qApp->topLevelWidgets()) {
                 if (w != this && w->isWindow()) {

@@ -18,9 +18,10 @@ enum class Page : int {
     TagComposer    = 2,
     FacetEditor    = 3,
     WorkflowEditor = 4,
-    DatasetHelpers = 5,
-    DanbooruWiki   = 6,
-    Settings       = 7,
+    OutputViewer   = 5,
+    DatasetHelpers = 6,
+    DanbooruWiki   = 7,
+    Settings       = 8,
 };
 
 class NavButton : public QPushButton {

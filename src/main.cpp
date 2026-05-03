@@ -6,9 +6,9 @@
 #include <QProxyStyle>
 #include <QThreadPool>
 #include <QFontDatabase>
-
 #include <QLockFile>
 #include <QStandardPaths>
+
 
 class NoFocusRectStyle : public QProxyStyle {
 public:

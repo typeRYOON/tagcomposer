@@ -1,6 +1,4 @@
 #pragma once
-#include <QPoint>
-#include <QRect>
 #include <QString>
 #include <QWidget>
 
@@ -15,7 +13,7 @@ namespace gui {
 
 class ScaledImageLabel;
 class ClickableLabel;
-class TitleBar;
+class WindowChrome;
 
 // Separate top-level window (Qt::Window) parented to PromptComposerPage so Qt
 // handles cleanup. Has Q_OBJECT so it can forward keyboard-shortcut intents
@@ -40,15 +38,9 @@ protected:
     void closeEvent(QCloseEvent* e) override;
     void changeEvent(QEvent* e) override;
     void keyPressEvent(QKeyEvent* e) override;
-    bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
     void loadNewestTempImage();
-
-    void  beginResizeDrag(Qt::Edges edges, const QPoint& globalStart);
-    void  updateResizeOutline(const QPoint& globalNow);
-    void  endResizeDrag(const QPoint& globalNow);
-    QRect computeResizeGeometry(const QPoint& globalNow) const;
 
     ScaledImageLabel*       m_imageLabel;
     ClickableLabel*         m_tempLabel;
@@ -59,15 +51,7 @@ private:
     QString                 m_lastTempPath;
     bool                    m_isClosing{ false };
 
-    // Frameless chrome (mirrors AppMainWindow's setup).
-    TitleBar*               m_titleBar      = nullptr;
-    QWidget*                m_frame         = nullptr;
-    QWidget*                m_resizeOverlay = nullptr;
-    QWidget*                m_resizeOutline = nullptr;  // lazy
-
-    Qt::Edges               m_dragEdges{};
-    QRect                   m_dragStartGeo;
-    QPoint                  m_dragStartGlobal;
+    WindowChrome*           m_chrome = nullptr;
 };
 
 } // namespace gui

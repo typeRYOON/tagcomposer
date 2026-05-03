@@ -2,6 +2,7 @@
 #include <core/comfyuiclient.h>
 #include <utils/appconfig.h>
 #include <gui/widgets/appscrollbar.h>
+#include <gui/chromeddialog.h>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QMessageBox>
@@ -146,10 +147,10 @@ static QList<QPair<QString, int>> parseTagFrequency(const QString& tagFreqJson)
     return result;
 }
 
-class LoraInfoDialog : public QDialog {
+class LoraInfoDialog : public gui::ChromedDialog {
 public:
     LoraInfoDialog(const QString& path, QWidget* parent = nullptr)
-        : QDialog(parent)
+        : gui::ChromedDialog(parent)
     {
         setWindowTitle("LoRA Info");
         setMinimumSize(560, 600);
@@ -171,7 +172,7 @@ public:
         if (resolution.isEmpty())
             resolution = resolutionFromDatasets(meta.value("ss_datasets").toString());
 
-        auto* root = new QVBoxLayout(this);
+        auto* root = new QVBoxLayout(contentArea());
         root->setContentsMargins(12, 12, 12, 12);
         root->setSpacing(6);
 
@@ -298,12 +299,12 @@ static void saveResized(const QString& src, const QString& dst)
 // is moved into {loraBaseDir}/{relpath}. Extension must be .safetensors;
 // missing extension is auto-appended.
 
-class LoraImportDialog : public QDialog {
+class LoraImportDialog : public gui::ChromedDialog {
 public:
     LoraImportDialog(const QString& sourcePath,
                      const QString& loraBaseDir,
                      QWidget* parent = nullptr)
-        : QDialog(parent), m_loraBaseDir(loraBaseDir)
+        : gui::ChromedDialog(parent), m_loraBaseDir(loraBaseDir)
     {
         setWindowTitle("Import LoRA");
         setMinimumSize(800, 480);
@@ -320,7 +321,8 @@ public:
         m_allRelPaths.sort(Qt::CaseInsensitive);
 
         const QFileInfo srcInfo(sourcePath);
-        auto* root = new QVBoxLayout(this);
+        auto* root = new QVBoxLayout(contentArea());
+        root->setContentsMargins(12, 12, 12, 12);
         root->setSpacing(8);
 
         auto* sourceLabel = new QLabel(QString("Source: %1").arg(srcInfo.fileName()));

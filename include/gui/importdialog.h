@@ -1,5 +1,5 @@
 #pragma once
-#include <QDialog>
+#include <gui/chromeddialog.h>
 #include <core/portmanager.h>
 
 class QButtonGroup;
@@ -20,7 +20,7 @@ namespace gui {
 // User-facing import flow. Picks an exported folder, scans it, lets the user
 // remap source facets to local ones (or drop them) plus pick a tag-definition
 // conflict mode, then applies via core::PortManager.
-class ImportDialog : public QDialog {
+class ImportDialog : public ChromedDialog {
     Q_OBJECT
 public:
     ImportDialog(core::EntryModel* model,

@@ -150,6 +150,13 @@ void TitleBar::toggleFullScreen()
     });
 }
 
+void TitleBar::setButtons(bool showMin, bool showMax, bool showClose)
+{
+    if (m_minBtn)   m_minBtn  ->setVisible(showMin);
+    if (m_maxBtn)   m_maxBtn  ->setVisible(showMax);
+    if (m_closeBtn) m_closeBtn->setVisible(showClose);
+}
+
 void TitleBar::refreshTitle()
 {
     auto* w = window();

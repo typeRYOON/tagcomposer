@@ -25,6 +25,7 @@ signals:
     void reconnectRequested();
     void exportEntriesRequested();
     void importEntriesRequested();
+    void clearUnusedInputsRequested();
 
 private:
     void onComfyToggled(bool enabled);

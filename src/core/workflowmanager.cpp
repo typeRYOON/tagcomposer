@@ -1,5 +1,6 @@
 #include <core/workflowmanager.h>
 #include <core/workflowinputcache.h>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -84,6 +85,20 @@ static QJsonObject varToJson(const WorkflowVar& var)
         break;
     case WorkflowVarType::Image:
         o["imageUuid"] = var.imageUuid;
+        // Only persist edits when actually engaged — keeps unedited workflow
+        // files visually clean and avoids touching old workflow files on save.
+        if (var.imageEdits.enabled) {
+            QJsonObject e;
+            e["enabled"]    = true;
+            e["cropX"]      = var.imageEdits.cropRect.x();
+            e["cropY"]      = var.imageEdits.cropRect.y();
+            e["cropW"]      = var.imageEdits.cropRect.width();
+            e["cropH"]      = var.imageEdits.cropRect.height();
+            e["trimToCrop"] = var.imageEdits.trimToCrop;
+            if (!var.imageEdits.maskId.isEmpty())
+                e["maskId"] = var.imageEdits.maskId;
+            o["imageEdits"] = e;
+        }
         break;
     }
     return o;
@@ -118,9 +133,39 @@ static WorkflowVar varFromJson(const QJsonObject& o)
         break;
     case WorkflowVarType::Image:
         var.imageUuid = o["imageUuid"].toString();
+        if (o.contains("imageEdits")) {
+            const QJsonObject e = o["imageEdits"].toObject();
+            var.imageEdits.enabled    = e["enabled"].toBool();
+            var.imageEdits.cropRect   = QRect(
+                e["cropX"].toInt(), e["cropY"].toInt(),
+                e["cropW"].toInt(), e["cropH"].toInt());
+            var.imageEdits.trimToCrop = e["trimToCrop"].toBool();
+            var.imageEdits.maskId     = e["maskId"].toString();
+        }
         break;
     }
     return var;
+}
+
+QString ImageEdits::hash() const
+{
+    if (!enabled) return QString();
+    QCryptographicHash h(QCryptographicHash::Sha1);
+    h.addData(QByteArray::number(cropRect.x()));
+    h.addData(",");
+    h.addData(QByteArray::number(cropRect.y()));
+    h.addData(",");
+    h.addData(QByteArray::number(cropRect.width()));
+    h.addData(",");
+    h.addData(QByteArray::number(cropRect.height()));
+    h.addData(",");
+    h.addData(trimToCrop ? "1" : "0");
+    h.addData(",");
+    // maskId is content-addressed by the cache (new uuid per saved mask), so
+    // including it captures any change to the painted mask.
+    h.addData(maskId.toUtf8());
+    // First 12 hex chars is plenty for collision-avoidance at our scale.
+    return QString::fromLatin1(h.result().toHex().left(12));
 }
 
 // ── WorkflowManager ───────────────────────────────────────────────────────────

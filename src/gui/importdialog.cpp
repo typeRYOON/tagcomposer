@@ -24,7 +24,7 @@ ImportDialog::ImportDialog(core::EntryModel* model,
                            const QString& dataEntryDir,
                            const QString& tagDefinitionsPath,
                            QWidget* parent)
-    : QDialog(parent),
+    : ChromedDialog(parent),
       m_model(model),
       m_facets(facets),
       m_dataEntryDir(dataEntryDir),
@@ -33,7 +33,8 @@ ImportDialog::ImportDialog(core::EntryModel* model,
     setWindowTitle("Import Entries");
     setMinimumSize(900, 720);
 
-    auto* root = new QVBoxLayout(this);
+    auto* root = new QVBoxLayout(contentArea());
+    root->setContentsMargins(20, 16, 20, 16);
     root->setSpacing(8);
 
     // ── Source picker ───────────────────────────────────────────────────────

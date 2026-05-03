@@ -304,6 +304,42 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     bodyLayout->addWidget(dataGroup);
     bodyLayout->addSpacing(24);
 
+    // ── Section: Workflow input images ────────────────────────────────────────
+    auto* inputsHeader = new QLabel("INPUT IMAGES");
+    inputsHeader->setObjectName("SettingsSectionHeader");
+    bodyLayout->addWidget(inputsHeader);
+    bodyLayout->addSpacing(12);
+
+    auto* inputsGroup = new QWidget;
+    inputsGroup->setObjectName("SettingsGroup");
+    inputsGroup->setAttribute(Qt::WA_StyledBackground, true);
+    auto* inputsLayout = new QVBoxLayout(inputsGroup);
+    inputsLayout->setContentsMargins(16, 14, 16, 14);
+    inputsLayout->setSpacing(10);
+
+    auto* inputsHint = new QLabel(
+        "Workflow image inputs, painted masks, and rendered edit variants are "
+        "cached on disk. This removes any cache entry that no current workflow "
+        "variable references — useful after deleting workflows or replacing "
+        "image inputs.");
+    inputsHint->setObjectName("SettingsHintLabel");
+    inputsHint->setWordWrap(true);
+    inputsLayout->addWidget(inputsHint);
+
+    auto* inputsBtnRow = new QHBoxLayout;
+    auto* clearInputsBtn = new QPushButton("Clear unused inputs");
+    clearInputsBtn->setObjectName("SettingsLaunchBtn");
+    clearInputsBtn->setCursor(Qt::PointingHandCursor);
+    inputsBtnRow->addWidget(clearInputsBtn);
+    inputsBtnRow->addStretch();
+    inputsLayout->addLayout(inputsBtnRow);
+
+    connect(clearInputsBtn, &QPushButton::clicked,
+            this, &SettingsPage::clearUnusedInputsRequested);
+
+    bodyLayout->addWidget(inputsGroup);
+    bodyLayout->addSpacing(24);
+
     // ── Section: Log ──────────────────────────────────────────────────────────
     auto* logHeader = new QLabel("LOG");
     logHeader->setObjectName("SettingsSectionHeader");

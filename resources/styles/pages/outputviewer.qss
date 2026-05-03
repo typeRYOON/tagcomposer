@@ -1,0 +1,97 @@
+/* ── OutputViewerPage ─────────────────────────────────────────────────────── */
+
+#OutputViewerPage {
+    background: transparent;
+}
+
+#OvHeader {
+    background: #0f0f0f;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+#OvTitle {
+    color: #2a2a2a;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#OvSubtitle {
+    color: #555555;
+    font-size: 12px;
+}
+
+#OvStatus {
+    color: #555555;
+    font-size: 13px;
+    padding: 8px;
+}
+
+/* Visible drag handle between the two panes — without an explicit background
+   the QSplitter handle is invisible against the page's dark fill. */
+#OvSplit::handle:horizontal {
+    background: #161616;
+    border-left:  1px solid #0a0a0a;
+    border-right: 1px solid #2a2a2a;
+}
+
+#OvSplit::handle:horizontal:hover {
+    background: #262626;
+}
+
+#OvSplit::handle:horizontal:pressed {
+    background: #333333;
+}
+
+/* Tree view styling — keeps the dark theme consistent with the rest of the
+   app. `outline: 0` suppresses the dotted focus rectangle some styles draw. */
+#OutputViewerPage QTreeView {
+    background: #0f0f0f;
+    color: #aaaaaa;
+    border: none;
+    outline: 0;
+    selection-background-color: #1a2a1a;
+    selection-color: #cccccc;
+}
+
+#OutputViewerPage QTreeView::item {
+    padding: 2px 4px;
+    border: none;
+}
+
+#OutputViewerPage QTreeView::item:hover {
+    background: #161616;
+    color: #cccccc;
+}
+
+#OutputViewerPage QTreeView::item:selected {
+    background: #1a2a1a;
+    color: #cccccc;
+}
+
+#OutputViewerPage QTreeView::branch {
+    background: transparent;
+}
+
+#OutputThumbList {
+    background: transparent;
+    color: #aaaaaa;
+    border: none;
+    outline: 0;
+}
+
+#OutputThumbList::item {
+    color: #888888;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+#OutputThumbList::item:hover {
+    background: #161616;
+    color: #cccccc;
+}
+
+#OutputThumbList::item:selected {
+    background: #1a2a1a;
+    color: #cccccc;
+}

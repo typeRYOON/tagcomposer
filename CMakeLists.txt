@@ -12,6 +12,10 @@ set(CMAKE_AUTORCC ON)
 
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network Concurrent WebSockets)
 
+set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/third_party/opencv/build")
+find_package(OpenCV REQUIRED)
+
+
 file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
     src/*.cpp
     include/*.h
@@ -60,5 +64,6 @@ target_link_libraries(${PROJECT_NAME}
         Qt::Concurrent
         Qt::Network
         Qt::WebSockets
+        ${OpenCV_LIBS}
 )
 

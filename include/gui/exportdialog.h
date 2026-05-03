@@ -1,5 +1,5 @@
 #pragma once
-#include <QDialog>
+#include <gui/chromeddialog.h>
 
 class QLabel;
 class QLineEdit;
@@ -15,7 +15,7 @@ namespace gui {
 
 // Picks entries via the same query syntax as the tile-view search bar, then
 // dumps them (plus a subset tag_definitions.fct) into a user-chosen folder.
-class ExportDialog : public QDialog {
+class ExportDialog : public ChromedDialog {
     Q_OBJECT
 public:
     ExportDialog(core::EntryModel* model,

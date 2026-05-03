@@ -6,6 +6,7 @@
 #include <gui/composer/previewpopoutwindow.h>
 #include <gui/composer/stateslistwidget.h>
 #include <gui/composer/workflowdroplist.h>
+#include <gui/widgets/composericons.h>
 #include <core/entrymodel.h>
 #include <utils/appconfig.h>
 #include <QFile>
@@ -201,9 +202,11 @@ PromptComposerPage::PromptComposerPage(
     auto* rulesHeaderLabel = new QLabel("RULES");
     rulesHeaderLabel->setObjectName("ComposerHeaderLabel");
 
-    auto* rulesOpenBtn = new QPushButton("↗");
+    auto* rulesOpenBtn = new QPushButton;
     rulesOpenBtn->setObjectName("SidebarBtn");
     rulesOpenBtn->setFixedSize(20, 20);
+    rulesOpenBtn->setIcon(gui::icons::openExternal());
+    rulesOpenBtn->setIconSize(QSize(14, 14));
     rulesOpenBtn->setCursor(Qt::PointingHandCursor);
     rulesOpenBtn->setToolTip("Open rules.fct in editor");
     connect(rulesOpenBtn, &QPushButton::clicked, this, []() {
@@ -211,9 +214,11 @@ PromptComposerPage::PromptComposerPage(
             QUrl::fromLocalFile(BASE_PATH + "/" + RULES_PATH));
     });
 
-    auto* rulesReloadBtn = new QPushButton("↺");
+    auto* rulesReloadBtn = new QPushButton;
     rulesReloadBtn->setObjectName("SidebarBtn");
     rulesReloadBtn->setFixedSize(20, 20);
+    rulesReloadBtn->setIcon(gui::icons::reload());
+    rulesReloadBtn->setIconSize(QSize(14, 14));
     rulesReloadBtn->setCursor(Qt::PointingHandCursor);
     rulesReloadBtn->setToolTip("Reload rules from file");
     connect(rulesReloadBtn, &QPushButton::clicked,
@@ -244,9 +249,11 @@ PromptComposerPage::PromptComposerPage(
     auto* varsHeaderLabel = new QLabel("VARIABLES");
     varsHeaderLabel->setObjectName("ComposerHeaderLabel");
 
-    auto* varsOpenBtn = new QPushButton("↗");
+    auto* varsOpenBtn = new QPushButton;
     varsOpenBtn->setObjectName("SidebarBtn");
     varsOpenBtn->setFixedSize(20, 20);
+    varsOpenBtn->setIcon(gui::icons::openExternal());
+    varsOpenBtn->setIconSize(QSize(14, 14));
     varsOpenBtn->setCursor(Qt::PointingHandCursor);
     varsOpenBtn->setToolTip("Open vars.fct in editor");
     connect(varsOpenBtn, &QPushButton::clicked, this, []() {
@@ -254,9 +261,11 @@ PromptComposerPage::PromptComposerPage(
             QUrl::fromLocalFile(BASE_PATH + "/" + VARS_PATH));
     });
 
-    auto* varsReloadBtn = new QPushButton("↺");
+    auto* varsReloadBtn = new QPushButton;
     varsReloadBtn->setObjectName("SidebarBtn");
     varsReloadBtn->setFixedSize(20, 20);
+    varsReloadBtn->setIcon(gui::icons::reload());
+    varsReloadBtn->setIconSize(QSize(14, 14));
     varsReloadBtn->setCursor(Qt::PointingHandCursor);
     varsReloadBtn->setToolTip("Reload variables from file");
     connect(varsReloadBtn, &QPushButton::clicked,
@@ -290,18 +299,22 @@ PromptComposerPage::PromptComposerPage(
     statesTabBtn->setChecked(false);
     statesTabBtn->setCursor(Qt::PointingHandCursor);
 
-    m_wfEditBtnRef = new QPushButton("↗");
+    m_wfEditBtnRef = new QPushButton;
     m_wfEditBtnRef->setObjectName("SidebarBtn");
     m_wfEditBtnRef->setFixedSize(20, 20);
+    m_wfEditBtnRef->setIcon(gui::icons::openExternal());
+    m_wfEditBtnRef->setIconSize(QSize(14, 14));
     m_wfEditBtnRef->setCursor(Qt::PointingHandCursor);
     m_wfEditBtnRef->setToolTip("Workflow Variable Editor");
     connect(m_wfEditBtnRef, &QPushButton::clicked, this, [this]() {
         emit workflowEditorRequested();
     });
 
-    m_saveStateBtn = new QPushButton("+");
+    m_saveStateBtn = new QPushButton;
     m_saveStateBtn->setObjectName("SidebarBtn");
     m_saveStateBtn->setFixedSize(20, 20);
+    m_saveStateBtn->setIcon(gui::icons::plus());
+    m_saveStateBtn->setIconSize(QSize(14, 14));
     m_saveStateBtn->setCursor(Qt::PointingHandCursor);
     m_saveStateBtn->setToolTip("Save current state");
     m_saveStateBtn->setVisible(false);
@@ -576,8 +589,10 @@ PromptComposerPage::PromptComposerPage(
         QGuiApplication::clipboard()->setText(currentPromptString(false));
     });
 
-    m_runBtn = new QPushButton("▶ Run", m_controlBar);
+    m_runBtn = new QPushButton("Run", m_controlBar);
     m_runBtn->setObjectName("ComposerRunBtn");
+    m_runBtn->setIcon(gui::icons::play(14, QColor(0x77, 0xaa, 0xdd)));
+    m_runBtn->setIconSize(QSize(12, 12));
     m_runBtn->setCursor(Qt::PointingHandCursor);
 
     m_promptCountSpin = new QSpinBox(m_controlBar);
@@ -587,9 +602,11 @@ PromptComposerPage::PromptComposerPage(
     m_promptCountSpin->setValue(1);
     m_promptCountSpin->setFixedWidth(40);
 
-    m_interruptBtn = new QPushButton("×", m_controlBar);
+    m_interruptBtn = new QPushButton(m_controlBar);
     m_interruptBtn->setObjectName("ComposerInterruptBtn");
     m_interruptBtn->setFixedSize(25, 25);
+    m_interruptBtn->setIcon(gui::icons::stopSquare(14, QColor(0xee, 0x44, 0x44)));
+    m_interruptBtn->setIconSize(QSize(11, 11));
     m_interruptBtn->setCursor(Qt::PointingHandCursor);
     m_interruptBtn->setToolTip("Interrupt");
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <core/entry.h>
+#include <QRect>
 #include <QString>
 #include <QList>
 
@@ -11,6 +12,34 @@ enum class WorkflowVarType { Seed, String, Integer, Float, DirSearch, LatentSize
 struct LatentSizeEntry {
     int     w, h;
     QString label; // e.g. "896x1088 (0.82)"
+};
+
+// Non-destructive edits applied to an image-typed workflow var at upload time.
+// The source PNG in WorkflowInputCache is never mutated; instead, resolveEdited()
+// renders a derived PNG (cached on disk) when these edits are non-trivial.
+//
+// The mask is the canonical alpha source post-Phase 2. cropRect is kept around
+// for two purposes: (a) backward-compat read of older "rect only" edits, and
+// (b) trim-mode bounds when the user wants to ship a smaller cropped image.
+struct ImageEdits {
+    bool    enabled    = false;     // master switch — unedited images skip the resolve path
+    QRect   cropRect;               // bounds for trim mode + legacy "rect-as-mask" form
+    QString maskId;                 // uuid into WorkflowInputCache's _masks/; empty = no painted mask
+    bool    trimToCrop = false;     // false → source-sized output with mask shaping alpha
+                                    // true  → output canvas is the cropRect at full alpha (no mask)
+
+    bool operator==(const ImageEdits& other) const {
+        return enabled == other.enabled
+            && cropRect == other.cropRect
+            && maskId == other.maskId
+            && trimToCrop == other.trimToCrop;
+    }
+    bool operator!=(const ImageEdits& other) const { return !(*this == other); }
+
+    // Stable short hex digest of the active edit fields. Used as the upload-
+    // tracking key (so editing an already-uploaded image triggers re-upload)
+    // and as the on-disk cache directory for the rendered variant.
+    QString hash() const;
 };
 
 struct WorkflowVar {
@@ -25,6 +54,7 @@ struct WorkflowVar {
     QString         selectedFile;   // absolute path
     QString         extensionFilter;
     QString         imageUuid;      // for Image type — references WorkflowInputCache
+    ImageEdits      imageEdits;     // for Image type — applied at upload time
 };
 
 struct WorkflowFile {

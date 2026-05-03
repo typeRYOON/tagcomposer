@@ -19,6 +19,10 @@ class TitleBar : public QWidget {
 public:
     explicit TitleBar(QWidget* parent = nullptr);
 
+    // Show/hide individual chrome buttons. Used by hosts like dialogs that
+    // only want a close button (no minimize/maximize for modal contexts).
+    void setButtons(bool showMin, bool showMax, bool showClose);
+
 protected:
     void mousePressEvent(QMouseEvent* event) override;
     void mouseDoubleClickEvent(QMouseEvent* event) override;
