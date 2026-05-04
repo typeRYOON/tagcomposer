@@ -60,6 +60,14 @@ struct AppSettings {
     int     collectorThreshold   = 4;    // Hamming bits cutoff (0–16)
     int     collectorPollSeconds = 5;    // QTimer cadence
 
+    // ── Update checker ──────────────────────────────────────────────────────
+    // Unix epoch seconds of the last successful GitHub Releases API hit, so
+    // we can throttle to ~once/24h instead of pinging on every launch.
+    qint64  lastUpdateCheckTime  = 0;
+    // Most-recent latest-release tag we've seen. Lets the UI re-show the
+    // "update available" label across launches without a fresh API hit.
+    QString lastKnownLatestVersion;
+
     // ─────────────────────────────────────────────────────────────────────────
     static AppSettings load(const QString& path);
     void save(const QString& path) const;

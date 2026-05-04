@@ -14,6 +14,9 @@
 #include <gui/dataset/tagclusterpage.h>
 #include <gui/dataset/tageditorpage.h>
 #include <gui/dataset/collectorpage.h>
+#include <gui/homepage.h>
+#include <core/updatechecker.h>
+#include <QDateTime>
 #include <gui/widgets/danmakuoverlay.h>
 #include <gui/exportdialog.h>
 #include <gui/importdialog.h>
@@ -132,7 +135,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_pages->installEventFilter(this);
     // Order must match gui::Page enum (navbar.h) and the navbar's addButton
     // sequence. Adding/reordering pages = touch all three together.
-    m_pages->addWidget(new HomePage(this));           // Page::Home
+    m_homePage = new HomePage(this);
+    m_pages->addWidget(m_homePage);                   // Page::Home
     m_pages->addWidget(m_tileViewPage);               // Page::EntryViewer
     m_pages->addWidget(m_composerPage);               // Page::TagComposer
     m_pages->addWidget(m_facetEditorPage);            // Page::FacetEditor
@@ -528,6 +532,52 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         if (m_settings.comfyUiEnabled)
             m_comfyClient->connectToServer();
     });
+
+    // ── Update check ──────────────────────────────────────────────────────────
+    // Once-per-launch GitHub Releases poll, throttled to ~24h via the
+    // lastUpdateCheckTime setting. Not blocking — kicked off 2 s after the
+    // window appears so it doesn't compete with the rest of boot work.
+    m_updateChecker = new core::UpdateChecker(this);
+    m_updateChecker->setRepo("typeRYOON/tagcomposer_test");
+    m_updateChecker->setCurrentVersion(APP_VERSION);
+
+    connect(m_updateChecker, &core::UpdateChecker::updateAvailable, this,
+        [this](QString latest, QString url) {
+            m_settings.lastUpdateCheckTime    = QDateTime::currentSecsSinceEpoch();
+            m_settings.lastKnownLatestVersion = latest;
+            if (m_homePage) m_homePage->setUpdateAvailable(latest, url);
+        });
+    connect(m_updateChecker, &core::UpdateChecker::upToDate, this,
+        [this](QString latest) {
+            m_settings.lastUpdateCheckTime    = QDateTime::currentSecsSinceEpoch();
+            m_settings.lastKnownLatestVersion = latest;
+            if (m_homePage) m_homePage->setUpdateAvailable({});
+        });
+    // checkFailed: leave lastUpdateCheckTime alone so we retry next launch
+    // instead of waiting another 24h after a transient network blip.
+
+    // If we've already checked within the last 24h, surface the cached result
+    // (so the "update available" label reappears across restarts without
+    // re-pinging GitHub) and skip the network call this session.
+    constexpr qint64 kThrottleSec = 24 * 60 * 60;
+    const qint64 nowSec = QDateTime::currentSecsSinceEpoch();
+    const bool fresh = (m_settings.lastUpdateCheckTime > 0)
+        && (nowSec - m_settings.lastUpdateCheckTime < kThrottleSec);
+
+    if (fresh && !m_settings.lastKnownLatestVersion.isEmpty()) {
+        // Re-evaluate the cached version against the current build — if the
+        // user updated manually since the last check, the cached "newer"
+        // verdict is now stale.
+        if (core::UpdateChecker::compareVersions(
+                m_settings.lastKnownLatestVersion, APP_VERSION) > 0)
+        {
+            m_homePage->setUpdateAvailable(
+                m_settings.lastKnownLatestVersion,
+                QString("https://github.com/typeRYOON/tagcomposer_test/releases/latest"));
+        }
+    } else {
+        QTimer::singleShot(2000, this, [this]() { m_updateChecker->checkNow(); });
+    }
 }
 
 bool AppMainWindow::eventFilter(QObject* obj, QEvent* event)

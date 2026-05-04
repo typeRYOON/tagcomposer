@@ -62,6 +62,10 @@ AppSettings AppSettings::load(const QString& path)
     if (collector.contains("pollSeconds"))
         s.collectorPollSeconds = collector["pollSeconds"].toInt(5);
 
+    const QJsonObject upd = root["update"].toObject();
+    s.lastUpdateCheckTime     = qint64(upd["lastCheckTime"].toDouble(0));
+    s.lastKnownLatestVersion  = upd["lastKnownLatest"].toString();
+
     return s;
 }
 
@@ -104,12 +108,20 @@ void AppSettings::save(const QString& path) const
     collector["threshold"]        = collectorThreshold;
     collector["pollSeconds"]      = collectorPollSeconds;
 
+    QJsonObject upd;
+    // QJsonValue stores numbers as double — fine for unix timestamps until
+    // the year 287396 or so. No need for the hex-string trick we use for
+    // 64-bit hashes.
+    upd["lastCheckTime"]   = double(lastUpdateCheckTime);
+    upd["lastKnownLatest"] = lastKnownLatestVersion;
+
     QJsonObject root;
     root["app"]       = app;
     root["comfyui"]   = cui;
     root["facets"]    = facets;
     root["autotag"]   = autotag;
     root["collector"] = collector;
+    root["update"]    = upd;
 
     QFile f(path);
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))

@@ -19,7 +19,10 @@
 #include <functional>
 #include <memory>
 
+namespace core { class UpdateChecker; }
+
 namespace gui {
+class HomePage;
 class TileViewPage;
 class PromptComposerPage;
 class FacetEditorPage;
@@ -90,6 +93,8 @@ private:
     core::EntryModel*   m_entryModel;
     QStackedWidget*      m_pages;
 
+    gui::HomePage*            m_homePage           = nullptr;
+    core::UpdateChecker*      m_updateChecker      = nullptr;
     gui::TileViewPage*        m_tileViewPage       = nullptr;
     gui::PromptComposerPage*  m_composerPage       = nullptr;
     gui::FacetEditorPage*     m_facetEditorPage    = nullptr;
