@@ -23,6 +23,7 @@ static QString varTypeToStr(WorkflowVarType t)
     case WorkflowVarType::DirSearch:  return "dirSearch";
     case WorkflowVarType::LatentSize: return "latentSize";
     case WorkflowVarType::Image:      return "image";
+    case WorkflowVarType::Wildcard:   return "wildcard";
     }
     return "string";
 }
@@ -35,6 +36,7 @@ static WorkflowVarType varTypeFromStr(const QString& s)
     if (s == "dirSearch")  return WorkflowVarType::DirSearch;
     if (s == "latentSize") return WorkflowVarType::LatentSize;
     if (s == "image")      return WorkflowVarType::Image;
+    if (s == "wildcard")   return WorkflowVarType::Wildcard;
     return WorkflowVarType::String;
 }
 
@@ -100,6 +102,13 @@ static QJsonObject varToJson(const WorkflowVar& var)
             o["imageEdits"] = e;
         }
         break;
+    case WorkflowVarType::Wildcard: {
+        QJsonArray arr;
+        for (const QString& s : var.wildcardTags)
+            arr.append(s);
+        o["wildcardTags"] = arr;
+        break;
+    }
     }
     return o;
 }
@@ -142,6 +151,10 @@ static WorkflowVar varFromJson(const QJsonObject& o)
             var.imageEdits.trimToCrop = e["trimToCrop"].toBool();
             var.imageEdits.maskId     = e["maskId"].toString();
         }
+        break;
+    case WorkflowVarType::Wildcard:
+        for (const QJsonValue& v : o["wildcardTags"].toArray())
+            var.wildcardTags << v.toString();
         break;
     }
     return var;
@@ -266,6 +279,9 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
     QString result = jsonContent;
 
     for (WorkflowVar& var : variables()) {
+        // Wildcards have no JSON placeholder substitution — they're injected
+        // into the positive prompt by the run path via pickWildcardTags().
+        if (var.type == WorkflowVarType::Wildcard) continue;
         if (var.placeholder.isEmpty()) continue;
 
         QString replacement;
@@ -315,11 +331,30 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
                 : WorkflowInputCache::serverSubfolder() + "/" + var.imageUuid + ".png")
                 + "\"";
             break;
+        case WorkflowVarType::Wildcard:
+            // Unreachable: wildcards are filtered out before this switch.
+            break;
         }
 
         result.replace(var.placeholder, replacement);
     }
 
+    return result;
+}
+
+QStringList WorkflowManager::pickWildcardTags() const
+{
+    QStringList result;
+    for (const WorkflowVar& var : variables()) {
+        if (var.type != WorkflowVarType::Wildcard) continue;
+        if (var.wildcardTags.isEmpty()) continue;
+        const int idx = QRandomGenerator::global()->bounded(var.wildcardTags.size());
+        const auto parts = var.wildcardTags[idx].split(',', Qt::SkipEmptyParts);
+        for (const QString& p : parts) {
+            const QString t = p.trimmed();
+            if (!t.isEmpty()) result << t;
+        }
+    }
     return result;
 }
 

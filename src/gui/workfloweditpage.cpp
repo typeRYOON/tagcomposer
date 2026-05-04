@@ -25,6 +25,7 @@
 #include <QScrollArea>
 #include <QMenu>
 #include <QPainter>
+#include <QPlainTextEdit>
 #include <QSet>
 #include <QTimer>
 #include <QUrl>
@@ -343,6 +344,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
         menu.addAction("Dir Search",  this, [this]() { addVariable(core::WorkflowVarType::DirSearch); });
         menu.addAction("Latent Size", this, [this]() { addVariable(core::WorkflowVarType::LatentSize); });
         menu.addAction("Image",       this, [this]() { addVariable(core::WorkflowVarType::Image); });
+        menu.addAction("Wildcard",    this, [this]() { addVariable(core::WorkflowVarType::Wildcard); });
         menu.exec(m_addBtn->mapToGlobal(QPoint(0, m_addBtn->height())));
     });
 
@@ -403,8 +405,11 @@ void WorkflowEditPage::addVariable(core::WorkflowVarType type)
 {
     if (!m_wm) return;
     core::WorkflowVar var;
-    var.type        = type;
-    var.placeholder = "__NEW__";
+    var.type = type;
+    // Wildcards don't substitute a __TOKEN__ in the workflow JSON — they
+    // inject into the positive prompt — so they don't need a placeholder.
+    if (type != core::WorkflowVarType::Wildcard)
+        var.placeholder = "__NEW__";
     m_wm->variables() << var;
     save();
     rebuildVarList();
@@ -460,14 +465,19 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
 
     auto* placeholderEdit = new QLineEdit(var.placeholder);
     placeholderEdit->setObjectName("WfPlaceholderEdit");
-    placeholderEdit->setPlaceholderText("__PLACEHOLDER__");
+    // Wildcards inject into the positive prompt, not into __TOKEN__ slots in
+    // the workflow JSON, so this field is just a label for organization.
+    placeholderEdit->setPlaceholderText(
+        var.type == core::WorkflowVarType::Wildcard
+            ? "Name (label only)"
+            : "__PLACEHOLDER__");
     connect(placeholderEdit, &QLineEdit::editingFinished, this, [this, index, placeholderEdit]() {
         if (!m_wm || index >= m_wm->variables().size()) return;
         m_wm->variables()[index].placeholder = placeholderEdit->text().trimmed();
         save();
     });
 
-    static const char* kTypeNames[] = { "Seed", "String", "Integer", "Float", "Dir Search", "Latent Size", "Image" };
+    static const char* kTypeNames[] = { "Seed", "String", "Integer", "Float", "Dir Search", "Latent Size", "Image", "Wildcard" };
     auto* typeLabel = new QLabel(kTypeNames[int(var.type)]);
     typeLabel->setObjectName("WfTypeLabel");
 
@@ -974,6 +984,44 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         bodyRow->addWidget(thumb, 0, Qt::AlignTop);
         bodyRow->addLayout(btnCol, 1);
         cardLayout->addLayout(bodyRow);
+        break;
+    }
+
+    case core::WorkflowVarType::Wildcard: {
+        auto* hint = new QLabel(
+            "One slot per line. A random line is picked for each prompt run\n"
+            "and merged into the positive prompt — rules and replacement\n"
+            "vars apply. Commas split a line into multiple tags.");
+        hint->setObjectName("WfFieldLabel");
+        hint->setWordWrap(true);
+        cardLayout->addWidget(hint);
+
+        auto* edit = new QPlainTextEdit(var.wildcardTags.join('\n'));
+        edit->setObjectName("WfValueEdit");
+        edit->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+        edit->setMinimumHeight(120);
+        edit->setMaximumHeight(220);
+        edit->setPlaceholderText("blue hair, blue eyes\nred hair\nblonde hair, twintails");
+
+        // Debounce disk writes — textChanged fires on every keystroke.
+        auto* saveTimer = new QTimer(card);
+        saveTimer->setSingleShot(true);
+        saveTimer->setInterval(400);
+        connect(saveTimer, &QTimer::timeout, this, [this]() { save(); });
+
+        connect(edit, &QPlainTextEdit::textChanged, this,
+            [this, index, edit, saveTimer]() {
+                if (!m_wm || index >= m_wm->variables().size()) return;
+                QStringList lines;
+                for (const QString& line : edit->toPlainText().split('\n')) {
+                    const QString t = line.trimmed();
+                    if (!t.isEmpty()) lines << t;
+                }
+                m_wm->variables()[index].wildcardTags = lines;
+                saveTimer->start();
+            });
+
+        cardLayout->addWidget(edit);
         break;
     }
 

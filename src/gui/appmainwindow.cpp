@@ -262,16 +262,23 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             m_workflowEditPage, &WorkflowEditPage::refresh);
 
     // ── Run with workflow: apply vars + positive tags, queue to ComfyUI ──────
+    // Positive prompt is recomputed inside the loop because Wildcard vars pick
+    // a fresh tag per run, and that pick must flow through the rule/var
+    // pipeline along with the composer's persistent state.
     connect(m_composerPage, &PromptComposerPage::runRequested, this, [this](int count) {
         const core::WorkflowFile* wf = m_workflowManager.selectedFile();
         if (!wf) return;
         QFile f(wf->path);
         if (!f.open(QIODevice::ReadOnly)) return;
-        const QString tmpl           = QString::fromUtf8(f.readAll());
-        const QString positivePrompt = m_composerPage->currentPromptString(true);
+        const QString tmpl = QString::fromUtf8(f.readAll());
 
-        ensureImageInputsUploaded([this, tmpl, positivePrompt, count]() {
+        ensureImageInputsUploaded([this, tmpl, count]() {
             for (int i = 0; i < count; ++i) {
+                const QStringList wildTags = m_workflowManager.pickWildcardTags();
+                const QString positivePrompt = wildTags.isEmpty()
+                    ? m_composerPage->currentPromptString(true)
+                    : m_composerPage->computePromptWithExtraTags(wildTags, true);
+
                 QString json = m_workflowManager.applyToJson(tmpl);
                 json.replace("__positive__", positivePrompt);
                 core::WorkflowManager::applyLoraStack(json, m_activeLoraStack, m_settings.loraBaseDir);
@@ -678,17 +685,20 @@ void AppMainWindow::runBatch(const QString& query)
                 continue;
             }
 
-            // Entry's own tags get unioned with the current composer state, then
-            // the full pipeline (rules + vars) runs over the merged set.
-            const QString positivePrompt =
-                m_composerPage->computePromptWithExtraTags(tags, true);
-
             // Stack: current LoRAs + entry's own LoRA if it has one.
             QList<core::LoraConfig> stackForEntry = m_activeLoraStack;
             if (entry->lora.has_value())
                 stackForEntry << entry->lora.value();
 
             for (int i = 0; i < count; ++i) {
+                // Per-run wildcard pick gets unioned with composer state +
+                // entry tags, then the full pipeline runs over the merged set.
+                QList<QString> extraTags = tags;
+                for (const QString& wt : m_workflowManager.pickWildcardTags())
+                    extraTags << wt;
+                const QString positivePrompt =
+                    m_composerPage->computePromptWithExtraTags(extraTags, true);
+
                 QString json = m_workflowManager.applyToJson(tmpl);
                 json.replace("__positive__", positivePrompt);
                 core::WorkflowManager::applyLoraStack(

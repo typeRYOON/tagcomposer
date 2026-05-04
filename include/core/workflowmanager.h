@@ -2,12 +2,13 @@
 #include <core/entry.h>
 #include <QRect>
 #include <QString>
+#include <QStringList>
 #include <QList>
 
 namespace core {
 
 enum class SeedBehavior    { Fixed, Increment, Randomize };
-enum class WorkflowVarType { Seed, String, Integer, Float, DirSearch, LatentSize, Image };
+enum class WorkflowVarType { Seed, String, Integer, Float, DirSearch, LatentSize, Image, Wildcard };
 
 struct LatentSizeEntry {
     int     w, h;
@@ -55,6 +56,7 @@ struct WorkflowVar {
     QString         extensionFilter;
     QString         imageUuid;      // for Image type — references WorkflowInputCache
     ImageEdits      imageEdits;     // for Image type — applied at upload time
+    QStringList     wildcardTags;   // for Wildcard type — one line per slot; commas split into multiple tags at pick time
 };
 
 struct WorkflowFile {
@@ -88,6 +90,12 @@ public:
     // Returns jsonContent with __PLACEHOLDER__ tokens replaced by current values.
     // Advances increment-mode seeds as a side effect.
     QString applyToJson(const QString& jsonContent);
+
+    // Picks one random entry from each Wildcard variable, splitting comma-separated
+    // bundles into individual tags. Call once per prompt run; the returned tags
+    // are intended to be unioned into the composer's positive prompt so the rule
+    // engine and replacement vars apply to them. Pure: doesn't mutate state.
+    QStringList pickWildcardTags() const;
 
     // Fills __lora_count__, __lora_name_N__, __lora_wt_N__, __lora_model_str_N__,
     // __lora_clip_str_N__ for N in 1..maxSlots. Empty slots get "None" / defaults.
