@@ -128,19 +128,21 @@ static RuleAction parseAction(const QString& expr)
 {
     RuleAction a;
 
+    // Bare keywords match exactly; arg-taking keywords require an open paren
+    // so e.g. "addmore(...)" doesn't accidentally bind to "add(...)".
     if (expr == "skip")
         a.type = ActionType::Skip;
     else if (expr == "delete")
         a.type = ActionType::Delete;
-    else if (expr.startsWith("add")) {
+    else if (expr.startsWith("add(")) {
         a.type      = ActionType::Add;
         a.arguments = extractArgs(expr);
     }
-    else if (expr.startsWith("replace")) {
+    else if (expr.startsWith("replace(")) {
         a.type      = ActionType::Replace;
         a.arguments = extractArgs(expr);
     }
-    else if (expr.startsWith("flag")) {
+    else if (expr.startsWith("flag(")) {
         a.type      = ActionType::Flag;
         a.arguments = extractArgs(expr);
     }
@@ -221,7 +223,7 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
         else if (key == "action") {
             bool known = false;
             for (const QString& kw : knownActions)
-                if (val.startsWith(kw)) { known = true; break; }
+                if (val == kw || val.startsWith(kw + "(")) { known = true; break; }
             if (!known && errors)
                 *errors << QString("Rule \"%1\": unknown action \"%2\"").arg(current.name, val);
             current.action = parseAction(val);
@@ -285,14 +287,21 @@ const QList<Rule>& RuleEngine::rules() const { return m_rules; }
 
 bool RuleEngine::globMatch(const QString& pattern, const QString& text)
 {
-    const QRegularExpression re(
-        "\\A" + QRegularExpression::escape(pattern)
-                    .replace("\\*", ".*")
-                    .replace("\\?", ".")
-              + "\\z",
-        QRegularExpression::CaseInsensitiveOption
-    );
-    return re.match(text).hasMatch();
+    // Cache compiled regexes — evaluate() runs this against every tag for
+    // every name-glob clause, so recompiling per-call adds up quickly.
+    static QHash<QString, QRegularExpression> cache;
+    auto it = cache.find(pattern);
+    if (it == cache.end()) {
+        const QRegularExpression re(
+            "\\A" + QRegularExpression::escape(pattern)
+                        .replace("\\*", ".*")
+                        .replace("\\?", ".")
+                  + "\\z",
+            QRegularExpression::CaseInsensitiveOption
+        );
+        it = cache.insert(pattern, re);
+    }
+    return it.value().match(text).hasMatch();
 }
 
 bool RuleEngine::clauseMatches(const PipelineTag& pt, const MatchClause& clause)

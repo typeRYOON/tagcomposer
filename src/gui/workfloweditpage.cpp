@@ -274,7 +274,9 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
 
     auto* batchRunBtn = new QPushButton(" Run Batch");
     batchRunBtn->setObjectName("WfAddBtn");
-    batchRunBtn->setIcon(gui::icons::play(14, QColor(0x77, 0xaa, 0xdd)));
+    // #66aa66 is the hover-shade green from the WfAddBtn theme — matches
+    // the button's text color so the icon and label read as one piece.
+    batchRunBtn->setIcon(gui::icons::play(14, QColor(0x66, 0xaa, 0x66)));
     batchRunBtn->setIconSize(QSize(12, 12));
     batchRunBtn->setCursor(Qt::PointingHandCursor);
 

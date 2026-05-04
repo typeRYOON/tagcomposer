@@ -13,6 +13,9 @@ struct EntryPush {
     QString        uuid;
     QString        imageFileName; // stable; never reused after deletion
     QList<QString> tags;
+
+    QJsonObject     toJson() const;
+    static EntryPush fromJson(const QJsonObject& obj);
 };
 
 struct SavedState {

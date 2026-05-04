@@ -23,19 +23,8 @@ void PromptComposerPage::saveSession(const QString& path) const
             weightsObj[it.key()] = double(it.value());
 
     QJsonArray pushesArr;
-    for (auto it = m_activePushes.constBegin(); it != m_activePushes.constEnd(); ++it) {
-        const int runtimeId = int(quint32(it.key() >> 32));
-        const int imageIdx  = int(quint32(it.key() & 0xFFFFFFFFLL));
-        core::Entry* entry  = m_entryModel ? m_entryModel->entryById(runtimeId) : nullptr;
-        if (!entry || imageIdx >= entry->images.size()) continue;
-        QJsonArray tagArr;
-        for (const QString& t : it.value()) tagArr.append(t);
-        QJsonObject o;
-        o["uuid"]          = entry->uuid;
-        o["imageFileName"] = entry->images[imageIdx].fileName;
-        o["tags"]          = tagArr;
-        pushesArr.append(o);
-    }
+    for (const core::EntryPush& ep : dumpActivePushes())
+        pushesArr.append(ep.toJson());
 
     QJsonArray deactivatedArr;
     for (const QString& t : m_deactivatedTags)
@@ -65,8 +54,8 @@ void PromptComposerPage::restoreSession(const QString& path)
     m_activeTags.clear();
     m_activeTagSet.clear();
     m_tagWeights.clear();
-    m_activePushes.clear();
     m_deactivatedTags.clear();
+    // m_activePushes is replaced wholesale by loadActivePushes below.
 
     for (const QJsonValue& v : root["activeTags"].toArray()) {
         const QString t = v.toString();
@@ -84,38 +73,17 @@ void PromptComposerPage::restoreSession(const QString& path)
         if (const QString t = v.toString(); !t.isEmpty())
             m_deactivatedTags.insert(t);
 
-    for (const QJsonValue& v : root["activePushes"].toArray()) {
-        const QJsonObject o        = v.toObject();
-        const QString uuid         = o["uuid"].toString();
-        const QString imageFileName = o["imageFileName"].toString();
-        if (uuid.isEmpty() || imageFileName.isEmpty()) continue;
-        core::Entry* entry = m_entryModel ? m_entryModel->entryByUuid(uuid) : nullptr;
-        if (!entry) continue;
-        int imageIdx = -1;
-        for (int i = 0; i < entry->images.size(); ++i)
-            if (entry->images[i].fileName == imageFileName) { imageIdx = i; break; }
-        if (imageIdx < 0) continue;
-        QList<QString> tags;
-        for (const QJsonValue& t : o["tags"].toArray())
-            tags << t.toString();
-        m_activePushes[(qint64(entry->id) << 32) | quint32(imageIdx)] = tags;
-    }
-
-    QMap<int, QList<int>> activeGroups;
-    for (auto it = m_activePushes.constBegin(); it != m_activePushes.constEnd(); ++it) {
-        const int eid = int(quint32(it.key() >> 32));
-        const int img = int(quint32(it.key() & 0xFFFFFFFFLL));
-        activeGroups[eid].append(img);
-    }
-    emit activeGroupsChanged(activeGroups);
+    QList<core::EntryPush> pushes;
+    for (const QJsonValue& v : root["activePushes"].toArray())
+        pushes << core::EntryPush::fromJson(v.toObject());
+    loadActivePushes(pushes);
 
     m_activeLoraUuids.clear();
     for (const QJsonValue& v : root["activeLoraUuids"].toArray())
         m_activeLoraUuids << v.toString();
     emit loraUuidsRestored(m_activeLoraUuids);
 
-    if (!m_activeTags.isEmpty())
-        repush();
+    repush();
 }
 
 } // namespace gui

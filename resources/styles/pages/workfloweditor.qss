@@ -4,16 +4,10 @@
     background: transparent;
 }
 
-#WfEditHeader {
-    background: #0f0f0f;
-    border-bottom: 1px solid #1a1a1a;
-}
-
+/* Section-header bar (#0f0f0f bg + 1px bottom border) comes from app.qss. */
+/* Section-label font (10px bold spaced) for #WfEditTitle also from app.qss. */
 #WfEditTitle {
     color: #888888;
-    font-size: 10px;
-    font-weight: bold;
-    letter-spacing: 1px;
 }
 
 #WfEditSubtitle {
@@ -21,19 +15,10 @@
     font-size: 12px;
 }
 
+/* Green-action button base in app.qss covers bg/color/border/radius + hover. */
 #WfAddBtn {
-    background: #141414;
-    color: #448844;
-    border: 1px solid #223322;
-    border-radius: 4px;
     padding: 5px 14px;
     font-size: 12px;
-}
-
-#WfAddBtn:hover {
-    background: #192219;
-    color: #66aa66;
-    border-color: #336633;
 }
 
 #WfEditScroll {
@@ -46,15 +31,13 @@
     border-radius: 5px;
 }
 
+/* Dark-input base in app.qss covers bg/border/selection. */
 #WfPlaceholderEdit {
-    background: #141414;
     color: #cccccc;
-    border: 1px solid #222222;
     border-radius: 3px;
     padding: 3px 8px;
     font-size: 12px;
     font-family: monospace;
-    selection-background-color: #2a2a2a;
 }
 
 #WfPlaceholderEdit:focus {
@@ -123,52 +106,18 @@
     min-width: 44px;
 }
 
+/* Spinbox base + up/down stub structure come from app.qss. */
 #WfSeedSpin, #WfSpinBox {
-    background: #141414;
-    color: #aaaaaa;
-    border: 1px solid #222222;
-    border-radius: 3px;
     padding: 2px 6px;
     font-size: 12px;
-    selection-background-color: #2a2a2a;
 }
 
-#WfSeedSpin:focus, #WfSpinBox:focus {
-    border-color: #333333;
-}
-
-#WfSeedSpin::up-button, #WfSpinBox::up-button {
-    subcontrol-origin: border;
-    subcontrol-position: top right;
-    width: 14px;
-    background: #1e1e1e;
-    border: none;
-    border-left: 1px solid #222222;
-    border-bottom: 1px solid #222222;
-}
-
-#WfSeedSpin::down-button, #WfSpinBox::down-button {
-    subcontrol-origin: border;
-    subcontrol-position: bottom right;
-    width: 14px;
-    background: #1e1e1e;
-    border: none;
-    border-left: 1px solid #222222;
-}
-
-#WfSeedSpin::up-button:hover,   #WfSpinBox::up-button:hover,
-#WfSeedSpin::down-button:hover, #WfSpinBox::down-button:hover {
-    background: #282828;
-}
-
+/* Dark-input base in app.qss covers bg/border/selection. */
 #WfValueEdit {
-    background: #141414;
     color: #aaaaaa;
-    border: 1px solid #222222;
     border-radius: 3px;
     padding: 3px 8px;
     font-size: 12px;
-    selection-background-color: #2a2a2a;
 }
 
 #WfValueEdit:focus {
@@ -176,19 +125,10 @@
     color: #cccccc;
 }
 
+/* Subtle-button base in app.qss covers bg/color/border/radius + hover. */
 #WfBrowseBtn {
-    background: #141414;
-    color: #555555;
-    border: 1px solid #222222;
-    border-radius: 3px;
     padding: 3px 10px;
     font-size: 12px;
-}
-
-#WfBrowseBtn:hover {
-    background: #1a1a1a;
-    color: #999999;
-    border-color: #333333;
 }
 
 #WfFileList {

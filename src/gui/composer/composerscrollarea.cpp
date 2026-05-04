@@ -7,21 +7,22 @@ ComposerScrollArea::ComposerScrollArea(QWidget* parent) : QScrollArea(parent) {}
 
 void ComposerScrollArea::keyPressEvent(QKeyEvent* event)
 {
-    if (event->modifiers() & Qt::ShiftModifier)
-    {
+    if (event->modifiers() & Qt::ShiftModifier) {
         if (event->key() == Qt::Key_E) {
             emit runRequested();
+            event->accept();
+            return;
         }
-        else if (event->key() == Qt::Key_R) {
-            if (event->modifiers() & Qt::AltModifier) {
+        if (event->key() == Qt::Key_R) {
+            if (event->modifiers() & Qt::AltModifier)
                 emit clearPendingRequested();
-            }
-            else {
+            else
                 emit interruptRequested();
-            }
+            event->accept();
+            return;
         }
     }
-    event->ignore();
+    QScrollArea::keyPressEvent(event);
 }
 
 } // namespace gui

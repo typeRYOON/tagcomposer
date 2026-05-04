@@ -100,7 +100,7 @@ ImportDialog::ImportDialog(core::EntryModel* model,
 
     // ── Validation + status ─────────────────────────────────────────────────
     m_validation = new QLabel;
-    m_validation->setStyleSheet("color: #cc6666;");
+    m_validation->setObjectName("ValidationLabel");
     m_validation->setWordWrap(true);
     root->addWidget(m_validation);
 

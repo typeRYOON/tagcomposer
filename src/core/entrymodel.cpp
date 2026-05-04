@@ -157,19 +157,30 @@ namespace core {
 
     void EntryModel::deleteEntry(int32_t entryId)
     {
+        if (entryId < 0 || entryId >= m_entryByIndex.size()) return;
         Entry* e = m_entryByIndex[entryId];
-        if (!e) {
-            return;
-        }
+        if (!e) return;
+
+        const QString uuid = e->uuid;  // capture before erase invalidates `e`
 
         const auto tags = collectTags(*e);
-
         for (int32_t tagId : tags)
             m_tagIndex.remove(tagId, entryId);
 
-        QDir(BASE_PATH + "/data/entry/" + e->uuid).removeRecursively();
+        QDir(BASE_PATH + "/data/entry/" + uuid).removeRecursively();
 
+        // Hard-delete the std::list node so the Entry's storage is freed.
+        // The id slot is nulled but never reclaimed — addEntry only ever
+        // appends, so dangling indices in m_entryByIndex stay correct.
+        for (auto it = m_entries.begin(); it != m_entries.end(); ++it) {
+            if (&*it == e) {
+                m_entries.erase(it);
+                break;
+            }
+        }
         m_entryByIndex[entryId] = nullptr;
+
+        emit entryDeleted(entryId, uuid);
     }
 
 

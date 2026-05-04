@@ -7,6 +7,28 @@
 
 namespace core {
 
+// ── EntryPush ─────────────────────────────────────────────────────────────────
+
+QJsonObject EntryPush::toJson() const
+{
+    QJsonArray tagArr;
+    for (const QString& t : tags) tagArr.append(t);
+    QJsonObject o;
+    o["uuid"]          = uuid;
+    o["imageFileName"] = imageFileName;
+    o["tags"]          = tagArr;
+    return o;
+}
+
+EntryPush EntryPush::fromJson(const QJsonObject& obj)
+{
+    EntryPush ep;
+    ep.uuid          = obj["uuid"].toString();
+    ep.imageFileName = obj["imageFileName"].toString();
+    for (const auto& t : obj["tags"].toArray()) ep.tags << t.toString();
+    return ep;
+}
+
 // ── SavedState ────────────────────────────────────────────────────────────────
 
 SavedState SavedState::fromJson(const QJsonObject& obj)
@@ -25,14 +47,8 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
     for (const auto& v : obj["deactivatedTags"].toArray())
         s.deactivatedTags.insert(v.toString());
 
-    for (const auto& v : obj["activePushes"].toArray()) {
-        const QJsonObject o = v.toObject();
-        EntryPush ep;
-        ep.uuid          = o["uuid"].toString();
-        ep.imageFileName = o["imageFileName"].toString();
-        for (const auto& t : o["tags"].toArray()) ep.tags << t.toString();
-        s.activePushes << ep;
-    }
+    for (const auto& v : obj["activePushes"].toArray())
+        s.activePushes << EntryPush::fromJson(v.toObject());
 
     const QJsonObject rules = obj["ruleStates"].toObject();
     for (auto it = rules.constBegin(); it != rules.constEnd(); ++it)
@@ -94,15 +110,8 @@ QJsonObject SavedState::toJson() const
     obj["deactivatedTags"] = deactArr;
 
     QJsonArray pushesArr;
-    for (const auto& ep : activePushes) {
-        QJsonArray tagArr;
-        for (const auto& t : ep.tags) tagArr.append(t);
-        QJsonObject o;
-        o["uuid"]          = ep.uuid;
-        o["imageFileName"] = ep.imageFileName;
-        o["tags"]          = tagArr;
-        pushesArr.append(o);
-    }
+    for (const auto& ep : activePushes)
+        pushesArr.append(ep.toJson());
     obj["activePushes"] = pushesArr;
 
     QJsonObject rulesObj;

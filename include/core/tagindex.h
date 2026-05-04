@@ -21,6 +21,7 @@ namespace core {
         QList<int32_t> entriesForTerm(const QString& raw) const;
     private:
         bool m_bulkLoading{ true };
+        int32_t m_nextId{ 0 };
 
         QHash<int32_t, QList<int32_t>> m_tagIdToEntryId;
         QHash<int32_t, QString> m_idToTag;

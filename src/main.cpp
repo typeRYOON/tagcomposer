@@ -46,7 +46,7 @@ int32_t main(int32_t argc, char** argv)
         app.setStyle(new NoFocusRectStyle(app.style()));
         QThreadPool::globalInstance()->setMaxThreadCount(QThread::idealThreadCount());
 
-        QFontDatabase::addApplicationFont(":/system/Hiragino Maru Gothic ProN W4.otf");
+        QFontDatabase::addApplicationFont(":/fonts/Hiragino Maru Gothic ProN W4.otf");
         QApplication::setApplicationName(QString::fromStdString(APP_NAME));
         QApplication::setOrganizationName(QString::fromStdString(ORGANIZATION_NAME));
         QApplication::setApplicationVersion(QString::fromStdString(APP_VERSION));

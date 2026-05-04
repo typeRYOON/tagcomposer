@@ -198,6 +198,10 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_tileViewPage, &TileViewPage::entryTagRemoved,
             m_composerPage, &PromptComposerPage::onEntryTagRemoved);
 
+    // ── Entry deletion: drop pushes/lora referencing it from composer ──────────
+    connect(m_entryModel, &core::EntryModel::entryDeleted,
+            m_composerPage, &PromptComposerPage::onEntryDeleted);
+
     // ── Sync push-group state back to tile view ────────────────────────────────
     connect(m_composerPage, &PromptComposerPage::activeGroupsChanged,
             m_tileViewPage, &TileViewPage::setActiveGroups);
@@ -280,7 +284,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
                     : m_composerPage->computePromptWithExtraTags(wildTags, true);
 
                 QString json = m_workflowManager.applyToJson(tmpl);
-                json.replace("__positive__", positivePrompt);
+                core::WorkflowManager::applyPositive(json, positivePrompt);
                 core::WorkflowManager::applyLoraStack(json, m_activeLoraStack, m_settings.loraBaseDir);
                 m_comfyClient->queuePrompt(json);
             }
@@ -700,7 +704,7 @@ void AppMainWindow::runBatch(const QString& query)
                     m_composerPage->computePromptWithExtraTags(extraTags, true);
 
                 QString json = m_workflowManager.applyToJson(tmpl);
-                json.replace("__positive__", positivePrompt);
+                core::WorkflowManager::applyPositive(json, positivePrompt);
                 core::WorkflowManager::applyLoraStack(
                     json, stackForEntry, m_settings.loraBaseDir);
                 m_comfyClient->queuePrompt(json);

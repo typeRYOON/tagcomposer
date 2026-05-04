@@ -1,5 +1,6 @@
 #pragma once
 #include <core/entry.h>
+#include <QJsonObject>
 #include <QRect>
 #include <QString>
 #include <QStringList>
@@ -96,6 +97,29 @@ public:
     // are intended to be unioned into the composer's positive prompt so the rule
     // engine and replacement vars apply to them. Pure: doesn't mutate state.
     QStringList pickWildcardTags() const;
+
+    // Single-WorkflowVar (de)serialization. Public so saved-state code shares
+    // the same JSON format as workflows.json — keeps the formats from drifting
+    // (and silently dropping fields like wildcardTags or imageEdits).
+    // varFromJson accepts legacy CamelCase type names ("Seed", "String", ...)
+    // and integer seedBehavior values that the saved-state code wrote before
+    // unification.
+    static QJsonObject varToJson(const WorkflowVar& var);
+    static WorkflowVar varFromJson(const QJsonObject& obj);
+
+    // String <-> enum for WorkflowVarType. Canonical form is lowercase
+    // ("seed", "string", ...); fromStr also accepts CamelCase legacy names.
+    static QString         typeToStr(WorkflowVarType t);
+    static WorkflowVarType typeFromStr(const QString& s);
+
+    // Substitutes the __positive__ token in a workflow JSON with the prompt,
+    // adding the surrounding JSON quotes itself. Accepts both the legacy form
+    // ("__positive__" already wrapped in quotes inside the template) and the
+    // bare form (__positive__) — workflow authors can write whichever they
+    // find more natural. promptForJson must already be JSON-escape-safe;
+    // PromptPipeline::buildPromptString(forJson=true) returns a string fit
+    // for direct embedding.
+    static void applyPositive(QString& json, const QString& promptForJson);
 
     // Fills __lora_count__, __lora_name_N__, __lora_wt_N__, __lora_model_str_N__,
     // __lora_clip_str_N__ for N in 1..maxSlots. Empty slots get "None" / defaults.

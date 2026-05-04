@@ -4,6 +4,19 @@
     background: transparent;
 }
 
+/* 1px hairline used between sidebar sections (rules / workflow / vars). */
+#ComposerHairlineSep {
+    background: #1a1a1a;
+}
+
+/* Floating preview shown next to a hovered saved-state row. Top-level Tool
+   window — we set WA_StyledBackground so the QSS background paints. */
+#StatesPreviewPopup {
+    background: #0d0d0d;
+    border: 1px solid #2a2a2a;
+    padding: 4px;
+}
+
 #ComposerScroll, #ComposerGroupsContainer {
     background: transparent;
 }
@@ -89,7 +102,6 @@
     border-left: 1px solid #1a1a1a;
 }
 
-#WfList,
 #ComposerVarsContainer {
     border-left: 1px solid #1a1a1a;
 }
@@ -99,11 +111,9 @@
 }
 
 
+/* Section-label font (10px bold spaced) comes from app.qss. */
 #ComposerHeaderLabel {
     color: #888888;
-    font-size: 10px;
-    font-weight: bold;
-    letter-spacing: 1px;
 }
 
 #SidebarBtn {
@@ -133,17 +143,13 @@
     color: #909090;
 }
 
+/* Indicator base in app.qss covers border/bg/checked accent. The composer
+   rule toggle is slightly smaller (12px vs 14px) and squarer (radius 2 vs 3)
+   than the others, so override those two. */
 #ComposerRuleToggle::indicator {
     width: 12px;
     height: 12px;
-    border: 1px solid #2a2a2a;
     border-radius: 2px;
-    background: #141414;
-}
-
-#ComposerRuleToggle::indicator:checked {
-    background: #336633;
-    border-color: #336633;
 }
 
 #ComposerRuleName {

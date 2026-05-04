@@ -9,11 +9,9 @@
     border-right: 1px solid #1a1a1a;
 }
 
+/* Section-label font (10px bold spaced) comes from app.qss. */
 #FacetPanelHeader {
     color: #888888;
-    font-size: 10px;
-    font-weight: bold;
-    letter-spacing: 1px;
     padding: 10px 12px 6px 12px;
     border-bottom: 1px solid #1a1a1a;
 }
@@ -128,19 +126,10 @@
     border-color: #3a7a3a;
 }
 
+/* Green-action button base in app.qss covers bg/color/border/radius + hover. */
 #FacetSaveBtn {
-    background: #141414;
-    color: #448844;
-    border: 1px solid #223322;
-    border-radius: 4px;
     padding: 6px 12px;
     font-size: 12px;
-}
-
-#FacetSaveBtn:hover {
-    background: #192219;
-    color: #66aa66;
-    border-color: #336633;
 }
 
 #FacetPreviewPanel {

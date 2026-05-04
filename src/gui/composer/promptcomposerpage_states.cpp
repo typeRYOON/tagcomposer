@@ -27,38 +27,6 @@ using namespace utils;
 
 namespace gui {
 
-namespace {
-
-// String <-> enum for the workflow var type field in saved-state JSON.
-// Stored explicitly so the JSON is self-describing and survives type
-// changes in the live workflow definition.
-QString wfVarTypeToString(core::WorkflowVarType t)
-{
-    switch (t) {
-    case core::WorkflowVarType::Seed:       return "Seed";
-    case core::WorkflowVarType::String:     return "String";
-    case core::WorkflowVarType::Integer:    return "Integer";
-    case core::WorkflowVarType::Float:      return "Float";
-    case core::WorkflowVarType::DirSearch:  return "DirSearch";
-    case core::WorkflowVarType::LatentSize: return "LatentSize";
-    case core::WorkflowVarType::Image:      return "Image";
-    }
-    return "String";
-}
-
-core::WorkflowVarType wfVarTypeFromString(const QString& s)
-{
-    if (s == "Seed")       return core::WorkflowVarType::Seed;
-    if (s == "Integer")    return core::WorkflowVarType::Integer;
-    if (s == "Float")      return core::WorkflowVarType::Float;
-    if (s == "DirSearch")  return core::WorkflowVarType::DirSearch;
-    if (s == "LatentSize") return core::WorkflowVarType::LatentSize;
-    if (s == "Image")      return core::WorkflowVarType::Image;
-    return core::WorkflowVarType::String;
-}
-
-} // anonymous namespace
-
 void PromptComposerPage::setStatesDir(const QString& dir)
 {
     m_statesDir = dir;
@@ -111,18 +79,8 @@ void PromptComposerPage::saveCurrentState()
             state.tagWeights[it.key()] = it.value();
     state.deactivatedTags = m_deactivatedTags;
 
-    // Convert runtime (entryId, imageIdx) keys to stable (uuid, imageFileName)
-    for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
-        const int runtimeId = int(quint32(it.key() >> 32));
-        const int imageIdx  = int(quint32(it.key() & 0xFFFFFFFFLL));
-        core::Entry* entry  = m_entryModel ? m_entryModel->entryById(runtimeId) : nullptr;
-        if (!entry || imageIdx >= entry->images.size()) continue;
-        core::EntryPush ep;
-        ep.uuid          = entry->uuid;
-        ep.imageFileName = entry->images[imageIdx].fileName;
-        ep.tags          = it.value();
-        state.activePushes << ep;
-    }
+    // Convert runtime (entryId, imageIdx) keys to stable (uuid, imageFileName).
+    state.activePushes = dumpActivePushes();
 
     for (const auto& rule : m_rules->rules()) {
         state.ruleStates[rule.name]    = rule.enabled;
@@ -140,37 +98,8 @@ void PromptComposerPage::saveCurrentState()
         state.selectedWorkflowId = wf ? wf->id : QString();
 
         QJsonArray varValues;
-        for (const auto& var : m_wfManager->variables()) {
-            if (var.placeholder.isEmpty()) continue;
-            QJsonObject o;
-            o["placeholder"] = var.placeholder;
-            o["type"]        = wfVarTypeToString(var.type);
-            switch (var.type) {
-            case core::WorkflowVarType::Seed:
-                o["seedBehavior"] = int(var.seedBehavior);
-                o["seedValue"]    = var.seedValue;   // integer, not double
-                break;
-            case core::WorkflowVarType::String:
-            case core::WorkflowVarType::LatentSize:
-                o["stringValue"] = var.stringValue;
-                break;
-            case core::WorkflowVarType::Integer:
-                o["intValue"] = var.intValue;
-                break;
-            case core::WorkflowVarType::Float:
-                o["floatValue"] = var.floatValue;
-                break;
-            case core::WorkflowVarType::DirSearch:
-                o["searchDir"]       = var.searchDir;
-                o["selectedFile"]    = var.selectedFile;
-                o["extensionFilter"] = var.extensionFilter;
-                break;
-            case core::WorkflowVarType::Image:
-                o["imageUuid"] = var.imageUuid;
-                break;
-            }
-            varValues.append(o);
-        }
+        for (const auto& var : m_wfManager->variables())
+            varValues.append(core::WorkflowManager::varToJson(var));
         state.workflowVarValues = varValues;
     }
 
@@ -188,33 +117,14 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     m_activeTagSet.clear();
     m_tagWeights.clear();
     m_deactivatedTags.clear();
-    m_activePushes.clear();
+    // m_activePushes is replaced wholesale by loadActivePushes below.
 
     m_activeTags      = state.activeTags;
     for (const auto& t : m_activeTags) m_activeTagSet.insert(t);
     m_tagWeights      = state.tagWeights;
     m_deactivatedTags = state.deactivatedTags;
 
-    // Resolve uuid+imageFileName back to runtime keys; count entries that no longer exist
-    int missing = 0;
-    for (const auto& ep : state.activePushes) {
-        core::Entry* entry = m_entryModel ? m_entryModel->entryByUuid(ep.uuid) : nullptr;
-        if (!entry) { ++missing; continue; }
-        int imageIdx = -1;
-        for (int i = 0; i < entry->images.size(); ++i) {
-            if (entry->images[i].fileName == ep.imageFileName) { imageIdx = i; break; }
-        }
-        if (imageIdx < 0) { ++missing; continue; }
-        const qint64 key = (qint64(entry->id) << 32) | quint32(imageIdx);
-        m_activePushes[key] = ep.tags;
-    }
-
-    QMap<int, QList<int>> activeGroups;
-    for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
-        activeGroups[int(quint32(it.key() >> 32))].append(
-            int(quint32(it.key() & 0xFFFFFFFFLL)));
-    }
-    emit activeGroupsChanged(activeGroups);
+    const int missing = loadActivePushes(state.activePushes);
 
     m_activeLoraUuids = state.activeLoraUuids;
     emit loraUuidsRestored(m_activeLoraUuids);
@@ -274,61 +184,39 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     // Workflow variables: state is canonical for the selected workflow.
     // Fully replace the var list — vars only in the state are added, vars
     // only in the live workflow are dropped. Order from the saved array is
-    // preserved. Skip when the saved workflow id no longer exists, since
-    // blowing away the *current* workflow's vars with a different workflow's
-    // snapshot would be destructive.
-    if (m_wfManager && !workflowMissing) {
-        // Snapshot existing types for backward compat with old states that
-        // didn't include a "type" field.
+    // preserved. Skip when the saved workflow id no longer exists (would
+    // blow away the *current* workflow's vars with a different workflow's
+    // snapshot) and when the state was saved with no workflow selected at
+    // all (its empty workflowVarValues would silently clear the currently-
+    // selected workflow's vars).
+    if (m_wfManager && !workflowMissing && !state.selectedWorkflowId.isEmpty()) {
+        // Snapshot existing types for legacy states that didn't include a
+        // "type" field (varFromJson defaults those to String otherwise).
         QHash<QString, core::WorkflowVarType> liveTypes;
         for (const auto& v : m_wfManager->variables())
-            liveTypes[v.placeholder] = v.type;
+            if (!v.placeholder.isEmpty()) liveTypes[v.placeholder] = v.type;
 
         QList<core::WorkflowVar> newVars;
         for (const QJsonValue& entry : state.workflowVarValues) {
-            const QJsonObject o = entry.toObject();
-            const QString placeholder = o["placeholder"].toString();
-            if (placeholder.isEmpty()) continue;
-
-            core::WorkflowVar v;
-            v.placeholder = placeholder;
-            if (o.contains("type")) {
-                v.type = wfVarTypeFromString(o["type"].toString());
-            } else if (liveTypes.contains(placeholder)) {
-                v.type = liveTypes[placeholder];
-            } else {
-                v.type = core::WorkflowVarType::String;
+            QJsonObject o = entry.toObject();
+            // Backfill missing "type" from the live workflow before parsing.
+            if (!o.contains("type")) {
+                const QString ph = o["placeholder"].toString();
+                if (liveTypes.contains(ph))
+                    o["type"] = core::WorkflowManager::typeToStr(liveTypes[ph]);
             }
-            switch (v.type) {
-            case core::WorkflowVarType::Seed:
-                v.seedBehavior = core::SeedBehavior(o["seedBehavior"].toInt(0));
-                v.seedValue    = o["seedValue"].toInteger(0);
-                break;
-            case core::WorkflowVarType::String:
-            case core::WorkflowVarType::LatentSize:
-                v.stringValue = o["stringValue"].toString();
-                break;
-            case core::WorkflowVarType::Integer:
-                v.intValue = o["intValue"].toInt();
-                break;
-            case core::WorkflowVarType::Float:
-                v.floatValue = o["floatValue"].toDouble();
-                break;
-            case core::WorkflowVarType::DirSearch:
-                v.searchDir       = o["searchDir"].toString();
-                v.selectedFile    = o["selectedFile"].toString();
-                v.extensionFilter = o["extensionFilter"].toString();
-                break;
-            case core::WorkflowVarType::Image:
-                v.imageUuid = o["imageUuid"].toString();
-                if (!v.imageUuid.isEmpty() && m_inputCache
-                    && !m_inputCache->has(v.imageUuid)) {
-                    emit statusMessageRequested(QString(
-                        "Image input %1 missing from cache (%2) — repick")
-                        .arg(v.placeholder, v.imageUuid.left(8)));
-                    v.imageUuid.clear();
-                }
-                break;
+            core::WorkflowVar v = core::WorkflowManager::varFromJson(o);
+
+            // State-restore-specific: warn if an Image var references a
+            // cache entry that no longer exists, then clear so the user
+            // re-picks rather than silently sending a broken upload.
+            if (v.type == core::WorkflowVarType::Image
+                && !v.imageUuid.isEmpty() && m_inputCache
+                && !m_inputCache->has(v.imageUuid)) {
+                emit statusMessageRequested(QString(
+                    "Image input %1 missing from cache (%2) — repick")
+                    .arg(v.placeholder, v.imageUuid.left(8)));
+                v.imageUuid.clear();
             }
             newVars << v;
         }

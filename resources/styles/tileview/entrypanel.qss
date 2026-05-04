@@ -150,6 +150,16 @@
     background: #1a1a1a;
 }
 
+/* Editable tag label inside a TagRow. Color is set per-row inline (varies
+   by danbooru tag category) — everything else lives here so the inline
+   stylesheet stays a one-property override. */
+#TagLabel {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 12px;
+}
+
 #TagRemoveBtn {
     background: transparent;
     border: none;

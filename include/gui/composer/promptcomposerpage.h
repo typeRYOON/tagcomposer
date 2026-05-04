@@ -25,6 +25,8 @@
 class QVBoxLayout;
 class QGraphicsOpacityEffect;
 class QPropertyAnimation;
+class QMenu;
+class QAction;
 
 namespace core { class EntryModel; }
 
@@ -81,6 +83,11 @@ public slots:
     void onPipelineReady(QList<core::CategoryGroup> groups);
     void onEntryTagAdded(int entryId, int imageIdx, const QString& tag);
     void onEntryTagRemoved(int entryId, int imageIdx, const QString& tag);
+    // Hooked to EntryModel::entryDeleted. Drops every push belonging to
+    // the deleted entry (and any tags only those pushes claimed) plus
+    // the entry's LoRA uuid from the active set, so the composer doesn't
+    // keep stale state pointing at a now-gone entry.
+    void onEntryDeleted(int32_t entryId, const QString& uuid);
     void setPreviewImage(const QImage& image);
     void setOutputFolderPattern(const QString& pattern);
     void setTempFolder(const QString& folder);
@@ -125,9 +132,44 @@ private:
 
     QWidget* makeTagRow(const core::PipelineTag& pt);
 
+    // Append the per-tag "Quick add as character/copyright/trigger word/style"
+    // section to `menu` if any quick-facet preference is configured. Returns
+    // a map from each appended QAction* to the facet name it represents, for
+    // dispatch in the menu's exec() handler.
+    QHash<QAction*, QString> addQuickFacetActions(QMenu& menu) const;
+
+    // Tags carrying $VAR$ tokens get their weight stored by the *source*
+    // form so the user's weight survives a variable-value change (which
+    // rewrites pt.tag but not pt.sourceTag).
+    static QString weightKeyOf(const core::PipelineTag& pt) {
+        return pt.sourceTag.isEmpty() ? pt.tag : pt.sourceTag;
+    }
+
+    // Re-bucket a flat tag list into CategoryGroups in the user-defined
+    // display order from `groups`. Tags with result == Deactivated are
+    // dropped — callers that want to surface them separately must filter
+    // first. Used by both the prompt builders and the on-screen layout.
+    static QList<core::CategoryGroup> bucketForOutput(
+        const QList<core::PipelineTag>& flat,
+        const core::TagGroupIndex&      groups);
+
+    // m_activePushes ↔ portable {uuid, imageFileName, tags} translation.
+    // Pushes referencing a runtime entryId that no longer resolves are
+    // skipped on dump. loadActivePushes replaces the current push set,
+    // emits activeGroupsChanged, and returns the count of incoming pushes
+    // that couldn't be resolved (entry deleted between save and restore).
+    QList<core::EntryPush> dumpActivePushes() const;
+    int loadActivePushes(const QList<core::EntryPush>& pushes);
+
     // Rewrites every $foo$ in oldKey to $newVarName$ (or strips them when
     // newVarName is empty), updates the active set, and triggers a repush.
     void replaceTagVariable(const QString& oldKey, const QString& newVarName);
+
+    // Rewrites every occurrence of `oldKey` inside m_activePushes to `newKey`.
+    // When `newKey` is empty (rename collided with an existing active tag),
+    // the old entry is dropped so the push doesn't continue to claim a tag
+    // that's already owned elsewhere.
+    void renamePushTag(const QString& oldKey, const QString& newKey);
 
     core::PromptPipeline*  m_pipeline;
     core::RuleEngine*      m_rules;
@@ -150,8 +192,7 @@ private:
     QSet<QString>            m_activeTagSet;
     QSet<QString>            m_deactivatedTags; // tags kept in list but excluded from pipeline
     QList<core::PipelineTag> m_lastResult;
-    QList<core::CategoryGroup> m_lastGroups;  // categorized, weights applied
-    QHash<QString, float>    m_tagWeights;    // user-set weights keyed by tag text
+    QHash<QString, float>    m_tagWeights;    // weight keyed via weightKeyOf — sourceTag wins when present
 
     QHash<qint64, QList<QString>> m_activePushes;
 

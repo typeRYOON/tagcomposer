@@ -4,10 +4,7 @@
     background: transparent;
 }
 
-#DatasetTabBar {
-    background: #0f0f0f;
-    border-bottom: 1px solid #1a1a1a;
-}
+/* Section-header bar (#0f0f0f bg + 1px bottom border) comes from app.qss. */
 
 #DatasetTabBtn {
     background: transparent;
@@ -42,12 +39,7 @@
     border-right: 1px solid #2a2a2a;
 }
 
-/* Section bar above each panel body — matches WfEditHeader so the dataset
-   page reads consistently with the workflow editor. */
-#DatasetSectionHeader {
-    background: #0f0f0f;
-    border-bottom: 1px solid #1a1a1a;
-}
+/* Section-header bar (#0f0f0f bg + 1px bottom border) comes from app.qss. */
 
 /* Filter section header skips the border-bottom so the filter body's
    border-top is the only horizontal line at the seam. */
@@ -55,11 +47,9 @@
     background: #0f0f0f;
 }
 
+/* Section-label font (10px bold spaced) comes from app.qss. */
 #DatasetSectionTitle {
     color: #888888;
-    font-size: 10px;
-    font-weight: bold;
-    letter-spacing: 1px;
 }
 
 /* Subtitle that sits next to a section title — used for things like the
@@ -174,14 +164,12 @@ QComboBox#DatasetSpin QAbstractItemView {
     border-color: #1a1a1a;
 }
 
+/* Dark-input base in app.qss covers bg/border/selection. */
 #DatasetExcludeEdit {
-    background: #141414;
     color: #cccccc;
-    border: 1px solid #222222;
     border-radius: 3px;
     padding: 6px 8px;
     font-size: 15px;
-    selection-background-color: #2a2a2a;
 }
 
 #DatasetStatusLabel {
@@ -231,13 +219,11 @@ QComboBox#DatasetSpin QAbstractItemView {
     font-size: 13px;
 }
 
+/* Dark-input base in app.qss covers bg/border/selection. */
 #DatasetCopyEdit {
-    background: #141414;
     color: #aaaaaa;
-    border: 1px solid #222222;
     border-radius: 3px;
     font-size: 13px;
-    selection-background-color: #2a2a2a;
 }
 
 /* Right-pane wiki/post preview. */
@@ -263,14 +249,8 @@ QComboBox#DatasetSpin QAbstractItemView {
     spacing: 6px;
 }
 
-#DatasetSoloCheck::indicator {
-    width: 14px;
-    height: 14px;
-    border: 1px solid #2a2a2a;
-    border-radius: 3px;
-    background: #141414;
-}
-
+/* Indicator base from app.qss; only the :checked accent differs (slightly
+   greyer green than the standard #336633). */
 #DatasetSoloCheck::indicator:checked {
     background: #2a4a2a;
     border-color: #3a6a3a;

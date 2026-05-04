@@ -1,16 +1,7 @@
 /* ── TagSearchBar ─────────────────────────────────────────────────────────── */
 
-#TagSearchInput {
-    background: #1a1a1a;
-    color: #e0e0e0;
-    border: 1px solid #2a2a2a;
-    border-radius: 0px;
-    padding: 6px 10px;
-    font-size: 16px;
-    font-family: "Hiragino Maru Gothic ProN W4";
-    selection-background-color: #3a3a3a;
-}
-
+/* #TagSearchInput base shape (bg/color/border/padding/font/selection) comes
+   from app.qss. Only focus/disabled state customisations live here. */
 #TagSearchInput:focus {
     border-color: #444444;
 }

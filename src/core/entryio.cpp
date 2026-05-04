@@ -66,9 +66,9 @@ namespace core {
         TagIndex& tagIndex,
         const QString& basePath)
     {
-        static int32_t id{ 0 };
         QList<Entry> entries;
         QDir base{ basePath };
+        int32_t id{ 0 };
 
         for (const QString& dir : base.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
             auto e = loadOne(base.filePath(dir), tagIndex);

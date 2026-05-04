@@ -236,8 +236,8 @@ PromptComposerPage::PromptComposerPage(
     m_varsLayout->setSpacing(6);
 
     auto* varsSep = new QWidget;
+    varsSep->setObjectName("ComposerHairlineSep");
     varsSep->setFixedHeight(1);
-    varsSep->setStyleSheet("background:#1a1a1a;");
 
     auto* varsHeaderRow = new QWidget;
     varsHeaderRow->setObjectName("ComposerHeaderRow");
@@ -277,8 +277,8 @@ PromptComposerPage::PromptComposerPage(
 
     // ── Workflow / States sidebar section ─────────────────────────────────────
     auto* wfSep = new QWidget;
+    wfSep->setObjectName("ComposerHairlineSep");
     wfSep->setFixedHeight(1);
-    wfSep->setStyleSheet("background:#1a1a1a;");
 
     auto* wfHeaderRow = new QWidget;
     wfHeaderRow->setObjectName("ComposerHeaderRow");
@@ -497,10 +497,10 @@ PromptComposerPage::PromptComposerPage(
     // Floating preview popup for state images
     m_statesPreviewPopup = new QLabel(this,
         Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+    m_statesPreviewPopup->setObjectName("StatesPreviewPopup");
     m_statesPreviewPopup->setAttribute(Qt::WA_ShowWithoutActivating);
+    m_statesPreviewPopup->setAttribute(Qt::WA_StyledBackground, true);
     m_statesPreviewPopup->setAlignment(Qt::AlignCenter);
-    m_statesPreviewPopup->setStyleSheet(
-        "background:#0d0d0d; border: 1px solid #2a2a2a; padding: 4px;");
     m_statesPreviewPopup->hide();
 
     auto* sidebar = new QWidget;
@@ -800,31 +800,74 @@ void PromptComposerPage::resizeEvent(QResizeEvent* event)
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-QString PromptComposerPage::currentPromptString(bool forJson) const
+QList<core::EntryPush> PromptComposerPage::dumpActivePushes() const
 {
-    // Re-bucket m_lastResult in groups.fct display order so the prompt
-    // matches the visual ordering the user sees on screen.
-    QHash<QString, QList<PipelineTag>> buckets;
-    QList<QString> order;
-    for (const TagGroup& g : m_groups.groups())
-        order << g.name;
-    order << ""; // uncategorized
+    QList<core::EntryPush> out;
+    for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
+        const int runtimeId = int(quint32(it.key() >> 32));
+        const int imageIdx  = int(quint32(it.key() & 0xFFFFFFFFLL));
+        core::Entry* entry  = m_entryModel ? m_entryModel->entryById(runtimeId) : nullptr;
+        if (!entry || imageIdx < 0 || imageIdx >= entry->images.size()) continue;
+        core::EntryPush ep;
+        ep.uuid          = entry->uuid;
+        ep.imageFileName = entry->images[imageIdx].fileName;
+        ep.tags          = it.value();
+        out << ep;
+    }
+    return out;
+}
 
-    for (const PipelineTag& pt : m_lastResult) {
+int PromptComposerPage::loadActivePushes(const QList<core::EntryPush>& pushes)
+{
+    m_activePushes.clear();
+    int missing = 0;
+    for (const core::EntryPush& ep : pushes) {
+        core::Entry* entry = m_entryModel ? m_entryModel->entryByUuid(ep.uuid) : nullptr;
+        if (!entry) { ++missing; continue; }
+        int imageIdx = -1;
+        for (int i = 0; i < entry->images.size(); ++i)
+            if (entry->images[i].fileName == ep.imageFileName) { imageIdx = i; break; }
+        if (imageIdx < 0) { ++missing; continue; }
+        const qint64 key = (qint64(entry->id) << 32) | quint32(imageIdx);
+        m_activePushes[key] = ep.tags;
+    }
+
+    QMap<int, QList<int>> activeGroups;
+    for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
+        activeGroups[int(quint32(it.key() >> 32))].append(
+            int(quint32(it.key() & 0xFFFFFFFFLL)));
+    }
+    emit activeGroupsChanged(activeGroups);
+    return missing;
+}
+
+QList<CategoryGroup> PromptComposerPage::bucketForOutput(
+    const QList<PipelineTag>& flat,
+    const TagGroupIndex&      groups)
+{
+    QHash<QString, QList<PipelineTag>> buckets;
+    for (const PipelineTag& pt : flat) {
         if (pt.result == RuleResult::Deactivated) continue;
-        buckets[m_groups.groupFor(pt.facets)] << pt;
+        buckets[groups.groupFor(pt.facets)] << pt;
     }
 
     QList<CategoryGroup> ordered;
-    for (const QString& name : order) {
-        if (!buckets.contains(name) || buckets[name].isEmpty()) continue;
-        CategoryGroup cg;
-        cg.category = name;
-        cg.tags     = buckets[name];
-        ordered << cg;
+    for (const TagGroup& g : groups.groups()) {
+        const auto it = buckets.constFind(g.name);
+        if (it == buckets.cend() || it.value().isEmpty()) continue;
+        ordered << CategoryGroup{ g.name, it.value() };
     }
+    // Uncategorized bucket goes last in display order.
+    const auto unc = buckets.constFind(QString());
+    if (unc != buckets.cend() && !unc.value().isEmpty())
+        ordered << CategoryGroup{ QString(), unc.value() };
+    return ordered;
+}
 
-    return PromptPipeline::buildPromptString(ordered, forJson);
+QString PromptComposerPage::currentPromptString(bool forJson) const
+{
+    return PromptPipeline::buildPromptString(
+        bucketForOutput(m_lastResult, m_groups), forJson);
 }
 
 QString PromptComposerPage::computePromptForTags(const QList<QString>& tags, bool forJson) const
@@ -837,31 +880,12 @@ QString PromptComposerPage::computePromptForTags(const QList<QString>& tags, boo
     // m_tagWeights (typically batch tags differ from the composer's set).
     for (auto& g : groups)
         for (auto& pt : g.tags)
-            pt.weight = m_tagWeights.value(pt.tag, 1.0f);
+            pt.weight = m_tagWeights.value(weightKeyOf(pt), 1.0f);
 
-    // Re-bucket in groups.fct order, mirroring currentPromptString's logic.
-    QHash<QString, QList<PipelineTag>> buckets;
-    QList<QString> order;
-    for (const TagGroup& tg : m_groups.groups())
-        order << tg.name;
-    order << ""; // uncategorized
-
-    for (const auto& g : groups)
-        for (const PipelineTag& pt : g.tags) {
-            if (pt.result == RuleResult::Deactivated) continue;
-            buckets[m_groups.groupFor(pt.facets)] << pt;
-        }
-
-    QList<CategoryGroup> ordered;
-    for (const QString& name : order) {
-        if (!buckets.contains(name) || buckets[name].isEmpty()) continue;
-        CategoryGroup cg;
-        cg.category = name;
-        cg.tags     = buckets[name];
-        ordered << cg;
-    }
-
-    return PromptPipeline::buildPromptString(ordered, forJson);
+    QList<PipelineTag> flat;
+    for (const auto& g : groups) flat << g.tags;
+    return PromptPipeline::buildPromptString(
+        bucketForOutput(flat, m_groups), forJson);
 }
 
 QString PromptComposerPage::computePromptWithExtraTags(const QList<QString>& extraTags, bool forJson) const
@@ -913,6 +937,9 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
     const bool wasActive = m_activePushes.contains(key);
 
     if (wasActive) {
+        // Only consider tags this push owns. Tags the user typed in (or that
+        // a different push contributed) aren't in m_activePushes[key], so
+        // they survive the un-push intact.
         QSet<QString> otherTags;
         for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
             if (it.key() != key) {
@@ -929,13 +956,18 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
         }
         m_activePushes.remove(key);
     } else {
+        // Track only the tags this push actually adds — duplicates shared
+        // with a manual entry or another push aren't claimed, so un-pushing
+        // later doesn't strip the user's work.
+        QList<QString> claimed;
         for (const QString& tag : tags) {
             if (!m_activeTagSet.contains(tag)) {
                 m_activeTags << tag;
                 m_activeTagSet.insert(tag);
+                claimed << tag;
             }
         }
-        m_activePushes[key] = tags;
+        m_activePushes[key] = claimed;
     }
 
     // ── LoRA: sync activation with push state ─────────────────────────────
@@ -977,12 +1009,14 @@ void PromptComposerPage::onEntryTagAdded(int entryId, int imageIdx, const QStrin
     const qint64 key = (qint64(entryId) << 32) | quint32(imageIdx);
     if (!m_activePushes.contains(key)) return;
 
-    if (!m_activePushes[key].contains(tag))
-        m_activePushes[key] << tag;
-
+    // Only claim the tag if this push actually contributes it — i.e. it's
+    // not already present from a manual add or another push. Symmetric with
+    // loadPipeline's else-branch tracking.
     if (!m_activeTagSet.contains(tag)) {
         m_activeTags << tag;
         m_activeTagSet.insert(tag);
+        if (!m_activePushes[key].contains(tag))
+            m_activePushes[key] << tag;
     }
     QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
 }
@@ -1006,6 +1040,50 @@ void PromptComposerPage::onEntryTagRemoved(int entryId, int imageIdx, const QStr
         m_deactivatedTags.remove(tag);
     }
     QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+}
+
+void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
+{
+    QList<qint64> keysToRemove;
+    for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it)
+        if (int(quint32(it.key() >> 32)) == entryId)
+            keysToRemove << it.key();
+
+    const bool loraGone = m_activeLoraUuids.contains(uuid);
+    if (keysToRemove.isEmpty() && !loraGone) return;
+
+    // Tags still claimed by *other* pushes survive — only drop tags whose
+    // last claim was the disappearing entry.
+    QSet<QString> stillClaimed;
+    for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
+        if (keysToRemove.contains(it.key())) continue;
+        for (const QString& t : it.value()) stillClaimed.insert(t);
+    }
+    for (qint64 key : keysToRemove) {
+        for (const QString& t : m_activePushes[key]) {
+            if (!stillClaimed.contains(t)) {
+                m_activeTags.removeOne(t);
+                m_activeTagSet.remove(t);
+                m_tagWeights.remove(t);
+                m_deactivatedTags.remove(t);
+            }
+        }
+        m_activePushes.remove(key);
+    }
+
+    if (loraGone) {
+        m_activeLoraUuids.removeAll(uuid);
+        emit loraUuidsRestored(m_activeLoraUuids);
+    }
+
+    QMap<int, QList<int>> activeGroups;
+    for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
+        activeGroups[int(quint32(it.key() >> 32))].append(
+            int(quint32(it.key() & 0xFFFFFFFFLL)));
+    }
+    emit activeGroupsChanged(activeGroups);
+
+    repush();
 }
 
 // ── Pipeline ──────────────────────────────────────────────────────────────────
@@ -1044,17 +1122,12 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
             m_tagWeights.remove(tag);
             m_deactivatedTags.remove(tag);
         }
-        //emit statusMessageRequested(
-        //    QString("Rule deleted %1 tag(s): %2")
-        //        .arg(deleted.size()).arg(deleted.join(", ")));
     }
 
     // Apply user-set weights before storing or displaying
     for (auto& g : categoryGroups)
         for (auto& pt : g.tags)
-            pt.weight = m_tagWeights.value(pt.tag, 1.0f);
-
-    m_lastGroups = categoryGroups;
+            pt.weight = m_tagWeights.value(weightKeyOf(pt), 1.0f);
 
     QList<PipelineTag> flat;
     for (const auto& g : categoryGroups)
@@ -1128,52 +1201,32 @@ void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
     }
     m_mainStack->setCurrentIndex(1);
 
-    QHash<QString, QList<PipelineTag>> buckets;
-    QList<QString> order;
-    for (const TagGroup& g : m_groups.groups())
-        order << g.name;
-    order << "";
-
-    QList<PipelineTag> deactivatedBucket;
-    for (const PipelineTag& pt : flat) {
-        if (pt.result == RuleResult::Deactivated)
-            deactivatedBucket << pt;
-        else
-            buckets[m_groups.groupFor(pt.facets)] << pt;
-    }
+    auto addSection = [this](const QString& displayName,
+                              const QList<PipelineTag>& tags,
+                              QStringList& navNames) {
+        auto* header = new QLabel(displayName);
+        header->setObjectName("ComposerGroupHeader");
+        m_groupsLayout->addWidget(header);
+        m_groupHeaders[displayName] = header;
+        navNames << displayName;
+        for (const PipelineTag& pt : tags)
+            m_groupsLayout->addWidget(makeTagRow(pt));
+        auto* spacer = new QWidget;
+        spacer->setFixedHeight(6);
+        m_groupsLayout->addWidget(spacer);
+    };
 
     QStringList navNames;
-    for (const QString& grpName : order) {
-        if (!buckets.contains(grpName)) continue;
-
-        const QString displayName = grpName.isEmpty() ? "Uncategorized" : grpName;
-        auto* header = new QLabel(displayName);
-        header->setObjectName("ComposerGroupHeader");
-        m_groupsLayout->addWidget(header);
-        m_groupHeaders[displayName] = header;
-        navNames << displayName;
-
-        for (const PipelineTag& pt : buckets[grpName])
-            m_groupsLayout->addWidget(makeTagRow(pt));
-
-        auto* spacer = new QWidget;
-        spacer->setFixedHeight(6);
-        m_groupsLayout->addWidget(spacer);
+    for (const CategoryGroup& cg : bucketForOutput(flat, m_groups)) {
+        const QString displayName = cg.category.isEmpty() ? "Uncategorized" : cg.category;
+        addSection(displayName, cg.tags, navNames);
     }
 
-    if (!deactivatedBucket.isEmpty()) {
-        const QString displayName = "Deactivated";
-        auto* header = new QLabel(displayName);
-        header->setObjectName("ComposerGroupHeader");
-        m_groupsLayout->addWidget(header);
-        m_groupHeaders[displayName] = header;
-        navNames << displayName;
-        for (const PipelineTag& pt : deactivatedBucket)
-            m_groupsLayout->addWidget(makeTagRow(pt));
-        auto* spacer = new QWidget;
-        spacer->setFixedHeight(6);
-        m_groupsLayout->addWidget(spacer);
-    }
+    QList<PipelineTag> deactivated;
+    for (const PipelineTag& pt : flat)
+        if (pt.result == RuleResult::Deactivated) deactivated << pt;
+    if (!deactivated.isEmpty())
+        addSection("Deactivated", deactivated, navNames);
 
     m_groupsLayout->addStretch();
 
@@ -1184,6 +1237,19 @@ void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
 }
 
 // ── Tag row ───────────────────────────────────────────────────────────────────
+
+void PromptComposerPage::renamePushTag(const QString& oldKey, const QString& newKey)
+{
+    for (auto it = m_activePushes.begin(); it != m_activePushes.end(); ++it) {
+        QList<QString>& v = it.value();
+        const int idx = v.indexOf(oldKey);
+        if (idx < 0) continue;
+        if (newKey.isEmpty() || v.contains(newKey))
+            v.removeAt(idx);
+        else
+            v[idx] = newKey;
+    }
+}
 
 void PromptComposerPage::replaceTagVariable(const QString& oldKey,
                                             const QString& newVarName)
@@ -1207,8 +1273,8 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey,
     newKey = newKey.trimmed();
     if (newKey.isEmpty() || newKey == oldKey) return;
 
-    // Skip if the rewritten tag would collide with another active tag.
-    if (m_activeTagSet.contains(newKey) && newKey != oldKey) {
+    const bool collide = m_activeTagSet.contains(newKey);
+    if (collide) {
         // Already present elsewhere — drop the old one rather than dupe.
         m_activeTags.removeAt(i);
         m_activeTagSet.remove(oldKey);
@@ -1218,9 +1284,33 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey,
         m_activeTagSet.insert(newKey);
     }
     m_deactivatedTags.remove(oldKey);
+    renamePushTag(oldKey, collide ? QString() : newKey);
 
     QMetaObject::invokeMethod(this, &PromptComposerPage::repush,
                               Qt::QueuedConnection);
+}
+
+QHash<QAction*, QString> PromptComposerPage::addQuickFacetActions(QMenu& menu) const
+{
+    const QList<QPair<QString, QString>> entries{
+        { "character",    m_quickCharFacet    },
+        { "copyright",    m_quickCopyFacet    },
+        { "trigger word", m_quickTriggerFacet },
+        { "style",        m_quickStyleFacet   },
+    };
+    bool any = false;
+    for (const auto& e : entries) if (!e.second.isEmpty()) { any = true; break; }
+    if (!any) return {};
+
+    menu.addSeparator();
+    QHash<QAction*, QString> out;
+    for (const auto& e : entries) {
+        if (e.second.isEmpty()) continue;
+        QAction* a = menu.addAction(
+            QString("Quick add as %1 (%2)").arg(e.first, e.second));
+        out.insert(a, e.second);
+    }
+    return out;
 }
 
 QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
@@ -1265,14 +1355,20 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
             const QString newTag = tagEdit->text().trimmed();
             if (newTag.isEmpty() || newTag == oldTag) return;
             const int i = m_activeTags.indexOf(oldTag);
-            if (i >= 0) {
+            if (i < 0) return;
+            const bool collide = (oldTag != newTag) && m_activeTagSet.contains(newTag);
+            if (collide) {
+                m_activeTags.removeAt(i);
+                m_activeTagSet.remove(oldTag);
+            } else {
                 m_activeTags[i] = newTag;
                 m_activeTagSet.remove(oldTag);
                 m_activeTagSet.insert(newTag);
-                tagEdit->setProperty("_tag", newTag);
-                QMetaObject::invokeMethod(
-                    this, &PromptComposerPage::repush, Qt::QueuedConnection);
             }
+            renamePushTag(oldTag, collide ? QString() : newTag);
+            tagEdit->setProperty("_tag", newTag);
+            QMetaObject::invokeMethod(
+                this, &PromptComposerPage::repush, Qt::QueuedConnection);
         });
     }
 
@@ -1320,7 +1416,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
         wSpin->setFixedWidth(52);
         wSpin->setValue(double(pt.weight));
 
-        const QString weightKey = pt.tag;
+        const QString weightKey = weightKeyOf(pt);
 
         auto applyWeightColor = [wSpin](double val) {
             const bool weighted = qAbs(val - 1.0) > 0.001;
@@ -1335,11 +1431,8 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                 this, [this, weightKey, applyWeightColor](double val) {
                     const float w = float(val);
                     m_tagWeights[weightKey] = w;
-                    for (auto& g : m_lastGroups)
-                        for (auto& p : g.tags)
-                            if (p.tag == weightKey) p.weight = w;
                     for (auto& p : m_lastResult)
-                        if (p.tag == weightKey) p.weight = w;
+                        if (weightKeyOf(p) == weightKey) p.weight = w;
                     applyWeightColor(val);
                 });
         rl->addWidget(wSpin);
@@ -1385,11 +1478,10 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                     // Variable swap — only meaningful if the tag carries one
                     // already. Lets the user retarget every $foo$ in the tag
                     // to a different declared variable, or strip vars entirely.
-                    QMenu* varMenu = nullptr;
                     QAction* dropVarAct = nullptr;
                     QHash<QAction*, QString> setVarActs;
                     if (hasVar && m_varIndex) {
-                        varMenu = menu.addMenu("Change variable");
+                        QMenu* varMenu = menu.addMenu("Change variable");
                         dropVarAct = varMenu->addAction("Remove variable");
                         if (!m_varIndex->variables().isEmpty())
                             varMenu->addSeparator();
@@ -1399,24 +1491,9 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                         }
                     }
 
-                    QHash<QAction*, QString> quickFacetActs;
-                    {
-                        const QList<QPair<QString, QString>> entries{
-                            { "character",    m_quickCharFacet    },
-                            { "copyright",    m_quickCopyFacet    },
-                            { "trigger word", m_quickTriggerFacet },
-                            { "style",        m_quickStyleFacet   },
-                        };
-                        bool any = false;
-                        for (const auto& e : entries) if (!e.second.isEmpty()) { any = true; break; }
-                        if (any) menu.addSeparator();
-                        for (const auto& e : entries) {
-                            if (e.second.isEmpty()) continue;
-                            QAction* a = menu.addAction(
-                                QString("Quick add as %1 (%2)").arg(e.first, e.second));
-                            quickFacetActs.insert(a, e.second);
-                        }
-                    }
+                    const QHash<QAction*, QString> quickFacetActs =
+                        addQuickFacetActions(menu);
+
                     QAction* chosen = menu.exec(QCursor::pos());
                     if      (chosen == wikiAct)   emit wikiRequested(wikiTag);
                     else if (chosen == facetAct)  emit facetEditorRequested(wikiTag);
@@ -1440,25 +1517,9 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                     QMenu menu;
                     QAction* wikiAct  = menu.addAction("Wiki");
                     QAction* facetAct = menu.addAction("Edit facets");
-                    QHash<QAction*, QString> quickFacetActs;
-                    {
-                        const QList<QPair<QString, QString>> entries{
-                            { "character",    m_quickCharFacet    },
-                            { "copyright",    m_quickCopyFacet    },
-                            { "trigger word", m_quickTriggerFacet },
-                            { "style",        m_quickStyleFacet   },
-                        };
-                        bool any = false;
-                        for (const auto& e : entries) if (!e.second.isEmpty()) { any = true; break; }
-                        if (any) menu.addSeparator();
-                        for (const auto& e : entries) {
-                            if (e.second.isEmpty()) continue;
-                            QAction* a = menu.addAction(
-                                QString("Quick add as %1 (%2)").arg(e.first, e.second));
-                            quickFacetActs.insert(a, e.second);
-                        }
-                    }
-                    QAction* chosen   = menu.exec(QCursor::pos());
+                    const QHash<QAction*, QString> quickFacetActs =
+                        addQuickFacetActions(menu);
+                    QAction* chosen = menu.exec(QCursor::pos());
                     if (chosen == wikiAct)       emit wikiRequested(wikiTag);
                     else if (chosen == facetAct) emit facetEditorRequested(wikiTag);
                     else if (chosen && quickFacetActs.contains(chosen))

@@ -84,14 +84,11 @@ TagWikiPage::TagWikiPage(QWidget* parent)
     contentLayout->addWidget(m_browser, 1);
 
     // ── Loading / not-found placeholders ─────────────────────────────────────
+    // Loading state is intentionally empty — the search bar above is enough
+    // of a hint that the user types a tag in.
     auto* loadingLabel = new QLabel();
     loadingLabel->setObjectName("WikiStatusLabel");
     loadingLabel->setAlignment(Qt::AlignCenter);
-    loadingLabel->setPixmap(
-        QPixmap(":/img/danbooru.png").scaled(
-            50, 50, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation
-        )
-    );
 
     auto* notFoundLabel = new QLabel;
     notFoundLabel->setObjectName("WikiStatusLabel");

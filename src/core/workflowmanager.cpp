@@ -13,7 +13,7 @@ namespace core {
 
 // ── Serialization helpers ─────────────────────────────────────────────────────
 
-static QString varTypeToStr(WorkflowVarType t)
+QString WorkflowManager::typeToStr(WorkflowVarType t)
 {
     switch (t) {
     case WorkflowVarType::Seed:       return "seed";
@@ -28,15 +28,17 @@ static QString varTypeToStr(WorkflowVarType t)
     return "string";
 }
 
-static WorkflowVarType varTypeFromStr(const QString& s)
+WorkflowVarType WorkflowManager::typeFromStr(const QString& s)
 {
-    if (s == "seed")       return WorkflowVarType::Seed;
-    if (s == "integer")    return WorkflowVarType::Integer;
-    if (s == "float")      return WorkflowVarType::Float;
-    if (s == "dirSearch")  return WorkflowVarType::DirSearch;
-    if (s == "latentSize") return WorkflowVarType::LatentSize;
-    if (s == "image")      return WorkflowVarType::Image;
-    if (s == "wildcard")   return WorkflowVarType::Wildcard;
+    // Lowercase canonical first; CamelCase aliases recognise legacy saved
+    // states written before workflowmanager.cpp's serializer was reused.
+    if (s == "seed"       || s == "Seed")       return WorkflowVarType::Seed;
+    if (s == "integer"    || s == "Integer")    return WorkflowVarType::Integer;
+    if (s == "float"      || s == "Float")      return WorkflowVarType::Float;
+    if (s == "dirSearch"  || s == "DirSearch")  return WorkflowVarType::DirSearch;
+    if (s == "latentSize" || s == "LatentSize") return WorkflowVarType::LatentSize;
+    if (s == "image"      || s == "Image")      return WorkflowVarType::Image;
+    if (s == "wildcard"   || s == "Wildcard")   return WorkflowVarType::Wildcard;
     return WorkflowVarType::String;
 }
 
@@ -58,11 +60,11 @@ static SeedBehavior seedBehFromStr(const QString& s)
 }
 
 // Only serialize fields relevant to each var type.
-static QJsonObject varToJson(const WorkflowVar& var)
+QJsonObject WorkflowManager::varToJson(const WorkflowVar& var)
 {
     QJsonObject o;
     o["placeholder"] = var.placeholder;
-    o["type"]        = varTypeToStr(var.type);
+    o["type"]        = typeToStr(var.type);
     switch (var.type) {
     case WorkflowVarType::Seed:
         o["seedBehavior"] = seedBehToStr(var.seedBehavior);
@@ -113,16 +115,22 @@ static QJsonObject varToJson(const WorkflowVar& var)
     return o;
 }
 
-static WorkflowVar varFromJson(const QJsonObject& o)
+WorkflowVar WorkflowManager::varFromJson(const QJsonObject& o)
 {
     WorkflowVar var;
     var.placeholder = o["placeholder"].toString();
-    var.type        = varTypeFromStr(o["type"].toString());
+    var.type        = typeFromStr(o["type"].toString());
     switch (var.type) {
-    case WorkflowVarType::Seed:
-        var.seedBehavior = seedBehFromStr(o["seedBehavior"].toString());
+    case WorkflowVarType::Seed: {
+        // Legacy saved-state JSON encoded seedBehavior as the enum's int
+        // value rather than the canonical string — accept either.
+        const QJsonValue sb = o["seedBehavior"];
+        var.seedBehavior = sb.isString()
+            ? seedBehFromStr(sb.toString())
+            : SeedBehavior(sb.toInt(int(SeedBehavior::Randomize)));
         var.seedValue    = o["seedValue"].toInteger();
         break;
+    }
     case WorkflowVarType::String:
         var.stringValue = o["stringValue"].toString();
         break;
@@ -356,6 +364,16 @@ QStringList WorkflowManager::pickWildcardTags() const
         }
     }
     return result;
+}
+
+void WorkflowManager::applyPositive(QString& json, const QString& promptForJson)
+{
+    // Wrap the prompt in JSON quotes here so authors can write either
+    // "__positive__" (legacy: token already inside literal quotes) or just
+    // __positive__ (bare) and get the same valid JSON either way.
+    const QString quoted = '"' + promptForJson + '"';
+    json.replace("\"__positive__\"", quoted);
+    json.replace("__positive__",     quoted);
 }
 
 void WorkflowManager::applyLoraStack(QString& json,

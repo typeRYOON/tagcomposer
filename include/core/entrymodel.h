@@ -26,7 +26,17 @@ namespace core {
         void removeImageFromEntry(int32_t entryId, int imageIdx);
         void saveEntry(int32_t entryId);
 
+    signals:
+        // Fired after deleteEntry has removed the entry from memory and disk.
+        // Subscribers should drop any cached references (composer pushes,
+        // tile-view LoRA activation, etc.) to entryId / uuid.
+        void entryDeleted(int32_t entryId, const QString& uuid);
+
     private:
+        // m_entryByIndex[id] holds a pointer into m_entries (stable thanks to
+        // std::list) or nullptr for ids that have been deleted. ids are
+        // forever-monotonic — addEntry uses m_entryByIndex.size() as the next
+        // id, never reusing slots emptied by deleteEntry.
         std::list<Entry> m_entries;
         QList<Entry*> m_entryByIndex;
 

@@ -23,32 +23,19 @@
     spacing: 8px;
 }
 
-#SettingsCheckBox::indicator {
-    width: 14px;
-    height: 14px;
-    border: 1px solid #2a2a2a;
-    border-radius: 3px;
-    background: #141414;
-}
-
-#SettingsCheckBox::indicator:checked {
-    background: #336633;
-    border-color: #336633;
-}
+/* Indicator base + :checked colors come from app.qss. */
 
 #SettingsFieldLabel {
     color: #444444;
     font-size: 12px;
 }
 
+/* Dark-input base in app.qss covers bg/border/selection. */
 #SettingsInput {
-    background: #141414;
     color: #cccccc;
-    border: 1px solid #222222;
     border-radius: 4px;
     padding: 5px 8px;
     font-size: 14px;
-    selection-background-color: #2a2a2a;
 }
 
 #SettingsInput:focus {
@@ -56,19 +43,11 @@
     background: #181818;
 }
 
+/* Green-action button base in app.qss covers bg/color/border/radius +
+   hover transform. */
 #SettingsLaunchBtn {
-    background: #141414;
-    color: #448844;
-    border: 1px solid #223322;
-    border-radius: 4px;
     padding: 5px 12px;
     font-size: 14px;
-}
-
-#SettingsLaunchBtn:hover {
-    background: #192219;
-    color: #66aa66;
-    border-color: #336633;
 }
 
 #SettingsConnectBtn {
@@ -106,17 +85,10 @@
     font-size: 11px;
 }
 
+/* Subtle-button base in app.qss covers bg/color/border + hover transform.
+   Only the radius (4 here vs the base's 3) and per-button padding/fs differ. */
 #SettingsBrowseBtn {
-    background: #141414;
-    color: #555555;
-    border: 1px solid #222222;
     border-radius: 4px;
     padding: 5px 8px;
     font-size: 12px;
-}
-
-#SettingsBrowseBtn:hover {
-    background: #1a1a1a;
-    color: #999999;
-    border-color: #333333;
 }

@@ -1,6 +1,7 @@
 #include <core/facetindex.h>
 #include <QFile>
 #include <QTextStream>
+#include <algorithm>
 
 namespace core {
 
@@ -87,8 +88,13 @@ void FacetIndex::saveDefinitions(const QString& definitionsPath) const
     QFile f(definitionsPath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) return;
     QTextStream ts(&f);
-    for (auto it = m_tagToFacets.constBegin(); it != m_tagToFacets.constEnd(); ++it)
-        ts << it.key() << '=' << it.value().join(',') << "\n";
+    // Sort so successive saves produce identical files when nothing changed
+    // (QHash iteration order is unspecified — would otherwise generate
+    // spurious diffs in version control).
+    QStringList tags = m_tagToFacets.keys();
+    std::sort(tags.begin(), tags.end());
+    for (const QString& tag : tags)
+        ts << tag << '=' << m_tagToFacets[tag].join(',') << "\n";
 }
 
 // ── Lookups ───────────────────────────────────────────────────────────────────

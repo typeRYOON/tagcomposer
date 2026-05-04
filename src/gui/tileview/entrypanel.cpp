@@ -347,8 +347,8 @@ public:
         root->addWidget(m_destPreview);
 
         m_validation = new QLabel;
+        m_validation->setObjectName("ValidationLabel");
         m_validation->setWordWrap(true);
-        m_validation->setStyleSheet("color: #cc6666;");
         root->addWidget(m_validation);
 
         auto* matchHeader = new QLabel("Existing files with this prefix:");
@@ -1124,13 +1124,13 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
     dot->setStyleSheet(QString("background:%1;border-radius:4px;").arg(col.name()));
     rl->addWidget(dot, 0, Qt::AlignVCenter);
 
-    // Editable tag name
+    // Editable tag name. Static look (font-size, transparent bg, no border/padding)
+    // lives in entrypanel.qss under #TagLabel; only the per-tag colour is
+    // dynamic so it stays as an inline override.
     auto* edit = new QLineEdit(tag, row);
     edit->setObjectName("TagLabel");
     edit->setFrame(false);
-    edit->setStyleSheet(
-        QString("QLineEdit { color:%1; font-size:12px; background:transparent; border:none; padding:0; }")
-        .arg(col.name()));
+    edit->setStyleSheet(QString("color:%1;").arg(col.name()));
     rl->addWidget(edit, 1);
 
     // returnPressed: commit the rename
@@ -1145,9 +1145,7 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
         const int    newCat = m_danbooruIndex ? m_danbooruIndex->tagCategory(newTag) : -1;
         const QColor newCol = categoryColor(newCat);
         dot->setStyleSheet(QString("background:%1;border-radius:4px;").arg(newCol.name()));
-        edit->setStyleSheet(
-            QString("QLineEdit { color:%1; font-size:12px; background:transparent; border:none; padding:0; }")
-            .arg(newCol.name()));
+        edit->setStyleSheet(QString("color:%1;").arg(newCol.name()));
 
         row->setProperty("_tag", newTag);
         m_activeTags.remove(oldTag);

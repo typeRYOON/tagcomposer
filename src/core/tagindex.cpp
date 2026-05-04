@@ -9,15 +9,13 @@ namespace core {
 
     int32_t TagIndex::getOrCreate(const QString& tag)
     {
-        static int32_t nextId{ 0 };
-
         const QString tag_norm{ normalizeTagInput(tag) };
         const auto it{ m_tagToId.find(tag_norm) };
 
         if (it != m_tagToId.end()) {
             return it.value();
         }
-        const int32_t id = nextId++;
+        const int32_t id = m_nextId++;
         m_tagToId[tag_norm] = id;
         m_idToTag[id]       = tag_norm;
 

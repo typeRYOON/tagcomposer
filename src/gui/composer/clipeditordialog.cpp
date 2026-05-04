@@ -85,7 +85,16 @@ public:
 
     QImage mask() const { return m_mask; }
 
-    void setTool(Tool t)            { m_tool = t; }
+    void setTool(Tool t) {
+        // Cancel any rect drag still in flight — user moved on to a different
+        // tool, the half-painted rectangle preview should disappear with them.
+        if (m_dragging) {
+            m_dragging    = false;
+            m_currentRect = QRect();
+            update();
+        }
+        m_tool = t;
+    }
     void setErase(bool e)           { m_erase = e; }
     void setBrushSize(int px)       { m_brushSize = qMax(1, px); }
     void setBucketTolerance(int t)  { m_tolerance = qMax(0, t); }

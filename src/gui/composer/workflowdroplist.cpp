@@ -14,22 +14,25 @@ WorkflowDropList::WorkflowDropList(QWidget* parent) : QListWidget(parent)
     setContextMenuPolicy(Qt::CustomContextMenu);
 }
 
+static bool hasJsonUrl(const QMimeData* md)
+{
+    if (!md->hasUrls()) return false;
+    for (const QUrl& url : md->urls())
+        if (url.toLocalFile().endsWith(".json", Qt::CaseInsensitive))
+            return true;
+    return false;
+}
+
 void WorkflowDropList::dragEnterEvent(QDragEnterEvent* e)
 {
-    if (e->mimeData()->hasUrls()) {
-        for (const QUrl& url : e->mimeData()->urls()) {
-            if (url.toLocalFile().endsWith(".json", Qt::CaseInsensitive)) {
-                e->acceptProposedAction();
-                return;
-            }
-        }
-    }
-    e->ignore();
+    if (hasJsonUrl(e->mimeData())) e->acceptProposedAction();
+    else                            e->ignore();
 }
 
 void WorkflowDropList::dragMoveEvent(QDragMoveEvent* e)
 {
-    e->acceptProposedAction();
+    if (hasJsonUrl(e->mimeData())) e->acceptProposedAction();
+    else                            e->ignore();
 }
 
 void WorkflowDropList::dropEvent(QDropEvent* e)

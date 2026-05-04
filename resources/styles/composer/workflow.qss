@@ -1,10 +1,8 @@
 /* ── Workflow sidebar (PromptComposerPage) ────────────────────────────────── */
 
+/* Section-label font (10px bold spaced) comes from app.qss. */
 #WfSidebarHeaderLabel {
     color: #333333;
-    font-size: 11px;
-    font-weight: bold;
-    letter-spacing: 1px;
 }
 
 #WfSidebarEditBtn {
@@ -166,51 +164,31 @@
     background: #2a0f0f;
 }
 
+/* Spinbox base + up/down stub structure come from app.qss. The control bar's
+   slightly raised bg (#1a1a1a) and faintly lighter border (#252525) override
+   the shared base, since this spin sits inside the floating control widget. */
 #ComposerCountSpin {
     background: #1a1a1a;
-    color: #aaaaaa;
-    border: 1px solid #252525;
-    border-radius: 3px;
+    border-color: #252525;
     padding: 2px 4px;
     font-size: 12px;
-    selection-background-color: #2a2a2a;
 }
 
 #ComposerCountSpin::up-button {
-    subcontrol-origin: border;
-    subcontrol-position: top right;
-    width: 14px;
-    background: #1e1e1e;
-    border: none;
-    border-left: 1px solid #252525;
+    border-left:   1px solid #252525;
     border-bottom: 1px solid #252525;
 }
 
 #ComposerCountSpin::down-button {
-    subcontrol-origin: border;
-    subcontrol-position: bottom right;
-    width: 14px;
-    background: #1e1e1e;
-    border: none;
     border-left: 1px solid #252525;
 }
 
-#ComposerCountSpin::up-button:hover,
-#ComposerCountSpin::down-button:hover {
-    background: #282828;
-}
-
+/* Subtle-button base in app.qss covers bg/color/border/radius + hover. The
+   border here is faintly darker (#1e1e1e) than the shared #222222 — keep
+   it because the copy button sits on the slightly raised control bar. */
 #ComposerCopyBtn {
-    background: #141414;
-    color: #555555;
-    border: 1px solid #1e1e1e;
-    border-radius: 3px;
+    border-color: #1e1e1e;
     padding: 3px 6px;
     font-size: 12px;
     text-align: left;
-}
-
-#ComposerCopyBtn:hover {
-    background: #1a1a1a;
-    color: #999999;
 }

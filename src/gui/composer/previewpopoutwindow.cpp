@@ -75,11 +75,17 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
             this, [this]() { loadNewestTempImage(); });
     connect(m_loadWatcher, &QFutureWatcher<QImage>::finished, this, [this]() {
         const QImage img = m_loadWatcher->result();
-        if (img.isNull()) return;
-        m_tempLabel->setSourcePixmap(QPixmap::fromImage(img));
-        m_tempLabel->setFilePath(m_lastTempPath);
-        m_tempLabel->show();
-        m_tempLabel->raise();
+        if (!img.isNull()) {
+            m_tempLabel->setSourcePixmap(QPixmap::fromImage(img));
+            m_tempLabel->setFilePath(m_lastTempPath);
+            m_tempLabel->show();
+            m_tempLabel->raise();
+        }
+        // A directoryChanged that fired while we were loading would have
+        // bailed out of loadNewestTempImage. Kick the debounce so we pick
+        // up whatever's newest now (the dedupe in loadNewestTempImage
+        // makes this a no-op if nothing changed).
+        m_debounce->start();
     });
 
     // Per-window shortcuts. Main window's shortcuts are also WindowShortcut,
@@ -212,9 +218,14 @@ void PreviewPopoutWindow::loadNewestTempImage()
     for (const QFileInfo& fi : files)
         if (fi.lastModified() > newest->lastModified()) newest = &fi;
 
+    const QString newestPath = newest->absoluteFilePath();
+    // Dedupe: nothing to do if we've already loaded this file (matters now
+    // that the load-finished handler re-arms the debounce as a coalescing
+    // backstop — without this, every directoryChanged would re-decode).
+    if (newestPath == m_lastTempPath) return;
     if (m_loadWatcher->isRunning()) return;
-    m_lastTempPath = newest->absoluteFilePath();
-    m_loadWatcher->setFuture(QtConcurrent::run([path = m_lastTempPath]() -> QImage {
+    m_lastTempPath = newestPath;
+    m_loadWatcher->setFuture(QtConcurrent::run([path = newestPath]() -> QImage {
         return QImage(path);
     }));
 }
