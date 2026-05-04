@@ -16,8 +16,7 @@
 namespace gui {
 
 SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
-    : QWidget(parent)
-    , m_settings(settings)
+    : QWidget(parent), m_settings(settings)
 {
     setObjectName("SettingsPage");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -97,8 +96,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     // so the hex string stays legible regardless of the chosen colour.
     auto applyTitleSwatch = [this]() {
         const QColor c(m_settings->tileTitleColor);
-        const bool dark = c.isValid() &&
-                          (0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue()) < 128;
+        const bool dark =
+            c.isValid() && (0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue()) < 128;
         m_tileTitleColor->setStyleSheet(
             QString("background-color: %1; color: %2; "
                     "border: 1px solid #2a2a2a; border-radius: 3px; "
@@ -108,56 +107,53 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     };
     applyTitleSwatch();
 
-    connect(m_tileTitleColor, &QPushButton::clicked, this,
-        [this, applyTitleSwatch]() {
-            // Embed Qt's built-in QColorDialog as a widget inside a
-            // ChromedDialog so the picker carries the same custom titlebar
-            // and resize behaviour as the rest of the app's modals.
-            const QColor initial(m_settings->tileTitleColor);
+    connect(m_tileTitleColor, &QPushButton::clicked, this, [this, applyTitleSwatch]() {
+        // Embed Qt's built-in QColorDialog as a widget inside a
+        // ChromedDialog so the picker carries the same custom titlebar
+        // and resize behaviour as the rest of the app's modals.
+        const QColor initial(m_settings->tileTitleColor);
 
-            ChromedDialog wrapper(this);
-            wrapper.setWindowTitle("Tile title colour");
+        ChromedDialog wrapper(this);
+        wrapper.setWindowTitle("Tile title colour");
 
-            auto* picker = new QColorDialog(
-                initial.isValid() ? initial : Qt::white, wrapper.contentArea());
-            picker->setOptions(QColorDialog::DontUseNativeDialog
-                             | QColorDialog::NoButtons);
-            picker->setWindowFlags(Qt::Widget);  // embed as child, not top-level
-            picker->setSizeGripEnabled(false);
+        auto* picker =
+            new QColorDialog(initial.isValid() ? initial : Qt::white, wrapper.contentArea());
+        picker->setOptions(QColorDialog::DontUseNativeDialog | QColorDialog::NoButtons);
+        picker->setWindowFlags(Qt::Widget); // embed as child, not top-level
+        picker->setSizeGripEnabled(false);
 
-            auto* btns = new QDialogButtonBox(
-                QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
-                wrapper.contentArea());
-            connect(btns, &QDialogButtonBox::accepted, &wrapper, &QDialog::accept);
-            connect(btns, &QDialogButtonBox::rejected, &wrapper, &QDialog::reject);
-            // Double-click on a swatch counts as confirmation, just like the
-            // native dialog.
-            connect(picker, &QColorDialog::colorSelected,
-                    &wrapper, [&wrapper](const QColor&) { wrapper.accept(); });
+        auto* btns = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                                          wrapper.contentArea());
+        connect(btns, &QDialogButtonBox::accepted, &wrapper, &QDialog::accept);
+        connect(btns, &QDialogButtonBox::rejected, &wrapper, &QDialog::reject);
+        // Double-click on a swatch counts as confirmation, just like the
+        // native dialog.
+        connect(picker, &QColorDialog::colorSelected, &wrapper,
+                [&wrapper](const QColor&) { wrapper.accept(); });
 
-            auto* layout = new QVBoxLayout(wrapper.contentArea());
-            layout->setContentsMargins(0, 0, 0, 0);
-            layout->setSpacing(8);
-            layout->addWidget(picker, 1);
-            layout->addWidget(btns);
+        auto* layout = new QVBoxLayout(wrapper.contentArea());
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(8);
+        layout->addWidget(picker, 1);
+        layout->addWidget(btns);
 
-            if (wrapper.exec() != QDialog::Accepted) return;
-            const QColor chosen = picker->currentColor();
-            if (!chosen.isValid()) return;
-            m_settings->tileTitleColor = chosen.name();
-            applyTitleSwatch();
-            emit settingsChanged();
-        });
+        if (wrapper.exec() != QDialog::Accepted) return;
+        const QColor chosen = picker->currentColor();
+        if (!chosen.isValid()) return;
+        m_settings->tileTitleColor = chosen.name();
+        applyTitleSwatch();
+        emit settingsChanged();
+    });
 
     tileGradGrid->addWidget(makeGradLabel("Tile gradient start (0–1)"), 0, 0);
-    tileGradGrid->addLayout(wrapLeft(m_tileGradStart),                  0, 1);
+    tileGradGrid->addLayout(wrapLeft(m_tileGradStart), 0, 1);
     tileGradGrid->addWidget(makeGradLabel("Tile gradient opacity (0–255)"), 1, 0);
-    tileGradGrid->addLayout(wrapLeft(m_tileGradAlpha),                  1, 1);
-    tileGradGrid->addWidget(makeGradLabel("Tile title colour"),         2, 0);
-    tileGradGrid->addLayout(wrapLeft(m_tileTitleColor),                 2, 1);
+    tileGradGrid->addLayout(wrapLeft(m_tileGradAlpha), 1, 1);
+    tileGradGrid->addWidget(makeGradLabel("Tile title colour"), 2, 0);
+    tileGradGrid->addLayout(wrapLeft(m_tileTitleColor), 2, 1);
 
-    auto* tileGradHint = new QLabel(
-        "Bottom fade and title text behind tile thumbnails. Restart to apply.");
+    auto* tileGradHint =
+        new QLabel("Bottom fade and title text behind tile thumbnails. Restart to apply.");
     tileGradHint->setObjectName("SettingsHintLabel");
     tileGradHint->setWordWrap(true);
 
@@ -191,9 +187,9 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     toggleRow->addWidget(m_enableComfyUi);
     toggleRow->addStretch();
 
-    m_statusDot  = new QLabel("●");
+    m_statusDot = new QLabel("●");
     m_statusText = new QLabel("disabled");
-    m_statusDot ->setObjectName("SettingsStatusDot");
+    m_statusDot->setObjectName("SettingsStatusDot");
     m_statusText->setObjectName("SettingsStatusText");
     toggleRow->addWidget(m_statusDot);
     toggleRow->addWidget(m_statusText);
@@ -275,7 +271,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
 
     m_inputFolder = new QLineEdit;
     m_inputFolder->setObjectName("SettingsInput");
-    m_inputFolder->setPlaceholderText("e.g. C:/ComfyUI/input  (optional - enables direct file copy)");
+    m_inputFolder->setPlaceholderText(
+        "e.g. C:/ComfyUI/input  (optional - enables direct file copy)");
     m_inputFolder->setText(settings->comfyUiInputFolder);
 
     auto* inputBrowseBtn = new QPushButton("Browse");
@@ -288,9 +285,9 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     inputRow->addWidget(m_inputFolder, 1);
     inputRow->addWidget(inputBrowseBtn);
 
-    auto* inputHint = new QLabel(
-        "Image-typed workflow vars upload to ComfyUI on each run. "
-        "Set this to ComfyUI's input/ folder to skip HTTP and copy directly.");
+    auto* inputHint =
+        new QLabel("Image-typed workflow vars upload to ComfyUI on each run. "
+                   "Set this to ComfyUI's input/ folder to skip HTTP and copy directly.");
     inputHint->setObjectName("SettingsHintLabel");
     inputHint->setWordWrap(true);
 
@@ -302,26 +299,26 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     sep->setFrameShape(QFrame::HLine);
     sep->setObjectName("SettingsSeparator");
 
-    detailLayout->addWidget(sep,                          0, 0, 1, 2);
-    detailLayout->addWidget(makeLabel("Server address"),   1, 0);
-    detailLayout->addWidget(m_serverAddress,               1, 1);
-    detailLayout->addWidget(makeLabel("API key"),          2, 0);
-    detailLayout->addWidget(m_apiKey,                     2, 1);
-    detailLayout->addWidget(makeLabel("Output folder"),    3, 0);
-    detailLayout->addLayout(outputRow,                     3, 1);
-    detailLayout->addWidget(outputHint,                    4, 1);
-    detailLayout->addWidget(makeLabel("Temp folder"),      5, 0);
-    detailLayout->addLayout(tempRow,                       5, 1);
-    detailLayout->addWidget(makeLabel("LoRA folder"),      6, 0);
-    detailLayout->addLayout(loraRow,                       6, 1);
-    detailLayout->addWidget(makeLabel("Input folder"),     7, 0);
-    detailLayout->addLayout(inputRow,                      7, 1);
-    detailLayout->addWidget(inputHint,                     8, 1);
+    detailLayout->addWidget(sep, 0, 0, 1, 2);
+    detailLayout->addWidget(makeLabel("Server address"), 1, 0);
+    detailLayout->addWidget(m_serverAddress, 1, 1);
+    detailLayout->addWidget(makeLabel("API key"), 2, 0);
+    detailLayout->addWidget(m_apiKey, 2, 1);
+    detailLayout->addWidget(makeLabel("Output folder"), 3, 0);
+    detailLayout->addLayout(outputRow, 3, 1);
+    detailLayout->addWidget(outputHint, 4, 1);
+    detailLayout->addWidget(makeLabel("Temp folder"), 5, 0);
+    detailLayout->addLayout(tempRow, 5, 1);
+    detailLayout->addWidget(makeLabel("LoRA folder"), 6, 0);
+    detailLayout->addLayout(loraRow, 6, 1);
+    detailLayout->addWidget(makeLabel("Input folder"), 7, 0);
+    detailLayout->addLayout(inputRow, 7, 1);
+    detailLayout->addWidget(inputHint, 8, 1);
     auto* btnRow = new QHBoxLayout;
     btnRow->setSpacing(8);
     btnRow->addWidget(connectBtn);
     btnRow->addStretch();
-    detailLayout->addLayout(btnRow,                        9, 1);
+    detailLayout->addLayout(btnRow, 9, 1);
 
     comfyLayout->addWidget(m_comfyDetails);
     bodyLayout->addWidget(comfyGroup);
@@ -362,20 +359,20 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     m_quickStyleFacet->setPlaceholderText("rstyle");
     m_quickStyleFacet->setText(settings->quickStyleFacet);
 
-    auto* facetsHint = new QLabel(
-        "Names of facets used by the composer's right-click \"Quick add\" actions.");
+    auto* facetsHint =
+        new QLabel("Names of facets used by the composer's right-click \"Quick add\" actions.");
     facetsHint->setObjectName("SettingsHintLabel");
     facetsHint->setWordWrap(true);
 
-    facetsLayout->addWidget(makeLabel("Quick character facet"),    0, 0);
-    facetsLayout->addWidget(m_quickCharFacet,                       0, 1);
-    facetsLayout->addWidget(makeLabel("Quick copyright facet"),    1, 0);
-    facetsLayout->addWidget(m_quickCopyFacet,                       1, 1);
+    facetsLayout->addWidget(makeLabel("Quick character facet"), 0, 0);
+    facetsLayout->addWidget(m_quickCharFacet, 0, 1);
+    facetsLayout->addWidget(makeLabel("Quick copyright facet"), 1, 0);
+    facetsLayout->addWidget(m_quickCopyFacet, 1, 1);
     facetsLayout->addWidget(makeLabel("Quick trigger word facet"), 2, 0);
-    facetsLayout->addWidget(m_quickTriggerFacet,                    2, 1);
-    facetsLayout->addWidget(makeLabel("Quick style facet"),        3, 0);
-    facetsLayout->addWidget(m_quickStyleFacet,                      3, 1);
-    facetsLayout->addWidget(facetsHint,                             4, 1);
+    facetsLayout->addWidget(m_quickTriggerFacet, 2, 1);
+    facetsLayout->addWidget(makeLabel("Quick style facet"), 3, 0);
+    facetsLayout->addWidget(m_quickStyleFacet, 3, 1);
+    facetsLayout->addWidget(facetsHint, 4, 1);
 
     bodyLayout->addWidget(facetsGroup);
     bodyLayout->addSpacing(24);
@@ -393,20 +390,20 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     dataLayout->setContentsMargins(16, 14, 16, 14);
     dataLayout->setSpacing(10);
 
-    auto* dataHint = new QLabel(
-        "Export selected entries (with referenced tag definitions) to a folder, "
-        "or import a previously-exported folder. Imports merge into your data; "
-        "duplicate entries are skipped, and tag-definition collisions are handled "
-        "per the option selected in the import dialog.");
+    auto* dataHint =
+        new QLabel("Export selected entries (with referenced tag definitions) to a folder, "
+                   "or import a previously-exported folder. Imports merge into your data; "
+                   "duplicate entries are skipped, and tag-definition collisions are handled "
+                   "per the option selected in the import dialog.");
     dataHint->setObjectName("SettingsHintLabel");
     dataHint->setWordWrap(true);
     dataLayout->addWidget(dataHint);
 
     auto* dataBtnRow = new QHBoxLayout;
-    auto* exportBtn  = new QPushButton("Export entries…");
+    auto* exportBtn = new QPushButton("Export entries…");
     exportBtn->setObjectName("SettingsLaunchBtn");
     exportBtn->setCursor(Qt::PointingHandCursor);
-    auto* importBtn  = new QPushButton("Import entries…");
+    auto* importBtn = new QPushButton("Import entries…");
     importBtn->setObjectName("SettingsLaunchBtn");
     importBtn->setCursor(Qt::PointingHandCursor);
     dataBtnRow->addWidget(exportBtn);
@@ -433,11 +430,11 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     inputsLayout->setContentsMargins(16, 14, 16, 14);
     inputsLayout->setSpacing(10);
 
-    auto* inputsHint = new QLabel(
-        "Workflow image inputs, painted masks, and rendered edit variants are "
-        "cached on disk. This removes any cache entry that no current workflow "
-        "variable references - useful after deleting workflows or replacing "
-        "image inputs.");
+    auto* inputsHint =
+        new QLabel("Workflow image inputs, painted masks, and rendered edit variants are "
+                   "cached on disk. This removes any cache entry that no current workflow "
+                   "variable references - useful after deleting workflows or replacing "
+                   "image inputs.");
     inputsHint->setObjectName("SettingsHintLabel");
     inputsHint->setWordWrap(true);
     inputsLayout->addWidget(inputsHint);
@@ -450,8 +447,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     inputsBtnRow->addStretch();
     inputsLayout->addLayout(inputsBtnRow);
 
-    connect(clearInputsBtn, &QPushButton::clicked,
-            this, &SettingsPage::clearUnusedInputsRequested);
+    connect(clearInputsBtn, &QPushButton::clicked, this, &SettingsPage::clearUnusedInputsRequested);
 
     bodyLayout->addWidget(inputsGroup);
     bodyLayout->addSpacing(24);
@@ -496,13 +492,12 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
 
     // Tile-gradient values are read once at startup by EntryView, so these
     // just persist to the settings file - they take effect on next launch.
-    connect(m_tileGradStart, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, [this](double v) {
-        m_settings->tileGradientStart = v;
-        emit settingsChanged();
-    });
-    connect(m_tileGradAlpha, QOverload<int>::of(&QSpinBox::valueChanged),
-            this, [this](int v) {
+    connect(m_tileGradStart, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            [this](double v) {
+                m_settings->tileGradientStart = v;
+                emit settingsChanged();
+            });
+    connect(m_tileGradAlpha, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
         m_settings->tileGradientAlpha = v;
         emit settingsChanged();
     });
@@ -528,16 +523,14 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
 
     connect(browseBtn, &QPushButton::clicked, this, [this]() {
         // Strip date-pattern tokens so we can navigate to a real path
-        const QString raw      = m_outputFolder->text().trimmed();
+        const QString raw = m_outputFolder->text().trimmed();
         const QString startDir = raw.section(QLatin1Char('{'), 0, 0).trimmed();
-        const QString dir = QFileDialog::getExistingDirectory(
-            this, "Select ComfyUI Output Folder", startDir);
+        const QString dir =
+            QFileDialog::getExistingDirectory(this, "Select ComfyUI Output Folder", startDir);
         if (dir.isEmpty()) return;
         // Append the date-pattern suffix the user had typed, if any
         const int bracePos = raw.indexOf(QLatin1Char('{'));
-        const QString newPath = bracePos >= 0
-            ? dir + "/" + raw.mid(bracePos)
-            : dir;
+        const QString newPath = bracePos >= 0 ? dir + "/" + raw.mid(bracePos) : dir;
         m_outputFolder->setText(newPath);
         m_settings->comfyUiOutputFolder = newPath;
         emit settingsChanged();
@@ -549,8 +542,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     });
 
     connect(tempBrowseBtn, &QPushButton::clicked, this, [this]() {
-        const QString dir = QFileDialog::getExistingDirectory(
-            this, "Select ComfyUI Temp Folder", m_tempFolder->text().trimmed());
+        const QString dir = QFileDialog::getExistingDirectory(this, "Select ComfyUI Temp Folder",
+                                                              m_tempFolder->text().trimmed());
         if (dir.isEmpty()) return;
         m_tempFolder->setText(dir);
         m_settings->comfyUiTempFolder = dir;
@@ -563,8 +556,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     });
 
     connect(loraBrowseBtn, &QPushButton::clicked, this, [this]() {
-        const QString dir = QFileDialog::getExistingDirectory(
-            this, "Select LoRA Base Folder", m_loraBaseDir->text().trimmed());
+        const QString dir = QFileDialog::getExistingDirectory(this, "Select LoRA Base Folder",
+                                                              m_loraBaseDir->text().trimmed());
         if (dir.isEmpty()) return;
         m_loraBaseDir->setText(dir);
         m_settings->loraBaseDir = dir;
@@ -577,8 +570,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     });
 
     connect(inputBrowseBtn, &QPushButton::clicked, this, [this]() {
-        const QString dir = QFileDialog::getExistingDirectory(
-            this, "Select ComfyUI Input Folder", m_inputFolder->text().trimmed());
+        const QString dir = QFileDialog::getExistingDirectory(this, "Select ComfyUI Input Folder",
+                                                              m_inputFolder->text().trimmed());
         if (dir.isEmpty()) return;
         m_inputFolder->setText(dir);
         m_settings->comfyUiInputFolder = dir;
@@ -607,10 +600,10 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
         emit settingsChanged();
     });
 
-    connect(connectBtn,  &QPushButton::clicked, this, &SettingsPage::reconnectRequested);
+    connect(connectBtn, &QPushButton::clicked, this, &SettingsPage::reconnectRequested);
 
-    connect(&utils::Logger::instance(), &utils::Logger::messageLogged,
-            this, &SettingsPage::appendLogMessage);
+    connect(&utils::Logger::instance(), &utils::Logger::messageLogged, this,
+            &SettingsPage::appendLogMessage);
 
     // Apply initial visibility
     onComfyToggled(settings->comfyUiEnabled);
@@ -628,10 +621,11 @@ void SettingsPage::onComfyToggled(bool enabled)
     m_comfyDetails->setVisible(enabled);
 
     if (!enabled) {
-        m_statusDot ->setProperty("status", "disabled");
+        m_statusDot->setProperty("status", "disabled");
         m_statusText->setText("disabled");
-    } else {
-        m_statusDot ->setProperty("status", "connecting");
+    }
+    else {
+        m_statusDot->setProperty("status", "connecting");
         m_statusText->setText("connecting…");
     }
     // Force style re-evaluation after property change
@@ -646,13 +640,15 @@ void SettingsPage::setComfyStatus(bool connected, const QString& error)
     if (!m_settings->comfyUiEnabled) return;
 
     if (!error.isEmpty()) {
-        m_statusDot ->setProperty("status", "error");
+        m_statusDot->setProperty("status", "error");
         m_statusText->setText(error);
-    } else if (connected) {
-        m_statusDot ->setProperty("status", "connected");
+    }
+    else if (connected) {
+        m_statusDot->setProperty("status", "connected");
         m_statusText->setText("connected");
-    } else {
-        m_statusDot ->setProperty("status", "disconnected");
+    }
+    else {
+        m_statusDot->setProperty("status", "disconnected");
         m_statusText->setText("disconnected");
     }
     m_statusDot->style()->unpolish(m_statusDot);

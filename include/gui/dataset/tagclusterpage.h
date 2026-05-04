@@ -20,7 +20,9 @@ class QNetworkAccessManager;
 class QJsonArray;
 class QTimer;
 
-namespace core { class FacetIndex; }
+namespace core {
+class FacetIndex;
+}
 
 namespace gui {
 
@@ -31,10 +33,8 @@ public:
 
     // Quick-facet menu wiring - same names AppMainWindow uses for the composer
     // and tile view. Empty string disables that quick-add entry.
-    void setQuickFacets(const QString& character,
-                        const QString& copyright,
-                        const QString& triggerWord,
-                        const QString& style);
+    void setQuickFacets(const QString& character, const QString& copyright,
+                        const QString& triggerWord, const QString& style);
 
 signals:
     void wikiRequested(const QString& tag);
@@ -48,67 +48,71 @@ private:
     core::FacetIndex* m_facets = nullptr;
 
     // ── Params (left panel) ──────────────────────────────────────────────────
-    QLineEdit*      m_tagInput;
-    QCheckBox*      m_soloCheck;
-    QSpinBox*       m_charPagesSpin;
-    QSpinBox*       m_globalPagesSpin;
-    QSlider*        m_minPmiSlider;
-    QLabel*         m_minPmiValueLbl;
-    QSpinBox*       m_minCountSpin;
-    QPushButton*    m_fetchBtn;
-    QPushButton*    m_clearCacheBtn;
+    QLineEdit* m_tagInput;
+    QCheckBox* m_soloCheck;
+    QSpinBox* m_charPagesSpin;
+    QSpinBox* m_globalPagesSpin;
+    QSlider* m_minPmiSlider;
+    QLabel* m_minPmiValueLbl;
+    QSpinBox* m_minCountSpin;
+    QPushButton* m_fetchBtn;
+    QPushButton* m_clearCacheBtn;
 
     // ── Filter editor ────────────────────────────────────────────────────────
-    QRadioButton*   m_blacklistRadio;
-    QRadioButton*   m_whitelistRadio;
+    QRadioButton* m_blacklistRadio;
+    QRadioButton* m_whitelistRadio;
     QPlainTextEdit* m_filterEdit;
-    QPushButton*    m_saveFilterBtn;
-    QLabel*         m_filterStatusLbl;
+    QPushButton* m_saveFilterBtn;
+    QLabel* m_filterStatusLbl;
 
     // ── Status (results panel) ───────────────────────────────────────────────
-    QLabel*       m_statusLabel;
+    QLabel* m_statusLabel;
     QProgressBar* m_progressBar;
 
     // ── Results (results panel) ──────────────────────────────────────────────
-    QWidget*        m_resultsContainer;
-    QVBoxLayout*    m_resultsLayout;
-    QWidget*        m_resultsScroll  = nullptr; // stacks with m_emptyState - only one visible
-    QWidget*        m_emptyState     = nullptr;
-    QLabel*         m_emptyStateLbl  = nullptr;
+    QWidget* m_resultsContainer;
+    QVBoxLayout* m_resultsLayout;
+    QWidget* m_resultsScroll = nullptr; // stacks with m_emptyState - only one visible
+    QWidget* m_emptyState = nullptr;
+    QLabel* m_emptyStateLbl = nullptr;
     QPlainTextEdit* m_copyEdit;
-    QPushButton*    m_copyBtn;
+    QPushButton* m_copyBtn;
 
     // ── Preview (right panel) ────────────────────────────────────────────────
-    QLabel*       m_previewImage;
-    QLabel*       m_previewStatus;
-    int           m_previewPostId = -1;
-    QString       m_previewForTag;
+    QLabel* m_previewImage;
+    QLabel* m_previewStatus;
+    int m_previewPostId = -1;
+    QString m_previewForTag;
 
     // ── Network ──────────────────────────────────────────────────────────────
     QNetworkAccessManager* m_nam;
 
     // ── Fetch state ──────────────────────────────────────────────────────────
     enum class Phase { Idle, GlobalFetch, CharFetch };
-    Phase   m_phase       = Phase::Idle;
-    int     m_currentPage = 0;
-    int     m_charPages   = 0;
-    int     m_globalPages = 0;
+    Phase m_phase = Phase::Idle;
+    int m_currentPage = 0;
+    int m_charPages = 0;
+    int m_globalPages = 0;
     QString m_targetTag;
-    bool    m_fetchedSolo = false;
+    bool m_fetchedSolo = false;
 
     // ── Cached counters (live for the session) ───────────────────────────────
     QHash<QString, int> m_globalCounter;
-    qint64              m_globalTotal = 0;
+    qint64 m_globalTotal = 0;
 
     QHash<QString, int> m_charCounter;
     QHash<QString, int> m_copyrightCounter;
-    qint64              m_charTotal = 0;
-    bool                m_charDataReady = false;
+    qint64 m_charTotal = 0;
+    bool m_charDataReady = false;
 
     // ── Result rows ──────────────────────────────────────────────────────────
-    struct ResultRow { QWidget* widget; QString tag; bool included; };
+    struct ResultRow {
+        QWidget* widget;
+        QString tag;
+        bool included;
+    };
     QList<ResultRow> m_rows;
-    QString          m_copyright;
+    QString m_copyright;
 
     // ── Quick-facet config (set by AppMainWindow) ────────────────────────────
     QString m_quickCharFacet;
@@ -124,22 +128,22 @@ private:
     void fetchNextPage();
     void processPage(const QJsonArray& posts);
     void onPhaseDone();
-    void recompute();          // re-applies filters/threshold to cached counters
-    void scheduleRecompute();  // collapses bursts of slider/edit changes
+    void recompute();         // re-applies filters/threshold to cached counters
+    void scheduleRecompute(); // collapses bursts of slider/edit changes
     void rebuildCopyString();
     QWidget* makeResultRow(const QString& tag, double pmi, int idx);
     void installRowContextMenu(QWidget* w, const QString& tag);
     void clearResultRows();
 
     // Filter persistence
-    void loadFilters();        // reads from data/system/cluster_filters.fct
-    void saveFilters();        // writes back; called explicitly via the button
+    void loadFilters(); // reads from data/system/cluster_filters.fct
+    void saveFilters(); // writes back; called explicitly via the button
     core::ClusterFilter buildFilterFromEditor() const;
 
     // Global cache (the only thing that persists across sessions)
-    bool    hasCachedGlobal() const;
-    void    loadGlobalCache();
-    void    saveGlobalCache();
+    bool hasCachedGlobal() const;
+    void loadGlobalCache();
+    void saveGlobalCache();
     QString cachePath() const;
 
     // Preview chain - mirrors FacetEditorPage's pattern (wiki → first post).
@@ -154,8 +158,8 @@ private:
     void setStatus(const QString& msg);
     void setProgress(int cur, int total);
     void setFetchRunning(bool on);
-    void markStaleIfFetched();  // called when +solo flips after a fetch
-    void setResultsEmpty(bool empty);  // toggles centered placeholder vs scroll
+    void markStaleIfFetched();        // called when +solo flips after a fetch
+    void setResultsEmpty(bool empty); // toggles centered placeholder vs scroll
 };
 
 } // namespace gui

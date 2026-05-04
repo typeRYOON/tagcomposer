@@ -19,8 +19,7 @@ void PromptComposerPage::saveSession(const QString& path) const
 
     QJsonObject weightsObj;
     for (auto it = m_tagWeights.constBegin(); it != m_tagWeights.constEnd(); ++it)
-        if (qAbs(it.value() - 1.0f) >= 0.001f)
-            weightsObj[it.key()] = double(it.value());
+        if (qAbs(it.value() - 1.0f) >= 0.001f) weightsObj[it.key()] = double(it.value());
 
     QJsonArray pushesArr;
     for (const core::EntryPush& ep : dumpActivePushes())
@@ -31,12 +30,13 @@ void PromptComposerPage::saveSession(const QString& path) const
         deactivatedArr.append(t);
 
     QJsonArray loraUuidsArr;
-    for (const QString& uuid : m_activeLoraUuids) loraUuidsArr.append(uuid);
+    for (const QString& uuid : m_activeLoraUuids)
+        loraUuidsArr.append(uuid);
 
     QJsonObject root;
-    root["activeTags"]      = tagsArr;
-    root["tagWeights"]      = weightsObj;
-    root["activePushes"]    = pushesArr;
+    root["activeTags"] = tagsArr;
+    root["tagWeights"] = weightsObj;
+    root["activePushes"] = pushesArr;
     root["deactivatedTags"] = deactivatedArr;
     root["activeLoraUuids"] = loraUuidsArr;
 
@@ -70,8 +70,7 @@ void PromptComposerPage::restoreSession(const QString& path)
         m_tagWeights[it.key()] = float(it.value().toDouble(1.0));
 
     for (const QJsonValue& v : root["deactivatedTags"].toArray())
-        if (const QString t = v.toString(); !t.isEmpty())
-            m_deactivatedTags.insert(t);
+        if (const QString t = v.toString(); !t.isEmpty()) m_deactivatedTags.insert(t);
 
     QList<core::EntryPush> pushes;
     for (const QJsonValue& v : root["activePushes"].toArray())

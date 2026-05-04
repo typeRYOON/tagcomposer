@@ -42,9 +42,12 @@ void NavButton::paintEvent(QPaintEvent* e)
 
     // Tint colour based on state
     QColor tint;
-    if      (isChecked())       tint = QColor(0xff, 0xff, 0xff);
-    else if (underMouse())      tint = QColor(0xcc, 0xcc, 0xcc);
-    else                        tint = QColor(0x66, 0x66, 0x66);
+    if (isChecked())
+        tint = QColor(0xff, 0xff, 0xff);
+    else if (underMouse())
+        tint = QColor(0xcc, 0xcc, 0xcc);
+    else
+        tint = QColor(0x66, 0x66, 0x66);
 
     // Re-colour: keep the icon's alpha channel, replace RGB with tint
     QImage img = m_navIcon.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
@@ -62,8 +65,7 @@ void NavButton::paintEvent(QPaintEvent* e)
 }
 
 
-NavBar::NavBar(QWidget* tooltipParent, QWidget* parent)
-    : QWidget(parent)
+NavBar::NavBar(QWidget* tooltipParent, QWidget* parent) : QWidget(parent)
 {
     setObjectName("NavBar");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -90,11 +92,10 @@ NavBar::NavBar(QWidget* tooltipParent, QWidget* parent)
         group->addButton(btn);
         m_buttons.append(btn);
         m_pageButtonMap[pageIdx] = btn;
-        connect(btn, &NavButton::hovered,   this, &NavBar::showTooltip);
+        connect(btn, &NavButton::hovered, this, &NavBar::showTooltip);
         connect(btn, &NavButton::unhovered, this, &NavBar::hideTooltip);
-        connect(btn, &QPushButton::clicked, this, [this, pageIdx]() {
-            emit pageRequested(pageIdx);
-        });
+        connect(btn, &QPushButton::clicked, this,
+                [this, pageIdx]() { emit pageRequested(pageIdx); });
         if (!iconPath.isEmpty()) {
             QPixmap px(iconPath);
             if (!px.isNull()) btn->setNavIcon(px);
@@ -102,18 +103,18 @@ NavBar::NavBar(QWidget* tooltipParent, QWidget* parent)
         return btn;
     };
 
-    addButton(Page::Home,           "Home",            ":/icons/nav_home.png"    )->setChecked(true);
-    addButton(Page::EntryViewer,    "Entry Viewer",    ":/icons/nav_tiles.png"   );
-    addButton(Page::TagComposer,    "Tag Composer",    ":/icons/nav_composer.png");
-    addButton(Page::FacetEditor,    "Facet Editor",    ":/icons/nav_facets.png"  );
+    addButton(Page::Home, "Home", ":/icons/nav_home.png")->setChecked(true);
+    addButton(Page::EntryViewer, "Entry Viewer", ":/icons/nav_tiles.png");
+    addButton(Page::TagComposer, "Tag Composer", ":/icons/nav_composer.png");
+    addButton(Page::FacetEditor, "Facet Editor", ":/icons/nav_facets.png");
     addButton(Page::WorkflowEditor, "Workflow Editor", ":/icons/nav_workflow.png");
     // Reuses nav_tiles.png until a dedicated nav_output.png ships - drop one
     // into resources/icons/, register it in resources.qrc, and update this path.
-    addButton(Page::OutputViewer,   "Output Viewer",   ":/icons/nav_tiles.png"   );
-    addButton(Page::DatasetHelpers, "Dataset Helpers", ":/icons/nav_dataset.png" );
-    addButton(Page::DanbooruWiki,   "Danbooru Wiki",   ":/icons/nav_wiki.png"    );
+    addButton(Page::OutputViewer, "Output Viewer", ":/icons/nav_tiles.png");
+    addButton(Page::DatasetHelpers, "Dataset Helpers", ":/icons/nav_dataset.png");
+    addButton(Page::DanbooruWiki, "Danbooru Wiki", ":/icons/nav_wiki.png");
     layout->addStretch();
-    addButton(Page::Settings,       "Settings",        ":/icons/nav_settings.png");
+    addButton(Page::Settings, "Settings", ":/icons/nav_settings.png");
 }
 
 void NavBar::showTooltip(const QString& text, QPoint globalPos)
@@ -135,8 +136,7 @@ void NavBar::hideTooltip()
 
 void NavBar::setCurrentPage(int index)
 {
-    if (auto* btn = m_pageButtonMap.value(index, nullptr))
-        btn->setChecked(true);
+    if (auto* btn = m_pageButtonMap.value(index, nullptr)) btn->setChecked(true);
 }
 
 } // namespace gui

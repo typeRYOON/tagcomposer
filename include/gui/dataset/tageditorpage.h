@@ -16,8 +16,12 @@ class QPlainTextEdit;
 class QLabel;
 class QTimer;
 
-namespace utils { struct AppSettings; }
-namespace core  { class DanbooruIndex; }
+namespace utils {
+struct AppSettings;
+}
+namespace core {
+class DanbooruIndex;
+}
 
 namespace gui {
 
@@ -52,9 +56,8 @@ private:
 class TagEditorPage : public QWidget {
     Q_OBJECT
 public:
-    TagEditorPage(core::DanbooruIndex* danbooruIndex,
-                  utils::AppSettings*  settings,
-                  QWidget*             parent = nullptr);
+    TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSettings* settings,
+                  QWidget* parent = nullptr);
     ~TagEditorPage() override;
 
     // Public entry point used by the AutoTag → Tag Editor handoff.
@@ -74,46 +77,46 @@ protected:
 
 private:
     core::DanbooruIndex* m_danbooruIndex = nullptr;
-    utils::AppSettings*  m_settings      = nullptr;
+    utils::AppSettings* m_settings = nullptr;
 
     // ── Left column (folder + navigation) ───────────────────────────────────
-    QLineEdit*    m_folderEdit     = nullptr;
-    QPushButton*  m_browseBtn      = nullptr;
-    QCheckBox*    m_recursiveCheck = nullptr;
-    QLabel*       m_positionLbl    = nullptr;
-    QPushButton*  m_navFirstBtn    = nullptr;
-    QPushButton*  m_navPrev10Btn   = nullptr;
-    QPushButton*  m_navPrevBtn     = nullptr;
-    QPushButton*  m_navNextBtn     = nullptr;
-    QPushButton*  m_navNext10Btn   = nullptr;
-    QPushButton*  m_navLastBtn     = nullptr;
-    QPushButton*  m_deleteBtn      = nullptr;
-    QPushButton*  m_sendToBatchBtn = nullptr;
+    QLineEdit* m_folderEdit = nullptr;
+    QPushButton* m_browseBtn = nullptr;
+    QCheckBox* m_recursiveCheck = nullptr;
+    QLabel* m_positionLbl = nullptr;
+    QPushButton* m_navFirstBtn = nullptr;
+    QPushButton* m_navPrev10Btn = nullptr;
+    QPushButton* m_navPrevBtn = nullptr;
+    QPushButton* m_navNextBtn = nullptr;
+    QPushButton* m_navNext10Btn = nullptr;
+    QPushButton* m_navLastBtn = nullptr;
+    QPushButton* m_deleteBtn = nullptr;
+    QPushButton* m_sendToBatchBtn = nullptr;
 
     // ── Middle column (large clickable preview) ─────────────────────────────
-    QLabel*       m_focusImage     = nullptr;
-    QLabel*       m_imageNameLbl   = nullptr;  // sits in the IMAGE section header
+    QLabel* m_focusImage = nullptr;
+    QLabel* m_imageNameLbl = nullptr; // sits in the IMAGE section header
     // Source pixmap at native resolution. The label's displayed pixmap is
     // scaled from this on every load + every resizeEvent so the preview
     // grows/shrinks with the window.
-    QPixmap       m_focusPixmapSrc;
+    QPixmap m_focusPixmapSrc;
 
     // ── Right column (search bar + editor + highlight) ──────────────────────
-    TagSearchBar*    m_tagSearchBar = nullptr;
-    QPlainTextEdit*  m_tagEdit      = nullptr;
-    QLineEdit*       m_highlightEdit= nullptr;
-    QLabel*          m_editStatus   = nullptr;
+    TagSearchBar* m_tagSearchBar = nullptr;
+    QPlainTextEdit* m_tagEdit = nullptr;
+    QLineEdit* m_highlightEdit = nullptr;
+    QLabel* m_editStatus = nullptr;
 
     // ── State ───────────────────────────────────────────────────────────────
-    QStringList           m_images;          // absolute paths, alphabetical
-    int                   m_currentIndex = -1;
-    QString               m_currentImagePath;     // absolute (== m_images[m_currentIndex])
-    QString               m_currentTxtPath;       // absolute
-    QTimer*               m_saveTimer    = nullptr;
-    TagSearchHighlighter* m_highlighter  = nullptr;
+    QStringList m_images; // absolute paths, alphabetical
+    int m_currentIndex = -1;
+    QString m_currentImagePath; // absolute (== m_images[m_currentIndex])
+    QString m_currentTxtPath;   // absolute
+    QTimer* m_saveTimer = nullptr;
+    TagSearchHighlighter* m_highlighter = nullptr;
     // Active tags in canonical (underscore) form, derived from the editor
     // text. Passed to the TagSearchBar so it can flag duplicates.
-    QSet<QString>         m_activeCanonical;
+    QSet<QString> m_activeCanonical;
 
     void rescan();
     void jumpTo(int newIndex);

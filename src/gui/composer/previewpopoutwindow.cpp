@@ -28,18 +28,15 @@ using gui::framelesschrome::kResizeBorder;
 namespace gui {
 
 PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
-    : QWidget(parent,
-              Qt::Window | Qt::FramelessWindowHint
-              | Qt::WindowMinimizeButtonHint
-              | Qt::WindowMaximizeButtonHint
-              | Qt::WindowCloseButtonHint)
+    : QWidget(parent, Qt::Window | Qt::FramelessWindowHint | Qt::WindowMinimizeButtonHint |
+                          Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint)
 {
     setObjectName("PreviewPopout");
     setWindowTitle("Preview");
     resize(900, 700);
     setMinimumSize(400, 300);
     setAttribute(Qt::WA_StyledBackground);
-    setWindowOpacity(0.0);  // fade in on first showEvent
+    setWindowOpacity(0.0); // fade in on first showEvent
 
     m_imageLabel = new ScaledImageLabel(this);
 
@@ -63,16 +60,15 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
     m_tempLabel->setObjectName("PopoutTempLabel");
     m_tempLabel->hide();
 
-    m_watcher     = new QFileSystemWatcher(this);
-    m_debounce    = new QTimer(this);
+    m_watcher = new QFileSystemWatcher(this);
+    m_debounce = new QTimer(this);
     m_debounce->setSingleShot(true);
     m_debounce->setInterval(300);
     m_loadWatcher = new QFutureWatcher<QImage>(this);
 
-    connect(m_watcher,  &QFileSystemWatcher::directoryChanged,
-            this, [this](const QString&) { m_debounce->start(); });
-    connect(m_debounce, &QTimer::timeout,
-            this, [this]() { loadNewestTempImage(); });
+    connect(m_watcher, &QFileSystemWatcher::directoryChanged, this,
+            [this](const QString&) { m_debounce->start(); });
+    connect(m_debounce, &QTimer::timeout, this, [this]() { loadNewestTempImage(); });
     connect(m_loadWatcher, &QFutureWatcher<QImage>::finished, this, [this]() {
         const QImage img = m_loadWatcher->result();
         if (!img.isNull()) {
@@ -99,26 +95,26 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
     };
 
     addShortcut("F11", [this]() {
-        auto* anim = utils::propertyAnimate(this, "windowOpacity",
-            windowOpacity(), 0.0, 200, QEasingCurve::InOutSine);
+        auto* anim = utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 0.0, 200,
+                                            QEasingCurve::InOutSine);
         connect(anim, &QPropertyAnimation::finished, this, [this]() {
-            if (isFullScreen()) showNormal();
-            else                showFullScreen();
-            utils::propertyAnimate(this, "windowOpacity",
-                windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+            if (isFullScreen())
+                showNormal();
+            else
+                showFullScreen();
+            utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 1.0, 200,
+                                   QEasingCurve::InOutSine);
         });
     });
-    addShortcut("Shift+E",     [this]() { emit runRequested(); });
-    addShortcut("Shift+R",     [this]() { emit interruptRequested(); });
+    addShortcut("Shift+E", [this]() { emit runRequested(); });
+    addShortcut("Shift+R", [this]() { emit interruptRequested(); });
     addShortcut("Shift+Alt+R", [this]() { emit clearPendingRequested(); });
-    addShortcut("Ctrl+W",      [this]() { close(); });
-    addShortcut("Ctrl+H",      [this]() {
+    addShortcut("Ctrl+W", [this]() { close(); });
+    addShortcut("Ctrl+H", [this]() {
         if (windowState() & Qt::WindowMinimized) return;
-        auto* anim = utils::propertyAnimate(this, "windowOpacity",
-            windowOpacity(), 0.0, 200, QEasingCurve::InOutSine);
-        connect(anim, &QPropertyAnimation::finished, this, [this]() {
-            showMinimized();
-        });
+        auto* anim = utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 0.0, 200,
+                                            QEasingCurve::InOutSine);
+        connect(anim, &QPropertyAnimation::finished, this, [this]() { showMinimized(); });
     });
 }
 
@@ -130,11 +126,9 @@ void PreviewPopoutWindow::setImage(const QPixmap& pix)
 void PreviewPopoutWindow::setTempFolder(const QString& folder)
 {
     if (m_tempFolder == folder) return;
-    if (!m_watcher->directories().isEmpty())
-        m_watcher->removePaths(m_watcher->directories());
+    if (!m_watcher->directories().isEmpty()) m_watcher->removePaths(m_watcher->directories());
     m_tempFolder = folder;
-    if (!folder.isEmpty() && QDir(folder).exists())
-        m_watcher->addPath(folder);
+    if (!folder.isEmpty() && QDir(folder).exists()) m_watcher->addPath(folder);
 }
 
 void PreviewPopoutWindow::resizeEvent(QResizeEvent* e)
@@ -145,8 +139,7 @@ void PreviewPopoutWindow::resizeEvent(QResizeEvent* e)
     m_tempLabel->setFixedSize(side, side);
     // Bottom-left of the visible content area. Inset by kResizeBorder so the
     // label doesn't sit on top of the cosmetic frame border.
-    m_tempLabel->move(margin + kResizeBorder,
-                      height() - side - margin - kResizeBorder);
+    m_tempLabel->move(margin + kResizeBorder, height() - side - margin - kResizeBorder);
     m_tempLabel->raise();
 }
 
@@ -155,8 +148,8 @@ void PreviewPopoutWindow::showEvent(QShowEvent* e)
     QWidget::showEvent(e);
     loadNewestTempImage();
     if (windowOpacity() < 0.99) {
-        utils::propertyAnimate(this, "windowOpacity",
-                               windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+        utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 1.0, 200,
+                               QEasingCurve::InOutSine);
     }
 }
 
@@ -164,12 +157,12 @@ void PreviewPopoutWindow::keyPressEvent(QKeyEvent* e)
 {
     // Esc only fires here if no focused child consumed it first.
     if (e->key() == Qt::Key_Escape && isFullScreen()) {
-        auto* anim = utils::propertyAnimate(this, "windowOpacity",
-            windowOpacity(), 0.0, 200, QEasingCurve::InOutSine);
+        auto* anim = utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 0.0, 200,
+                                            QEasingCurve::InOutSine);
         connect(anim, &QPropertyAnimation::finished, this, [this]() {
             showNormal();
-            utils::propertyAnimate(this, "windowOpacity",
-                windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+            utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 1.0, 200,
+                                   QEasingCurve::InOutSine);
         });
         e->accept();
         return;
@@ -182,11 +175,11 @@ void PreviewPopoutWindow::changeEvent(QEvent* e)
     QWidget::changeEvent(e);
     if (e->type() != QEvent::WindowStateChange) return;
     auto* ev = static_cast<QWindowStateChangeEvent*>(e);
-    const bool wasMinimized = (ev->oldState()  & Qt::WindowMinimized);
-    const bool isMinimized  = (windowState()   & Qt::WindowMinimized);
+    const bool wasMinimized = (ev->oldState() & Qt::WindowMinimized);
+    const bool isMinimized = (windowState() & Qt::WindowMinimized);
     if (wasMinimized && !isMinimized && windowOpacity() < 0.99) {
-        utils::propertyAnimate(this, "windowOpacity",
-            windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+        utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 1.0, 200,
+                               QEasingCurve::InOutSine);
     }
 
     if (m_chrome) m_chrome->onWindowStateChanged();
@@ -202,8 +195,8 @@ void PreviewPopoutWindow::closeEvent(QCloseEvent* e)
     }
     e->ignore();
     m_isClosing = true;
-    auto* anim = utils::propertyAnimate(this, "windowOpacity",
-                                        windowOpacity(), 0.0, 200, QEasingCurve::InOutSine);
+    auto* anim = utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 0.0, 200,
+                                        QEasingCurve::InOutSine);
     connect(anim, &QPropertyAnimation::finished, this, [this]() { close(); });
 }
 
@@ -225,9 +218,8 @@ void PreviewPopoutWindow::loadNewestTempImage()
     if (newestPath == m_lastTempPath) return;
     if (m_loadWatcher->isRunning()) return;
     m_lastTempPath = newestPath;
-    m_loadWatcher->setFuture(QtConcurrent::run([path = newestPath]() -> QImage {
-        return QImage(path);
-    }));
+    m_loadWatcher->setFuture(
+        QtConcurrent::run([path = newestPath]() -> QImage { return QImage(path); }));
 }
 
 } // namespace gui

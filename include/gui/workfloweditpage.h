@@ -44,34 +44,34 @@ public slots:
     void setBatchResult(const QString& message);
 
 private:
-    void   rebuildVarList();
+    void rebuildVarList();
     QFrame* makeVarCard(int index);
-    void   rebuildLoraList();
+    void rebuildLoraList();
     QFrame* makeLoraCard(int index);
-    void   addVariable(core::WorkflowVarType type);
-    void   removeVariable(int index);
-    void   save();
+    void addVariable(core::WorkflowVarType type);
+    void removeVariable(int index);
+    void save();
 
-    core::WorkflowManager*    m_wm         = nullptr;
-    core::EntryModel*         m_entryModel = nullptr;
+    core::WorkflowManager* m_wm = nullptr;
+    core::EntryModel* m_entryModel = nullptr;
     core::WorkflowInputCache* m_inputCache = nullptr;
-    QString                   m_savePath;
+    QString m_savePath;
     QList<core::LoraConfig> m_loraStack;
 
-    QLabel*      m_titleLabel    = nullptr;
-    QPushButton* m_addBtn        = nullptr;
-    QWidget*     m_varContainer  = nullptr;
-    QVBoxLayout* m_varLayout     = nullptr;
+    QLabel* m_titleLabel = nullptr;
+    QPushButton* m_addBtn = nullptr;
+    QWidget* m_varContainer = nullptr;
+    QVBoxLayout* m_varLayout = nullptr;
 
-    QLabel*      m_loraSubtitle  = nullptr;
-    QWidget*     m_loraContainer = nullptr;
-    QVBoxLayout* m_loraLayout    = nullptr;
+    QLabel* m_loraSubtitle = nullptr;
+    QWidget* m_loraContainer = nullptr;
+    QVBoxLayout* m_loraLayout = nullptr;
 
     // Batch column
-    QLabel*      m_batchStatus      = nullptr;
-    QLabel*      m_batchCountLabel  = nullptr;
+    QLabel* m_batchStatus = nullptr;
+    QLabel* m_batchCountLabel = nullptr;
     QListWidget* m_batchResultsList = nullptr;
-    QTimer*      m_batchQueryDebounce = nullptr;
+    QTimer* m_batchQueryDebounce = nullptr;
 };
 
 } // namespace gui

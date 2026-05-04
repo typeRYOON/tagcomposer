@@ -5,7 +5,7 @@
 namespace core {
 
 struct TagGroup {
-    QString        name;
+    QString name;
     QList<QString> facets; // tag goes in this group if it has ALL of these facets
 };
 

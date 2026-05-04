@@ -40,8 +40,8 @@ protected:
     void showEvent(QShowEvent* event) override;
 
 private:
-    WindowChrome* m_chrome    = nullptr;
-    bool          m_isClosing = false;
+    WindowChrome* m_chrome = nullptr;
+    bool m_isClosing = false;
 };
 
 } // namespace gui

@@ -36,7 +36,7 @@ void ClickableLabel::resizeEvent(QResizeEvent* e)
 void ClickableLabel::mousePressEvent(QMouseEvent* e)
 {
     if (e->button() == Qt::LeftButton) {
-        m_pressPos     = e->pos();
+        m_pressPos = e->pos();
         m_dragInFlight = false;
     }
     QLabel::mousePressEvent(e);
@@ -44,26 +44,23 @@ void ClickableLabel::mousePressEvent(QMouseEvent* e)
 
 void ClickableLabel::mouseMoveEvent(QMouseEvent* e)
 {
-    if (m_dragInFlight || m_path.isEmpty()
-        || !(e->buttons() & Qt::LeftButton)) {
+    if (m_dragInFlight || m_path.isEmpty() || !(e->buttons() & Qt::LeftButton)) {
         QLabel::mouseMoveEvent(e);
         return;
     }
-    if ((e->pos() - m_pressPos).manhattanLength()
-        < QApplication::startDragDistance()) {
+    if ((e->pos() - m_pressPos).manhattanLength() < QApplication::startDragDistance()) {
         QLabel::mouseMoveEvent(e);
         return;
     }
 
     m_dragInFlight = true;
     auto* mime = new QMimeData;
-    mime->setUrls({ QUrl::fromLocalFile(m_path) });
+    mime->setUrls({QUrl::fromLocalFile(m_path)});
 
     auto* drag = new QDrag(this);
     drag->setMimeData(mime);
     if (!m_src.isNull()) {
-        const QPixmap thumb = m_src.scaled(
-            160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        const QPixmap thumb = m_src.scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation);
         drag->setPixmap(thumb);
         drag->setHotSpot(QPoint(thumb.width() / 2, thumb.height() / 2));
     }
@@ -74,10 +71,8 @@ void ClickableLabel::mouseReleaseEvent(QMouseEvent* e)
 {
     // Suppress the click-open when a drag was just started; otherwise
     // releasing inside the label after a quick click opens the OS viewer.
-    if (e->button() == Qt::LeftButton
-        && !m_dragInFlight
-        && !m_path.isEmpty()
-        && rect().contains(e->pos())) {
+    if (e->button() == Qt::LeftButton && !m_dragInFlight && !m_path.isEmpty() &&
+        rect().contains(e->pos())) {
         QDesktopServices::openUrl(QUrl::fromLocalFile(m_path));
     }
     m_dragInFlight = false;

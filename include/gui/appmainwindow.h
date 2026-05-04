@@ -19,7 +19,9 @@
 #include <functional>
 #include <memory>
 
-namespace core { class UpdateChecker; }
+namespace core {
+class UpdateChecker;
+}
 
 namespace gui {
 class HomePage;
@@ -42,10 +44,10 @@ public:
     explicit AppMainWindow(QWidget* parent = nullptr);
     ~AppMainWindow() = default;
 
-    AppMainWindow(const AppMainWindow&)            = delete;
+    AppMainWindow(const AppMainWindow&) = delete;
     AppMainWindow& operator=(const AppMainWindow&) = delete;
-    AppMainWindow(AppMainWindow&&)                 = delete;
-    AppMainWindow& operator=(AppMainWindow&&)      = delete;
+    AppMainWindow(AppMainWindow&&) = delete;
+    AppMainWindow& operator=(AppMainWindow&&) = delete;
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -78,58 +80,58 @@ private:
     // from the temp folder and pin it as the inline preview (so the preview
     // shows the actual decoded output, not the last latent step).
     void loadFinalPreview();
-    bool m_pendingFinalLoad   = false;
-    int  m_lastQueueCount     = 0;
+    bool m_pendingFinalLoad = false;
+    int m_lastQueueCount = 0;
     // Set on interrupt; consumed by the next queue-decrement event to
     // suppress the final-image load (the just-killed prompt's output either
     // doesn't exist or is stale).
-    bool m_skipNextFinalLoad  = false;
+    bool m_skipNextFinalLoad = false;
     // Set on clearPending; suppresses the next queue-decrement final load
     // (which is the cleared-pending drop, not a finished prompt) but leaves
     // m_pendingFinalLoad alone so the still-running prompt still loads when
     // it actually finishes.
     bool m_skipFinalOnPendingClear = false;
 
-    core::EntryModel*   m_entryModel;
-    QStackedWidget*      m_pages;
+    core::EntryModel* m_entryModel;
+    QStackedWidget* m_pages;
 
-    gui::HomePage*            m_homePage           = nullptr;
-    core::UpdateChecker*      m_updateChecker      = nullptr;
-    gui::TileViewPage*        m_tileViewPage       = nullptr;
-    gui::PromptComposerPage*  m_composerPage       = nullptr;
-    gui::FacetEditorPage*     m_facetEditorPage    = nullptr;
-    gui::TagWikiPage*         m_wikiPage           = nullptr;
-    gui::SettingsPage*        m_settingsPage       = nullptr;
-    gui::WorkflowEditPage*    m_workflowEditPage   = nullptr;
-    gui::OutputViewerPage*    m_outputViewerPage   = nullptr;
-    gui::DatasetHelpersPage*  m_datasetHelpersPage = nullptr;
-    gui::StatusBar*           m_statusBar          = nullptr;
-    gui::DanmakuOverlay*      m_danmakuOverlay     = nullptr;
-    gui::WindowChrome*        m_chrome             = nullptr;
+    gui::HomePage* m_homePage = nullptr;
+    core::UpdateChecker* m_updateChecker = nullptr;
+    gui::TileViewPage* m_tileViewPage = nullptr;
+    gui::PromptComposerPage* m_composerPage = nullptr;
+    gui::FacetEditorPage* m_facetEditorPage = nullptr;
+    gui::TagWikiPage* m_wikiPage = nullptr;
+    gui::SettingsPage* m_settingsPage = nullptr;
+    gui::WorkflowEditPage* m_workflowEditPage = nullptr;
+    gui::OutputViewerPage* m_outputViewerPage = nullptr;
+    gui::DatasetHelpersPage* m_datasetHelpersPage = nullptr;
+    gui::StatusBar* m_statusBar = nullptr;
+    gui::DanmakuOverlay* m_danmakuOverlay = nullptr;
+    gui::WindowChrome* m_chrome = nullptr;
 
-    core::DanbooruIndex*      m_danbooruIndex = nullptr;
-    core::ComfyUiClient*      m_comfyClient   = nullptr;
-    core::WorkflowInputCache* m_inputCache    = nullptr;
-    QSet<QString>             m_uploadedThisSession;
+    core::DanbooruIndex* m_danbooruIndex = nullptr;
+    core::ComfyUiClient* m_comfyClient = nullptr;
+    core::WorkflowInputCache* m_inputCache = nullptr;
+    QSet<QString> m_uploadedThisSession;
 
     // Last connection-relevant comfy values that applyComfySettings actually
     // reconnected on. Compared against m_settings on every settingsChanged
     // emit so unrelated edits (tile gradient, danmaku toggle, …) don't bounce
     // the WebSocket and flicker the connect indicator.
-    bool    m_lastComfyEnabled = false;
+    bool m_lastComfyEnabled = false;
     QString m_lastComfyHost;
     QString m_lastComfyApiKey;
 
     utils::AppSettings m_settings;
 
     QList<core::LoraConfig> m_activeLoraStack;
-    QList<QString>          m_activeLoraUuids;
+    QList<QString> m_activeLoraUuids;
 
     // Pipeline stack (value types stored here; pipeline holds pointers to them)
-    core::FacetIndex      m_facetIndex;
-    core::RuleEngine      m_ruleEngine;
-    core::TagGroupIndex   m_tagGroupIndex;
-    core::VariableIndex   m_varIndex;
+    core::FacetIndex m_facetIndex;
+    core::RuleEngine m_ruleEngine;
+    core::TagGroupIndex m_tagGroupIndex;
+    core::VariableIndex m_varIndex;
     core::WorkflowManager m_workflowManager;
     core::PromptPipeline* m_pipeline = nullptr;
 
@@ -138,4 +140,4 @@ private:
     std::unique_ptr<core::AutoTaggerLibrary> m_taggerLibrary;
 };
 
-}
+} // namespace gui

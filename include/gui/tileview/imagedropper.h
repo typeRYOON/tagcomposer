@@ -24,7 +24,7 @@ protected:
 private:
     QPixmap m_pixmap;
     QString m_path;
-    bool    m_dragOver = false;
+    bool m_dragOver = false;
 };
 
 } // namespace gui

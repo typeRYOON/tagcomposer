@@ -33,12 +33,12 @@ private:
     void toggleFullScreen();
     void refreshTitle();
 
-    QLabel*      m_appIcon  = nullptr;
-    QLabel*      m_title    = nullptr;
-    QPushButton* m_minBtn   = nullptr;
-    QPushButton* m_maxBtn   = nullptr;
+    QLabel* m_appIcon = nullptr;
+    QLabel* m_title = nullptr;
+    QPushButton* m_minBtn = nullptr;
+    QPushButton* m_maxBtn = nullptr;
     QPushButton* m_closeBtn = nullptr;
-    QWidget*     m_watchedWindow = nullptr;
+    QWidget* m_watchedWindow = nullptr;
 };
 
 } // namespace gui

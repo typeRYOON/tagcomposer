@@ -32,12 +32,12 @@
 namespace gui {
 
 namespace {
-constexpr int kPanelWidth        = 380;
+constexpr int kPanelWidth = 380;
 constexpr int kPreviewPanelWidth = 420;
 // Folder rows: line-edit and the "…" button share this height so they
 // align cleanly. The #SearchBar QSS uses font-size 16 + padding 6+6 → the
 // natural height is ~40 px; anything shorter clips descenders ('g', 'y').
-constexpr int kFolderRowHeight   = 40;
+constexpr int kFolderRowHeight = 40;
 
 // Slider stores integer hundredths of the threshold (0.00 – 1.00).
 constexpr int kThresholdMin = 0;
@@ -46,8 +46,7 @@ constexpr int kThresholdMax = 100;
 QPixmap roundedScaled(const QPixmap& src, int maxW, int maxH, qreal radius)
 {
     if (src.isNull()) return {};
-    const QPixmap scaled = src.scaled(maxW, maxH,
-        Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    const QPixmap scaled = src.scaled(maxW, maxH, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     QPixmap rounded(scaled.size());
     rounded.fill(Qt::transparent);
     QPainter p(&rounded);
@@ -80,12 +79,9 @@ QWidget* makeSectionHeader(QWidget* parent, const QString& title)
 
 // ── Construction ─────────────────────────────────────────────────────────────
 
-AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
-                         utils::AppSettings*      settings,
-                         QWidget*                 parent)
-    : QWidget(parent)
-    , m_library(library)
-    , m_settings(settings)
+AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* settings,
+                         QWidget* parent)
+    : QWidget(parent), m_library(library), m_settings(settings)
 {
     setObjectName("AutoTagPage");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -145,9 +141,8 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
 
     m_modelBox = new QComboBox(paramsBody);
     m_modelBox->setObjectName("DatasetSpin");
-    m_modelBox->setToolTip(
-        "Active autotagger model. Drop a folder under data/models/ with\n"
-        "model.onnx + config.json + tags.csv to add another.");
+    m_modelBox->setToolTip("Active autotagger model. Drop a folder under data/models/ with\n"
+                           "model.onnx + config.json + tags.csv to add another.");
     refreshModels();
 
     m_inputEdit = new QLineEdit(paramsBody);
@@ -168,9 +163,8 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
     m_outputEdit = new QLineEdit(paramsBody);
     m_outputEdit->setObjectName("SearchBar");
     m_outputEdit->setPlaceholderText("Where the .txt sidecars go");
-    m_outputEdit->setToolTip(
-        "Output folder for the .txt sidecars. The input subtree is mirrored\n"
-        "under this folder. Existing .txt files are overwritten.");
+    m_outputEdit->setToolTip("Output folder for the .txt sidecars. The input subtree is mirrored\n"
+                             "under this folder. Existing .txt files are overwritten.");
     m_outputEdit->setFixedHeight(kFolderRowHeight);
     m_outBrowseBtn = new QPushButton("…", paramsBody);
     m_outBrowseBtn->setObjectName("DatasetBrowseBtn");
@@ -185,7 +179,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
     m_thresholdSlider = new QSlider(Qt::Horizontal, paramsBody);
     m_thresholdSlider->setObjectName("DatasetPmiSlider");
     m_thresholdSlider->setRange(kThresholdMin, kThresholdMax);
-    m_thresholdSlider->setValue(35);  // 0.35
+    m_thresholdSlider->setValue(35); // 0.35
     m_thresholdSlider->setToolTip(
         "Confidence cutoff for tags written to .txt. Tags with scores below\n"
         "this are dropped.");
@@ -196,8 +190,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
     m_thresholdLbl->setMinimumWidth(36);
 
     auto syncThresholdLbl = [this]() {
-        m_thresholdLbl->setText(
-            QString::number(m_thresholdSlider->value() / 100.0, 'f', 2));
+        m_thresholdLbl->setText(QString::number(m_thresholdSlider->value() / 100.0, 'f', 2));
     };
 
     auto* thresholdRow = new QHBoxLayout;
@@ -211,26 +204,23 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
     m_cooldownSpin->setRange(0, 5000);
     m_cooldownSpin->setSingleStep(50);
     m_cooldownSpin->setSuffix(" ms");
-    m_cooldownSpin->setToolTip(
-        "Pause inserted between each image's inference. Higher values give\n"
-        "the CPU room to cool down between hits - useful on laptops or\n"
-        "during long batches. 0 = run as fast as possible.");
+    m_cooldownSpin->setToolTip("Pause inserted between each image's inference. Higher values give\n"
+                               "the CPU room to cool down between hits - useful on laptops or\n"
+                               "during long batches. 0 = run as fast as possible.");
 
     m_recursiveCheck = new QCheckBox("Recursive", paramsBody);
     m_recursiveCheck->setObjectName("DatasetSoloCheck");
     m_recursiveCheck->setChecked(true);
-    m_recursiveCheck->setToolTip(
-        "Walk subdirectories of the input folder. The same subtree is\n"
-        "mirrored under the output folder.");
+    m_recursiveCheck->setToolTip("Walk subdirectories of the input folder. The same subtree is\n"
+                                 "mirrored under the output folder.");
 
     m_moveCheck = new QCheckBox("Move images to output", paramsBody);
     m_moveCheck->setObjectName("DatasetSoloCheck");
-    m_moveCheck->setToolTip(
-        "After tagging, move each source image into the output folder\n"
-        "next to its .txt sidecar. Has no effect when input and output\n"
-        "are the same folder.");
+    m_moveCheck->setToolTip("After tagging, move each source image into the output folder\n"
+                            "next to its .txt sidecar. Has no effect when input and output\n"
+                            "are the same folder.");
 
-    m_runBtn    = new QPushButton("Run",    paramsBody);
+    m_runBtn = new QPushButton("Run", paramsBody);
     m_cancelBtn = new QPushButton("Cancel", paramsBody);
     m_runBtn->setObjectName("DatasetRunBtn");
     m_cancelBtn->setObjectName("EntryActionBtn");
@@ -376,7 +366,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
         if (!m_settings->autoTagOutputFolder.isEmpty())
             m_outputEdit->setText(m_settings->autoTagOutputFolder);
         m_thresholdSlider->setValue(int(m_settings->autoTagThreshold * 100.0f));
-        m_cooldownSpin   ->setValue(qBound(0, m_settings->autoTagCooldownMs, 5000));
+        m_cooldownSpin->setValue(qBound(0, m_settings->autoTagCooldownMs, 5000));
 
         const int idx = m_modelBox->findText(m_settings->activeAutoTagModel);
         if (idx >= 0) m_modelBox->setCurrentIndex(idx);
@@ -385,37 +375,35 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
 
     // ── Wire ─────────────────────────────────────────────────────────────────
     connect(m_inputBrowseBtn, &QPushButton::clicked, this, [this]() {
-        const QString d = QFileDialog::getExistingDirectory(
-            this, "Choose input folder", m_inputEdit->text());
+        const QString d =
+            QFileDialog::getExistingDirectory(this, "Choose input folder", m_inputEdit->text());
         if (!d.isEmpty()) {
             m_inputEdit->setText(d);
             persistSettings();
         }
     });
     connect(m_outBrowseBtn, &QPushButton::clicked, this, [this]() {
-        const QString d = QFileDialog::getExistingDirectory(
-            this, "Choose output folder", m_outputEdit->text());
+        const QString d =
+            QFileDialog::getExistingDirectory(this, "Choose output folder", m_outputEdit->text());
         if (!d.isEmpty()) {
             m_outputEdit->setText(d);
             persistSettings();
         }
     });
-    connect(m_inputEdit,  &QLineEdit::editingFinished, this, [this]() { persistSettings(); });
+    connect(m_inputEdit, &QLineEdit::editingFinished, this, [this]() { persistSettings(); });
     connect(m_outputEdit, &QLineEdit::editingFinished, this, [this]() { persistSettings(); });
 
-    connect(m_modelBox, &QComboBox::currentTextChanged, this, [this](const QString&) {
+    connect(m_modelBox, &QComboBox::currentTextChanged, this,
+            [this](const QString&) { persistSettings(); });
+
+    connect(m_thresholdSlider, &QSlider::valueChanged, this, [this, syncThresholdLbl](int) {
+        syncThresholdLbl();
         persistSettings();
     });
-
-    connect(m_thresholdSlider, &QSlider::valueChanged, this,
-        [this, syncThresholdLbl](int) {
-            syncThresholdLbl();
-            persistSettings();
-        });
     connect(m_cooldownSpin, qOverload<int>(&QSpinBox::valueChanged), this,
-        [this](int) { persistSettings(); });
+            [this](int) { persistSettings(); });
 
-    connect(m_runBtn,    &QPushButton::clicked, this, &AutoTagPage::onRun);
+    connect(m_runBtn, &QPushButton::clicked, this, &AutoTagPage::onRun);
     connect(m_cancelBtn, &QPushButton::clicked, this, &AutoTagPage::onCancel);
 
     connect(m_sendToEditorBtn, &QPushButton::clicked, this, [this]() {
@@ -436,20 +424,20 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
     auto syncSendButtons = [this]() {
         const bool ok = !m_outputEdit->text().trimmed().isEmpty();
         m_sendToEditorBtn->setEnabled(ok);
-        m_sendToBatchBtn ->setEnabled(ok);
+        m_sendToBatchBtn->setEnabled(ok);
     };
     syncSendButtons();
-    connect(m_outputEdit, &QLineEdit::textChanged,
-            this, [syncSendButtons](const QString&) { syncSendButtons(); });
+    connect(m_outputEdit, &QLineEdit::textChanged, this,
+            [syncSendButtons](const QString&) { syncSendButtons(); });
 
-    connect(m_resultsList, &QListWidget::currentItemChanged,
-            this, &AutoTagPage::onResultRowChanged);
+    connect(m_resultsList, &QListWidget::currentItemChanged, this,
+            &AutoTagPage::onResultRowChanged);
 
-    connect(m_runner, &core::BatchTagger::scanned,      this, &AutoTagPage::onScanned);
-    connect(m_runner, &core::BatchTagger::imageTagged,  this, &AutoTagPage::onImageTagged);
-    connect(m_runner, &core::BatchTagger::imageFailed,  this, &AutoTagPage::onImageFailed);
-    connect(m_runner, &core::BatchTagger::progress,     this, &AutoTagPage::onProgress);
-    connect(m_runner, &core::BatchTagger::finished,     this, &AutoTagPage::onFinished);
+    connect(m_runner, &core::BatchTagger::scanned, this, &AutoTagPage::onScanned);
+    connect(m_runner, &core::BatchTagger::imageTagged, this, &AutoTagPage::onImageTagged);
+    connect(m_runner, &core::BatchTagger::imageFailed, this, &AutoTagPage::onImageFailed);
+    connect(m_runner, &core::BatchTagger::progress, this, &AutoTagPage::onProgress);
+    connect(m_runner, &core::BatchTagger::finished, this, &AutoTagPage::onFinished);
 }
 
 AutoTagPage::~AutoTagPage()
@@ -481,7 +469,7 @@ void AutoTagPage::showEmptyState(const QString& message)
 {
     const bool empty = !message.isEmpty();
     if (empty && m_emptyStateLbl) m_emptyStateLbl->setText(message);
-    if (m_emptyState)  m_emptyState->setVisible(empty);
+    if (m_emptyState) m_emptyState->setVisible(empty);
     if (m_resultsList) m_resultsList->setVisible(!empty);
 }
 
@@ -499,9 +487,8 @@ void AutoTagPage::onRun()
     refreshModels();
 
     if (m_library->availableModels().isEmpty()) {
-        m_statusLabel->setText(
-            "No models found under data/models/. Each model needs its own "
-            "subfolder containing model.onnx, config.json, and tags.csv.");
+        m_statusLabel->setText("No models found under data/models/. Each model needs its own "
+                               "subfolder containing model.onnx, config.json, and tags.csv.");
         return;
     }
 
@@ -513,13 +500,14 @@ void AutoTagPage::onRun()
 
     auto* model = m_library->model(modelName);
     if (!model) {
-        m_statusLabel->setText(QString(
-            "Model '%1' failed to load - check that its model.onnx, config.json, "
-            "and tags.csv are all present and valid.").arg(modelName));
+        m_statusLabel->setText(
+            QString("Model '%1' failed to load - check that its model.onnx, config.json, "
+                    "and tags.csv are all present and valid.")
+                .arg(modelName));
         return;
     }
 
-    const QString inFolder  = m_inputEdit->text().trimmed();
+    const QString inFolder = m_inputEdit->text().trimmed();
     const QString outFolder = m_outputEdit->text().trimmed();
     if (inFolder.isEmpty() || outFolder.isEmpty()) {
         m_statusLabel->setText("Set both input and output folders first.");
@@ -544,10 +532,8 @@ void AutoTagPage::onRun()
     showEmptyState("Scanning input folder…");
     persistSettings();
 
-    m_runner->start(model, inFolder, outFolder,
-                    m_thresholdSlider->value() / 100.0f,
-                    m_recursiveCheck->isChecked(),
-                    m_moveCheck->isChecked(),
+    m_runner->start(model, inFolder, outFolder, m_thresholdSlider->value() / 100.0f,
+                    m_recursiveCheck->isChecked(), m_moveCheck->isChecked(),
                     m_cooldownSpin->value());
 }
 
@@ -576,12 +562,10 @@ void AutoTagPage::onImageTagged(QString relPath, core::TagResult result)
 
     // First result of the run flips the list visible - empty state shrinks
     // and the user starts seeing rows immediately.
-    if (m_resultsList->count() == 0 && m_emptyState->isVisible())
-        showEmptyState({});
+    if (m_resultsList->count() == 0 && m_emptyState->isVisible()) showEmptyState({});
 
-    auto* item = new QListWidgetItem(
-        QString("%1   (%2 tags)").arg(relPath).arg(result.tags.size()),
-        m_resultsList);
+    auto* item = new QListWidgetItem(QString("%1   (%2 tags)").arg(relPath).arg(result.tags.size()),
+                                     m_resultsList);
     item->setData(Qt::UserRole, relPath);
 
     // Follow latest: jump the focus + preview to the row we just appended,
@@ -596,8 +580,7 @@ void AutoTagPage::onImageTagged(QString relPath, core::TagResult result)
 void AutoTagPage::onImageFailed(QString relPath, QString reason)
 {
     m_failures.insert(relPath, reason);
-    auto* item = new QListWidgetItem(
-        QString("✗  %1   (%2)").arg(relPath, reason), m_resultsList);
+    auto* item = new QListWidgetItem(QString("✗  %1   (%2)").arg(relPath, reason), m_resultsList);
     item->setData(Qt::UserRole, relPath);
 }
 
@@ -614,15 +597,15 @@ void AutoTagPage::onFinished(bool cancelled)
         m_statusLabel->setText(QString("Cancelled - %1 done.").arg(m_results.size()));
     else
         m_statusLabel->setText(QString("Done - %1 images tagged, %2 failed.")
-                                   .arg(m_results.size()).arg(m_failures.size()));
+                                   .arg(m_results.size())
+                                   .arg(m_failures.size()));
 
     // If the run produced literally nothing (no images discovered, or every
     // image failed), pop the placeholder back so the panel doesn't read as
     // an empty void.
     if (m_resultsList->count() == 0) {
-        showEmptyState(cancelled
-            ? "Cancelled before any images were tagged."
-            : "No images found in the input folder.");
+        showEmptyState(cancelled ? "Cancelled before any images were tagged."
+                                 : "No images found in the input folder.");
     }
 }
 
@@ -652,7 +635,8 @@ void AutoTagPage::showFocusedResult()
     QImage img = reader.read();
     if (!img.isNull()) {
         m_focusImage->setPixmap(roundedScaled(QPixmap::fromImage(img), 296, 320, 6.0));
-    } else {
+    }
+    else {
         m_focusImage->clear();
     }
 
@@ -660,24 +644,24 @@ void AutoTagPage::showFocusedResult()
         const core::TagResult& r = it.value();
         if (!r.rating.isEmpty()) {
             m_focusRating->setText(QString("Rating: %1  (%2)")
-                .arg(r.rating).arg(QString::number(r.ratingScore, 'f', 2)));
+                                       .arg(r.rating)
+                                       .arg(QString::number(r.ratingScore, 'f', 2)));
         }
         for (const core::TagPrediction& tp : r.tags) {
-            new QListWidgetItem(
-                QString("%1   %2").arg(tp.tag, QString::number(tp.score, 'f', 2)),
-                m_focusTags);
+            new QListWidgetItem(QString("%1   %2").arg(tp.tag, QString::number(tp.score, 'f', 2)),
+                                m_focusTags);
         }
         // Dimmed near-misses - tags that fell just below the threshold,
         // top-N first. Gives a sense of what lowering the slider would
         // bring in without re-running. Painted with disabled-text colour.
         for (const core::TagPrediction& tp : r.nearMisses) {
             auto* item = new QListWidgetItem(
-                QString("%1   %2").arg(tp.tag, QString::number(tp.score, 'f', 2)),
-                m_focusTags);
+                QString("%1   %2").arg(tp.tag, QString::number(tp.score, 'f', 2)), m_focusTags);
             item->setForeground(QColor("#555555"));
             item->setFlags(item->flags() & ~Qt::ItemIsSelectable);
         }
-    } else if (auto fit = m_failures.constFind(m_focusedRel); fit != m_failures.constEnd()) {
+    }
+    else if (auto fit = m_failures.constFind(m_focusedRel); fit != m_failures.constEnd()) {
         m_focusRating->setText("Failed: " + fit.value());
     }
 }
@@ -730,10 +714,10 @@ void AutoTagPage::showEvent(QShowEvent* ev)
 void AutoTagPage::persistSettings()
 {
     if (!m_settings) return;
-    m_settings->activeAutoTagModel  = m_modelBox->currentText();
-    m_settings->autoTagThreshold    = m_thresholdSlider->value() / 100.0f;
-    m_settings->autoTagCooldownMs   = m_cooldownSpin->value();
-    m_settings->autoTagInputFolder  = m_inputEdit->text().trimmed();
+    m_settings->activeAutoTagModel = m_modelBox->currentText();
+    m_settings->autoTagThreshold = m_thresholdSlider->value() / 100.0f;
+    m_settings->autoTagCooldownMs = m_cooldownSpin->value();
+    m_settings->autoTagInputFolder = m_inputEdit->text().trimmed();
     m_settings->autoTagOutputFolder = m_outputEdit->text().trimmed();
 }
 

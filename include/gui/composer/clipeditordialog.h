@@ -1,5 +1,5 @@
 #pragma once
-#include <core/workflowmanager.h>  // for ImageEdits
+#include <core/workflowmanager.h> // for ImageEdits
 #include <gui/chromeddialog.h>
 #include <QImage>
 
@@ -9,7 +9,9 @@ class QLabel;
 class QPushButton;
 class QSlider;
 
-namespace core { class WorkflowInputCache; }
+namespace core {
+class WorkflowInputCache;
+}
 
 namespace gui {
 
@@ -23,13 +25,14 @@ class ClipCanvas;
 class ClipEditorDialog : public ChromedDialog {
     Q_OBJECT
 public:
-    ClipEditorDialog(const QImage&            source,
-                     const core::ImageEdits&  initial,
-                     core::WorkflowInputCache* cache,
-                     QWidget*                 parent = nullptr);
+    ClipEditorDialog(const QImage& source, const core::ImageEdits& initial,
+                     core::WorkflowInputCache* cache, QWidget* parent = nullptr);
 
     // Valid only after exec() returns Accepted.
-    core::ImageEdits result() const { return m_result; }
+    core::ImageEdits result() const
+    {
+        return m_result;
+    }
 
 protected:
     void accept() override;
@@ -44,18 +47,18 @@ private:
     void applyTrimModeUI(bool on);
 
     core::WorkflowInputCache* m_cache = nullptr;
-    core::ImageEdits          m_result;
+    core::ImageEdits m_result;
 
-    ClipCanvas*   m_canvas      = nullptr;
-    QButtonGroup* m_toolGroup   = nullptr;
-    QPushButton*  m_eraseBtn    = nullptr;   // modifier toggle, not in toolGroup
-    QSlider*      m_brushSize   = nullptr;
-    QSlider*      m_tolerance   = nullptr;
-    QLabel*       m_brushLabel  = nullptr;
-    QLabel*       m_tolLabel    = nullptr;
-    QPushButton*  m_invertBtn   = nullptr;
-    QCheckBox*    m_trimToCrop  = nullptr;
-    QLabel*       m_rectLabel   = nullptr;
+    ClipCanvas* m_canvas = nullptr;
+    QButtonGroup* m_toolGroup = nullptr;
+    QPushButton* m_eraseBtn = nullptr; // modifier toggle, not in toolGroup
+    QSlider* m_brushSize = nullptr;
+    QSlider* m_tolerance = nullptr;
+    QLabel* m_brushLabel = nullptr;
+    QLabel* m_tolLabel = nullptr;
+    QPushButton* m_invertBtn = nullptr;
+    QCheckBox* m_trimToCrop = nullptr;
+    QLabel* m_rectLabel = nullptr;
 };
 
 } // namespace gui

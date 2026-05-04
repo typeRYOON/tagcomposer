@@ -26,10 +26,26 @@ void ShinyLogo::setLogo(const QPixmap& logo)
     update();
 }
 
-void ShinyLogo::setShineColor(const QColor& c)            { m_color = c;       update(); }
-void ShinyLogo::setShineWidthFraction(qreal frac)         { m_widthFrac = frac;update(); }
-void ShinyLogo::setShineAngleDegrees(qreal deg)           { m_angleDeg = deg;  update(); }
-void ShinyLogo::setShineIntensity(int peak)               { m_alpha = peak;    update(); }
+void ShinyLogo::setShineColor(const QColor& c)
+{
+    m_color = c;
+    update();
+}
+void ShinyLogo::setShineWidthFraction(qreal frac)
+{
+    m_widthFrac = frac;
+    update();
+}
+void ShinyLogo::setShineAngleDegrees(qreal deg)
+{
+    m_angleDeg = deg;
+    update();
+}
+void ShinyLogo::setShineIntensity(int peak)
+{
+    m_alpha = peak;
+    update();
+}
 
 void ShinyLogo::setShineCycle(int sweepMs, int pauseMs)
 {
@@ -78,15 +94,13 @@ void ShinyLogo::startShine()
     // widgets (e.g. HomePage swapped out of the QStackedWidget) shouldn't
     // burn CPU on a sweep + paint loop the user can't see - the next
     // showEvent will resume.
-    if (isVisible() && m_group->state() != QAbstractAnimation::Running)
-        m_group->start();
+    if (isVisible() && m_group->state() != QAbstractAnimation::Running) m_group->start();
 }
 
 void ShinyLogo::stopShine()
 {
     m_autoStart = false;
-    if (m_group && m_group->state() == QAbstractAnimation::Running)
-        m_group->stop();
+    if (m_group && m_group->state() == QAbstractAnimation::Running) m_group->stop();
 }
 
 void ShinyLogo::showEvent(QShowEvent* event)
@@ -94,9 +108,7 @@ void ShinyLogo::showEvent(QShowEvent* event)
     QWidget::showEvent(event);
     // Resume only if startShine() set the intent. A widget shown after an
     // explicit stopShine stays paused until startShine is called again.
-    if (m_autoStart && m_group
-        && m_group->state() != QAbstractAnimation::Running)
-    {
+    if (m_autoStart && m_group && m_group->state() != QAbstractAnimation::Running) {
         m_group->start();
     }
 }
@@ -107,8 +119,7 @@ void ShinyLogo::hideEvent(QHideEvent* event)
     // Tab switched away (or window minimised) - stop the timer-driven
     // repaints. m_autoStart is left as-is so the next showEvent resumes
     // automatically without the caller having to re-issue startShine.
-    if (m_group && m_group->state() == QAbstractAnimation::Running)
-        m_group->stop();
+    if (m_group && m_group->state() == QAbstractAnimation::Running) m_group->stop();
 }
 
 // ── Sizing ───────────────────────────────────────────────────────────────────
@@ -127,9 +138,8 @@ void ShinyLogo::paintEvent(QPaintEvent*)
     // Compute the target rect - fit the logo into the widget keeping its
     // aspect ratio, centered.
     const QSize fit = m_logo.size().scaled(size(), Qt::KeepAspectRatio);
-    const QRect target((width()  - fit.width())  / 2,
-                       (height() - fit.height()) / 2,
-                       fit.width(), fit.height());
+    const QRect target((width() - fit.width()) / 2, (height() - fit.height()) / 2, fit.width(),
+                       fit.height());
 
     // Offscreen canvas with alpha. Drawing the logo + the shine onto a
     // transparent QPixmap means SourceAtop has the logo's alpha to mask
@@ -157,22 +167,25 @@ void ShinyLogo::paintEvent(QPaintEvent*)
         // The gradient endpoints define the band's perpendicular axis;
         // tilting the bottom point rightward gives a band that leans
         // (visually) like a real lighting sweep.
-        const qreal w        = target.width();
-        const qreal h        = target.height();
+        const qreal w = target.width();
+        const qreal h = target.height();
         const qreal halfBand = 0.5 * m_widthFrac * w;
         // Center moves from −0.4·W (off-screen left) to 1.4·W (off-screen
         // right) over m_progress 0 → 1. m_progress is animated outside that
         // [0, 1] range - see m_sweep's start/end values - so the band
         // already enters and exits the frame within a single sweep.
-        const qreal centerX  = m_progress * w;
-        const qreal tilt     = std::tan(qDegreesToRadians(m_angleDeg)) * h;
+        const qreal centerX = m_progress * w;
+        const qreal tilt = std::tan(qDegreesToRadians(m_angleDeg)) * h;
 
-        QLinearGradient grad(target.left() + centerX - halfBand,        target.top(),
+        QLinearGradient grad(target.left() + centerX - halfBand, target.top(),
                              target.left() + centerX + halfBand + tilt, target.bottom());
         QColor c = m_color;
-        c.setAlpha(0);            grad.setColorAt(0.0, c);
-        c.setAlpha(m_alpha);      grad.setColorAt(0.5, c);
-        c.setAlpha(0);            grad.setColorAt(1.0, c);
+        c.setAlpha(0);
+        grad.setColorAt(0.0, c);
+        c.setAlpha(m_alpha);
+        grad.setColorAt(0.5, c);
+        c.setAlpha(0);
+        grad.setColorAt(1.0, c);
 
         cp.fillRect(target, grad);
     }

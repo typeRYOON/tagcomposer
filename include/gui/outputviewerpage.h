@@ -54,13 +54,13 @@ private:
     QString m_pendingNavTo;
     void navigateToPendingIfReady();
 
-    QFileSystemModel* m_fsModel        = nullptr;
-    OutputTreeView*   m_tree           = nullptr;
-    OutputThumbList*  m_thumbs         = nullptr;
-    QSplitter*        m_split          = nullptr;
-    QLabel*           m_status         = nullptr;
-    QLabel*           m_treeSubtitle   = nullptr;  // shows current root path
-    QLabel*           m_thumbSubtitle  = nullptr;  // shows current dir + image count
+    QFileSystemModel* m_fsModel = nullptr;
+    OutputTreeView* m_tree = nullptr;
+    OutputThumbList* m_thumbs = nullptr;
+    QSplitter* m_split = nullptr;
+    QLabel* m_status = nullptr;
+    QLabel* m_treeSubtitle = nullptr;  // shows current root path
+    QLabel* m_thumbSubtitle = nullptr; // shows current dir + image count
 };
 
 } // namespace gui

@@ -8,6 +8,7 @@ class AppScrollBar : public QScrollBar {
 public:
     explicit AppScrollBar(Qt::Orientation orientation, QWidget* parent = nullptr);
     explicit AppScrollBar(QWidget* parent = nullptr);
+
 protected:
     void paintEvent(QPaintEvent* event) override;
 };

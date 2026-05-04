@@ -20,17 +20,17 @@ namespace {
 // top layer (the wordmark) and gets the shine sweep. Adjust the rects to
 // shift, scale, or overlap them - the wordmark stays aspect-correct (its
 // pixmap is rendered with KeepAspectRatio inside whatever rect you give it).
-constexpr QSize  kLogoFrameSize { 626, 252 };
-constexpr QRect  kTagRect       { 174,  1, 280, 251 };
-constexpr QRect  kWordmarkRect  { 0, 0, 626, 173 };
+constexpr QSize kLogoFrameSize{626, 252};
+constexpr QRect kTagRect{174, 1, 280, 251};
+constexpr QRect kWordmarkRect{0, 0, 626, 173};
 
 // Bottom-strip insets - match the existing 20 px right margin we had before.
-constexpr int kBottomMargin     = 20;
+constexpr int kBottomMargin = 20;
 // ryoon_logo.png is a wide wordmark, not a square - fixing it to N×N
 // crushes it to a tiny strip. Scale it by height instead, let the width
 // follow the image's natural aspect.
-constexpr int kRyoonLogoHeight  = 50;
-constexpr int kHeaderTopMargin  = 70;
+constexpr int kRyoonLogoHeight = 50;
+constexpr int kHeaderTopMargin = 70;
 
 // Where the ryoon logo click lands.
 constexpr const char* kRyoonGithubUrl = "https://github.com/typeRYOON/";
@@ -49,14 +49,14 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent)
 
     m_tagLabel = new QLabel(logoFrame);
     m_tagLabel->setObjectName("HomeTagLogo");
-    m_tagLabel->setScaledContents(true);  // honour the rect's size
+    m_tagLabel->setScaledContents(true); // honour the rect's size
     m_tagLabel->setPixmap(QPixmap(":/img/tc_logo0.png"));
     m_tagLabel->setGeometry(kTagRect);
 
     m_wordmark = new ShinyLogo(logoFrame);
     m_wordmark->setLogo(QPixmap(":/img/tc_logo1.png"));
     m_wordmark->setGeometry(kWordmarkRect);
-    m_wordmark->raise();  // keep wordmark on top of the tag-mark
+    m_wordmark->raise(); // keep wordmark on top of the tag-mark
     m_wordmark->startShine();
 
     // ── Update label (hidden until setUpdateAvailable is called) ───────────
@@ -64,14 +64,14 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent)
     m_updateLabel->setObjectName("HomeUpdateLabel");
     m_updateLabel->setAlignment(Qt::AlignCenter);
     m_updateLabel->hide();
-    m_updateLabel->installEventFilter(this);  // click → release page
+    m_updateLabel->installEventFilter(this); // click → release page
 
     // ── ryoon logo, bottom-right corner, click → github profile ────────────
     m_ryoonLogo = new QLabel(this);
     m_ryoonLogo->setObjectName("HomeRyoonLogo");
     {
         const QPixmap ryoon = QPixmap(":/img/ryoon_logo.png")
-            .scaledToHeight(kRyoonLogoHeight, Qt::SmoothTransformation);
+                                  .scaledToHeight(kRyoonLogoHeight, Qt::SmoothTransformation);
         m_ryoonLogo->setPixmap(ryoon);
         // Lock the QLabel to the rendered pixmap's size so the click target
         // matches the visible artwork - no surrounding chrome to suggest a
@@ -123,9 +123,7 @@ void HomePage::setUpdateAvailable(const QString& version, const QString& release
     }
     m_updateUrl = releaseUrl;
     m_updateLabel->setText(QString("Update available - %1 (click to view)").arg(version));
-    m_updateLabel->setCursor(releaseUrl.isEmpty()
-                                 ? Qt::ArrowCursor
-                                 : Qt::PointingHandCursor);
+    m_updateLabel->setCursor(releaseUrl.isEmpty() ? Qt::ArrowCursor : Qt::PointingHandCursor);
     m_updateLabel->show();
 }
 
@@ -133,19 +131,14 @@ bool HomePage::eventFilter(QObject* obj, QEvent* event)
 {
     if (event->type() == QEvent::MouseButtonRelease) {
         auto* me = static_cast<QMouseEvent*>(event);
-        if (me->button() != Qt::LeftButton)
-            return QWidget::eventFilter(obj, event);
+        if (me->button() != Qt::LeftButton) return QWidget::eventFilter(obj, event);
 
-        if (obj == m_ryoonLogo
-            && m_ryoonLogo->rect().contains(me->pos()))
-        {
+        if (obj == m_ryoonLogo && m_ryoonLogo->rect().contains(me->pos())) {
             QDesktopServices::openUrl(QUrl(QString::fromLatin1(kRyoonGithubUrl)));
             return true;
         }
-        if (obj == m_updateLabel
-            && !m_updateUrl.isEmpty()
-            && m_updateLabel->rect().contains(me->pos()))
-        {
+        if (obj == m_updateLabel && !m_updateUrl.isEmpty() &&
+            m_updateLabel->rect().contains(me->pos())) {
             QDesktopServices::openUrl(QUrl(m_updateUrl));
             return true;
         }

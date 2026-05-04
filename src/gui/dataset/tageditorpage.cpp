@@ -34,32 +34,29 @@
 namespace gui {
 
 namespace {
-const QStringList kImageFilters = {
-    "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"
-};
+const QStringList kImageFilters = {"*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"};
 
-constexpr int kLeftPanelWidth   = 380;   // matches AutoTagPage's left
-constexpr int kRightPanelWidth  = 420;   // matches AutoTagPage's right
-constexpr int kFolderRowHeight  = 40;
-constexpr int kPreviewMaxWidth  = 720;   // upper bound for the centered image
+constexpr int kLeftPanelWidth = 380;  // matches AutoTagPage's left
+constexpr int kRightPanelWidth = 420; // matches AutoTagPage's right
+constexpr int kFolderRowHeight = 40;
+constexpr int kPreviewMaxWidth = 720; // upper bound for the centered image
 constexpr int kPreviewMaxHeight = 720;
 
 // Tinted pairs (background, foreground) - one per comma-separated highlight
 // token. The highlighter cycles through these so the user sees each token
 // in a distinct colour. Tuned for the dark theme.
 const QList<QPair<QColor, QColor>> kHighlightColors = {
-    { QColor("#3a4a2a"), QColor("#e0ffd0") },  // green
-    { QColor("#4a2a2a"), QColor("#ffd0d0") },  // red
-    { QColor("#2a3a4a"), QColor("#d0e0ff") },  // blue
-    { QColor("#3a2a4a"), QColor("#e0d0ff") },  // purple
-    { QColor("#4a3a1a"), QColor("#ffe0c0") },  // orange
+    {QColor("#3a4a2a"), QColor("#e0ffd0")}, // green
+    {QColor("#4a2a2a"), QColor("#ffd0d0")}, // red
+    {QColor("#2a3a4a"), QColor("#d0e0ff")}, // blue
+    {QColor("#3a2a4a"), QColor("#e0d0ff")}, // purple
+    {QColor("#4a3a1a"), QColor("#ffe0c0")}, // orange
 };
 
 QPixmap roundedScaled(const QPixmap& src, int maxW, int maxH, qreal radius)
 {
     if (src.isNull()) return {};
-    const QPixmap scaled = src.scaled(maxW, maxH,
-        Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    const QPixmap scaled = src.scaled(maxW, maxH, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     QPixmap rounded(scaled.size());
     rounded.fill(Qt::transparent);
     QPainter p(&rounded);
@@ -96,8 +93,7 @@ QString sidecarPathForImage(const QString& imagePath)
 
 // ── TagSearchHighlighter ─────────────────────────────────────────────────────
 
-TagSearchHighlighter::TagSearchHighlighter(QTextDocument* parent)
-    : QSyntaxHighlighter(parent) {}
+TagSearchHighlighter::TagSearchHighlighter(QTextDocument* parent) : QSyntaxHighlighter(parent) {}
 
 void TagSearchHighlighter::setPattern(const QString& pattern)
 {
@@ -136,12 +132,9 @@ void TagSearchHighlighter::highlightBlock(const QString& text)
 
 // ── TagEditorPage ────────────────────────────────────────────────────────────
 
-TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex,
-                             utils::AppSettings*  settings,
-                             QWidget*             parent)
-    : QWidget(parent)
-    , m_danbooruIndex(danbooruIndex)
-    , m_settings(settings)
+TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSettings* settings,
+                             QWidget* parent)
+    : QWidget(parent), m_danbooruIndex(danbooruIndex), m_settings(settings)
 {
     setObjectName("TagEditorPage");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -194,10 +187,9 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex,
     m_recursiveCheck = new QCheckBox("Recursive", leftBody);
     m_recursiveCheck->setObjectName("DatasetSoloCheck");
     m_recursiveCheck->setChecked(true);
-    m_recursiveCheck->setToolTip(
-        "Walk subdirectories of the chosen folder. The image list shows\n"
-        "each match with its path relative to the root, and edits write\n"
-        "back to the matching .txt next to each image.");
+    m_recursiveCheck->setToolTip("Walk subdirectories of the chosen folder. The image list shows\n"
+                                 "each match with its path relative to the root, and edits write\n"
+                                 "back to the matching .txt next to each image.");
 
     // Position counter: "12 / 47" centered above the nav buttons.
     m_positionLbl = new QLabel(leftBody);
@@ -213,40 +205,38 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex,
         return b;
     };
 
-    m_navFirstBtn  = mkNavBtn(QStringLiteral("|<"),  "Jump to the first image");
-    m_navPrev10Btn = mkNavBtn(QStringLiteral("<<"),  "Back 10 images");
-    m_navPrevBtn   = mkNavBtn(QStringLiteral("<"),   "Back 1 image");
-    m_navNextBtn   = mkNavBtn(QStringLiteral(">"),   "Forward 1 image");
-    m_navNext10Btn = mkNavBtn(QStringLiteral(">>"),  "Forward 10 images");
-    m_navLastBtn   = mkNavBtn(QStringLiteral(">|"),  "Jump to the last image");
+    m_navFirstBtn = mkNavBtn(QStringLiteral("|<"), "Jump to the first image");
+    m_navPrev10Btn = mkNavBtn(QStringLiteral("<<"), "Back 10 images");
+    m_navPrevBtn = mkNavBtn(QStringLiteral("<"), "Back 1 image");
+    m_navNextBtn = mkNavBtn(QStringLiteral(">"), "Forward 1 image");
+    m_navNext10Btn = mkNavBtn(QStringLiteral(">>"), "Forward 10 images");
+    m_navLastBtn = mkNavBtn(QStringLiteral(">|"), "Jump to the last image");
 
     auto* navRow = new QHBoxLayout;
     navRow->setContentsMargins(0, 0, 0, 0);
     navRow->setSpacing(4);
-    navRow->addWidget(m_navFirstBtn,  1);
+    navRow->addWidget(m_navFirstBtn, 1);
     navRow->addWidget(m_navPrev10Btn, 1);
-    navRow->addWidget(m_navPrevBtn,   1);
-    navRow->addWidget(m_navNextBtn,   1);
+    navRow->addWidget(m_navPrevBtn, 1);
+    navRow->addWidget(m_navNextBtn, 1);
     navRow->addWidget(m_navNext10Btn, 1);
-    navRow->addWidget(m_navLastBtn,   1);
+    navRow->addWidget(m_navLastBtn, 1);
 
     m_deleteBtn = new QPushButton("Delete (recycle bin)", leftBody);
     m_deleteBtn->setObjectName("EntryActionBtnDelete");
-    m_deleteBtn->setToolTip(
-        "Move the current image and its .txt to the system recycle bin.\n"
-        "Recoverable from the OS Recycle Bin until the user empties it.");
+    m_deleteBtn->setToolTip("Move the current image and its .txt to the system recycle bin.\n"
+                            "Recoverable from the OS Recycle Bin until the user empties it.");
 
     m_sendToBatchBtn = new QPushButton("Send to Batch Edit", leftBody);
     m_sendToBatchBtn->setObjectName("EntryActionBtn");
-    m_sendToBatchBtn->setToolTip(
-        "Open this folder in the Batch Edit tab for whole-folder ops.");
+    m_sendToBatchBtn->setToolTip("Open this folder in the Batch Edit tab for whole-folder ops.");
 
     // Folder label + right-aligned "open in file manager" chip - mirrors the
     // RULES/VARS header chips on the composer so the whole app shares the
     // same affordance for jumping to a folder on disk.
     {
         auto* row = new QWidget(leftBody);
-        auto* l   = new QHBoxLayout(row);
+        auto* l = new QHBoxLayout(row);
         l->setContentsMargins(0, 0, 0, 0);
         l->setSpacing(4);
         auto* lblw = new QLabel("Folder", row);
@@ -413,8 +403,8 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex,
 
     // ── Wire ────────────────────────────────────────────────────────────────
     connect(m_browseBtn, &QPushButton::clicked, this, [this]() {
-        const QString d = QFileDialog::getExistingDirectory(
-            this, "Choose folder", m_folderEdit->text());
+        const QString d =
+            QFileDialog::getExistingDirectory(this, "Choose folder", m_folderEdit->text());
         if (!d.isEmpty()) {
             m_folderEdit->setText(d);
             persistSettings();
@@ -438,23 +428,19 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex,
     {
         auto* prevSc = new QShortcut(QKeySequence(Qt::Key_Left), leftPanel);
         prevSc->setContext(Qt::WidgetWithChildrenShortcut);
-        connect(prevSc, &QShortcut::activated, this, [this]() {
-            jumpTo(m_currentIndex - 1);
-        });
+        connect(prevSc, &QShortcut::activated, this, [this]() { jumpTo(m_currentIndex - 1); });
 
         auto* nextSc = new QShortcut(QKeySequence(Qt::Key_Right), leftPanel);
         nextSc->setContext(Qt::WidgetWithChildrenShortcut);
-        connect(nextSc, &QShortcut::activated, this, [this]() {
-            jumpTo(m_currentIndex + 1);
-        });
+        connect(nextSc, &QShortcut::activated, this, [this]() { jumpTo(m_currentIndex + 1); });
     }
 
-    connect(m_navFirstBtn,  &QPushButton::clicked, this, [this]() { jumpTo(0); });
+    connect(m_navFirstBtn, &QPushButton::clicked, this, [this]() { jumpTo(0); });
     connect(m_navPrev10Btn, &QPushButton::clicked, this, [this]() { jumpTo(m_currentIndex - 10); });
-    connect(m_navPrevBtn,   &QPushButton::clicked, this, [this]() { jumpTo(m_currentIndex - 1); });
-    connect(m_navNextBtn,   &QPushButton::clicked, this, [this]() { jumpTo(m_currentIndex + 1); });
+    connect(m_navPrevBtn, &QPushButton::clicked, this, [this]() { jumpTo(m_currentIndex - 1); });
+    connect(m_navNextBtn, &QPushButton::clicked, this, [this]() { jumpTo(m_currentIndex + 1); });
     connect(m_navNext10Btn, &QPushButton::clicked, this, [this]() { jumpTo(m_currentIndex + 10); });
-    connect(m_navLastBtn,   &QPushButton::clicked, this, [this]() { jumpTo(m_images.size() - 1); });
+    connect(m_navLastBtn, &QPushButton::clicked, this, [this]() { jumpTo(m_images.size() - 1); });
 
     connect(m_deleteBtn, &QPushButton::clicked, this, &TagEditorPage::onDeleteClicked);
 
@@ -470,16 +456,15 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex,
         m_sendToBatchBtn->setEnabled(!m_folderEdit->text().trimmed().isEmpty());
     };
     syncSendBatch();
-    connect(m_folderEdit, &QLineEdit::textChanged,
-            this, [syncSendBatch](const QString&) { syncSendBatch(); });
+    connect(m_folderEdit, &QLineEdit::textChanged, this,
+            [syncSendBatch](const QString&) { syncSendBatch(); });
 
     connect(m_tagEdit, &QPlainTextEdit::textChanged, this, [this]() {
         rebuildActiveTags();
         scheduleSave();
     });
 
-    connect(m_tagSearchBar, &TagSearchBar::tagAdded,
-            this, &TagEditorPage::onSearchBarTagAdded);
+    connect(m_tagSearchBar, &TagSearchBar::tagAdded, this, &TagEditorPage::onSearchBarTagAdded);
 }
 
 TagEditorPage::~TagEditorPage()
@@ -532,15 +517,18 @@ void TagEditorPage::rescan()
     }
 
     QDirIterator::IteratorFlags flags = m_recursiveCheck->isChecked()
-        ? QDirIterator::Subdirectories
-        : QDirIterator::NoIteratorFlags;
+                                            ? QDirIterator::Subdirectories
+                                            : QDirIterator::NoIteratorFlags;
 
     QDirIterator it(folder, kImageFilters, QDir::Files, flags);
-    while (it.hasNext()) m_images << it.next();
+    while (it.hasNext())
+        m_images << it.next();
     std::sort(m_images.begin(), m_images.end());
 
-    if (!m_images.isEmpty()) jumpTo(0);
-    else                     updateNavigationButtons();
+    if (!m_images.isEmpty())
+        jumpTo(0);
+    else
+        updateNavigationButtons();
 }
 
 // ── Navigation ───────────────────────────────────────────────────────────────
@@ -577,15 +565,18 @@ void TagEditorPage::jumpTo(int newIndex)
     // if the list ends up empty, the early-return at the top fires.
     if (!QFileInfo::exists(m_images.at(newIndex))) {
         m_images.removeAt(newIndex);
-        if (m_images.isEmpty()) { jumpTo(0); return; }
+        if (m_images.isEmpty()) {
+            jumpTo(0);
+            return;
+        }
         if (newIndex >= m_images.size()) newIndex = m_images.size() - 1;
         jumpTo(newIndex);
         return;
     }
 
-    m_currentIndex     = newIndex;
+    m_currentIndex = newIndex;
     m_currentImagePath = m_images.at(newIndex);
-    m_currentTxtPath   = sidecarPathForImage(m_currentImagePath);
+    m_currentTxtPath = sidecarPathForImage(m_currentImagePath);
 
     QImageReader reader(m_currentImagePath);
     reader.setAutoTransform(true);
@@ -595,7 +586,8 @@ void TagEditorPage::jumpTo(int newIndex)
         // window resize without re-decoding from disk.
         m_focusPixmapSrc = QPixmap::fromImage(img);
         rescalePreview();
-    } else {
+    }
+    else {
         m_focusPixmapSrc = {};
         m_focusImage->clear();
         m_focusImage->setText("(image failed to decode)");
@@ -611,13 +603,12 @@ void TagEditorPage::jumpTo(int newIndex)
 
     // Image-section header shows the path relative to the chosen folder so
     // recursive folders surface useful context (subdir/foo.png).
-    const QString rel = QDir(m_folderEdit->text().trimmed())
-                            .relativeFilePath(m_currentImagePath);
+    const QString rel = QDir(m_folderEdit->text().trimmed()).relativeFilePath(m_currentImagePath);
     if (m_imageNameLbl) m_imageNameLbl->setText(rel);
 
     m_editStatus->setText(QFile::exists(m_currentTxtPath)
-        ? QString("Editing %1").arg(QFileInfo(m_currentTxtPath).fileName())
-        : QString("New: %1").arg(QFileInfo(m_currentTxtPath).fileName()));
+                              ? QString("Editing %1").arg(QFileInfo(m_currentTxtPath).fileName())
+                              : QString("New: %1").arg(QFileInfo(m_currentTxtPath).fileName()));
 
     rebuildActiveTags();
     updateNavigationButtons();
@@ -626,24 +617,22 @@ void TagEditorPage::jumpTo(int newIndex)
 void TagEditorPage::updateNavigationButtons()
 {
     const int total = int(m_images.size());
-    const bool any  = total > 0;
-    const int  pos  = any ? m_currentIndex + 1 : 0;
+    const bool any = total > 0;
+    const int pos = any ? m_currentIndex + 1 : 0;
 
     if (m_positionLbl)
-        m_positionLbl->setText(any
-            ? QString("%1 / %2").arg(pos).arg(total)
-            : QString("0 / 0"));
+        m_positionLbl->setText(any ? QString("%1 / %2").arg(pos).arg(total) : QString("0 / 0"));
 
     const bool canBack = any && m_currentIndex > 0;
-    const bool canFwd  = any && m_currentIndex < total - 1;
+    const bool canFwd = any && m_currentIndex < total - 1;
 
-    if (m_navFirstBtn)  m_navFirstBtn ->setEnabled(canBack);
+    if (m_navFirstBtn) m_navFirstBtn->setEnabled(canBack);
     if (m_navPrev10Btn) m_navPrev10Btn->setEnabled(canBack);
-    if (m_navPrevBtn)   m_navPrevBtn  ->setEnabled(canBack);
-    if (m_navNextBtn)   m_navNextBtn  ->setEnabled(canFwd);
+    if (m_navPrevBtn) m_navPrevBtn->setEnabled(canBack);
+    if (m_navNextBtn) m_navNextBtn->setEnabled(canFwd);
     if (m_navNext10Btn) m_navNext10Btn->setEnabled(canFwd);
-    if (m_navLastBtn)   m_navLastBtn  ->setEnabled(canFwd);
-    if (m_deleteBtn)    m_deleteBtn   ->setEnabled(any);
+    if (m_navLastBtn) m_navLastBtn->setEnabled(canFwd);
+    if (m_deleteBtn) m_deleteBtn->setEnabled(any);
 }
 
 // ── Delete (recycle bin) ─────────────────────────────────────────────────────
@@ -669,7 +658,7 @@ void TagEditorPage::onDeleteClicked()
         // Restore the path pointers so the user can retry without losing
         // their place.
         m_currentImagePath = imgPath;
-        m_currentTxtPath   = txtPath;
+        m_currentTxtPath = txtPath;
         m_editStatus->setText("Delete failed (recycle bin unavailable).");
         return;
     }
@@ -693,8 +682,7 @@ void TagEditorPage::onDeleteClicked()
     }
 
     jumpTo(m_currentIndex);
-    m_editStatus->setText(
-        QString("Moved %1 to recycle bin.").arg(QFileInfo(imgPath).fileName()));
+    m_editStatus->setText(QString("Moved %1 to recycle bin.").arg(QFileInfo(imgPath).fileName()));
 }
 
 // ── Search bar → editor ─────────────────────────────────────────────────────
@@ -708,8 +696,10 @@ void TagEditorPage::onSearchBarTagAdded(const QString& canonical)
     const QString display = utils::normalizeTagInput(canonical);
 
     QString text = m_tagEdit->toPlainText().trimmed();
-    if (text.isEmpty()) text = display;
-    else                text += ", " + display;
+    if (text.isEmpty())
+        text = display;
+    else
+        text += ", " + display;
 
     m_tagEdit->setPlainText(text);
 }
@@ -766,8 +756,7 @@ void TagEditorPage::rescalePreview()
     const QSize area = m_focusImage->size();
     if (area.width() <= 0 || area.height() <= 0) return;
 
-    m_focusImage->setPixmap(roundedScaled(
-        m_focusPixmapSrc, area.width(), area.height(), 8.0));
+    m_focusImage->setPixmap(roundedScaled(m_focusPixmapSrc, area.width(), area.height(), 8.0));
 }
 
 // ── Click image to open ──────────────────────────────────────────────────────
@@ -784,9 +773,8 @@ bool TagEditorPage::eventFilter(QObject* obj, QEvent* ev)
         }
         if (ev->type() == QEvent::MouseButtonRelease) {
             auto* me = static_cast<QMouseEvent*>(ev);
-            if (me->button() == Qt::LeftButton && !m_currentImagePath.isEmpty()
-                && QFile::exists(m_currentImagePath))
-            {
+            if (me->button() == Qt::LeftButton && !m_currentImagePath.isEmpty() &&
+                QFile::exists(m_currentImagePath)) {
                 QDesktopServices::openUrl(QUrl::fromLocalFile(m_currentImagePath));
                 return true;
             }

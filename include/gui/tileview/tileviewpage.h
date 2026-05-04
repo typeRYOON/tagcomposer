@@ -10,7 +10,9 @@
 #include <QResizeEvent>
 #include <QMap>
 
-namespace core { class ComfyUiClient; }
+namespace core {
+class ComfyUiClient;
+}
 
 namespace gui {
 class EntryView;
@@ -26,10 +28,8 @@ public:
     void setLoraActiveByUuids(const QList<QString>& uuids);
     void setLoraBaseDir(const QString& dir);
     void setComfyClient(core::ComfyUiClient* client);
-    void setQuickFacets(const QString& characterFacet,
-                        const QString& copyrightFacet,
-                        const QString& triggerWordFacet,
-                        const QString& styleFacet);
+    void setQuickFacets(const QString& characterFacet, const QString& copyrightFacet,
+                        const QString& triggerWordFacet, const QString& styleFacet);
     void setTileGradient(qreal start, int alpha);
     void setTileTitleColor(const QColor& color);
     QList<QString> activeLoraUuids() const;
@@ -50,11 +50,11 @@ signals:
 private:
     void applyOrientation(bool portrait);
 
-    EntryView*   m_entryView;
-    EntryPanel*  m_entryPanel;
-    QLineEdit*   m_searchBar;
-    QTimer*      m_debounce;
-    QBoxLayout*  m_rootLayout;
+    EntryView* m_entryView;
+    EntryPanel* m_entryPanel;
+    QLineEdit* m_searchBar;
+    QTimer* m_debounce;
+    QBoxLayout* m_rootLayout;
 };
 
 } // namespace gui

@@ -5,8 +5,8 @@
 namespace core {
 
 struct Variable {
-    QString name;   // without delimiters, e.g. "CC"
-    QString value;  // current substitution value, e.g. "blue"
+    QString name;  // without delimiters, e.g. "CC"
+    QString value; // current substitution value, e.g. "blue"
 };
 
 class VariableIndex {
@@ -25,7 +25,7 @@ public:
 
     static bool hasVariable(const QString& tag);
 
-    QList<Variable>&       variables();
+    QList<Variable>& variables();
     const QList<Variable>& variables() const;
 
     Variable* find(const QString& name);

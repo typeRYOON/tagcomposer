@@ -36,16 +36,21 @@
 
 class RatioPreview : public QWidget {
 public:
-    explicit RatioPreview(QWidget* parent = nullptr) : QWidget(parent) {
+    explicit RatioPreview(QWidget* parent = nullptr) : QWidget(parent)
+    {
         setFixedSize(80, 80);
         setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     }
-    void setRatio(int w, int h) {
-        m_w = w; m_h = h;
+    void setRatio(int w, int h)
+    {
+        m_w = w;
+        m_h = h;
         update();
     }
+
 protected:
-    void paintEvent(QPaintEvent*) override {
+    void paintEvent(QPaintEvent*) override
+    {
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);
         p.fillRect(rect(), QColor("#0a0a0a"));
@@ -53,7 +58,7 @@ protected:
         p.drawRect(rect().adjusted(0, 0, -1, -1));
         if (m_w <= 0 || m_h <= 0) return;
         constexpr int pad = 8;
-        const double aw = width()  - 2.0 * pad;
+        const double aw = width() - 2.0 * pad;
         const double ah = height() - 2.0 * pad;
         double rw = aw, rh = ah;
         if (double(m_w) / m_h > aw / ah)
@@ -65,6 +70,7 @@ protected:
         p.setPen(QColor("#336633"));
         p.drawRect(r);
     }
+
 private:
     int m_w = 0, m_h = 0;
 };
@@ -76,19 +82,24 @@ private:
 class DropImageLabel : public QLabel {
     Q_OBJECT
 public:
-    explicit DropImageLabel(QWidget* parent = nullptr) : QLabel(parent) {
+    explicit DropImageLabel(QWidget* parent = nullptr) : QLabel(parent)
+    {
         setAcceptDrops(true);
     }
 signals:
     void filePathDropped(QString path);
+
 protected:
-    void dragEnterEvent(QDragEnterEvent* e) override {
+    void dragEnterEvent(QDragEnterEvent* e) override
+    {
         if (hasImageUrl(e->mimeData())) e->acceptProposedAction();
     }
-    void dragMoveEvent(QDragMoveEvent* e) override {
+    void dragMoveEvent(QDragMoveEvent* e) override
+    {
         if (hasImageUrl(e->mimeData())) e->acceptProposedAction();
     }
-    void dropEvent(QDropEvent* e) override {
+    void dropEvent(QDropEvent* e) override
+    {
         for (const QUrl& u : e->mimeData()->urls()) {
             if (!u.isLocalFile()) continue;
             const QString p = u.toLocalFile();
@@ -99,15 +110,17 @@ protected:
             }
         }
     }
+
 private:
-    static bool looksLikeImage(const QString& path) {
+    static bool looksLikeImage(const QString& path)
+    {
         const QString lower = path.toLower();
-        return lower.endsWith(".png")  || lower.endsWith(".jpg")
-            || lower.endsWith(".jpeg") || lower.endsWith(".bmp")
-            || lower.endsWith(".webp") || lower.endsWith(".tif")
-            || lower.endsWith(".tiff");
+        return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") ||
+               lower.endsWith(".bmp") || lower.endsWith(".webp") || lower.endsWith(".tif") ||
+               lower.endsWith(".tiff");
     }
-    static bool hasImageUrl(const QMimeData* md) {
+    static bool hasImageUrl(const QMimeData* md)
+    {
         if (!md->hasUrls()) return false;
         for (const QUrl& u : md->urls())
             if (u.isLocalFile() && looksLikeImage(u.toLocalFile())) return true;
@@ -117,14 +130,13 @@ private:
 
 namespace gui {
 
-WorkflowEditPage::WorkflowEditPage(QWidget* parent)
-    : QWidget(parent)
+WorkflowEditPage::WorkflowEditPage(QWidget* parent) : QWidget(parent)
 {
     setObjectName("WorkflowEditPage");
     setAttribute(Qt::WA_StyledBackground, true);
 
     // ── Left: workflow variables ──────────────────────────────────────────────
-    constexpr int kHeaderHeight = 50;  // same for all section headers
+    constexpr int kHeaderHeight = 50; // same for all section headers
 
     auto* leftHeader = new QWidget;
     leftHeader->setObjectName("WfEditHeader");
@@ -165,7 +177,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     leftHeaderLayout->addWidget(m_addBtn);
 
     m_varContainer = new QWidget;
-    m_varLayout    = new QVBoxLayout(m_varContainer);
+    m_varLayout = new QVBoxLayout(m_varContainer);
     m_varLayout->setContentsMargins(20, 16, 20, 20);
     m_varLayout->setSpacing(10);
     m_varLayout->addStretch();
@@ -205,7 +217,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     middleHeaderLayout->addWidget(m_loraSubtitle, 1);
 
     m_loraContainer = new QWidget;
-    m_loraLayout    = new QVBoxLayout(m_loraContainer);
+    m_loraLayout = new QVBoxLayout(m_loraContainer);
     m_loraLayout->setContentsMargins(20, 16, 20, 20);
     m_loraLayout->setSpacing(10);
     m_loraLayout->addStretch();
@@ -248,9 +260,8 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     batchBodyLayout->setContentsMargins(20, 16, 20, 20);
     batchBodyLayout->setSpacing(8);
 
-    auto* batchHint = new QLabel(
-        "Run the current composer prompt across every entry matching the "
-        "query - same syntax as the tile-view search bar.");
+    auto* batchHint = new QLabel("Run the current composer prompt across every entry matching the "
+                                 "query - same syntax as the tile-view search bar.");
     batchHint->setObjectName("WfEmptyHint");
     batchHint->setWordWrap(true);
     batchBodyLayout->addWidget(batchHint);
@@ -290,63 +301,63 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     batchBtnRow->addWidget(m_batchStatus, 1);
     batchBodyLayout->addLayout(batchBtnRow);
 
-    connect(batchRunBtn, &QPushButton::clicked, this, [this, batchQueryEdit]() {
-        emit batchRunRequested(batchQueryEdit->text().trimmed());
-    });
+    connect(batchRunBtn, &QPushButton::clicked, this,
+            [this, batchQueryEdit]() { emit batchRunRequested(batchQueryEdit->text().trimmed()); });
     // Enter in the query field triggers the run too.
-    connect(batchQueryEdit, &QLineEdit::returnPressed, this, [this, batchQueryEdit]() {
-        emit batchRunRequested(batchQueryEdit->text().trimmed());
-    });
+    connect(batchQueryEdit, &QLineEdit::returnPressed, this,
+            [this, batchQueryEdit]() { emit batchRunRequested(batchQueryEdit->text().trimmed()); });
 
     // Live results preview: debounce keystrokes, then resolve via EntryModel.
     m_batchQueryDebounce = new QTimer(this);
     m_batchQueryDebounce->setSingleShot(true);
     m_batchQueryDebounce->setInterval(120);
-    connect(batchQueryEdit, &QLineEdit::textChanged,
-            m_batchQueryDebounce, qOverload<>(&QTimer::start));
-    connect(m_batchQueryDebounce, &QTimer::timeout, this,
-        [this, batchQueryEdit]() {
-            m_batchResultsList->clear();
-            if (!m_entryModel) {
-                m_batchCountLabel->setText("entries unavailable");
-                return;
-            }
-            const auto matched = m_entryModel->filter(batchQueryEdit->text().trimmed());
-            m_batchCountLabel->setText(
-                QString("%1 entr%2 matched").arg(matched.size())
-                                            .arg(matched.size() == 1 ? "y" : "ies"));
-            for (const auto* e : matched) {
-                const QString display = e->title.isEmpty() ? e->uuid : e->title;
-                m_batchResultsList->addItem(display);
-            }
-        });
+    connect(batchQueryEdit, &QLineEdit::textChanged, m_batchQueryDebounce,
+            qOverload<>(&QTimer::start));
+    connect(m_batchQueryDebounce, &QTimer::timeout, this, [this, batchQueryEdit]() {
+        m_batchResultsList->clear();
+        if (!m_entryModel) {
+            m_batchCountLabel->setText("entries unavailable");
+            return;
+        }
+        const auto matched = m_entryModel->filter(batchQueryEdit->text().trimmed());
+        m_batchCountLabel->setText(QString("%1 entr%2 matched")
+                                       .arg(matched.size())
+                                       .arg(matched.size() == 1 ? "y" : "ies"));
+        for (const auto* e : matched) {
+            const QString display = e->title.isEmpty() ? e->uuid : e->title;
+            m_batchResultsList->addItem(display);
+        }
+    });
 
     auto* rightPanel = new QWidget;
     auto* rightLayout = new QVBoxLayout(rightPanel);
     rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->setSpacing(0);
     rightLayout->addWidget(rightHeader);
-    rightLayout->addWidget(batchBody, 1);  // body fills the column
+    rightLayout->addWidget(batchBody, 1); // body fills the column
 
     // ── Root: three equal columns spanning the full page width ───────────────
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
-    root->addWidget(leftPanel,   1);
+    root->addWidget(leftPanel, 1);
     root->addWidget(middlePanel, 1);
-    root->addWidget(rightPanel,  1);
+    root->addWidget(rightPanel, 1);
 
     // ── Add variable menu ─────────────────────────────────────────────────────
     connect(m_addBtn, &QPushButton::clicked, this, [this]() {
         QMenu menu(this);
-        menu.addAction("Seed",        this, [this]() { addVariable(core::WorkflowVarType::Seed); });
-        menu.addAction("String",      this, [this]() { addVariable(core::WorkflowVarType::String); });
-        menu.addAction("Integer",     this, [this]() { addVariable(core::WorkflowVarType::Integer); });
-        menu.addAction("Float",       this, [this]() { addVariable(core::WorkflowVarType::Float); });
-        menu.addAction("Dir Search",  this, [this]() { addVariable(core::WorkflowVarType::DirSearch); });
-        menu.addAction("Latent Size", this, [this]() { addVariable(core::WorkflowVarType::LatentSize); });
-        menu.addAction("Image",       this, [this]() { addVariable(core::WorkflowVarType::Image); });
-        menu.addAction("Wildcard",    this, [this]() { addVariable(core::WorkflowVarType::Wildcard); });
+        menu.addAction("Seed", this, [this]() { addVariable(core::WorkflowVarType::Seed); });
+        menu.addAction("String", this, [this]() { addVariable(core::WorkflowVarType::String); });
+        menu.addAction("Integer", this, [this]() { addVariable(core::WorkflowVarType::Integer); });
+        menu.addAction("Float", this, [this]() { addVariable(core::WorkflowVarType::Float); });
+        menu.addAction("Dir Search", this,
+                       [this]() { addVariable(core::WorkflowVarType::DirSearch); });
+        menu.addAction("Latent Size", this,
+                       [this]() { addVariable(core::WorkflowVarType::LatentSize); });
+        menu.addAction("Image", this, [this]() { addVariable(core::WorkflowVarType::Image); });
+        menu.addAction("Wildcard", this,
+                       [this]() { addVariable(core::WorkflowVarType::Wildcard); });
         menu.exec(m_addBtn->mapToGlobal(QPoint(0, m_addBtn->height())));
     });
 
@@ -356,7 +367,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
 
 void WorkflowEditPage::setWorkflowManager(core::WorkflowManager* wm, const QString& savePath)
 {
-    m_wm       = wm;
+    m_wm = wm;
     m_savePath = savePath;
     refresh();
 }
@@ -391,7 +402,8 @@ void WorkflowEditPage::refresh()
     if (m_wm) {
         const core::WorkflowFile* wf = m_wm->selectedFile();
         m_titleLabel->setText(wf ? wf->name : "No workflow selected");
-    } else {
+    }
+    else {
         m_titleLabel->setText("No workflow selected");
     }
     rebuildVarList();
@@ -399,8 +411,7 @@ void WorkflowEditPage::refresh()
 
 void WorkflowEditPage::save()
 {
-    if (m_wm && !m_savePath.isEmpty())
-        m_wm->saveToFile(m_savePath);
+    if (m_wm && !m_savePath.isEmpty()) m_wm->saveToFile(m_savePath);
 }
 
 void WorkflowEditPage::addVariable(core::WorkflowVarType type)
@@ -410,8 +421,7 @@ void WorkflowEditPage::addVariable(core::WorkflowVarType type)
     var.type = type;
     // Wildcards don't substitute a __TOKEN__ in the workflow JSON - they
     // inject into the positive prompt - so they don't need a placeholder.
-    if (type != core::WorkflowVarType::Wildcard)
-        var.placeholder = "__NEW__";
+    if (type != core::WorkflowVarType::Wildcard) var.placeholder = "__NEW__";
     m_wm->variables() << var;
     save();
     rebuildVarList();
@@ -470,16 +480,15 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     // Wildcards inject into the positive prompt, not into __TOKEN__ slots in
     // the workflow JSON, so this field is just a label for organization.
     placeholderEdit->setPlaceholderText(
-        var.type == core::WorkflowVarType::Wildcard
-            ? "Name (label only)"
-            : "__PLACEHOLDER__");
+        var.type == core::WorkflowVarType::Wildcard ? "Name (label only)" : "__PLACEHOLDER__");
     connect(placeholderEdit, &QLineEdit::editingFinished, this, [this, index, placeholderEdit]() {
         if (!m_wm || index >= m_wm->variables().size()) return;
         m_wm->variables()[index].placeholder = placeholderEdit->text().trimmed();
         save();
     });
 
-    static const char* kTypeNames[] = { "Seed", "String", "Integer", "Float", "Dir Search", "Latent Size", "Image", "Wildcard" };
+    static const char* kTypeNames[] = {"Seed",       "String",      "Integer", "Float",
+                                       "Dir Search", "Latent Size", "Image",   "Wildcard"};
     auto* typeLabel = new QLabel(kTypeNames[int(var.type)]);
     typeLabel->setObjectName("WfTypeLabel");
 
@@ -487,9 +496,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     removeBtn->setObjectName("WfRemoveBtn");
     removeBtn->setFixedSize(20, 20);
     removeBtn->setCursor(Qt::PointingHandCursor);
-    connect(removeBtn, &QPushButton::clicked, this, [this, index]() {
-        removeVariable(index);
-    });
+    connect(removeBtn, &QPushButton::clicked, this, [this, index]() { removeVariable(index); });
 
     headerRow->addWidget(placeholderEdit, 1);
     headerRow->addWidget(typeLabel);
@@ -498,7 +505,6 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
 
     // ── Type-specific body ────────────────────────────────────────────────────
     switch (var.type) {
-
     case core::WorkflowVarType::Seed: {
         // Behavior radio buttons
         auto* behRow = new QHBoxLayout;
@@ -512,7 +518,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
             bg->addButton(rb, int(b));
             behRow->addWidget(rb);
         };
-        addRadio("Fixed",     core::SeedBehavior::Fixed);
+        addRadio("Fixed", core::SeedBehavior::Fixed);
         addRadio("Increment", core::SeedBehavior::Increment);
         addRadio("Randomize", core::SeedBehavior::Randomize);
         behRow->addStretch();
@@ -530,7 +536,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         valLabel->setObjectName("WfFieldLabel");
 
         auto* seedEdit = new QLineEdit;
-        seedEdit->setObjectName("WfValueEdit");  // dark themed; matches other value fields
+        seedEdit->setObjectName("WfValueEdit"); // dark themed; matches other value fields
         seedEdit->setText(QString::number(var.seedValue));
 
         connect(seedEdit, &QLineEdit::editingFinished, this, [this, index, seedEdit]() {
@@ -626,7 +632,8 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         // Extension whitelist (persisted); empty = block .sha256 only
         auto* extEdit = new QLineEdit(var.extensionFilter);
         extEdit->setObjectName("WfValueEdit");
-        extEdit->setPlaceholderText("Ext. whitelist: .safetensors, .ckpt  (empty = all except .sha256)");
+        extEdit->setPlaceholderText(
+            "Ext. whitelist: .safetensors, .ckpt  (empty = all except .sha256)");
         cardLayout->addWidget(extEdit);
 
         // Name filter (transient, not persisted)
@@ -646,7 +653,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         // Shared scan function
         auto scanDir = [this, index, dirEdit, extEdit, filterEdit, fileList]() {
             fileList->clear();
-            const QString dir    = dirEdit->text().trimmed();
+            const QString dir = dirEdit->text().trimmed();
             const QString filter = filterEdit->text().trimmed();
             if (dir.isEmpty()) return;
 
@@ -659,14 +666,14 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
             if (!extRaw.isEmpty()) {
                 for (const QString& e : extRaw.split(',')) {
                     const QString ext = e.trimmed().toLower();
-                    if (!ext.isEmpty())
-                        extWhitelist.insert(ext.startsWith('.') ? ext : '.' + ext);
+                    if (!ext.isEmpty()) extWhitelist.insert(ext.startsWith('.') ? ext : '.' + ext);
                 }
             }
 
             const QDir base(dir);
             const QString curSel = (m_wm && index < m_wm->variables().size())
-                                 ? m_wm->variables()[index].selectedFile : QString();
+                                       ? m_wm->variables()[index].selectedFile
+                                       : QString();
             QDirIterator it(dir, QDir::Files, QDirIterator::Subdirectories);
             int n = 0;
             while (it.hasNext() && n < 500) {
@@ -675,7 +682,8 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
 
                 if (extWhitelist.isEmpty()) {
                     if (ext == ".sha256") continue; // default blacklist
-                } else {
+                }
+                else {
                     if (!extWhitelist.contains(ext)) continue;
                 }
 
@@ -697,58 +705,54 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
             }
         };
 
-        connect(browseBtn, &QPushButton::clicked, this,
-            [this, index, dirEdit, scanDir]() {
-                const QString dir = QFileDialog::getExistingDirectory(
-                    this, "Select Directory", dirEdit->text());
-                if (dir.isEmpty()) return;
-                dirEdit->setText(dir);
-                if (m_wm && index < m_wm->variables().size()) {
-                    m_wm->variables()[index].searchDir = dir;
-                    save();
-                }
-                scanDir();
-            });
+        connect(browseBtn, &QPushButton::clicked, this, [this, index, dirEdit, scanDir]() {
+            const QString dir =
+                QFileDialog::getExistingDirectory(this, "Select Directory", dirEdit->text());
+            if (dir.isEmpty()) return;
+            dirEdit->setText(dir);
+            if (m_wm && index < m_wm->variables().size()) {
+                m_wm->variables()[index].searchDir = dir;
+                save();
+            }
+            scanDir();
+        });
 
-        connect(dirEdit, &QLineEdit::editingFinished, this,
-            [this, index, dirEdit, scanDir]() {
-                if (m_wm && index < m_wm->variables().size()) {
-                    m_wm->variables()[index].searchDir = dirEdit->text().trimmed();
-                    save();
-                }
-                scanDir();
-            });
+        connect(dirEdit, &QLineEdit::editingFinished, this, [this, index, dirEdit, scanDir]() {
+            if (m_wm && index < m_wm->variables().size()) {
+                m_wm->variables()[index].searchDir = dirEdit->text().trimmed();
+                save();
+            }
+            scanDir();
+        });
 
-        connect(extEdit, &QLineEdit::editingFinished, this,
-            [this, index, extEdit, scanDir]() {
-                if (m_wm && index < m_wm->variables().size()) {
-                    m_wm->variables()[index].extensionFilter = extEdit->text().trimmed();
-                    save();
-                }
-                scanDir();
-            });
+        connect(extEdit, &QLineEdit::editingFinished, this, [this, index, extEdit, scanDir]() {
+            if (m_wm && index < m_wm->variables().size()) {
+                m_wm->variables()[index].extensionFilter = extEdit->text().trimmed();
+                save();
+            }
+            scanDir();
+        });
 
         connect(filterEdit, &QLineEdit::textChanged, this,
-            [scanDir](const QString&) { scanDir(); });
+                [scanDir](const QString&) { scanDir(); });
 
         connect(fileList, &QListWidget::itemClicked, this,
-            [this, index, fileList](QListWidgetItem* item) {
-                if (!m_wm || index >= m_wm->variables().size()) return;
-                const QString path = item->data(Qt::UserRole).toString();
-                m_wm->variables()[index].selectedFile = path;
-                save();
-                for (int i = 0; i < fileList->count(); ++i) {
-                    QListWidgetItem* it = fileList->item(i);
-                    const bool sel = it->data(Qt::UserRole).toString() == path;
-                    QFont f = it->font();
-                    f.setBold(sel);
-                    it->setFont(f);
-                    it->setForeground(QColor(sel ? "#5a9a5a" : "#666666"));
-                }
-            });
+                [this, index, fileList](QListWidgetItem* item) {
+                    if (!m_wm || index >= m_wm->variables().size()) return;
+                    const QString path = item->data(Qt::UserRole).toString();
+                    m_wm->variables()[index].selectedFile = path;
+                    save();
+                    for (int i = 0; i < fileList->count(); ++i) {
+                        QListWidgetItem* it = fileList->item(i);
+                        const bool sel = it->data(Qt::UserRole).toString() == path;
+                        QFont f = it->font();
+                        f.setBold(sel);
+                        it->setFont(f);
+                        it->setForeground(QColor(sel ? "#5a9a5a" : "#666666"));
+                    }
+                });
 
-        if (!var.searchDir.isEmpty())
-            scanDir();
+        if (!var.searchDir.isEmpty()) scanDir();
         break;
     }
 
@@ -761,7 +765,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         bodyRow->setSpacing(8);
         bodyRow->setAlignment(Qt::AlignTop);
 
-        auto* sizeList   = new QListWidget;
+        auto* sizeList = new QListWidget;
         sizeList->setObjectName("WfFileList");
         sizeList->setFixedHeight(150);
         sizeList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -770,20 +774,25 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         auto* ratioPreview = new RatioPreview;
 
         if (sizes.isEmpty()) {
-            auto* hint = new QListWidgetItem(
-                QString("File not found: %1").arg(utils::LATENT_SIZES_PATH));
+            auto* hint =
+                new QListWidgetItem(QString("File not found: %1").arg(utils::LATENT_SIZES_PATH));
             hint->setFlags(Qt::NoItemFlags);
-            QFont f = hint->font(); f.setItalic(true); hint->setFont(f);
+            QFont f = hint->font();
+            f.setItalic(true);
+            hint->setFont(f);
             sizeList->addItem(hint);
-        } else {
+        }
+        else {
             for (const core::LatentSizeEntry& e : sizes) {
                 auto* item = new QListWidgetItem(e.label);
-                item->setData(Qt::UserRole,     e.w);
+                item->setData(Qt::UserRole, e.w);
                 item->setData(Qt::UserRole + 1, e.h);
                 item->setData(Qt::UserRole + 2, e.label);
                 const bool sel = (e.label == var.stringValue);
                 if (sel) {
-                    QFont f = item->font(); f.setBold(true); item->setFont(f);
+                    QFont f = item->font();
+                    f.setBold(true);
+                    item->setFont(f);
                     item->setForeground(QColor("#5a9a5a"));
                     ratioPreview->setRatio(e.w, e.h);
                 }
@@ -792,22 +801,24 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         }
 
         connect(sizeList, &QListWidget::itemClicked, this,
-            [this, index, sizeList, ratioPreview](QListWidgetItem* item) {
-                if (!m_wm || index >= m_wm->variables().size()) return;
-                const QString label = item->data(Qt::UserRole + 2).toString();
-                if (label.isEmpty()) return;
-                const int w = item->data(Qt::UserRole).toInt();
-                const int h = item->data(Qt::UserRole + 1).toInt();
-                m_wm->variables()[index].stringValue = label;
-                save();
-                ratioPreview->setRatio(w, h);
-                for (int i = 0; i < sizeList->count(); ++i) {
-                    auto* it = sizeList->item(i);
-                    const bool sel = it->data(Qt::UserRole + 2).toString() == label;
-                    QFont f = it->font(); f.setBold(sel); it->setFont(f);
-                    it->setForeground(QColor(sel ? "#5a9a5a" : "#666666"));
-                }
-            });
+                [this, index, sizeList, ratioPreview](QListWidgetItem* item) {
+                    if (!m_wm || index >= m_wm->variables().size()) return;
+                    const QString label = item->data(Qt::UserRole + 2).toString();
+                    if (label.isEmpty()) return;
+                    const int w = item->data(Qt::UserRole).toInt();
+                    const int h = item->data(Qt::UserRole + 1).toInt();
+                    m_wm->variables()[index].stringValue = label;
+                    save();
+                    ratioPreview->setRatio(w, h);
+                    for (int i = 0; i < sizeList->count(); ++i) {
+                        auto* it = sizeList->item(i);
+                        const bool sel = it->data(Qt::UserRole + 2).toString() == label;
+                        QFont f = it->font();
+                        f.setBold(sel);
+                        it->setFont(f);
+                        it->setForeground(QColor(sel ? "#5a9a5a" : "#666666"));
+                    }
+                });
 
         bodyRow->addWidget(sizeList, 1);
         bodyRow->addWidget(ratioPreview, 0, Qt::AlignTop);
@@ -835,30 +846,32 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
             if (!uuid.isEmpty() && m_inputCache && m_inputCache->has(uuid)) {
                 QPixmap pm(m_inputCache->localPath(uuid));
                 if (!pm.isNull()) {
-                    thumb->setPixmap(pm.scaled(thumb->size(),
-                        Qt::KeepAspectRatio, Qt::SmoothTransformation));
-                } else {
+                    thumb->setPixmap(
+                        pm.scaled(thumb->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                }
+                else {
                     thumb->setText("(broken)");
                 }
                 const auto rec = m_inputCache->get(uuid);
                 QString name = rec.displayName.isEmpty() ? uuid : rec.displayName;
                 // Surface active edits in the label so the user can tell at a
                 // glance that the upload won't be the raw source.
-                if (m_wm && index < m_wm->variables().size()
-                    && m_wm->variables()[index].imageEdits.enabled) {
+                if (m_wm && index < m_wm->variables().size() &&
+                    m_wm->variables()[index].imageEdits.enabled) {
                     const auto& e = m_wm->variables()[index].imageEdits;
                     const QRect r = e.cropRect;
-                    name += e.trimToCrop
-                        ? QStringLiteral("  •  cropped %1×%2").arg(r.width()).arg(r.height())
-                        : QStringLiteral("  •  mask %1×%2").arg(r.width()).arg(r.height());
+                    name +=
+                        e.trimToCrop
+                            ? QStringLiteral("  •  cropped %1×%2").arg(r.width()).arg(r.height())
+                            : QStringLiteral("  •  mask %1×%2").arg(r.width()).arg(r.height());
                 }
                 nameLabel->setText(name);
-            } else {
+            }
+            else {
                 thumb->clear();
                 thumb->setText("(no image)");
-                nameLabel->setText(uuid.isEmpty()
-                    ? QStringLiteral("No image selected")
-                    : QStringLiteral("Missing: %1").arg(uuid));
+                nameLabel->setText(uuid.isEmpty() ? QStringLiteral("No image selected")
+                                                  : QStringLiteral("Missing: %1").arg(uuid));
             }
         };
         refresh(var.imageUuid);
@@ -870,8 +883,8 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         auto* editBtn = new QPushButton("Edit…");
         editBtn->setObjectName("WfBrowseBtn");
         editBtn->setCursor(Qt::PointingHandCursor);
-        editBtn->setEnabled(!var.imageUuid.isEmpty()
-            && m_inputCache && m_inputCache->has(var.imageUuid));
+        editBtn->setEnabled(!var.imageUuid.isEmpty() && m_inputCache &&
+                            m_inputCache->has(var.imageUuid));
 
         auto* clearBtn = new QPushButton("Clear");
         clearBtn->setObjectName("WfBrowseBtn");
@@ -885,8 +898,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
                 return;
             }
             const QString uuid = m_wm->variables()[index].imageUuid;
-            editBtn->setEnabled(!uuid.isEmpty()
-                && m_inputCache && m_inputCache->has(uuid));
+            editBtn->setEnabled(!uuid.isEmpty() && m_inputCache && m_inputCache->has(uuid));
         };
 
         // Common reset path: image source changed → drop edits. Also remove
@@ -895,81 +907,70 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
             if (!m_wm || index >= m_wm->variables().size()) return;
             const QString oldMaskId = m_wm->variables()[index].imageEdits.maskId;
             m_wm->variables()[index].imageEdits = core::ImageEdits{};
-            if (m_inputCache && !oldMaskId.isEmpty())
-                m_inputCache->removeMask(oldMaskId);
+            if (m_inputCache && !oldMaskId.isEmpty()) m_inputCache->removeMask(oldMaskId);
         };
 
         connect(browseBtn, &QPushButton::clicked, this,
-            [this, index, refresh, updateEditEnabled, resetEdits]() {
-                if (!m_wm || !m_inputCache || index >= m_wm->variables().size())
-                    return;
-                const QString src = QFileDialog::getOpenFileName(
-                    this, "Select image",
-                    QString(),
-                    "Images (*.png *.jpg *.jpeg *.bmp *.webp *.tiff)");
-                if (src.isEmpty()) return;
-                const QString uuid = m_inputCache->importFromFile(src);
-                if (uuid.isEmpty()) return;
-                resetEdits();
-                m_wm->variables()[index].imageUuid = uuid;
-                save();
-                refresh(uuid);
-                updateEditEnabled();
-            });
+                [this, index, refresh, updateEditEnabled, resetEdits]() {
+                    if (!m_wm || !m_inputCache || index >= m_wm->variables().size()) return;
+                    const QString src = QFileDialog::getOpenFileName(
+                        this, "Select image", QString(),
+                        "Images (*.png *.jpg *.jpeg *.bmp *.webp *.tiff)");
+                    if (src.isEmpty()) return;
+                    const QString uuid = m_inputCache->importFromFile(src);
+                    if (uuid.isEmpty()) return;
+                    resetEdits();
+                    m_wm->variables()[index].imageUuid = uuid;
+                    save();
+                    refresh(uuid);
+                    updateEditEnabled();
+                });
 
         connect(clearBtn, &QPushButton::clicked, this,
-            [this, index, refresh, updateEditEnabled, resetEdits]() {
-                if (!m_wm || index >= m_wm->variables().size()) return;
-                resetEdits();
-                m_wm->variables()[index].imageUuid.clear();
-                save();
-                refresh(QString());
-                updateEditEnabled();
-            });
+                [this, index, refresh, updateEditEnabled, resetEdits]() {
+                    if (!m_wm || index >= m_wm->variables().size()) return;
+                    resetEdits();
+                    m_wm->variables()[index].imageUuid.clear();
+                    save();
+                    refresh(QString());
+                    updateEditEnabled();
+                });
 
         connect(thumb, &DropImageLabel::filePathDropped, this,
-            [this, index, refresh, updateEditEnabled, resetEdits](const QString& src) {
-                if (!m_wm || !m_inputCache || index >= m_wm->variables().size())
-                    return;
-                const QString uuid = m_inputCache->importFromFile(src);
-                if (uuid.isEmpty()) return;
-                resetEdits();
-                m_wm->variables()[index].imageUuid = uuid;
-                save();
-                refresh(uuid);
-                updateEditEnabled();
-            });
+                [this, index, refresh, updateEditEnabled, resetEdits](const QString& src) {
+                    if (!m_wm || !m_inputCache || index >= m_wm->variables().size()) return;
+                    const QString uuid = m_inputCache->importFromFile(src);
+                    if (uuid.isEmpty()) return;
+                    resetEdits();
+                    m_wm->variables()[index].imageUuid = uuid;
+                    save();
+                    refresh(uuid);
+                    updateEditEnabled();
+                });
 
-        connect(editBtn, &QPushButton::clicked, this,
-            [this, index, refresh]() {
-                if (!m_wm || !m_inputCache || index >= m_wm->variables().size())
-                    return;
-                const QString uuid = m_wm->variables()[index].imageUuid;
-                if (uuid.isEmpty() || !m_inputCache->has(uuid)) return;
+        connect(editBtn, &QPushButton::clicked, this, [this, index, refresh]() {
+            if (!m_wm || !m_inputCache || index >= m_wm->variables().size()) return;
+            const QString uuid = m_wm->variables()[index].imageUuid;
+            if (uuid.isEmpty() || !m_inputCache->has(uuid)) return;
 
-                QImage src(m_inputCache->localPath(uuid));
-                if (src.isNull()) return;
+            QImage src(m_inputCache->localPath(uuid));
+            if (src.isNull()) return;
 
-                const QString oldMaskId =
-                    m_wm->variables()[index].imageEdits.maskId;
+            const QString oldMaskId = m_wm->variables()[index].imageEdits.maskId;
 
-                gui::ClipEditorDialog dlg(
-                    src, m_wm->variables()[index].imageEdits,
-                    m_inputCache, this);
-                if (dlg.exec() != QDialog::Accepted) return;
-                m_wm->variables()[index].imageEdits = dlg.result();
+            gui::ClipEditorDialog dlg(src, m_wm->variables()[index].imageEdits, m_inputCache, this);
+            if (dlg.exec() != QDialog::Accepted) return;
+            m_wm->variables()[index].imageEdits = dlg.result();
 
-                // Drop the previous mask file if it was replaced (or cleared)
-                // - saveMask always mints a fresh uuid, so any change leaves
-                // the old file orphaned.
-                const QString newMaskId =
-                    m_wm->variables()[index].imageEdits.maskId;
-                if (!oldMaskId.isEmpty() && oldMaskId != newMaskId)
-                    m_inputCache->removeMask(oldMaskId);
+            // Drop the previous mask file if it was replaced (or cleared)
+            // - saveMask always mints a fresh uuid, so any change leaves
+            // the old file orphaned.
+            const QString newMaskId = m_wm->variables()[index].imageEdits.maskId;
+            if (!oldMaskId.isEmpty() && oldMaskId != newMaskId) m_inputCache->removeMask(oldMaskId);
 
-                save();
-                refresh(uuid);
-            });
+            save();
+            refresh(uuid);
+        });
 
         auto* btnCol = new QVBoxLayout;
         btnCol->setSpacing(4);
@@ -990,10 +991,9 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     }
 
     case core::WorkflowVarType::Wildcard: {
-        auto* hint = new QLabel(
-            "One slot per line. A random line is picked for each prompt run\n"
-            "and merged into the positive prompt - rules and replacement\n"
-            "vars apply. Commas split a line into multiple tags.");
+        auto* hint = new QLabel("One slot per line. A random line is picked for each prompt run\n"
+                                "and merged into the positive prompt - rules and replacement\n"
+                                "vars apply. Commas split a line into multiple tags.");
         hint->setObjectName("WfFieldLabel");
         hint->setWordWrap(true);
         cardLayout->addWidget(hint);
@@ -1011,17 +1011,16 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         saveTimer->setInterval(400);
         connect(saveTimer, &QTimer::timeout, this, [this]() { save(); });
 
-        connect(edit, &QPlainTextEdit::textChanged, this,
-            [this, index, edit, saveTimer]() {
-                if (!m_wm || index >= m_wm->variables().size()) return;
-                QStringList lines;
-                for (const QString& line : edit->toPlainText().split('\n')) {
-                    const QString t = line.trimmed();
-                    if (!t.isEmpty()) lines << t;
-                }
-                m_wm->variables()[index].wildcardTags = lines;
-                saveTimer->start();
-            });
+        connect(edit, &QPlainTextEdit::textChanged, this, [this, index, edit, saveTimer]() {
+            if (!m_wm || index >= m_wm->variables().size()) return;
+            QStringList lines;
+            for (const QString& line : edit->toPlainText().split('\n')) {
+                const QString t = line.trimmed();
+                if (!t.isEmpty()) lines << t;
+            }
+            m_wm->variables()[index].wildcardTags = lines;
+            saveTimer->start();
+        });
 
         cardLayout->addWidget(edit);
         break;
@@ -1061,8 +1060,8 @@ QFrame* WorkflowEditPage::makeLoraCard(int index)
 {
     const core::LoraConfig& lc = m_loraStack[index];
     core::Entry* entry = (m_entryModel && !lc.sha256.isEmpty())
-        ? m_entryModel->entryByLoraSha256(lc.sha256)
-        : nullptr;
+                             ? m_entryModel->entryByLoraSha256(lc.sha256)
+                             : nullptr;
 
     auto* card = new QFrame;
     card->setObjectName("WfVarCard");
@@ -1081,15 +1080,13 @@ QFrame* WorkflowEditPage::makeLoraCard(int index)
 
     QPixmap pix;
     if (entry && !entry->images.isEmpty()) {
-        const QString path = utils::BASE_PATH + "/data/entry/"
-                           + entry->uuid + "/" + entry->images[0].fileName;
+        const QString path =
+            utils::BASE_PATH + "/data/entry/" + entry->uuid + "/" + entry->images[0].fileName;
         pix.load(path);
     }
-    if (pix.isNull())
-        pix.load(":/img/placeholder.png");
+    if (pix.isNull()) pix.load(":/img/placeholder.png");
     if (!pix.isNull())
-        imgLabel->setPixmap(pix.scaled(80, 100,
-            Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        imgLabel->setPixmap(pix.scaled(80, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
     row->addWidget(imgLabel);
 
@@ -1122,7 +1119,7 @@ QFrame* WorkflowEditPage::makeLoraCard(int index)
     };
 
     auto* modelSpin = makeSpinBox(0.0, 2.0, 0.05, lc.modelStr);
-    auto* clipSpin  = makeSpinBox(0.0, 4.0, 0.10, lc.clipStr);
+    auto* clipSpin = makeSpinBox(0.0, 4.0, 0.10, lc.clipStr);
 
     auto* modelRow = new QHBoxLayout;
     auto* modelLabel = new QLabel("Model");
@@ -1153,23 +1150,23 @@ QFrame* WorkflowEditPage::makeLoraCard(int index)
         if (index < 0 || index >= m_loraStack.size()) return;
         core::LoraConfig& cached = m_loraStack[index];
         cached.modelStr = modelSpin->value();
-        cached.clipStr  = clipSpin->value();
+        cached.clipStr = clipSpin->value();
 
         if (m_entryModel) {
             core::Entry* e = m_entryModel->entryByLoraSha256(cached.sha256);
             if (e && e->lora.has_value()) {
                 e->lora->modelStr = cached.modelStr;
-                e->lora->clipStr  = cached.clipStr;
+                e->lora->clipStr = cached.clipStr;
                 m_entryModel->saveEntry(e->id);
             }
         }
 
         emit loraStrengthsChanged(m_loraStack);
     };
-    connect(modelSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, [onChanged](double) { onChanged(); });
-    connect(clipSpin,  QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, [onChanged](double) { onChanged(); });
+    connect(modelSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            [onChanged](double) { onChanged(); });
+    connect(clipSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            [onChanged](double) { onChanged(); });
 
     return card;
 }

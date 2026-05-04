@@ -11,8 +11,7 @@
 namespace core {
 
 UpdateChecker::UpdateChecker(QObject* parent)
-    : QObject(parent)
-    , m_nam(new QNetworkAccessManager(this))
+    : QObject(parent), m_nam(new QNetworkAccessManager(this))
 {
 }
 
@@ -67,15 +66,15 @@ void UpdateChecker::checkNow()
             return;
         }
 
-        const QString url = obj.value("html_url").toString(
-            QString("https://github.com/%1/releases/latest").arg(m_repo));
+        const QString url =
+            obj.value("html_url")
+                .toString(QString("https://github.com/%1/releases/latest").arg(m_repo));
 
         // Normalize the tag for the user-facing version string (strip a
         // leading 'v' so "v0.2.0" displays as "0.2.0"). The numeric compare
         // tolerates either form.
         QString latest = tag;
-        if (latest.startsWith('v', Qt::CaseInsensitive))
-            latest = latest.mid(1);
+        if (latest.startsWith('v', Qt::CaseInsensitive)) latest = latest.mid(1);
 
         if (compareVersions(latest, m_currentVersion) > 0)
             emit updateAvailable(latest, url);

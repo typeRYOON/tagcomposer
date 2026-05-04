@@ -42,16 +42,16 @@ protected:
 private:
     void loadNewestTempImage();
 
-    ScaledImageLabel*       m_imageLabel;
-    ClickableLabel*         m_tempLabel;
-    QFileSystemWatcher*     m_watcher;
-    QTimer*                 m_debounce;
+    ScaledImageLabel* m_imageLabel;
+    ClickableLabel* m_tempLabel;
+    QFileSystemWatcher* m_watcher;
+    QTimer* m_debounce;
     QFutureWatcher<QImage>* m_loadWatcher;
-    QString                 m_tempFolder;
-    QString                 m_lastTempPath;
-    bool                    m_isClosing{ false };
+    QString m_tempFolder;
+    QString m_lastTempPath;
+    bool m_isClosing{false};
 
-    WindowChrome*           m_chrome = nullptr;
+    WindowChrome* m_chrome = nullptr;
 };
 
 } // namespace gui

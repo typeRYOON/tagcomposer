@@ -15,9 +15,7 @@
 
 namespace gui {
 
-ExportDialog::ExportDialog(core::EntryModel* model,
-                           const core::FacetIndex* facets,
-                           QWidget* parent)
+ExportDialog::ExportDialog(core::EntryModel* model, const core::FacetIndex* facets, QWidget* parent)
     : ChromedDialog(parent), m_model(model), m_facets(facets)
 {
     setWindowTitle("Export Entries");
@@ -27,9 +25,9 @@ ExportDialog::ExportDialog(core::EntryModel* model,
     root->setContentsMargins(20, 16, 20, 16);
     root->setSpacing(8);
 
-    auto* prompt = new QLabel(
-        "Enter a search query (same syntax as the tile-view bar). All\n"
-        "matching entries and their referenced tag definitions will be exported.");
+    auto* prompt =
+        new QLabel("Enter a search query (same syntax as the tile-view bar). All\n"
+                   "matching entries and their referenced tag definitions will be exported.");
     prompt->setWordWrap(true);
     root->addWidget(prompt);
 
@@ -73,9 +71,8 @@ void ExportDialog::refreshPreview()
         return;
     }
     const auto matched = m_model->filter(m_query->text().trimmed());
-    m_count->setText(QString("%1 entr%2 matched")
-                         .arg(matched.size())
-                         .arg(matched.size() == 1 ? "y" : "ies"));
+    m_count->setText(
+        QString("%1 entr%2 matched").arg(matched.size()).arg(matched.size() == 1 ? "y" : "ies"));
     for (const auto* e : matched) {
         const QString display = e->title.isEmpty() ? e->uuid : e->title;
         m_preview->addItem(display);
@@ -85,8 +82,7 @@ void ExportDialog::refreshPreview()
 
 void ExportDialog::onExport()
 {
-    const QString folder = QFileDialog::getExistingDirectory(
-        this, "Export to folder");
+    const QString folder = QFileDialog::getExistingDirectory(this, "Export to folder");
     if (folder.isEmpty()) return;
 
     if (!m_facets) {
@@ -95,12 +91,13 @@ void ExportDialog::onExport()
     }
 
     QStringList errors;
-    const bool ok = core::PortManager::exportEntries(
-        m_query->text().trimmed(), folder, m_model, *m_facets, &errors);
+    const bool ok = core::PortManager::exportEntries(m_query->text().trimmed(), folder, m_model,
+                                                     *m_facets, &errors);
 
     if (ok) {
         m_status->setText(QString("Exported successfully to: %1").arg(folder));
-    } else {
+    }
+    else {
         m_status->setText(QString("Export failed: %1").arg(errors.join("; ")));
     }
 }

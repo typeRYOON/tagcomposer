@@ -27,8 +27,8 @@ private:
 
     QString m_path;
     QPixmap m_src;
-    QPoint  m_pressPos;
-    bool    m_dragInFlight = false;
+    QPoint m_pressPos;
+    bool m_dragInFlight = false;
 };
 
 } // namespace gui

@@ -15,13 +15,25 @@ public:
     ~ComfyUiClient();
 
     void setServerAddress(const QString& addr);
-    void setApiKey(const QString& key) { m_apiKey = key; }
-    QString serverAddress() const { return m_serverAddress; }
-    QString clientId()     const { return m_clientId; }
+    void setApiKey(const QString& key)
+    {
+        m_apiKey = key;
+    }
+    QString serverAddress() const
+    {
+        return m_serverAddress;
+    }
+    QString clientId() const
+    {
+        return m_clientId;
+    }
 
     void connectToServer();
     void disconnectFromServer();
-    bool isConnected() const { return m_connected; }
+    bool isConnected() const
+    {
+        return m_connected;
+    }
 
     void interrupt();
     void clearPending();
@@ -34,8 +46,7 @@ public:
     // Uploads localPath to ComfyUI's input folder. If localInputFolder is set
     // and writable, uses a direct file copy (fast path). Otherwise POSTs
     // multipart/form-data to /upload/image. cb fires on completion.
-    void uploadInput(const QString& localPath,
-                     const QString& subfolder,
+    void uploadInput(const QString& localPath, const QString& subfolder,
                      const QString& localInputFolder,
                      std::function<void(bool ok, QString error)> cb);
 
@@ -51,15 +62,15 @@ private:
     void onWsConnected();
     void onWsDisconnected(const QString& errorString);
 
-    QThread*               m_wsThread;
-    QObject*               m_worker;
+    QThread* m_wsThread;
+    QObject* m_worker;
     QNetworkAccessManager* m_nam;
     QJsonObject extraData() const;
 
-    QString                m_serverAddress = "127.0.0.1:8188";
-    QString                m_apiKey;
-    QString                m_clientId;
-    bool                   m_connected = false;
+    QString m_serverAddress = "127.0.0.1:8188";
+    QString m_apiKey;
+    QString m_clientId;
+    bool m_connected = false;
 };
 
 } // namespace core

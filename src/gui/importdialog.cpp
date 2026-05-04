@@ -19,15 +19,10 @@
 
 namespace gui {
 
-ImportDialog::ImportDialog(core::EntryModel* model,
-                           core::FacetIndex* facets,
-                           const QString& dataEntryDir,
-                           const QString& tagDefinitionsPath,
+ImportDialog::ImportDialog(core::EntryModel* model, core::FacetIndex* facets,
+                           const QString& dataEntryDir, const QString& tagDefinitionsPath,
                            QWidget* parent)
-    : ChromedDialog(parent),
-      m_model(model),
-      m_facets(facets),
-      m_dataEntryDir(dataEntryDir),
+    : ChromedDialog(parent), m_model(model), m_facets(facets), m_dataEntryDir(dataEntryDir),
       m_tagDefinitionsPath(tagDefinitionsPath)
 {
     setWindowTitle("Import Entries");
@@ -59,13 +54,13 @@ ImportDialog::ImportDialog(core::EntryModel* model,
     // ── Conflict mode ───────────────────────────────────────────────────────
     auto* conflictRow = new QHBoxLayout;
     conflictRow->addWidget(new QLabel("On tag-definition collision:"));
-    auto* skipRb      = new QRadioButton("Skip");
-    auto* mergeRb     = new QRadioButton("Merge");
+    auto* skipRb = new QRadioButton("Skip");
+    auto* mergeRb = new QRadioButton("Merge");
     auto* overwriteRb = new QRadioButton("Overwrite");
     skipRb->setChecked(true);
     m_conflictGroup = new QButtonGroup(this);
-    m_conflictGroup->addButton(skipRb,      int(core::TagConflictMode::Skip));
-    m_conflictGroup->addButton(mergeRb,     int(core::TagConflictMode::Merge));
+    m_conflictGroup->addButton(skipRb, int(core::TagConflictMode::Skip));
+    m_conflictGroup->addButton(mergeRb, int(core::TagConflictMode::Merge));
     m_conflictGroup->addButton(overwriteRb, int(core::TagConflictMode::Overwrite));
     conflictRow->addWidget(skipRb);
     conflictRow->addWidget(mergeRb);
@@ -84,7 +79,7 @@ ImportDialog::ImportDialog(core::EntryModel* model,
     root->addLayout(mapHeader);
 
     // ── Mapping table body ──────────────────────────────────────────────────
-    m_mappingHost   = new QWidget;
+    m_mappingHost = new QWidget;
     m_mappingLayout = new QVBoxLayout(m_mappingHost);
     m_mappingLayout->setContentsMargins(0, 0, 0, 0);
     m_mappingLayout->setSpacing(4);
@@ -114,18 +109,17 @@ ImportDialog::ImportDialog(core::EntryModel* model,
     m_importBtn->setEnabled(false);
     root->addWidget(btns);
 
-    connect(browseBtn,      &QPushButton::clicked,   this, &ImportDialog::onBrowse);
-    connect(m_dropAllBtn,   &QPushButton::clicked,   this, &ImportDialog::onDropAllUnmatched);
-    connect(btns,           &QDialogButtonBox::accepted, this, &ImportDialog::onImport);
-    connect(btns,           &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(browseBtn, &QPushButton::clicked, this, &ImportDialog::onBrowse);
+    connect(m_dropAllBtn, &QPushButton::clicked, this, &ImportDialog::onDropAllUnmatched);
+    connect(btns, &QDialogButtonBox::accepted, this, &ImportDialog::onImport);
+    connect(btns, &QDialogButtonBox::rejected, this, &QDialog::reject);
 }
 
 // ── Browse + scan ────────────────────────────────────────────────────────────
 
 void ImportDialog::onBrowse()
 {
-    const QString folder = QFileDialog::getExistingDirectory(
-        this, "Import from folder");
+    const QString folder = QFileDialog::getExistingDirectory(this, "Import from folder");
     if (folder.isEmpty()) return;
 
     m_srcInput->setText(folder);
@@ -139,17 +133,20 @@ void ImportDialog::onBrowse()
     m_scan = core::PortManager::scanImport(folder, m_model, *m_facets);
 
     int dupes = 0;
-    for (const auto& e : m_scan.entries) if (e.duplicate) ++dupes;
+    for (const auto& e : m_scan.entries)
+        if (e.duplicate) ++dupes;
     int collisions = 0;
-    for (const auto& d : m_scan.tagDefs) if (d.collision) ++collisions;
+    for (const auto& d : m_scan.tagDefs)
+        if (d.collision) ++collisions;
 
-    m_summary->setText(QString(
-        "Entries: %1 (%2 duplicate(s) will be skipped) · "
-        "Tag definitions: %3 (%4 collision(s)) · "
-        "Source facets: %5")
-        .arg(m_scan.entries.size()).arg(dupes)
-        .arg(m_scan.tagDefs.size()).arg(collisions)
-        .arg(m_scan.sourceFacets.size()));
+    m_summary->setText(QString("Entries: %1 (%2 duplicate(s) will be skipped) · "
+                               "Tag definitions: %3 (%4 collision(s)) · "
+                               "Source facets: %5")
+                           .arg(m_scan.entries.size())
+                           .arg(dupes)
+                           .arg(m_scan.tagDefs.size())
+                           .arg(collisions)
+                           .arg(m_scan.sourceFacets.size()));
 
     m_dropAllBtn->setEnabled(!m_scan.sourceFacets.isEmpty());
     rebuildMappingTable();
@@ -204,7 +201,7 @@ void ImportDialog::rebuildMappingTable()
 
         MappingRow rec;
         rec.source = src;
-        rec.combo  = combo;
+        rec.combo = combo;
         rec.dropBtn = dropBtn;
         rec.widget = rowWidget;
         m_rows << rec;
@@ -213,12 +210,11 @@ void ImportDialog::rebuildMappingTable()
         if (!inDest) dropBtn->setChecked(true);
 
         connect(combo, &QComboBox::currentTextChanged, this,
-            [this](const QString&) { validate(); });
-        connect(dropBtn, &QPushButton::toggled, this,
-            [this, combo](bool checked) {
-                combo->setEnabled(!checked);
-                validate();
-            });
+                [this](const QString&) { validate(); });
+        connect(dropBtn, &QPushButton::toggled, this, [this, combo](bool checked) {
+            combo->setEnabled(!checked);
+            validate();
+        });
     }
 
     validate();
@@ -248,17 +244,17 @@ void ImportDialog::validate()
     for (const auto& row : m_rows) {
         if (row.dropBtn->isChecked()) continue;
         const QString target = row.combo->currentText().trimmed();
-        if (target.isEmpty() || !destSet.contains(target))
-            unmapped << row.source;
+        if (target.isEmpty() || !destSet.contains(target)) unmapped << row.source;
     }
 
     if (unmapped.isEmpty()) {
         m_validation->clear();
         m_importBtn->setEnabled(true);
-    } else {
-        m_validation->setText(
-            QString("%1 facet(s) need a valid destination or to be dropped: %2")
-                .arg(unmapped.size()).arg(unmapped.join(", ")));
+    }
+    else {
+        m_validation->setText(QString("%1 facet(s) need a valid destination or to be dropped: %2")
+                                  .arg(unmapped.size())
+                                  .arg(unmapped.join(", ")));
         m_importBtn->setEnabled(false);
     }
 }
@@ -270,8 +266,7 @@ void ImportDialog::onDropAllUnmatched()
     QSet<QString> destSet(destFacets.begin(), destFacets.end());
 
     for (auto& row : m_rows) {
-        if (!destSet.contains(row.combo->currentText().trimmed()))
-            row.dropBtn->setChecked(true);
+        if (!destSet.contains(row.combo->currentText().trimmed())) row.dropBtn->setChecked(true);
     }
     validate();
 }
@@ -286,34 +281,30 @@ void ImportDialog::onImport()
     }
 
     core::PortConfig config;
-    config.tagConflict = core::TagConflictMode(
-        m_conflictGroup->checkedId());
+    config.tagConflict = core::TagConflictMode(m_conflictGroup->checkedId());
 
     for (const auto& row : m_rows) {
         if (row.dropBtn->isChecked())
-            config.facetMapping[row.source] = QString();  // explicit drop
+            config.facetMapping[row.source] = QString(); // explicit drop
         else
             config.facetMapping[row.source] = row.combo->currentText().trimmed();
     }
 
     const core::PortResult res = core::PortManager::applyImport(
-        m_scan, config, m_model, *m_facets,
-        m_dataEntryDir, m_tagDefinitionsPath);
+        m_scan, config, m_model, *m_facets, m_dataEntryDir, m_tagDefinitionsPath);
 
-    QString summary = QString(
-        "Entries imported: %1 · skipped (duplicates): %2\n"
-        "Tag definitions - added: %3 · merged: %4 · overwritten: %5 · "
-        "skipped: %6 · dropped (empty after mapping): %7")
-        .arg(res.entriesImported)
-        .arg(res.entriesSkipped)
-        .arg(res.tagsAdded)
-        .arg(res.tagsMerged)
-        .arg(res.tagsOverwritten)
-        .arg(res.tagsSkipped)
-        .arg(res.tagsDroppedEmpty);
+    QString summary = QString("Entries imported: %1 · skipped (duplicates): %2\n"
+                              "Tag definitions - added: %3 · merged: %4 · overwritten: %5 · "
+                              "skipped: %6 · dropped (empty after mapping): %7")
+                          .arg(res.entriesImported)
+                          .arg(res.entriesSkipped)
+                          .arg(res.tagsAdded)
+                          .arg(res.tagsMerged)
+                          .arg(res.tagsOverwritten)
+                          .arg(res.tagsSkipped)
+                          .arg(res.tagsDroppedEmpty);
 
-    if (!res.errors.isEmpty())
-        summary += "\nErrors: " + res.errors.join("; ");
+    if (!res.errors.isEmpty()) summary += "\nErrors: " + res.errors.join("; ");
 
     m_status->setText(summary);
     accept();

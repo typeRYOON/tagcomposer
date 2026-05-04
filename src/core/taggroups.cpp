@@ -7,8 +7,7 @@ static QList<QString> splitTrimmed(const QString& s, QChar sep)
 {
     QList<QString> out;
     for (const QString& p : s.split(sep))
-        if (const QString t = p.trimmed(); !t.isEmpty())
-            out << t;
+        if (const QString t = p.trimmed(); !t.isEmpty()) out << t;
     return out;
 }
 
@@ -25,26 +24,22 @@ TagGroupIndex TagGroupIndex::loadFromFile(const QString& path)
     TagGroup current;
     bool inGroup = false;
 
-    for (const QString& raw : QString::fromUtf8(f.readAll()).split('\n'))
-    {
+    for (const QString& raw : QString::fromUtf8(f.readAll()).split('\n')) {
         const QString line = raw.trimmed();
         if (line.isEmpty() || line.startsWith('#')) continue;
 
         if (line.startsWith("@group")) {
-            if (inGroup && !current.name.isEmpty())
-                idx.m_groups << current;
-            current      = TagGroup{};
+            if (inGroup && !current.name.isEmpty()) idx.m_groups << current;
+            current = TagGroup{};
             current.name = line.mid(6).trimmed();
-            inGroup      = true;
+            inGroup = true;
             continue;
         }
 
-        if (inGroup)
-            current.facets = splitTrimmed(line, ',');
+        if (inGroup) current.facets = splitTrimmed(line, ',');
     }
 
-    if (inGroup && !current.name.isEmpty())
-        idx.m_groups << current;
+    if (inGroup && !current.name.isEmpty()) idx.m_groups << current;
 
     return idx;
 }
@@ -55,7 +50,10 @@ QString TagGroupIndex::groupFor(const QList<QString>& tagFacets) const
         if (g.facets.isEmpty()) continue;
         bool allMatch = true;
         for (const QString& f : g.facets)
-            if (!tagFacets.contains(f)) { allMatch = false; break; }
+            if (!tagFacets.contains(f)) {
+                allMatch = false;
+                break;
+            }
         if (allMatch) return g.name;
     }
     return {};

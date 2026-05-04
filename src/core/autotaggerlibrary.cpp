@@ -4,8 +4,7 @@
 
 namespace core {
 
-AutoTaggerLibrary::AutoTaggerLibrary(const QString& modelsRoot)
-    : m_root(modelsRoot)
+AutoTaggerLibrary::AutoTaggerLibrary(const QString& modelsRoot) : m_root(modelsRoot)
 {
     rescan();
 }
@@ -17,8 +16,7 @@ void AutoTaggerLibrary::rescan()
     QDir root(m_root);
     if (!root.exists()) return;
 
-    const QFileInfoList subs = root.entryInfoList(
-        QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+    const QFileInfoList subs = root.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
     for (const QFileInfo& fi : subs) {
         if (!QFile::exists(fi.absoluteFilePath() + "/model.onnx")) continue;
         m_names.append(fi.fileName());
@@ -27,8 +25,7 @@ void AutoTaggerLibrary::rescan()
 
 AutoTaggerModel* AutoTaggerLibrary::model(const QString& name)
 {
-    if (auto it = m_loaded.find(name); it != m_loaded.end())
-        return it->second.get();
+    if (auto it = m_loaded.find(name); it != m_loaded.end()) return it->second.get();
 
     if (!m_names.contains(name)) return nullptr;
 

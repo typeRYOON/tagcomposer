@@ -47,7 +47,7 @@ QRect maskBoundingBox(const QImage& mask)
     return QRect(QPoint(minX, minY), QPoint(maxX, maxY));
 }
 
-} // anonymous
+} // namespace
 
 // ── Canvas ──────────────────────────────────────────────────────────────────
 
@@ -70,12 +70,13 @@ public:
     {
         if (mask.isNull()) {
             m_mask.fill(0);
-        } else {
+        }
+        else {
             m_mask = mask.convertToFormat(QImage::Format_Grayscale8);
             if (m_mask.size() != m_source.size()) {
                 // Defensive: if a mask of the wrong size sneaks in, scale it.
-                m_mask = m_mask.scaled(m_source.size(), Qt::IgnoreAspectRatio,
-                                       Qt::FastTransformation);
+                m_mask =
+                    m_mask.scaled(m_source.size(), Qt::IgnoreAspectRatio, Qt::FastTransformation);
             }
         }
         rebuildOverlay(m_mask.rect());
@@ -83,22 +84,39 @@ public:
         if (m_onChanged) m_onChanged();
     }
 
-    QImage mask() const { return m_mask; }
+    QImage mask() const
+    {
+        return m_mask;
+    }
 
-    void setTool(Tool t) {
+    void setTool(Tool t)
+    {
         // Cancel any rect drag still in flight - user moved on to a different
         // tool, the half-painted rectangle preview should disappear with them.
         if (m_dragging) {
-            m_dragging    = false;
+            m_dragging = false;
             m_currentRect = QRect();
             update();
         }
         m_tool = t;
     }
-    void setErase(bool e)           { m_erase = e; }
-    void setBrushSize(int px)       { m_brushSize = qMax(1, px); }
-    void setBucketTolerance(int t)  { m_tolerance = qMax(0, t); }
-    void setTrimMode(bool trim)     { m_trimMode = trim; update(); }
+    void setErase(bool e)
+    {
+        m_erase = e;
+    }
+    void setBrushSize(int px)
+    {
+        m_brushSize = qMax(1, px);
+    }
+    void setBucketTolerance(int t)
+    {
+        m_tolerance = qMax(0, t);
+    }
+    void setTrimMode(bool trim)
+    {
+        m_trimMode = trim;
+        update();
+    }
 
     void clearMask()
     {
@@ -111,15 +129,18 @@ public:
     void invertMask()
     {
         if (m_mask.isNull()) return;
-        cv::Mat ourMask(m_mask.height(), m_mask.width(), CV_8UC1,
-                        m_mask.bits(), m_mask.bytesPerLine());
+        cv::Mat ourMask(m_mask.height(), m_mask.width(), CV_8UC1, m_mask.bits(),
+                        m_mask.bytesPerLine());
         cv::bitwise_not(ourMask, ourMask);
         rebuildOverlay(m_mask.rect());
         update();
         if (m_onChanged) m_onChanged();
     }
 
-    void onMaskChanged(std::function<void()> cb) { m_onChanged = std::move(cb); }
+    void onMaskChanged(std::function<void()> cb)
+    {
+        m_onChanged = std::move(cb);
+    }
 
 protected:
     void paintEvent(QPaintEvent*) override
@@ -147,14 +168,14 @@ protected:
                 p.setBrush(Qt::NoBrush);
                 p.drawRect(bboxDst.adjusted(0, 0, -1, -1));
             }
-        } else {
+        }
+        else {
             // Mask mode - draw the painted mask as a red translucent overlay.
             p.drawImage(dst, m_overlay);
         }
 
         // In-progress rect drag - show as a wireframe before commit.
-        if (m_tool == Tool::Rect && m_dragging
-            && !m_currentRect.isEmpty()) {
+        if (m_tool == Tool::Rect && m_dragging && !m_currentRect.isEmpty()) {
             const QRect rDst = sourceToDisplay(m_currentRect);
             QPen pen(QColor(255, 255, 255, 220));
             pen.setStyle(Qt::DashLine);
@@ -172,9 +193,9 @@ protected:
 
         switch (m_tool) {
         case Tool::Rect:
-            m_dragStart   = src;
+            m_dragStart = src;
             m_currentRect = QRect(src, src);
-            m_dragging    = true;
+            m_dragging = true;
             update();
             break;
         case Tool::Brush:
@@ -197,8 +218,8 @@ protected:
         if (m_tool == Tool::Rect && m_dragging) {
             m_currentRect = QRect(m_dragStart, src).normalized();
             update();
-        } else if (m_tool == Tool::Brush
-                   && (e->buttons() & Qt::LeftButton)) {
+        }
+        else if (m_tool == Tool::Brush && (e->buttons() & Qt::LeftButton)) {
             paintBrushSegment(m_lastBrushPos, src, m_erase);
             m_lastBrushPos = src;
         }
@@ -218,7 +239,8 @@ protected:
                 rebuildOverlay(r);
                 update();
                 if (m_onChanged) m_onChanged();
-            } else {
+            }
+            else {
                 update();
             }
         }
@@ -230,9 +252,10 @@ private:
     void paintBrushSegment(QPoint from, QPoint to, bool erase)
     {
         const int radius = m_brushSize / 2 + 1;
-        const QRect bbox = QRect(from, to).normalized()
-                                          .adjusted(-radius, -radius, radius, radius)
-                                          .intersected(m_mask.rect());
+        const QRect bbox = QRect(from, to)
+                               .normalized()
+                               .adjusted(-radius, -radius, radius, radius)
+                               .intersected(m_mask.rect());
         if (bbox.isEmpty()) return;
 
         QPainter pm(&m_mask);
@@ -262,17 +285,15 @@ private:
         // is byte-order [R,G,B] per pixel, which CV_8UC3 sees as the same
         // (channel order is irrelevant here - uniform per-channel tolerance).
         QImage rgb = (m_source.format() == QImage::Format_RGB888)
-            ? m_source
-            : m_source.convertToFormat(QImage::Format_RGB888);
-        cv::Mat srcMat(rgb.height(), rgb.width(), CV_8UC3,
-                       rgb.bits(), rgb.bytesPerLine());
+                         ? m_source
+                         : m_source.convertToFormat(QImage::Format_RGB888);
+        cv::Mat srcMat(rgb.height(), rgb.width(), CV_8UC3, rgb.bits(), rgb.bytesPerLine());
 
         // OpenCV requires the workspace mask to be 2px larger than the image
         // (1px border on each side acts as a sentinel). Non-zero pixels block
         // the fill, so we start it blank - the existing m_mask is *not*
         // treated as a barrier (matches prior BFS behavior).
-        cv::Mat ffMask = cv::Mat::zeros(srcMat.rows + 2, srcMat.cols + 2,
-                                        CV_8UC1);
+        cv::Mat ffMask = cv::Mat::zeros(srcMat.rows + 2, srcMat.cols + 2, CV_8UC1);
 
         const cv::Scalar lo(m_tolerance, m_tolerance, m_tolerance, m_tolerance);
         const cv::Scalar up = lo;
@@ -281,20 +302,22 @@ private:
         const int flags = 4 | cv::FLOODFILL_MASK_ONLY | (255 << 8);
 
         cv::Rect ffBox;
-        cv::floodFill(srcMat, ffMask, cv::Point(start.x(), start.y()),
-                      cv::Scalar(), &ffBox, lo, up, flags);
+        cv::floodFill(srcMat, ffMask, cv::Point(start.x(), start.y()), cv::Scalar(), &ffBox, lo, up,
+                      flags);
         if (ffBox.width <= 0 || ffBox.height <= 0) return;
 
         // Merge the filled region with m_mask. Add: bitwise OR; erase:
         // saturating subtract so painted pixels become 0. Both ops are
         // cropped to the bbox so cost scales with fill area, not image size.
-        cv::Mat ourMask(m_mask.height(), m_mask.width(), CV_8UC1,
-                        m_mask.bits(), m_mask.bytesPerLine());
+        cv::Mat ourMask(m_mask.height(), m_mask.width(), CV_8UC1, m_mask.bits(),
+                        m_mask.bytesPerLine());
         cv::Mat innerMask = ffMask(cv::Rect(1, 1, srcMat.cols, srcMat.rows));
         cv::Mat dstRoi = ourMask(ffBox);
         cv::Mat srcRoi = innerMask(ffBox);
-        if (m_erase) cv::subtract(dstRoi, srcRoi, dstRoi);
-        else         cv::bitwise_or(dstRoi, srcRoi, dstRoi);
+        if (m_erase)
+            cv::subtract(dstRoi, srcRoi, dstRoi);
+        else
+            cv::bitwise_or(dstRoi, srcRoi, dstRoi);
 
         const QRect dirty(ffBox.x, ffBox.y, ffBox.width, ffBox.height);
         rebuildOverlay(dirty);
@@ -312,7 +335,7 @@ private:
         const QRect dirty = dirtyIn.intersected(m_mask.rect());
         if (dirty.isEmpty()) return;
         for (int y = dirty.top(); y <= dirty.bottom(); ++y) {
-            QRgb*       outRow  = reinterpret_cast<QRgb*>(m_overlay.scanLine(y));
+            QRgb* outRow = reinterpret_cast<QRgb*>(m_overlay.scanLine(y));
             const uchar* maskRow = m_mask.constScanLine(y);
             for (int x = dirty.left(); x <= dirty.right(); ++x) {
                 const int v = maskRow[x];
@@ -327,8 +350,7 @@ private:
     {
         if (m_source.isNull()) return rect();
         const QSize fitted = m_source.size().scaled(size(), Qt::KeepAspectRatio);
-        return QRect(QPoint((width()  - fitted.width())  / 2,
-                            (height() - fitted.height()) / 2),
+        return QRect(QPoint((width() - fitted.width()) / 2, (height() - fitted.height()) / 2),
                      fitted);
     }
 
@@ -336,39 +358,36 @@ private:
     {
         const QRect dst = displayRect();
         if (dst.isEmpty()) return {};
-        const double sx = double(m_source.width())  / dst.width();
+        const double sx = double(m_source.width()) / dst.width();
         const double sy = double(m_source.height()) / dst.height();
-        const int x = qBound(0, int((p.x() - dst.left()) * sx), m_source.width()  - 1);
-        const int y = qBound(0, int((p.y() - dst.top())  * sy), m_source.height() - 1);
-        return { x, y };
+        const int x = qBound(0, int((p.x() - dst.left()) * sx), m_source.width() - 1);
+        const int y = qBound(0, int((p.y() - dst.top()) * sy), m_source.height() - 1);
+        return {x, y};
     }
 
     QRect sourceToDisplay(QRect r) const
     {
         const QRect dst = displayRect();
         if (dst.isEmpty() || m_source.isNull()) return {};
-        const double sx = double(dst.width())  / m_source.width();
+        const double sx = double(dst.width()) / m_source.width();
         const double sy = double(dst.height()) / m_source.height();
-        return QRect(
-            dst.left() + int(r.left()   * sx),
-            dst.top()  + int(r.top()    * sy),
-            qMax(1, int(r.width()  * sx)),
-            qMax(1, int(r.height() * sy)));
+        return QRect(dst.left() + int(r.left() * sx), dst.top() + int(r.top() * sy),
+                     qMax(1, int(r.width() * sx)), qMax(1, int(r.height() * sy)));
     }
 
     QImage m_source;
-    QImage m_mask;       // Grayscale8, source-sized; 0 = clear, 255 = mask
-    QImage m_overlay;    // ARGB32, source-sized; cached red tint of m_mask
+    QImage m_mask;    // Grayscale8, source-sized; 0 = clear, 255 = mask
+    QImage m_overlay; // ARGB32, source-sized; cached red tint of m_mask
 
-    Tool   m_tool        = Tool::Brush;
-    bool   m_erase       = false;   // modifier - flips Add/Remove for any tool
-    int    m_brushSize   = 30;
-    int    m_tolerance   = 16;
-    bool   m_trimMode    = false;
+    Tool m_tool = Tool::Brush;
+    bool m_erase = false; // modifier - flips Add/Remove for any tool
+    int m_brushSize = 30;
+    int m_tolerance = 16;
+    bool m_trimMode = false;
 
     QPoint m_dragStart;
-    QRect  m_currentRect;
-    bool   m_dragging    = false;
+    QRect m_currentRect;
+    bool m_dragging = false;
     QPoint m_lastBrushPos;
 
     std::function<void()> m_onChanged;
@@ -376,10 +395,8 @@ private:
 
 // ── Dialog ──────────────────────────────────────────────────────────────────
 
-ClipEditorDialog::ClipEditorDialog(const QImage&            source,
-                                   const core::ImageEdits&  initial,
-                                   core::WorkflowInputCache* cache,
-                                   QWidget*                 parent)
+ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits& initial,
+                                   core::WorkflowInputCache* cache, QWidget* parent)
     : ChromedDialog(parent), m_cache(cache)
 {
     setWindowTitle("Clip Editor");
@@ -394,12 +411,12 @@ ClipEditorDialog::ClipEditorDialog(const QImage&            source,
     // rect-mask for legacy edits; otherwise blank.
     if (m_cache && !initial.maskId.isEmpty()) {
         m_canvas->setMask(m_cache->loadMask(initial.maskId));
-    } else if (initial.enabled && !initial.cropRect.isEmpty()) {
+    }
+    else if (initial.enabled && !initial.cropRect.isEmpty()) {
         QImage seed(source.size(), QImage::Format_Grayscale8);
         seed.fill(0);
         QPainter p(&seed);
-        p.fillRect(initial.cropRect.intersected(seed.rect()),
-                   QColor(255, 255, 255));
+        p.fillRect(initial.cropRect.intersected(seed.rect()), QColor(255, 255, 255));
         p.end();
         m_canvas->setMask(seed);
     }
@@ -421,8 +438,8 @@ ClipEditorDialog::ClipEditorDialog(const QImage&            source,
         });
         return b;
     };
-    auto* rectBtn   = makeToolBtn("Rect",   Tool::Rect);
-    auto* brushBtn  = makeToolBtn("Brush",  Tool::Brush, true);  // default
+    auto* rectBtn = makeToolBtn("Rect", Tool::Rect);
+    auto* brushBtn = makeToolBtn("Brush", Tool::Brush, true); // default
     auto* bucketBtn = makeToolBtn("Bucket", Tool::Bucket);
     m_canvas->setTool(Tool::Brush);
 
@@ -433,13 +450,11 @@ ClipEditorDialog::ClipEditorDialog(const QImage&            source,
     m_eraseBtn->setCursor(Qt::PointingHandCursor);
     m_eraseBtn->setToolTip("When on, the active tool removes from the mask "
                            "instead of adding to it.");
-    connect(m_eraseBtn, &QPushButton::toggled, this, [this](bool on) {
-        m_canvas->setErase(on);
-    });
+    connect(m_eraseBtn, &QPushButton::toggled, this, [this](bool on) { m_canvas->setErase(on); });
 
     // ── Sliders ──
     m_brushLabel = new QLabel("Size 30", this);
-    m_brushSize  = new QSlider(Qt::Horizontal, this);
+    m_brushSize = new QSlider(Qt::Horizontal, this);
     m_brushSize->setRange(1, 200);
     m_brushSize->setValue(30);
     m_brushSize->setFixedWidth(150);
@@ -464,11 +479,10 @@ ClipEditorDialog::ClipEditorDialog(const QImage&            source,
 
     m_trimToCrop = new QCheckBox("Trim canvas to crop (no mask)", this);
     m_trimToCrop->setChecked(initial.trimToCrop);
-    m_trimToCrop->setToolTip(
-        "Off: painted mask defines MASK. Output is source-sized; LoadImage's "
-        "IMAGE = original picture, MASK = 1 inside the painted region.\n"
-        "On: rect-only crop. Output is the rect cropped from source; "
-        "alpha=255 everywhere (no mask).");
+    m_trimToCrop->setToolTip("Off: painted mask defines MASK. Output is source-sized; LoadImage's "
+                             "IMAGE = original picture, MASK = 1 inside the painted region.\n"
+                             "On: rect-only crop. Output is the rect cropped from source; "
+                             "alpha=255 everywhere (no mask).");
     connect(m_trimToCrop, &QCheckBox::toggled, this, [this](bool on) {
         // User-initiated toggle to trim mode discards any painted mask -
         // trim mode is conceptually "just a crop, no mask," so retaining
@@ -478,19 +492,15 @@ ClipEditorDialog::ClipEditorDialog(const QImage&            source,
     });
 
     auto* clearBtn = new QPushButton("Clear mask", this);
-    connect(clearBtn, &QPushButton::clicked, this,
-            [this]() { m_canvas->clearMask(); });
+    connect(clearBtn, &QPushButton::clicked, this, [this]() { m_canvas->clearMask(); });
 
     m_invertBtn = new QPushButton("Invert mask", this);
-    m_invertBtn->setToolTip(
-        "Flip every mask pixel - what was selected becomes unselected and "
-        "vice versa. Useful when it's easier to paint the keep region than "
-        "the mask region.");
-    connect(m_invertBtn, &QPushButton::clicked, this,
-            [this]() { m_canvas->invertMask(); });
+    m_invertBtn->setToolTip("Flip every mask pixel - what was selected becomes unselected and "
+                            "vice versa. Useful when it's easier to paint the keep region than "
+                            "the mask region.");
+    connect(m_invertBtn, &QPushButton::clicked, this, [this]() { m_canvas->invertMask(); });
 
-    auto* buttons = new QDialogButtonBox(
-        QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     buttons->button(QDialogButtonBox::Ok)->setText("Apply");
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -541,7 +551,7 @@ void ClipEditorDialog::accept()
     // Translate canvas state into the result ImageEdits the caller will
     // adopt. Empty mask → disabled (caller drops the maskId / clears edits).
     const QImage finalMask = m_canvas->mask();
-    const QRect  bbox      = maskBoundingBox(finalMask);
+    const QRect bbox = maskBoundingBox(finalMask);
 
     if (bbox.isEmpty()) {
         m_result = core::ImageEdits{};
@@ -549,15 +559,13 @@ void ClipEditorDialog::accept()
         return;
     }
 
-    m_result.enabled    = true;
-    m_result.cropRect   = bbox;
+    m_result.enabled = true;
+    m_result.cropRect = bbox;
     m_result.trimToCrop = m_trimToCrop->isChecked();
     // Trim mode discards the mask at render time, so don't persist one - saves
     // a cache file and keeps the var card label honest ("cropped W×H" rather
     // than implying a mask is involved).
-    m_result.maskId = (!m_result.trimToCrop && m_cache)
-        ? m_cache->saveMask(finalMask)
-        : QString();
+    m_result.maskId = (!m_result.trimToCrop && m_cache) ? m_cache->saveMask(finalMask) : QString();
     QDialog::accept();
 }
 
@@ -569,8 +577,8 @@ void ClipEditorDialog::updateRectLabel()
         return;
     }
     const QString label = m_trimToCrop->isChecked()
-        ? QStringLiteral("Crop bbox: x=%1 y=%2  %3 × %4")
-        : QStringLiteral("Mask bbox: x=%1 y=%2  %3 × %4");
+                              ? QStringLiteral("Crop bbox: x=%1 y=%2  %3 × %4")
+                              : QStringLiteral("Mask bbox: x=%1 y=%2  %3 × %4");
     m_rectLabel->setText(label.arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height()));
 }
 
@@ -580,7 +588,7 @@ void ClipEditorDialog::updateToolControls()
     // only affects bucket. Disable irrelevant controls so the active tool's
     // parameters are obvious.
     const int id = m_toolGroup->checkedId();
-    const bool isBrush  = (id == int(Tool::Brush));
+    const bool isBrush = (id == int(Tool::Brush));
     const bool isBucket = (id == int(Tool::Bucket));
     m_brushSize->setEnabled(isBrush);
     m_brushLabel->setEnabled(isBrush);
@@ -595,14 +603,13 @@ void ClipEditorDialog::applyTrimModeUI(bool on)
     if (on) {
         // Force Rect - Brush/Bucket paint into a mask that trim mode ignores,
         // so they'd be silently no-ops. Better to lock them out.
-        if (auto* rectBtn = m_toolGroup->button(int(Tool::Rect)))
-            rectBtn->setChecked(true);
+        if (auto* rectBtn = m_toolGroup->button(int(Tool::Rect))) rectBtn->setChecked(true);
         m_canvas->setTool(Tool::Rect);
         // Erase has nothing meaningful to do in trim mode either.
         m_eraseBtn->setChecked(false);
         m_canvas->setErase(false);
     }
-    if (auto* b = m_toolGroup->button(int(Tool::Brush)))  b->setEnabled(!on);
+    if (auto* b = m_toolGroup->button(int(Tool::Brush))) b->setEnabled(!on);
     if (auto* b = m_toolGroup->button(int(Tool::Bucket))) b->setEnabled(!on);
     m_eraseBtn->setEnabled(!on);
     if (m_invertBtn) m_invertBtn->setEnabled(!on);

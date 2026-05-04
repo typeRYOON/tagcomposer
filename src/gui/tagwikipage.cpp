@@ -31,9 +31,7 @@ static constexpr int ThumbH = 150;
 
 // ── ctor ──────────────────────────────────────────────────────────────────────
 
-TagWikiPage::TagWikiPage(QWidget* parent)
-    : QWidget(parent)
-    , m_nam(new QNetworkAccessManager(this))
+TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkAccessManager(this))
 {
     setObjectName("TagWikiPage");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -82,8 +80,7 @@ TagWikiPage::TagWikiPage(QWidget* parent)
     m_browser->setFocusPolicy(Qt::NoFocus);
     m_browser->setFrameShape(QFrame::NoFrame);
     m_browser->document()->setDocumentMargin(0);
-    connect(m_browser, &QTextBrowser::anchorClicked,
-            this,      &TagWikiPage::onAnchorClicked);
+    connect(m_browser, &QTextBrowser::anchorClicked, this, &TagWikiPage::onAnchorClicked);
     m_browser->installEventFilter(this);
 
     // ── Content widget ────────────────────────────────────────────────────────
@@ -135,21 +132,20 @@ TagWikiPage::TagWikiPage(QWidget* parent)
     m_searchBar = new TagSearchBar(this);
     // Search-bar commits go through the same fade-out / fade-in path as
     // in-document wiki links so the page transition feels consistent.
-    connect(m_searchBar, &TagSearchBar::tagAdded,
-            this, &TagWikiPage::startFadeOutThenLookup);
+    connect(m_searchBar, &TagSearchBar::tagAdded, this, &TagWikiPage::startFadeOutThenLookup);
 
     // Top bar: [back] [forward] [search bar] [open in browser]. The two
     // history buttons sit to the left of the search bar; open-in-browser
     // hangs off the right. WikiNavBtn is a transparent flat-button style
     // already in wiki.qss, with proper disabled-state colour for the
     // history-bounds case.
-    m_backBtn = new QPushButton("←");  // ←
+    m_backBtn = new QPushButton("←"); // ←
     m_backBtn->setObjectName("WikiNavBtn");
     m_backBtn->setCursor(Qt::PointingHandCursor);
     m_backBtn->setToolTip("Back (Alt+Left)");
     connect(m_backBtn, &QPushButton::clicked, this, &TagWikiPage::goBack);
 
-    m_forwardBtn = new QPushButton("→");  // →
+    m_forwardBtn = new QPushButton("→"); // →
     m_forwardBtn->setObjectName("WikiNavBtn");
     m_forwardBtn->setCursor(Qt::PointingHandCursor);
     m_forwardBtn->setToolTip("Forward (Alt+Right)");
@@ -165,8 +161,7 @@ TagWikiPage::TagWikiPage(QWidget* parent)
         if (m_currentTag.isEmpty()) return;
         const QByteArray encoded = QUrl::toPercentEncoding(m_currentTag);
         QDesktopServices::openUrl(QUrl(
-            QString("https://danbooru.donmai.us/wiki_pages/%1")
-                .arg(QString::fromLatin1(encoded))));
+            QString("https://danbooru.donmai.us/wiki_pages/%1").arg(QString::fromLatin1(encoded))));
     });
 
     auto* topBar = new QWidget;
@@ -288,8 +283,8 @@ void TagWikiPage::cancelPendingFade()
 void TagWikiPage::fetchWikiPage(const QString& tag)
 {
     const QByteArray encoded = QUrl::toPercentEncoding(tag);
-    QUrl url(QString("https://danbooru.donmai.us/wiki_pages/%1.json")
-                 .arg(QString::fromLatin1(encoded)));
+    QUrl url(
+        QString("https://danbooru.donmai.us/wiki_pages/%1.json").arg(QString::fromLatin1(encoded)));
 
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
@@ -305,8 +300,8 @@ void TagWikiPage::fetchWikiPage(const QString& tag)
         }
         if (reply->error() != QNetworkReply::NoError) {
             if (tag == m_currentTag) {
-                qobject_cast<QLabel*>(m_mainStack->widget(2))->setText(
-                    "Network error: " + reply->errorString());
+                qobject_cast<QLabel*>(m_mainStack->widget(2))
+                    ->setText("Network error: " + reply->errorString());
                 m_mainStack->setCurrentIndex(2);
                 finishPendingFadeIn();
             }
@@ -319,7 +314,10 @@ void TagWikiPage::fetchWikiPage(const QString& tag)
         if (tag != m_currentTag) return;
 
         QJsonDocument doc = QJsonDocument::fromJson(data);
-        if (!doc.isObject()) { showNotFound(tag); return; }
+        if (!doc.isObject()) {
+            showNotFound(tag);
+            return;
+        }
 
         QJsonObject obj = doc.object();
         QStringList others;
@@ -329,43 +327,41 @@ void TagWikiPage::fetchWikiPage(const QString& tag)
     });
 }
 
-void TagWikiPage::downloadThumbAndFade(const QString& imageUrl,
-                                       const QString& resourceUrl,
+void TagWikiPage::downloadThumbAndFade(const QString& imageUrl, const QString& resourceUrl,
                                        std::function<void(const QPixmap&)> store)
 {
     if (imageUrl.isEmpty()) return;
-    QNetworkRequest imgReq{ QUrl(imageUrl) };
+    QNetworkRequest imgReq{QUrl(imageUrl)};
     imgReq.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
     auto* imgReply = m_nam->get(imgReq);
     connect(imgReply, &QNetworkReply::finished, this,
-        [this, imgReply, resourceUrl, store = std::move(store)]() {
-            imgReply->deleteLater();
-            if (imgReply->error() != QNetworkReply::NoError) return;
+            [this, imgReply, resourceUrl, store = std::move(store)]() {
+                imgReply->deleteLater();
+                if (imgReply->error() != QNetworkReply::NoError) return;
 
-            QPixmap pix;
-            if (!pix.loadFromData(imgReply->readAll()) || pix.isNull()) return;
+                QPixmap pix;
+                if (!pix.loadFromData(imgReply->readAll()) || pix.isNull()) return;
 
-            // Aspect-ratio-preserving fit into a ThumbW x ThumbH box, then
-            // compose onto a transparent ThumbW x ThumbH canvas so every
-            // thumbnail is exactly the same logical size. The HTML img tag
-            // sets width='150' height='150', so without this padding step
-            // non-square thumbs would get stretched to fill the cell.
-            const QPixmap scaled = pix.scaled(ThumbW, ThumbH,
-                                               Qt::KeepAspectRatio,
-                                               Qt::SmoothTransformation);
-            QPixmap fitted(ThumbW, ThumbH);
-            fitted.fill(Qt::transparent);
-            {
-                QPainter cp(&fitted);
-                cp.setRenderHint(QPainter::SmoothPixmapTransform, true);
-                const int x = (ThumbW - scaled.width())  / 2;
-                const int y = (ThumbH - scaled.height()) / 2;
-                cp.drawPixmap(x, y, scaled);
-            }
+                // Aspect-ratio-preserving fit into a ThumbW x ThumbH box, then
+                // compose onto a transparent ThumbW x ThumbH canvas so every
+                // thumbnail is exactly the same logical size. The HTML img tag
+                // sets width='150' height='150', so without this padding step
+                // non-square thumbs would get stretched to fill the cell.
+                const QPixmap scaled =
+                    pix.scaled(ThumbW, ThumbH, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                QPixmap fitted(ThumbW, ThumbH);
+                fitted.fill(Qt::transparent);
+                {
+                    QPainter cp(&fitted);
+                    cp.setRenderHint(QPainter::SmoothPixmapTransform, true);
+                    const int x = (ThumbW - scaled.width()) / 2;
+                    const int y = (ThumbH - scaled.height()) / 2;
+                    cp.drawPixmap(x, y, scaled);
+                }
 
-            store(fitted);
-            startThumbFade(resourceUrl, fitted);
-        });
+                store(fitted);
+                startThumbFade(resourceUrl, fitted);
+            });
 }
 
 void TagWikiPage::fetchPostData(int postId)
@@ -373,9 +369,8 @@ void TagWikiPage::fetchPostData(int postId)
     const QString resourceUrl = QString("post:%1").arg(postId);
 
     if (m_postThumbs.contains(postId)) {
-        m_browser->document()->addResource(
-            QTextDocument::ImageResource, QUrl(resourceUrl),
-            QVariant(m_postThumbs[postId]));
+        m_browser->document()->addResource(QTextDocument::ImageResource, QUrl(resourceUrl),
+                                           QVariant(m_postThumbs[postId]));
         m_browser->document()->markContentsDirty(0, m_browser->document()->characterCount());
         m_browser->viewport()->update();
         return;
@@ -394,10 +389,9 @@ void TagWikiPage::fetchPostData(int postId)
         if (!doc.isObject()) return;
 
         const QString previewUrl = doc.object()["preview_file_url"].toString();
-        downloadThumbAndFade(previewUrl, resourceUrl,
-            [this, postId](const QPixmap& fitted) {
-                m_postThumbs[postId] = fitted;
-            });
+        downloadThumbAndFade(previewUrl, resourceUrl, [this, postId](const QPixmap& fitted) {
+            m_postThumbs[postId] = fitted;
+        });
     });
 }
 
@@ -406,15 +400,15 @@ void TagWikiPage::fetchAssetData(int assetId)
     const QString resourceUrl = QString("asset:%1").arg(assetId);
 
     if (m_assetThumbs.contains(assetId)) {
-        m_browser->document()->addResource(
-            QTextDocument::ImageResource, QUrl(resourceUrl),
-            QVariant(m_assetThumbs[assetId]));
+        m_browser->document()->addResource(QTextDocument::ImageResource, QUrl(resourceUrl),
+                                           QVariant(m_assetThumbs[assetId]));
         m_browser->document()->markContentsDirty(0, m_browser->document()->characterCount());
         m_browser->viewport()->update();
         return;
     }
 
-    QNetworkRequest req(QUrl(QString("https://danbooru.donmai.us/media_assets/%1.json").arg(assetId)));
+    QNetworkRequest req(
+        QUrl(QString("https://danbooru.donmai.us/media_assets/%1.json").arg(assetId)));
     req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
     req.setRawHeader("Accept", "application/json");
 
@@ -431,9 +425,8 @@ void TagWikiPage::fetchAssetData(int assetId)
         // we can find; fall back to whatever's first if Danbooru ever
         // changes the catalogue.
         const QJsonArray variants = doc.object()["variants"].toArray();
-        static const QStringList preferred = {
-            "180x180", "360x360", "720x720", "sample", "original"
-        };
+        static const QStringList preferred = {"180x180", "360x360", "720x720", "sample",
+                                              "original"};
         QString thumbUrl;
         for (const QString& wanted : preferred) {
             for (const QJsonValue& v : variants) {
@@ -447,10 +440,9 @@ void TagWikiPage::fetchAssetData(int assetId)
         if (thumbUrl.isEmpty() && !variants.isEmpty())
             thumbUrl = variants.first().toObject()["url"].toString();
 
-        downloadThumbAndFade(thumbUrl, resourceUrl,
-            [this, assetId](const QPixmap& fitted) {
-                m_assetThumbs[assetId] = fitted;
-            });
+        downloadThumbAndFade(thumbUrl, resourceUrl, [this, assetId](const QPixmap& fitted) {
+            m_assetThumbs[assetId] = fitted;
+        });
     });
 }
 
@@ -463,31 +455,29 @@ void TagWikiPage::showLoading()
 
 void TagWikiPage::showNotFound(const QString& tag)
 {
-    qobject_cast<QLabel*>(m_mainStack->widget(2))->setText(
-        QString("No wiki page found for \"%1\".").arg(tag));
+    qobject_cast<QLabel*>(m_mainStack->widget(2))
+        ->setText(QString("No wiki page found for \"%1\".").arg(tag));
     m_mainStack->setCurrentIndex(2);
     finishPendingFadeIn();
 }
 
-void TagWikiPage::displayContent(const QString& title,
-                                 const QStringList& otherNames,
+void TagWikiPage::displayContent(const QString& title, const QStringList& otherNames,
                                  const QString& body)
 {
     // Debug: dump raw DText body so layout / table-of-contents bugs can be
     // reproduced from the exact source markup. Surrounded with markers so the
     // multi-line content is easy to copy/paste out of the debug stream.
-    qDebug().noquote().nospace()
-        << "\n=== TagWikiPage body for tag \"" << m_currentTag
-        << "\" (title=\"" << title << "\") ===\n"
-        << body
-        << "\n=== end TagWikiPage body ===";
+    qDebug().noquote().nospace() << "\n=== TagWikiPage body for tag \"" << m_currentTag
+                                 << "\" (title=\"" << title << "\") ===\n"
+                                 << body << "\n=== end TagWikiPage body ===";
 
     m_titleLabel->setText(title.isEmpty() ? m_currentTag : utils::normalizeTagInput(title));
 
     if (!otherNames.isEmpty()) {
         m_aliasLabel->setText("Also known as: " + otherNames.join(", "));
         m_aliasLabel->show();
-    } else {
+    }
+    else {
         m_aliasLabel->hide();
     }
 
@@ -504,16 +494,14 @@ void TagWikiPage::displayContent(const QString& title,
     QPixmap placeholder(ThumbW, ThumbH);
     placeholder.fill(Qt::transparent);
     for (int id : postIds) {
-        m_browser->document()->addResource(
-            QTextDocument::ImageResource,
-            QUrl(QString("post:%1").arg(id)),
-            QVariant(m_postThumbs.value(id, placeholder)));
+        m_browser->document()->addResource(QTextDocument::ImageResource,
+                                           QUrl(QString("post:%1").arg(id)),
+                                           QVariant(m_postThumbs.value(id, placeholder)));
     }
     for (int id : assetIds) {
-        m_browser->document()->addResource(
-            QTextDocument::ImageResource,
-            QUrl(QString("asset:%1").arg(id)),
-            QVariant(m_assetThumbs.value(id, placeholder)));
+        m_browser->document()->addResource(QTextDocument::ImageResource,
+                                           QUrl(QString("asset:%1").arg(id)),
+                                           QVariant(m_assetThumbs.value(id, placeholder)));
     }
 
     if (!m_fontApplied) {
@@ -529,11 +517,9 @@ void TagWikiPage::displayContent(const QString& title,
     finishPendingFadeIn();
 
     for (int id : postIds)
-        if (!m_postThumbs.contains(id))
-            fetchPostData(id);
+        if (!m_postThumbs.contains(id)) fetchPostData(id);
     for (int id : assetIds)
-        if (!m_assetThumbs.contains(id))
-            fetchAssetData(id);
+        if (!m_assetThumbs.contains(id)) fetchAssetData(id);
 }
 
 // ── Resize / screen-change re-layout ─────────────────────────────────────────
@@ -545,8 +531,7 @@ bool TagWikiPage::eventFilter(QObject* obj, QEvent* event)
         // leaves text overlapping image cells, most visibly when the window
         // is dragged to a larger monitor. Marking the whole document dirty
         // forces a full layout pass after the new width is applied.
-        if (auto* doc = m_browser->document())
-            doc->markContentsDirty(0, doc->characterCount());
+        if (auto* doc = m_browser->document()) doc->markContentsDirty(0, doc->characterCount());
     }
     return QWidget::eventFilter(obj, event);
 }
@@ -580,38 +565,34 @@ void TagWikiPage::showEvent(QShowEvent* event)
 
 void TagWikiPage::startThumbFade(const QString& resourceUrl, const QPixmap& finalPix)
 {
-    constexpr int totalMs    = 220;
-    constexpr int stepMs     = 25;
+    constexpr int totalMs = 220;
+    constexpr int stepMs = 25;
     constexpr int totalSteps = totalMs / stepMs;
 
     auto* timer = new QTimer(this);
     timer->setInterval(stepMs);
     int step = 0;
-    connect(timer, &QTimer::timeout, this,
-        [this, timer, step, resourceUrl, finalPix]() mutable {
-            ++step;
-            const float alpha = qMin(1.0f, float(step) / float(totalSteps));
+    connect(timer, &QTimer::timeout, this, [this, timer, step, resourceUrl, finalPix]() mutable {
+        ++step;
+        const float alpha = qMin(1.0f, float(step) / float(totalSteps));
 
-            QPixmap faded(finalPix.size());
-            faded.fill(Qt::transparent);
-            QPainter p(&faded);
-            p.setOpacity(alpha);
-            p.drawPixmap(0, 0, finalPix);
-            p.end();
+        QPixmap faded(finalPix.size());
+        faded.fill(Qt::transparent);
+        QPainter p(&faded);
+        p.setOpacity(alpha);
+        p.drawPixmap(0, 0, finalPix);
+        p.end();
 
-            m_browser->document()->addResource(
-                QTextDocument::ImageResource,
-                QUrl(resourceUrl),
-                QVariant(faded));
-            m_browser->document()->markContentsDirty(
-                0, m_browser->document()->characterCount());
-            m_browser->viewport()->update();
+        m_browser->document()->addResource(QTextDocument::ImageResource, QUrl(resourceUrl),
+                                           QVariant(faded));
+        m_browser->document()->markContentsDirty(0, m_browser->document()->characterCount());
+        m_browser->viewport()->update();
 
-            if (step >= totalSteps) {
-                timer->stop();
-                timer->deleteLater();
-            }
-        });
+        if (step >= totalSteps) {
+            timer->stop();
+            timer->deleteLater();
+        }
+    });
     timer->start();
 }
 
@@ -619,8 +600,8 @@ void TagWikiPage::startThumbFade(const QString& resourceUrl, const QPixmap& fina
 
 void TagWikiPage::updateNavButtons()
 {
-    if (m_backBtn)         m_backBtn->setEnabled(m_historyPos > 0);
-    if (m_forwardBtn)      m_forwardBtn->setEnabled(m_historyPos < m_history.size() - 1);
+    if (m_backBtn) m_backBtn->setEnabled(m_historyPos > 0);
+    if (m_forwardBtn) m_forwardBtn->setEnabled(m_historyPos < m_history.size() - 1);
     if (m_openExternalBtn) m_openExternalBtn->setEnabled(!m_currentTag.isEmpty());
 }
 
@@ -651,19 +632,23 @@ void TagWikiPage::onAnchorClicked(const QUrl& url)
 {
     if (url.scheme() == "wiki") {
         startFadeOutThenLookup(url.path());
-    } else if (url.scheme() == "post") {
+    }
+    else if (url.scheme() == "post") {
         QDesktopServices::openUrl(
             QUrl(QString("https://danbooru.donmai.us/posts/%1").arg(url.path())));
-    } else if (url.scheme() == "asset") {
+    }
+    else if (url.scheme() == "asset") {
         QDesktopServices::openUrl(
             QUrl(QString("https://danbooru.donmai.us/media_assets/%1").arg(url.path())));
-    } else if (url.scheme().isEmpty() && !url.fragment().isEmpty()) {
+    }
+    else if (url.scheme().isEmpty() && !url.fragment().isEmpty()) {
         // Same-page anchor link (e.g. table-of-contents jumps). The href
         // is `#dtext-intro`, parsed by QUrl into an empty scheme and a
         // fragment - hand it to scrollToAnchor instead of openUrl, which
         // would try to launch an external handler for a bare fragment.
         m_browser->scrollToAnchor(url.fragment());
-    } else {
+    }
+    else {
         QDesktopServices::openUrl(url);
     }
 }
@@ -680,8 +665,7 @@ static QString applyInlineMarkup(const QString& raw)
     return s;
 }
 
-QString TagWikiPage::dtextToHtml(const QString& dtext,
-                                 QList<int>& outPostIds,
+QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
                                  QList<int>& outAssetIds)
 {
     QString text = dtext;
@@ -694,20 +678,18 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
     //    capped at 20 entries so a runaway page doesn't queue hundreds of
     //    fetches before the user has a chance to navigate away.
     {
-        static const QRegularExpression mediaBulletExtractRe(
-            R"(^\*+[ \t]+!(post|asset) #(\d+))",
-            QRegularExpression::MultilineOption);
+        static const QRegularExpression mediaBulletExtractRe(R"(^\*+[ \t]+!(post|asset) #(\d+))",
+                                                             QRegularExpression::MultilineOption);
         auto it = mediaBulletExtractRe.globalMatch(text);
         while (it.hasNext()) {
             const auto m = it.next();
             const QString kind = m.captured(1);
-            const int     id   = m.captured(2).toInt();
+            const int id = m.captured(2).toInt();
             if (kind == "post") {
-                if (!outPostIds.contains(id) && outPostIds.size() < 20)
-                    outPostIds << id;
-            } else { // "asset"
-                if (!outAssetIds.contains(id) && outAssetIds.size() < 20)
-                    outAssetIds << id;
+                if (!outPostIds.contains(id) && outPostIds.size() < 20) outPostIds << id;
+            }
+            else { // "asset"
+                if (!outAssetIds.contains(id) && outAssetIds.size() < 20) outAssetIds << id;
             }
         }
     }
@@ -721,7 +703,7 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
     //    display text instead of the title; this matches how Danbooru renders pool/search links.
     //    Inline DText markup inside titles (e.g. [i]...[/i]) is processed here so it renders
     //    correctly after HTML-escaping.
-    QHash<QString, QPair<QString,QString>> linkTokens; // token → {displayHtml, resolvedUrl}
+    QHash<QString, QPair<QString, QString>> linkTokens; // token → {displayHtml, resolvedUrl}
     {
         // Group 1: link title (may contain DText markup)
         // Group 2: URL - absolute https?://, Danbooru-relative /, or same-page #anchor
@@ -736,22 +718,20 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
             if (!m.hasMatch()) break;
 
             const QString rawTitle = m.captured(1);
-            const QString rawUrl   = m.captured(2);
+            const QString rawUrl = m.captured(2);
             const QString rawParen = m.captured(3); // empty if no parenthetical
 
             // Resolve relative URLs to danbooru.donmai.us
-            const QString resolvedUrl = rawUrl.startsWith('/')
-                ? "https://danbooru.donmai.us" + rawUrl
-                : rawUrl;
+            const QString resolvedUrl =
+                rawUrl.startsWith('/') ? "https://danbooru.donmai.us" + rawUrl : rawUrl;
 
             // Display text: parenthetical if present (pool/search links), else title.
             // Process DText inline markup in the title so [i]...[/i] renders correctly.
-            const QString displayHtml = rawParen.isEmpty()
-                ? applyInlineMarkup(rawTitle)
-                : rawParen.toHtmlEscaped();
+            const QString displayHtml =
+                rawParen.isEmpty() ? applyInlineMarkup(rawTitle) : rawParen.toHtmlEscaped();
 
             const QString token = QString("__LNKTOK%1__").arg(n++);
-            linkTokens[token] = { displayHtml, resolvedUrl };
+            linkTokens[token] = {displayHtml, resolvedUrl};
             text.replace(m.capturedStart(), m.capturedLength(), token);
             offset = m.capturedStart() + token.size();
         }
@@ -770,38 +750,47 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
     // collapsible block. QTextBrowser can't actually collapse, so render the
     // same way as [section]: titled box, contents inline. Title group is
     // optional so the bare form doesn't fall through unmatched.
-    static const QRegularExpression expandRe(
-        R"(\[expand(?:=([^\]]*))?\](.*?)\[/expand\])",
-        QRegularExpression::DotMatchesEverythingOption | QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression expandRe(R"(\[expand(?:=([^\]]*))?\](.*?)\[/expand\])",
+                                             QRegularExpression::DotMatchesEverythingOption |
+                                                 QRegularExpression::CaseInsensitiveOption);
     text.replace(expandRe, "<div class='ws'><p class='wsh'>\\1</p>\\2</div>");
 
-    text.replace(
-        QRegularExpression(R"(\[quote\](.*?)\[/quote\])",
-            QRegularExpression::DotMatchesEverythingOption | QRegularExpression::CaseInsensitiveOption),
-        "<blockquote>\\1</blockquote>");
+    text.replace(QRegularExpression(R"(\[quote\](.*?)\[/quote\])",
+                                    QRegularExpression::DotMatchesEverythingOption |
+                                        QRegularExpression::CaseInsensitiveOption),
+                 "<blockquote>\\1</blockquote>");
+
+    text.replace(QRegularExpression(R"(\[spoiler(?:s)?\](.*?)\[/spoiler(?:s)?\])",
+                                    QRegularExpression::DotMatchesEverythingOption |
+                                        QRegularExpression::CaseInsensitiveOption),
+                 "<span class='wsp'>\\1</span>");
 
     text.replace(
-        QRegularExpression(R"(\[spoiler(?:s)?\](.*?)\[/spoiler(?:s)?\])",
-            QRegularExpression::DotMatchesEverythingOption | QRegularExpression::CaseInsensitiveOption),
-        "<span class='wsp'>\\1</span>");
-
-    text.replace(
-        QRegularExpression(R"(\[tn\](.*?)\[/tn\])",
-            QRegularExpression::DotMatchesEverythingOption | QRegularExpression::CaseInsensitiveOption),
+        QRegularExpression(R"(\[tn\](.*?)\[/tn\])", QRegularExpression::DotMatchesEverythingOption |
+                                                        QRegularExpression::CaseInsensitiveOption),
         "<small class='wtn'>\\1</small>");
 
-    text.replace(
-        QRegularExpression(R"(\[code\](.*?)\[/code\])",
-            QRegularExpression::DotMatchesEverythingOption | QRegularExpression::CaseInsensitiveOption),
-        "<code>\\1</code>");
+    text.replace(QRegularExpression(R"(\[code\](.*?)\[/code\])",
+                                    QRegularExpression::DotMatchesEverythingOption |
+                                        QRegularExpression::CaseInsensitiveOption),
+                 "<code>\\1</code>");
 
     // 6. Inline formatting
-    text.replace(QRegularExpression(R"(\[b\](.*?)\[/b\])",  QRegularExpression::DotMatchesEverythingOption), "<b>\\1</b>");
-    text.replace(QRegularExpression(R"(\[i\](.*?)\[/i\])",  QRegularExpression::DotMatchesEverythingOption), "<i>\\1</i>");
-    text.replace(QRegularExpression(R"(\[u\](.*?)\[/u\])",  QRegularExpression::DotMatchesEverythingOption), "<u>\\1</u>");
-    text.replace(QRegularExpression(R"(\[s\](.*?)\[/s\])",  QRegularExpression::DotMatchesEverythingOption), "<s>\\1</s>");
-    text.remove(QRegularExpression(R"(\[color=[^\]]*\])",   QRegularExpression::CaseInsensitiveOption));
-    text.remove(QRegularExpression(R"(\[/color\])",         QRegularExpression::CaseInsensitiveOption));
+    text.replace(
+        QRegularExpression(R"(\[b\](.*?)\[/b\])", QRegularExpression::DotMatchesEverythingOption),
+        "<b>\\1</b>");
+    text.replace(
+        QRegularExpression(R"(\[i\](.*?)\[/i\])", QRegularExpression::DotMatchesEverythingOption),
+        "<i>\\1</i>");
+    text.replace(
+        QRegularExpression(R"(\[u\](.*?)\[/u\])", QRegularExpression::DotMatchesEverythingOption),
+        "<u>\\1</u>");
+    text.replace(
+        QRegularExpression(R"(\[s\](.*?)\[/s\])", QRegularExpression::DotMatchesEverythingOption),
+        "<s>\\1</s>");
+    text.remove(
+        QRegularExpression(R"(\[color=[^\]]*\])", QRegularExpression::CaseInsensitiveOption));
+    text.remove(QRegularExpression(R"(\[/color\])", QRegularExpression::CaseInsensitiveOption));
 
     // 7. Headers (h1. - h6. at start of line). Two passes per level: the
     // anchored form `h5#name. Title` runs first (more specific) so the simple
@@ -809,14 +798,12 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
     // marker so QTextBrowser::scrollToAnchor lands on them when a same-page
     // link like `"Intro":#dtext-intro` is clicked.
     for (int n = 6; n >= 1; --n) {
-        text.replace(
-            QRegularExpression(QString("^h%1#([\\w-]+)\\.[ \\t]*(.+)$").arg(n),
-                               QRegularExpression::MultilineOption),
-            QString("<h%1><a name='\\1'></a>\\2</h%1>").arg(n));
-        text.replace(
-            QRegularExpression(QString("^h%1\\.[ \\t]*(.+)$").arg(n),
-                               QRegularExpression::MultilineOption),
-            QString("<h%1>\\1</h%1>").arg(n));
+        text.replace(QRegularExpression(QString("^h%1#([\\w-]+)\\.[ \\t]*(.+)$").arg(n),
+                                        QRegularExpression::MultilineOption),
+                     QString("<h%1><a name='\\1'></a>\\2</h%1>").arg(n));
+        text.replace(QRegularExpression(QString("^h%1\\.[ \\t]*(.+)$").arg(n),
+                                        QRegularExpression::MultilineOption),
+                     QString("<h%1>\\1</h%1>").arg(n));
     }
 
     // 8. Wiki links  [[tag|display]] then [[tag|]] (empty alias) then [[tag]]
@@ -824,8 +811,7 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
     // so underscores and parens in tag names are handled correctly.
     text.replace(QRegularExpression(R"(\[\[([^\|\]]+)\|([^\]]+)\]\])"),
                  "<a href='wiki:\\1'>\\2</a>");
-    text.replace(QRegularExpression(R"(\[\[([^\|\]]+)\|?\]\])"),
-                 "<a href='wiki:\\1'>\\1</a>");
+    text.replace(QRegularExpression(R"(\[\[([^\|\]]+)\|?\]\])"), "<a href='wiki:\\1'>\\1</a>");
 
     // 8.5. Convert !post / !asset bullet groups into inline image galleries.
     // Runs after step 8 so wiki-link captions are already converted to <a>
@@ -837,7 +823,11 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
         static const QRegularExpression mediaBulletRe(
             "^\\*+[ \\t]+!(post|asset) #(\\d+)(?::\\s*(.*))?$");
 
-        struct GalleryItem { QString kind; int id; QString caption; };
+        struct GalleryItem {
+            QString kind;
+            int id;
+            QString caption;
+        };
         QStringList lines = text.split('\n');
         QStringList out;
         QList<GalleryItem> gallery;
@@ -852,9 +842,8 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
                     out << "<tr>";
                 }
                 const GalleryItem& g = gallery[i];
-                const QString cap = g.caption.isEmpty()
-                                      ? QString("%1 #%2").arg(g.kind).arg(g.id)
-                                      : g.caption;
+                const QString cap =
+                    g.caption.isEmpty() ? QString("%1 #%2").arg(g.kind).arg(g.id) : g.caption;
                 // width/height on the <img> lock the cell to ThumbW x ThumbH
                 // *logical* pixels. Without these attrs the document uses the
                 // pixmap's pixel dimensions for layout, which means dragging
@@ -863,11 +852,15 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
                 // The href / src share `<kind>:<id>`; onAnchorClicked routes
                 // the click to /posts/ or /media_assets/ accordingly, and
                 // the resource is registered under the same URL.
-                out << QString(
-                    "<td class='thumb' align='center' style='padding:0 10px 4px 0;vertical-align:middle;width:%3px;'>"
-                    "<a href='%1:%2'><img src='%1:%2' width='%3' height='%5'></a>"
-                    "<br><small>%4</small></td>")
-                    .arg(g.kind).arg(g.id).arg(ThumbW).arg(cap).arg(ThumbH);
+                out << QString("<td class='thumb' align='center' style='padding:0 10px 4px "
+                               "0;vertical-align:middle;width:%3px;'>"
+                               "<a href='%1:%2'><img src='%1:%2' width='%3' height='%5'></a>"
+                               "<br><small>%4</small></td>")
+                           .arg(g.kind)
+                           .arg(g.id)
+                           .arg(ThumbW)
+                           .arg(cap)
+                           .arg(ThumbH);
             }
             out << "</tr></table>";
             gallery.clear();
@@ -876,10 +869,9 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
         for (const QString& line : lines) {
             const QRegularExpressionMatch m = mediaBulletRe.match(line);
             if (m.hasMatch()) {
-                gallery.append({ m.captured(1),
-                                 m.captured(2).toInt(),
-                                 m.captured(3).trimmed() });
-            } else {
+                gallery.append({m.captured(1), m.captured(2).toInt(), m.captured(3).trimmed()});
+            }
+            else {
                 flushGallery();
                 out << line;
             }
@@ -904,25 +896,51 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
         int ulDepth = 0;
         int olDepth = 0;
         auto closeAll = [&]() {
-            while (ulDepth > 0) { out << "</ul>"; --ulDepth; }
-            while (olDepth > 0) { out << "</ol>"; --olDepth; }
+            while (ulDepth > 0) {
+                out << "</ul>";
+                --ulDepth;
+            }
+            while (olDepth > 0) {
+                out << "</ol>";
+                --olDepth;
+            }
         };
         for (const QString& line : lines) {
             const auto ulM = ulRe.match(line);
             const auto olM = olRe.match(line);
             if (ulM.hasMatch()) {
-                while (olDepth > 0) { out << "</ol>"; --olDepth; }
+                while (olDepth > 0) {
+                    out << "</ol>";
+                    --olDepth;
+                }
                 const int target = ulM.captured(1).size();
-                while (ulDepth < target) { out << "<ul>"; ++ulDepth; }
-                while (ulDepth > target) { out << "</ul>"; --ulDepth; }
+                while (ulDepth < target) {
+                    out << "<ul>";
+                    ++ulDepth;
+                }
+                while (ulDepth > target) {
+                    out << "</ul>";
+                    --ulDepth;
+                }
                 out << "<li>" + ulM.captured(2) + "</li>";
-            } else if (olM.hasMatch()) {
-                while (ulDepth > 0) { out << "</ul>"; --ulDepth; }
+            }
+            else if (olM.hasMatch()) {
+                while (ulDepth > 0) {
+                    out << "</ul>";
+                    --ulDepth;
+                }
                 const int target = olM.captured(1).size();
-                while (olDepth < target) { out << "<ol>"; ++olDepth; }
-                while (olDepth > target) { out << "</ol>"; --olDepth; }
+                while (olDepth < target) {
+                    out << "<ol>";
+                    ++olDepth;
+                }
+                while (olDepth > target) {
+                    out << "</ol>";
+                    --olDepth;
+                }
                 out << "<li>" + olM.captured(2) + "</li>";
-            } else {
+            }
+            else {
                 closeAll();
                 out << line;
             }
@@ -934,8 +952,7 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
     // 11. Restore external link tokens (display text is pre-processed HTML from step 3)
     for (auto it = linkTokens.cbegin(); it != linkTokens.cend(); ++it) {
         text.replace(it.key(),
-            QString("<a href='%1'>%2</a>")
-                .arg(it.value().second, it.value().first));
+                     QString("<a href='%1'>%2</a>").arg(it.value().second, it.value().first));
     }
 
     // 12. Smart paragraph / line-break reconstruction.
@@ -953,7 +970,8 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
             if (blockElemRe.match(para).hasMatch()) {
                 para.replace('\n', "");
                 result << para;
-            } else {
+            }
+            else {
                 para.replace('\n', "<br/>");
                 result << "<p>" + para + "</p>";
             }
@@ -963,17 +981,21 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
 
     // Font from the application's loaded custom font (ID 0 in QFontDatabase)
     const QStringList fontFamilies = QFontDatabase::applicationFontFamilies(0);
-    const QString fontDecl = fontFamilies.isEmpty()
-        ? QString()
-        : QString("font-family:'%1',sans-serif;").arg(fontFamilies.first());
+    const QString fontDecl =
+        fontFamilies.isEmpty() ? QString()
+                               : QString("font-family:'%1',sans-serif;").arg(fontFamilies.first());
 
     const QString css =
         "<style>"
-        "body{background:transparent;color:#c0c0c0;font-size:15px;margin:0;padding:0;" + fontDecl + "}"
-        "h1,h2,h3,h4,h5,h6{color:#888;border-bottom:1px solid #222;padding-bottom:3px;margin-top:14px;}"
+        "body{background:transparent;color:#c0c0c0;font-size:15px;margin:0;padding:0;" +
+        fontDecl +
+        "}"
+        "h1,h2,h3,h4,h5,h6{color:#888;border-bottom:1px solid "
+        "#222;padding-bottom:3px;margin-top:14px;}"
         "a{color:#5599cc;text-decoration:none;}"
         "blockquote{border-left:2px solid #333;margin:4px 0 4px 8px;padding-left:10px;color:#888;}"
-        "code{background:#1a1a1a;border-radius:3px;padding:1px 4px;font-family:monospace;font-size:12px;}"
+        "code{background:#1a1a1a;border-radius:3px;padding:1px "
+        "4px;font-family:monospace;font-size:12px;}"
         "ul,ol{padding-left:20px;margin:4px 0;}"
         "li{margin:2px 0;}"
         "table.gallery{margin:6px 0;}"
@@ -984,10 +1006,13 @@ QString TagWikiPage::dtextToHtml(const QString& dtext,
         ".wsp{color:#555;}"
         "</style>";
 
-    return "<html><head>" + css + "</head><body>"
+    return "<html><head>" + css +
+           "</head><body>"
            "<table width='100%' cellspacing='0' cellpadding='0'>"
            "<tr><td></td>"
-           "<td width='800' style='padding:16px 8px;'>" + text + "</td>"
+           "<td width='800' style='padding:16px 8px;'>" +
+           text +
+           "</td>"
            "<td></td></tr>"
            "</table></body></html>";
 }

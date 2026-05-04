@@ -9,8 +9,7 @@
 
 namespace gui {
 
-ChromedDialog::ChromedDialog(QWidget* parent)
-    : QDialog(parent)
+ChromedDialog::ChromedDialog(QWidget* parent) : QDialog(parent)
 {
     // Frameless = no native chrome. The Dialog flag preserves QDialog's
     // modality & exec() semantics; FramelessWindowHint strips the OS frame.
@@ -21,8 +20,8 @@ ChromedDialog::ChromedDialog(QWidget* parent)
     // Modal dialogs need close-only chrome and the modal mouse-grab fix
     // (see WindowChrome::beginResizeDrag for why exec() needs that).
     WindowChrome::Options opt;
-    opt.showMin   = false;
-    opt.showMax   = false;
+    opt.showMin = false;
+    opt.showMax = false;
     opt.showClose = true;
     opt.modalGrab = true;
     m_chrome = new WindowChrome(this, opt);
@@ -39,13 +38,15 @@ ChromedDialog::ChromedDialog(QWidget* parent)
     setWindowOpacity(0.0);
 }
 
-QWidget* ChromedDialog::contentArea() const { return m_chrome->bodyWidget(); }
+QWidget* ChromedDialog::contentArea() const
+{
+    return m_chrome->bodyWidget();
+}
 
 void ChromedDialog::changeEvent(QEvent* event)
 {
     QDialog::changeEvent(event);
-    if (event->type() == QEvent::WindowStateChange && m_chrome)
-        m_chrome->onWindowStateChanged();
+    if (event->type() == QEvent::WindowStateChange && m_chrome) m_chrome->onWindowStateChanged();
 }
 
 void ChromedDialog::keyPressEvent(QKeyEvent* event)
@@ -69,8 +70,8 @@ void ChromedDialog::showEvent(QShowEvent* event)
     // The < 0.99 guard prevents stacking animations if the dialog is briefly
     // re-shown while still fading in.
     if (windowOpacity() < 0.99) {
-        utils::propertyAnimate(this, "windowOpacity",
-                               windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+        utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 1.0, 200,
+                               QEasingCurve::InOutSine);
     }
 }
 
@@ -85,8 +86,7 @@ void ChromedDialog::done(int result)
     }
     m_isClosing = true;
 
-    auto* anim = utils::propertyAnimate(this, "windowOpacity",
-                                        windowOpacity(), 0.0, 200,
+    auto* anim = utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 0.0, 200,
                                         QEasingCurve::InOutSine);
     connect(anim, &QPropertyAnimation::finished, this, [this, result]() {
         QDialog::done(result);

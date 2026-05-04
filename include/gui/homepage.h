@@ -23,11 +23,11 @@ protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
-    QLabel*    m_updateLabel = nullptr;
-    QLabel*    m_ryoonLogo   = nullptr;
-    QLabel*    m_tagLabel    = nullptr;   // tc_logo0 - bottom layer
-    ShinyLogo* m_wordmark    = nullptr;   // tc_logo1 - top layer with shine
-    QString    m_updateUrl;               // populated by setUpdateAvailable
+    QLabel* m_updateLabel = nullptr;
+    QLabel* m_ryoonLogo = nullptr;
+    QLabel* m_tagLabel = nullptr;    // tc_logo0 - bottom layer
+    ShinyLogo* m_wordmark = nullptr; // tc_logo1 - top layer with shine
+    QString m_updateUrl;             // populated by setUpdateAvailable
 };
 
 } // namespace gui

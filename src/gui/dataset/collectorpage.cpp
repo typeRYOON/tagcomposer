@@ -41,11 +41,11 @@ using namespace utils;
 namespace gui {
 
 namespace {
-constexpr int kPanelWidth       = 380;
-constexpr int kFolderRowHeight  = 40;
-constexpr int kRecentPanelWidth = 420;   // matches AutoTagPage's preview column
-constexpr int kRecentThumb      = 96;    // square thumb side, in px
-constexpr int kRecentMax        = 50;    // newest-first cap; oldest rolls off
+constexpr int kPanelWidth = 380;
+constexpr int kFolderRowHeight = 40;
+constexpr int kRecentPanelWidth = 420; // matches AutoTagPage's preview column
+constexpr int kRecentThumb = 96;       // square thumb side, in px
+constexpr int kRecentMax = 50;         // newest-first cap; oldest rolls off
 
 QWidget* makeSectionHeader(QWidget* parent, const QString& title)
 {
@@ -70,8 +70,7 @@ QString timestamp()
 } // namespace
 
 CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
-    : QWidget(parent)
-    , m_settings(settings)
+    : QWidget(parent), m_settings(settings)
 {
     setObjectName("CollectorPage");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -104,10 +103,9 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     m_watchEdit->setObjectName("SearchBar");
     m_watchEdit->setPlaceholderText("Folder to watch (typically Downloads)");
     m_watchEdit->setFixedHeight(kFolderRowHeight);
-    m_watchEdit->setToolTip(
-        "The Watcher polls this folder for new image files. Each one is\n"
-        "hashed and either moved into the collection (renamed sequentially)\n"
-        "or sent to the recycle bin if it duplicates an existing entry.");
+    m_watchEdit->setToolTip("The Watcher polls this folder for new image files. Each one is\n"
+                            "hashed and either moved into the collection (renamed sequentially)\n"
+                            "or sent to the recycle bin if it duplicates an existing entry.");
     m_watchBrowseBtn = new QPushButton("…", leftBody);
     m_watchBrowseBtn->setObjectName("DatasetBrowseBtn");
     m_watchBrowseBtn->setFixedSize(36, kFolderRowHeight);
@@ -176,16 +174,14 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     m_pollSpin->setRange(1, 60);
     m_pollSpin->setValue(5);
     m_pollSpin->setSuffix(" s");
-    m_pollSpin->setToolTip(
-        "How often the watcher scans the source folder. Shorter = more\n"
-        "responsive but slightly more CPU. 5 seconds is fine for typical use.");
+    m_pollSpin->setToolTip("How often the watcher scans the source folder. Shorter = more\n"
+                           "responsive but slightly more CPU. 5 seconds is fine for typical use.");
 
     // Start/Stop + Open + Rebuild
     m_startStopBtn = new QPushButton("Start", leftBody);
     m_startStopBtn->setObjectName("DatasetRunBtn");
-    m_startStopBtn->setToolTip(
-        "Begin watching. The button becomes Stop while the watcher is\n"
-        "active; the app shuts the watcher down automatically on exit.");
+    m_startStopBtn->setToolTip("Begin watching. The button becomes Stop while the watcher is\n"
+                               "active; the app shuts the watcher down automatically on exit.");
 
     m_openFolderBtn = new QPushButton("Open collection", leftBody);
     m_openFolderBtn->setObjectName("DatasetBrowseBtn");
@@ -195,28 +191,28 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     m_rebuildBtn = new QPushButton("Rebuild index", leftBody);
     m_rebuildBtn->setObjectName("DatasetBrowseBtn");
     m_rebuildBtn->setFixedHeight(kFolderRowHeight);
-    m_rebuildBtn->setToolTip(
-        "Walk the collection folder and recompute every image's pHash from\n"
-        "scratch, overwriting __hashes.json. Use this if the index was\n"
-        "deleted, the folder was edited externally, or duplicate detection\n"
-        "is missing existing files.");
+    m_rebuildBtn->setToolTip("Walk the collection folder and recompute every image's pHash from\n"
+                             "scratch, overwriting __hashes.json. Use this if the index was\n"
+                             "deleted, the folder was edited externally, or duplicate detection\n"
+                             "is missing existing files.");
 
     m_sendToTaggerBtn = new QPushButton("Send to Auto-tagger", leftBody);
     m_sendToTaggerBtn->setObjectName("EntryActionBtn");
-    m_sendToTaggerBtn->setToolTip(
-        "Open this collection's folder in the Auto-tagger tab as the\n"
-        "input folder, ready to run inference over.");
+    m_sendToTaggerBtn->setToolTip("Open this collection's folder in the Auto-tagger tab as the\n"
+                                  "input folder, ready to run inference over.");
 
     auto* grid = new QGridLayout;
     grid->setSpacing(6);
     grid->setColumnStretch(1, 1);
     int r = 0;
-    grid->addWidget(mkLabel("Threshold"), r, 0); grid->addLayout(thresholdRow, r++, 1);
-    grid->addWidget(mkLabel("Poll"),      r, 0); grid->addWidget(m_pollSpin,    r++, 1);
+    grid->addWidget(mkLabel("Threshold"), r, 0);
+    grid->addLayout(thresholdRow, r++, 1);
+    grid->addWidget(mkLabel("Poll"), r, 0);
+    grid->addWidget(m_pollSpin, r++, 1);
 
     {
         auto* row = new QWidget(leftBody);
-        auto* l   = new QHBoxLayout(row);
+        auto* l = new QHBoxLayout(row);
         l->setContentsMargins(0, 0, 0, 0);
         l->setSpacing(4);
         auto* lblw = new QLabel("Watch folder", row);
@@ -272,7 +268,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
 
     m_collectedLbl = new QLabel(rightBody);
     m_collectedLbl->setObjectName("DatasetParamValue");
-    m_skippedLbl   = new QLabel(rightBody);
+    m_skippedLbl = new QLabel(rightBody);
     m_skippedLbl->setObjectName("DatasetParamValue");
 
     auto* statRow = new QHBoxLayout;
@@ -297,7 +293,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
 
     auto syncCounters = [this]() {
         m_collectedLbl->setText(QString("Collected: %1").arg(m_watcher->collectedCount()));
-        m_skippedLbl  ->setText(QString("Skipped: %1").arg(m_watcher->skippedCount()));
+        m_skippedLbl->setText(QString("Skipped: %1").arg(m_watcher->skippedCount()));
     };
     syncCounters();
 
@@ -331,10 +327,9 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     m_recentList->setUniformItemSizes(true);
     m_recentList->setWordWrap(true);
     m_recentList->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_recentList->setVisible(false);   // hidden until first thumb arrives
+    m_recentList->setVisible(false); // hidden until first thumb arrives
 
-    m_recentEmpty = new QLabel(
-        "Recently collected images will appear here.", recentBody);
+    m_recentEmpty = new QLabel("Recently collected images will appear here.", recentBody);
     m_recentEmpty->setObjectName("DatasetEmptyState");
     m_recentEmpty->setAlignment(Qt::AlignCenter);
     m_recentEmpty->setWordWrap(true);
@@ -352,7 +347,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
         if (!path.isEmpty() && QFile::exists(path))
             QDesktopServices::openUrl(QUrl::fromLocalFile(path));
     };
-    connect(m_recentList, &QListWidget::itemActivated,     this, openRecent);
+    connect(m_recentList, &QListWidget::itemActivated, this, openRecent);
     connect(m_recentList, &QListWidget::itemDoubleClicked, this, openRecent);
 
     // ── Root ────────────────────────────────────────────────────────────────
@@ -379,8 +374,8 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
 
     // ── Wire ────────────────────────────────────────────────────────────────
     connect(m_watchBrowseBtn, &QPushButton::clicked, this, [this]() {
-        const QString d = QFileDialog::getExistingDirectory(
-            this, "Choose watch folder", m_watchEdit->text());
+        const QString d =
+            QFileDialog::getExistingDirectory(this, "Choose watch folder", m_watchEdit->text());
         if (!d.isEmpty()) {
             m_watchEdit->setText(d);
             persistSettings();
@@ -388,17 +383,18 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     });
     connect(m_watchEdit, &QLineEdit::editingFinished, this, [this]() { persistSettings(); });
 
-    connect(m_collectionBox, &QComboBox::currentTextChanged,
-            this, [this](const QString&) { persistSettings(); });
-    connect(m_newCollectionBtn, &QPushButton::clicked,
-            this, &CollectorPage::onNewCollection);
+    connect(m_collectionBox, &QComboBox::currentTextChanged, this,
+            [this](const QString&) { persistSettings(); });
+    connect(m_newCollectionBtn, &QPushButton::clicked, this, &CollectorPage::onNewCollection);
 
-    connect(m_thresholdSlider, &QSlider::valueChanged, this,
-        [this, syncThreshold](int) { syncThreshold(); persistSettings(); });
+    connect(m_thresholdSlider, &QSlider::valueChanged, this, [this, syncThreshold](int) {
+        syncThreshold();
+        persistSettings();
+    });
     connect(m_pollSpin, qOverload<int>(&QSpinBox::valueChanged), this,
-        [this](int) { persistSettings(); });
+            [this](int) { persistSettings(); });
 
-    connect(m_startStopBtn,  &QPushButton::clicked, this, &CollectorPage::onStartStop);
+    connect(m_startStopBtn, &QPushButton::clicked, this, &CollectorPage::onStartStop);
     connect(m_openFolderBtn, &QPushButton::clicked, this, [this]() {
         const QString d = currentCollectionDir();
         if (d.isEmpty()) return;
@@ -418,34 +414,35 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     auto syncCollectionButtons = [this]() {
         const bool ok = !m_collectionBox->currentText().isEmpty();
         m_sendToTaggerBtn->setEnabled(ok);
-        m_openFolderBtn  ->setEnabled(ok);
-        m_rebuildBtn     ->setEnabled(ok && !m_watcher->isRunning());
+        m_openFolderBtn->setEnabled(ok);
+        m_rebuildBtn->setEnabled(ok && !m_watcher->isRunning());
     };
     syncCollectionButtons();
-    connect(m_collectionBox, &QComboBox::currentTextChanged,
-            this, [syncCollectionButtons](const QString&) { syncCollectionButtons(); });
+    connect(m_collectionBox, &QComboBox::currentTextChanged, this,
+            [syncCollectionButtons](const QString&) { syncCollectionButtons(); });
 
     // Watcher signals
     connect(m_watcher, &core::DownloadWatcher::imageMoved, this,
-        [this](QString fromAbs, QString toAbs) {
-            const QString fromName = QFileInfo(fromAbs).fileName();
-            const QString toName   = QFileInfo(toAbs).fileName();
-            m_log->appendPlainText(QString("[%1] moved %2 → %3")
-                                       .arg(timestamp(), fromName, toName));
-            addRecentThumb(toAbs);
-        });
+            [this](QString fromAbs, QString toAbs) {
+                const QString fromName = QFileInfo(fromAbs).fileName();
+                const QString toName = QFileInfo(toAbs).fileName();
+                m_log->appendPlainText(
+                    QString("[%1] moved %2 → %3").arg(timestamp(), fromName, toName));
+                addRecentThumb(toAbs);
+            });
     connect(m_watcher, &core::DownloadWatcher::imageSkipped, this,
-        [this](QString fromAbs, int dist, QString matchName) {
-            const QString fromName = QFileInfo(fromAbs).fileName();
-            m_log->appendPlainText(QString("[%1] dup %2 (dist=%3, matches %4) → recycle bin")
-                                       .arg(timestamp(), fromName).arg(dist).arg(matchName));
-        });
-    connect(m_watcher, &core::DownloadWatcher::error, this,
-        [this](QString msg) {
-            m_log->appendPlainText(QString("[%1] error - %2").arg(timestamp(), msg));
-        });
+            [this](QString fromAbs, int dist, QString matchName) {
+                const QString fromName = QFileInfo(fromAbs).fileName();
+                m_log->appendPlainText(QString("[%1] dup %2 (dist=%3, matches %4) → recycle bin")
+                                           .arg(timestamp(), fromName)
+                                           .arg(dist)
+                                           .arg(matchName));
+            });
+    connect(m_watcher, &core::DownloadWatcher::error, this, [this](QString msg) {
+        m_log->appendPlainText(QString("[%1] error - %2").arg(timestamp(), msg));
+    });
     connect(m_watcher, &core::DownloadWatcher::status, this,
-        [this, syncCounters](int, int) { syncCounters(); });
+            [this, syncCounters](int, int) { syncCounters(); });
     connect(m_watcher, &core::DownloadWatcher::started, this, [this]() {
         m_log->appendPlainText(QString("[%1] started").arg(timestamp()));
         setRunningUi(true);
@@ -477,8 +474,8 @@ void CollectorPage::refreshCollections()
     QSignalBlocker block(m_collectionBox);
     m_collectionBox->clear();
 
-    const QFileInfoList subs = QDir(root).entryInfoList(
-        QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+    const QFileInfoList subs =
+        QDir(root).entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
     for (const QFileInfo& fi : subs)
         m_collectionBox->addItem(fi.fileName());
 
@@ -491,9 +488,8 @@ void CollectorPage::refreshCollections()
 void CollectorPage::onNewCollection()
 {
     bool ok = false;
-    QString name = QInputDialog::getText(
-        this, "New collection", "Collection name:",
-        QLineEdit::Normal, QString(), &ok);
+    QString name = QInputDialog::getText(this, "New collection",
+                                         "Collection name:", QLineEdit::Normal, QString(), &ok);
     if (!ok) return;
 
     name = name.trimmed();
@@ -505,7 +501,7 @@ void CollectorPage::onNewCollection()
     for (QChar c : forbidden) {
         if (name.contains(c)) {
             QMessageBox::warning(this, "Invalid name",
-                QString("Name can't contain: %1").arg(forbidden));
+                                 QString("Name can't contain: %1").arg(forbidden));
             return;
         }
     }
@@ -516,13 +512,11 @@ void CollectorPage::onNewCollection()
 
     const QString dir = BASE_PATH + "/" + COLLECTIONS_DIR + "/" + name;
     if (QDir(dir).exists()) {
-        QMessageBox::warning(this, "Already exists",
-            "A collection with that name already exists.");
+        QMessageBox::warning(this, "Already exists", "A collection with that name already exists.");
         return;
     }
     if (!QDir().mkpath(dir)) {
-        QMessageBox::warning(this, "Couldn't create",
-            QString("Failed to create %1").arg(dir));
+        QMessageBox::warning(this, "Couldn't create", QString("Failed to create %1").arg(dir));
         return;
     }
 
@@ -550,19 +544,17 @@ void CollectorPage::onStartStop()
 
     const QString watch = m_watchEdit->text().trimmed();
     if (watch.isEmpty() || !QDir(watch).exists()) {
-        QMessageBox::warning(this, "Watch folder",
-            "Set a valid watch folder before starting.");
+        QMessageBox::warning(this, "Watch folder", "Set a valid watch folder before starting.");
         return;
     }
     if (m_collectionBox->currentText().isEmpty()) {
-        QMessageBox::warning(this, "Collection",
-            "Pick or create a collection before starting.");
+        QMessageBox::warning(this, "Collection", "Pick or create a collection before starting.");
         return;
     }
 
     persistSettings();
-    m_watcher->start(watch, currentCollectionDir(),
-                     m_thresholdSlider->value(), m_pollSpin->value());
+    m_watcher->start(watch, currentCollectionDir(), m_thresholdSlider->value(),
+                     m_pollSpin->value());
 }
 
 void CollectorPage::setRunningUi(bool running)
@@ -586,10 +578,9 @@ void CollectorPage::onRebuildIndex()
     if (dir.isEmpty()) return;
 
     if (QMessageBox::question(this, "Rebuild index",
-            "Walk every image in this collection and recompute __hashes.json "
-            "from scratch?\n\nExisting hashes are dropped first.")
-        != QMessageBox::Yes)
-    {
+                              "Walk every image in this collection and recompute __hashes.json "
+                              "from scratch?\n\nExisting hashes are dropped first.") !=
+        QMessageBox::Yes) {
         return;
     }
 
@@ -599,19 +590,16 @@ void CollectorPage::onRebuildIndex()
     // Hashing N files can take a moment for large collections; do it on a
     // worker thread so the UI doesn't freeze.
     auto* watcher = new QFutureWatcher<int>(this);
-    connect(watcher, &QFutureWatcher<int>::finished, this,
-        [this, watcher, dir]() {
-            const int n = watcher->result();
-            m_log->appendPlainText(QString("[%1] rebuild done - %2 entries")
-                                       .arg(timestamp()).arg(n));
-            m_rebuildBtn->setEnabled(true);
-            watcher->deleteLater();
-        });
+    connect(watcher, &QFutureWatcher<int>::finished, this, [this, watcher, dir]() {
+        const int n = watcher->result();
+        m_log->appendPlainText(QString("[%1] rebuild done - %2 entries").arg(timestamp()).arg(n));
+        m_rebuildBtn->setEnabled(true);
+        watcher->deleteLater();
+    });
 
     watcher->setFuture(QtConcurrent::run([dir]() -> int {
-        core::PHashIndex idx;  // start fresh
-        const QStringList exts = { "*.png", "*.jpg", "*.jpeg",
-                                   "*.webp", "*.bmp", "*.gif" };
+        core::PHashIndex idx; // start fresh
+        const QStringList exts = {"*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"};
         QDirIterator it(dir, exts, QDir::Files);
         while (it.hasNext()) {
             const QString abs = it.next();
@@ -627,10 +615,10 @@ void CollectorPage::onRebuildIndex()
 void CollectorPage::persistSettings()
 {
     if (!m_settings) return;
-    m_settings->collectorWatchFolder      = m_watchEdit->text().trimmed();
+    m_settings->collectorWatchFolder = m_watchEdit->text().trimmed();
     m_settings->collectorActiveCollection = m_collectionBox->currentText();
-    m_settings->collectorThreshold        = m_thresholdSlider->value();
-    m_settings->collectorPollSeconds      = m_pollSpin->value();
+    m_settings->collectorThreshold = m_thresholdSlider->value();
+    m_settings->collectorPollSeconds = m_pollSpin->value();
 }
 
 // ── Recent thumbs ────────────────────────────────────────────────────────────
@@ -643,44 +631,39 @@ void CollectorPage::addRecentThumb(const QString& imagePath)
     // log update sitting next to it. Watcher is per-call so multiple in-flight
     // loads can interleave without stepping on each other.
     auto* w = new QFutureWatcher<QImage>(this);
-    connect(w, &QFutureWatcher<QImage>::finished, this,
-        [this, w, imagePath]() {
-            const QImage img = w->result();
-            w->deleteLater();
-            if (img.isNull()) return;
+    connect(w, &QFutureWatcher<QImage>::finished, this, [this, w, imagePath]() {
+        const QImage img = w->result();
+        w->deleteLater();
+        if (img.isNull()) return;
 
-            // KeepAspectRatioByExpanding fills the icon square, then we crop
-            // the centre via QPixmap::copy so the grid stays visually uniform.
-            QPixmap pm = QPixmap::fromImage(img).scaled(
-                kRecentThumb, kRecentThumb,
-                Qt::KeepAspectRatioByExpanding,
-                Qt::SmoothTransformation);
-            if (pm.width() > kRecentThumb || pm.height() > kRecentThumb) {
-                const int x = (pm.width()  - kRecentThumb) / 2;
-                const int y = (pm.height() - kRecentThumb) / 2;
-                pm = pm.copy(x, y, kRecentThumb, kRecentThumb);
-            }
+        // KeepAspectRatioByExpanding fills the icon square, then we crop
+        // the centre via QPixmap::copy so the grid stays visually uniform.
+        QPixmap pm = QPixmap::fromImage(img).scaled(
+            kRecentThumb, kRecentThumb, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+        if (pm.width() > kRecentThumb || pm.height() > kRecentThumb) {
+            const int x = (pm.width() - kRecentThumb) / 2;
+            const int y = (pm.height() - kRecentThumb) / 2;
+            pm = pm.copy(x, y, kRecentThumb, kRecentThumb);
+        }
 
-            auto* it = new QListWidgetItem;
-            it->setIcon(QIcon(pm));
-            it->setText(QFileInfo(imagePath).fileName());
-            it->setData(Qt::UserRole, imagePath);
-            it->setToolTip(imagePath);
-            m_recentList->insertItem(0, it);
+        auto* it = new QListWidgetItem;
+        it->setIcon(QIcon(pm));
+        it->setText(QFileInfo(imagePath).fileName());
+        it->setData(Qt::UserRole, imagePath);
+        it->setToolTip(imagePath);
+        m_recentList->insertItem(0, it);
 
-            // Cap at kRecentMax - drop oldest from the bottom.
-            while (m_recentList->count() > kRecentMax)
-                delete m_recentList->takeItem(m_recentList->count() - 1);
+        // Cap at kRecentMax - drop oldest from the bottom.
+        while (m_recentList->count() > kRecentMax)
+            delete m_recentList->takeItem(m_recentList->count() - 1);
 
-            // First thumb arrived: swap the empty-state placeholder for the grid.
-            if (m_recentEmpty && m_recentEmpty->isVisible()) {
-                m_recentEmpty->setVisible(false);
-                m_recentList->setVisible(true);
-            }
-        });
-    w->setFuture(QtConcurrent::run([imagePath]() -> QImage {
-        return QImage(imagePath);
-    }));
+        // First thumb arrived: swap the empty-state placeholder for the grid.
+        if (m_recentEmpty && m_recentEmpty->isVisible()) {
+            m_recentEmpty->setVisible(false);
+            m_recentList->setVisible(true);
+        }
+    });
+    w->setFuture(QtConcurrent::run([imagePath]() -> QImage { return QImage(imagePath); }));
 }
 
 } // namespace gui

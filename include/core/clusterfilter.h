@@ -19,12 +19,12 @@ class ClusterFilter {
 public:
     enum class Mode { Blacklist, Whitelist };
 
-    Mode                          mode { Mode::Blacklist };
+    Mode mode{Mode::Blacklist};
     // Each inner list is the AND-group; outer list is the OR.
-    QList<QList<QString>>         rules;
+    QList<QList<QString>> rules;
 
     static ClusterFilter loadFromFile(const QString& path);
-    void                 saveToFile(const QString& path) const;
+    void saveToFile(const QString& path) const;
 
     // True when `tagFacets` satisfies at least one rule (any AND-group with
     // every facet present). Empty `rules` returns false.

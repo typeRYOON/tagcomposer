@@ -14,18 +14,18 @@ namespace core {
 
 // ── Construction ─────────────────────────────────────────────────────────────
 
-std::unique_ptr<AutoTaggerModel> AutoTaggerModel::loadFromDir(
-    Ort::Env& env, const QString& dir, QString* err)
+std::unique_ptr<AutoTaggerModel> AutoTaggerModel::loadFromDir(Ort::Env& env, const QString& dir,
+                                                              QString* err)
 {
     auto setErr = [&](const QString& msg) {
         if (err) *err = msg;
     };
 
-    const QString modelPath  = dir + "/model.onnx";
+    const QString modelPath = dir + "/model.onnx";
     const QString configPath = dir + "/config.json";
-    const QString tagsPath   = dir + "/tags.csv";
+    const QString tagsPath = dir + "/tags.csv";
 
-    for (const QString& p : { modelPath, configPath, tagsPath }) {
+    for (const QString& p : {modelPath, configPath, tagsPath}) {
         if (!QFile::exists(p)) {
             setErr(QString("missing file: %1").arg(p));
             return nullptr;
@@ -33,11 +33,11 @@ std::unique_ptr<AutoTaggerModel> AutoTaggerModel::loadFromDir(
     }
 
     std::unique_ptr<AutoTaggerModel> m(new AutoTaggerModel());
-    m->m_dir  = dir;
+    m->m_dir = dir;
     m->m_name = QFileInfo(dir).fileName();
 
-    if (!m->readConfig(configPath, err))     return nullptr;
-    if (!m->readTags(tagsPath, err))         return nullptr;
+    if (!m->readConfig(configPath, err)) return nullptr;
+    if (!m->readTags(tagsPath, err)) return nullptr;
     if (!m->initSession(env, modelPath, err)) return nullptr;
 
     return m;
@@ -62,11 +62,11 @@ bool AutoTaggerModel::readConfig(const QString& configPath, QString* err)
     if (sz.size() == 3) {
         // [C, H, W]
         m_height = sz[1].toInt(m_height);
-        m_width  = sz[2].toInt(m_width);
+        m_width = sz[2].toInt(m_width);
     }
 
     const QJsonArray mean = pre["mean"].toArray();
-    const QJsonArray std  = pre["std"].toArray();
+    const QJsonArray std = pre["std"].toArray();
     if (mean.size() == 3) {
         for (int i = 0; i < 3; ++i)
             m_mean[i] = float(mean[i].toDouble(m_mean[i]));
@@ -103,7 +103,7 @@ bool AutoTaggerModel::readTags(const QString& csvPath, QString* err)
         if (!ok) continue;
 
         const QString tagName = utils::normalizeTagInput(split.at(1));
-        m_tagInfo.append({ tagName, category });
+        m_tagInfo.append({tagName, category});
         if (category == 9) m_ratingIndices.append(row);
         ++row;
     }
@@ -123,24 +123,22 @@ bool AutoTaggerModel::initSession(Ort::Env& env, const QString& modelPath, QStri
         m_sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
         m_sessionOptions.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
 
-        m_session = std::make_unique<Ort::Session>(
-            env,
-            modelPath.toStdWString().c_str(),
-            m_sessionOptions);
+        m_session =
+            std::make_unique<Ort::Session>(env, modelPath.toStdWString().c_str(), m_sessionOptions);
 
         // I/O names - copy out so we can hand stable const char* to Run().
         Ort::AllocatorWithDefaultOptions allocator;
         {
-            auto in  = m_session->GetInputNameAllocated (0, allocator);
+            auto in = m_session->GetInputNameAllocated(0, allocator);
             auto out = m_session->GetOutputNameAllocated(0, allocator);
-            m_inputName  = in.get();
+            m_inputName = in.get();
             m_outputName = out.get();
         }
 
         // Layout + spatial dims from the ONNX model itself. The dims may be
         // negative ("dynamic"); when they are, we keep whatever config.json
         // said (already loaded into m_height/m_width).
-        const auto info  = m_session->GetInputTypeInfo(0);
+        const auto info = m_session->GetInputTypeInfo(0);
         const auto shape = info.GetTensorTypeAndShapeInfo().GetShape();
 
         if (shape.size() == 4) {
@@ -152,14 +150,16 @@ bool AutoTaggerModel::initSession(Ort::Env& env, const QString& modelPath, QStri
             if (d1 == 3) {
                 m_layout = Layout::NCHW;
                 if (shape[2] > 0) m_height = int(shape[2]);
-                if (shape[3] > 0) m_width  = int(shape[3]);
-            } else if (d3 == 3) {
+                if (shape[3] > 0) m_width = int(shape[3]);
+            }
+            else if (d3 == 3) {
                 m_layout = Layout::NHWC;
                 if (shape[1] > 0) m_height = int(shape[1]);
-                if (shape[2] > 0) m_width  = int(shape[2]);
+                if (shape[2] > 0) m_width = int(shape[2]);
             }
         }
-    } catch (const Ort::Exception& e) {
+    }
+    catch (const Ort::Exception& e) {
         if (err) *err = QString("ORT load failed: %1").arg(e.what());
         return false;
     }
@@ -175,9 +175,8 @@ std::vector<float> AutoTaggerModel::preprocessImage(const QString& imagePath) co
     if (!file.open(QIODevice::ReadOnly)) return {};
     const QByteArray buffer = file.readAll();
 
-    cv::Mat img = cv::imdecode(
-        cv::Mat(1, int(buffer.size()), CV_8UC1, (void*)buffer.data()),
-        cv::IMREAD_UNCHANGED);
+    cv::Mat img = cv::imdecode(cv::Mat(1, int(buffer.size()), CV_8UC1, (void*)buffer.data()),
+                               cv::IMREAD_UNCHANGED);
     if (img.empty()) return {};
 
     // Alpha handling. Mirrors the reference autotagger: grayscale → 3-channel,
@@ -186,14 +185,16 @@ std::vector<float> AutoTaggerModel::preprocessImage(const QString& imagePath) co
     // PNG/etc.
     if (img.channels() == 1) {
         cv::cvtColor(img, img, cv::COLOR_GRAY2RGB);
-    } else if (img.channels() == 4) {
+    }
+    else if (img.channels() == 4) {
         cv::Mat img8;
         if (img.depth() != CV_8U)
             img.convertTo(img8, CV_8U, 1.0 / 256.0);
         else
             img8 = img;
         cv::cvtColor(img8, img, cv::COLOR_BGRA2BGR);
-    } else if (img.depth() != CV_8U) {
+    }
+    else if (img.depth() != CV_8U) {
         cv::Mat img8;
         img.convertTo(img8, CV_8U, 1.0 / 256.0);
         img = img8;
@@ -222,14 +223,14 @@ std::vector<float> AutoTaggerModel::preprocessImage(const QString& imagePath) co
     if (m_layout == Layout::NHWC) {
         // floatImg is H x W x 3 interleaved - direct memory copy works.
         out.assign((float*)floatImg.datastart, (float*)floatImg.dataend);
-    } else {
+    }
+    else {
         // NCHW: (3, H, W). Split + pack channel-major.
         out.resize(size_t(3) * H2 * W2);
         std::vector<cv::Mat> ch(3);
         cv::split(floatImg, ch);
         for (int c = 0; c < 3; ++c)
-            std::memcpy(out.data() + size_t(c) * H2 * W2,
-                        ch[c].data, sizeof(float) * H2 * W2);
+            std::memcpy(out.data() + size_t(c) * H2 * W2, ch[c].data, sizeof(float) * H2 * W2);
     }
     return out;
 }
@@ -244,26 +245,23 @@ TagResult AutoTaggerModel::tag(const QString& imagePath, float threshold) const
     if (input.empty()) return {};
 
     const std::array<int64_t, 4> shape = (m_layout == Layout::NHWC)
-        ? std::array<int64_t, 4>{ 1, m_height, m_width, 3 }
-        : std::array<int64_t, 4>{ 1, 3, m_height, m_width };
+                                             ? std::array<int64_t, 4>{1, m_height, m_width, 3}
+                                             : std::array<int64_t, 4>{1, 3, m_height, m_width};
 
-    Ort::MemoryInfo mem = Ort::MemoryInfo::CreateCpu(
-        OrtArenaAllocator, OrtMemTypeDefault);
+    Ort::MemoryInfo mem = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
 
-    Ort::Value inputTensor = Ort::Value::CreateTensor<float>(
-        mem, input.data(), input.size(),
-        shape.data(), shape.size());
+    Ort::Value inputTensor = Ort::Value::CreateTensor<float>(mem, input.data(), input.size(),
+                                                             shape.data(), shape.size());
 
-    const char* inputNames[]  = { m_inputName.c_str() };
-    const char* outputNames[] = { m_outputName.c_str() };
+    const char* inputNames[] = {m_inputName.c_str()};
+    const char* outputNames[] = {m_outputName.c_str()};
 
     std::vector<Ort::Value> outputs;
     try {
-        outputs = m_session->Run(
-            Ort::RunOptions{ nullptr },
-            inputNames,  &inputTensor, 1,
-            outputNames, 1);
-    } catch (const Ort::Exception&) {
+        outputs =
+            m_session->Run(Ort::RunOptions{nullptr}, inputNames, &inputTensor, 1, outputNames, 1);
+    }
+    catch (const Ort::Exception&) {
         return {};
     }
 
@@ -275,8 +273,7 @@ TagResult AutoTaggerModel::tag(const QString& imagePath, float threshold) const
     return interpretOutput(out, outSize, threshold);
 }
 
-TagResult AutoTaggerModel::interpretOutput(const float* out, int64_t outSize,
-                                          float threshold) const
+TagResult AutoTaggerModel::interpretOutput(const float* out, int64_t outSize, float threshold) const
 {
     TagResult result;
 
@@ -286,17 +283,17 @@ TagResult AutoTaggerModel::interpretOutput(const float* out, int64_t outSize,
     // Rating: argmax over the rating subset. Rating tags are still scored
     // by sigmoid by these models, but only one rating ever applies, so the
     // top one wins.
-    int   bestRatingIdx   = -1;
+    int bestRatingIdx = -1;
     float bestRatingScore = -1.0f;
     for (int idx : m_ratingIndices) {
         if (idx >= N) continue;
         if (out[idx] > bestRatingScore) {
             bestRatingScore = out[idx];
-            bestRatingIdx   = idx;
+            bestRatingIdx = idx;
         }
     }
     if (bestRatingIdx >= 0) {
-        result.rating      = m_tagInfo[bestRatingIdx].tag;
+        result.rating = m_tagInfo[bestRatingIdx].tag;
         result.ratingScore = bestRatingScore;
     }
 
@@ -305,11 +302,11 @@ TagResult AutoTaggerModel::interpretOutput(const float* out, int64_t outSize,
     QList<TagPrediction> below;
     for (int64_t i = 0; i < N; ++i) {
         const TagInfo& ti = m_tagInfo[int(i)];
-        if (ti.category == 9) continue;  // skip ratings here
+        if (ti.category == 9) continue; // skip ratings here
         if (out[i] >= threshold)
-            result.tags.append({ ti.tag, ti.category, out[i] });
+            result.tags.append({ti.tag, ti.category, out[i]});
         else
-            below.append({ ti.tag, ti.category, out[i] });
+            below.append({ti.tag, ti.category, out[i]});
     }
 
     auto byScoreDesc = [](const TagPrediction& a, const TagPrediction& b) {
@@ -320,11 +317,10 @@ TagResult AutoTaggerModel::interpretOutput(const float* out, int64_t outSize,
     // Top-N near misses - partial sort is enough since we only show the
     // first kNearMissCount.
     if (below.size() > kNearMissCount) {
-        std::partial_sort(below.begin(),
-                          below.begin() + kNearMissCount,
-                          below.end(), byScoreDesc);
+        std::partial_sort(below.begin(), below.begin() + kNearMissCount, below.end(), byScoreDesc);
         below.resize(kNearMissCount);
-    } else {
+    }
+    else {
         std::sort(below.begin(), below.end(), byScoreDesc);
     }
     result.nearMisses = std::move(below);

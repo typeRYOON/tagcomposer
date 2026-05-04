@@ -39,12 +39,8 @@ bool copyDirContents(const QDir& src, const QDir& dst)
 
 // ── Export ───────────────────────────────────────────────────────────────────
 
-bool PortManager::exportEntries(
-    const QString&    query,
-    const QString&    destFolder,
-    EntryModel*       model,
-    const FacetIndex& facets,
-    QStringList*      errors)
+bool PortManager::exportEntries(const QString& query, const QString& destFolder, EntryModel* model,
+                                const FacetIndex& facets, QStringList* errors)
 {
     auto fail = [&](const QString& msg) -> bool {
         if (errors) *errors << msg;
@@ -60,8 +56,7 @@ bool PortManager::exportEntries(
     if (matched.isEmpty()) return fail("Query matched 0 entries");
 
     QDir entriesDir(destDir.absoluteFilePath("entries"));
-    if (!QDir().mkpath(entriesDir.absolutePath()))
-        return fail("Failed to create entries folder");
+    if (!QDir().mkpath(entriesDir.absolutePath())) return fail("Failed to create entries folder");
 
     QSet<QString> usedTags;
 
@@ -103,10 +98,8 @@ bool PortManager::exportEntries(
 
 // ── Scan ─────────────────────────────────────────────────────────────────────
 
-PortScan PortManager::scanImport(
-    const QString&    srcFolder,
-    EntryModel*       model,
-    const FacetIndex& facets)
+PortScan PortManager::scanImport(const QString& srcFolder, EntryModel* model,
+                                 const FacetIndex& facets)
 {
     PortScan scan;
     if (!model) return scan;
@@ -124,10 +117,10 @@ PortScan PortManager::scanImport(
             if (uuid.isEmpty()) continue;
 
             PortEntryRef ref;
-            ref.uuid         = uuid;
+            ref.uuid = uuid;
             ref.sourceFolder = folder;
-            ref.title        = obj["title"].toString();
-            ref.duplicate    = (model->entryByUuid(uuid) != nullptr);
+            ref.title = obj["title"].toString();
+            ref.duplicate = (model->entryByUuid(uuid) != nullptr);
             scan.entries << ref;
         }
     }
@@ -154,8 +147,8 @@ PortScan PortManager::scanImport(
             }
 
             PortTagDef def;
-            def.tag       = tag;
-            def.facets    = tagFacets;
+            def.tag = tag;
+            def.facets = tagFacets;
             def.collision = facets.hasFacets(tag);
             scan.tagDefs << def;
         }
@@ -170,13 +163,9 @@ PortScan PortManager::scanImport(
 
 // ── Apply ────────────────────────────────────────────────────────────────────
 
-PortResult PortManager::applyImport(
-    const PortScan&   scan,
-    const PortConfig& config,
-    EntryModel*       model,
-    FacetIndex&       facets,
-    const QString&    dataEntryDir,
-    const QString&    tagDefinitionsPath)
+PortResult PortManager::applyImport(const PortScan& scan, const PortConfig& config,
+                                    EntryModel* model, FacetIndex& facets,
+                                    const QString& dataEntryDir, const QString& tagDefinitionsPath)
 {
     PortResult result;
     if (!model) {
@@ -210,9 +199,9 @@ PortResult PortManager::applyImport(
         if (auto entry = EntryIO::loadOne(dst, model->tagIndex())) {
             model->addEntry(*entry);
             ++result.entriesImported;
-        } else {
-            result.errors << QString("Failed to parse entry after copy: %1")
-                              .arg(ref.title);
+        }
+        else {
+            result.errors << QString("Failed to parse entry after copy: %1").arg(ref.title);
         }
     }
 
@@ -220,13 +209,13 @@ PortResult PortManager::applyImport(
     for (const PortTagDef& def : scan.tagDefs) {
         // Apply facet mapping: drop missing/empty entries; otherwise rename.
         QList<QString> mapped;
-        QSet<QString>  seen;
+        QSet<QString> seen;
         for (const QString& f : def.facets) {
             const auto it = config.facetMapping.find(f);
-            if (it == config.facetMapping.end()) continue;  // implicit drop
+            if (it == config.facetMapping.end()) continue; // implicit drop
             const QString target = it.value();
-            if (target.isEmpty()) continue;                  // explicit drop
-            if (seen.contains(target)) continue;             // dedupe after rename
+            if (target.isEmpty()) continue;      // explicit drop
+            if (seen.contains(target)) continue; // dedupe after rename
             seen.insert(target);
             mapped << target;
         }
@@ -243,7 +232,7 @@ PortResult PortManager::applyImport(
                 break;
             case TagConflictMode::Merge: {
                 QList<QString> merged = facets.facetsFor(def.tag);
-                QSet<QString>  mset(merged.begin(), merged.end());
+                QSet<QString> mset(merged.begin(), merged.end());
                 for (const QString& f : mapped) {
                     if (!mset.contains(f)) {
                         merged << f;
@@ -259,7 +248,8 @@ PortResult PortManager::applyImport(
                 ++result.tagsOverwritten;
                 break;
             }
-        } else {
+        }
+        else {
             facets.setDefinition(def.tag, mapped);
             ++result.tagsAdded;
         }

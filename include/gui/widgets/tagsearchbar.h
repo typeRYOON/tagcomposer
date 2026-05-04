@@ -34,11 +34,11 @@ private:
     void commitRaw(const QString& text);
     bool eventFilter(QObject* obj, QEvent* event) override;
 
-    QLineEdit*           m_input;
-    QFrame*              m_popup;
-    QListWidget*         m_list;
-    QTimer*              m_debounce;
-    core::DanbooruIndex* m_index      = nullptr;
+    QLineEdit* m_input;
+    QFrame* m_popup;
+    QListWidget* m_list;
+    QTimer* m_debounce;
+    core::DanbooruIndex* m_index = nullptr;
     const QSet<QString>* m_activeTags = nullptr;
 };
 

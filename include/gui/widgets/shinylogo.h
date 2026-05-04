@@ -45,15 +45,18 @@ public:
 
     // Direct property access - wired into a QPropertyAnimation by the
     // widget itself, but exposed in case callers want to drive it manually.
-    qreal shineProgress() const { return m_progress; }
-    void  setShineProgress(qreal p);
+    qreal shineProgress() const
+    {
+        return m_progress;
+    }
+    void setShineProgress(qreal p);
 
     QSize sizeHint() const override;
 
 protected:
     void paintEvent(QPaintEvent* event) override;
-    void showEvent(QShowEvent*  event) override;
-    void hideEvent(QHideEvent*  event) override;
+    void showEvent(QShowEvent* event) override;
+    void hideEvent(QHideEvent* event) override;
 
 private:
     void rebuildAnimation();
@@ -64,21 +67,21 @@ private:
     // it enters and exits cleanly instead of popping in/out at the edges.
     qreal m_progress = -0.4;
 
-    QColor m_color    { 255, 255, 255 };
-    int    m_alpha     { 200 };
-    qreal  m_widthFrac { 0.20 };
-    qreal  m_angleDeg  { 20.0 };
-    int    m_sweepMs   { 1500 };
-    int    m_pauseMs   { 3500 };
+    QColor m_color{255, 255, 255};
+    int m_alpha{200};
+    qreal m_widthFrac{0.20};
+    qreal m_angleDeg{20.0};
+    int m_sweepMs{1500};
+    int m_pauseMs{3500};
 
-    QSequentialAnimationGroup* m_group     = nullptr;
-    QPropertyAnimation*        m_sweep     = nullptr;
-    QPauseAnimation*           m_pause     = nullptr;
+    QSequentialAnimationGroup* m_group = nullptr;
+    QPropertyAnimation* m_sweep = nullptr;
+    QPauseAnimation* m_pause = nullptr;
     // Tracks the user's intent independently of visibility - set true by
     // startShine, false by stopShine. showEvent / hideEvent only auto-
     // resume when this is true so a manual stopShine() before showing
     // doesn't get overridden by Qt's first showEvent.
-    bool                       m_autoStart = false;
+    bool m_autoStart = false;
 };
 
 } // namespace gui

@@ -25,19 +25,26 @@ public:
 
     // Spins up the timer. Re-loads the destination's PHashIndex from disk
     // so the watcher picks up wherever the user left off.
-    void start(const QString& watchFolder,
-               const QString& collectionDir,
-               int            hammingThreshold,
-               int            pollSeconds);
+    void start(const QString& watchFolder, const QString& collectionDir, int hammingThreshold,
+               int pollSeconds);
 
     // Stops the timer immediately. Safe to call when not running.
     void stop();
 
-    bool isRunning() const { return m_active; }
+    bool isRunning() const
+    {
+        return m_active;
+    }
 
     // Counters reset to zero on every start().
-    int collectedCount() const { return m_collected; }
-    int skippedCount()   const { return m_skipped; }
+    int collectedCount() const
+    {
+        return m_collected;
+    }
+    int skippedCount() const
+    {
+        return m_skipped;
+    }
 
 signals:
     void started();
@@ -50,14 +57,14 @@ signals:
 private:
     void poll();
 
-    QTimer*    m_timer       = nullptr;
-    bool       m_active      = false;
-    QString    m_watchFolder;
-    QString    m_collectionDir;
-    int        m_threshold   = 4;
+    QTimer* m_timer = nullptr;
+    bool m_active = false;
+    QString m_watchFolder;
+    QString m_collectionDir;
+    int m_threshold = 4;
     PHashIndex m_index;
-    int        m_collected   = 0;
-    int        m_skipped     = 0;
+    int m_collected = 0;
+    int m_skipped = 0;
 };
 
 } // namespace core

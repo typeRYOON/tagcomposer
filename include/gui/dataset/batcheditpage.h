@@ -10,7 +10,9 @@ class QPlainTextEdit;
 class QProgressBar;
 class QLabel;
 
-namespace utils { struct AppSettings; }
+namespace utils {
+struct AppSettings;
+}
 
 namespace gui {
 
@@ -34,8 +36,7 @@ namespace gui {
 class BatchEditPage : public QWidget {
     Q_OBJECT
 public:
-    explicit BatchEditPage(utils::AppSettings* settings = nullptr,
-                           QWidget*            parent   = nullptr);
+    explicit BatchEditPage(utils::AppSettings* settings = nullptr, QWidget* parent = nullptr);
 
     // Used by the Auto-tagger / Tag Editor → Batch Edit handoff.
     void setInputFolder(const QString& folder);
@@ -44,25 +45,25 @@ private:
     utils::AppSettings* m_settings = nullptr;
 
     // ── Left panel (params + ops) ───────────────────────────────────────────
-    QLineEdit*    m_folderEdit       = nullptr;
-    QPushButton*  m_browseBtn        = nullptr;
-    QCheckBox*    m_recursiveCheck   = nullptr;
+    QLineEdit* m_folderEdit = nullptr;
+    QPushButton* m_browseBtn = nullptr;
+    QCheckBox* m_recursiveCheck = nullptr;
 
-    QCheckBox*    m_removeTagCheck   = nullptr;
-    QLineEdit*    m_removeTagInput   = nullptr;
-    QCheckBox*    m_removeFirstCheck = nullptr;
-    QCheckBox*    m_prependCheck     = nullptr;
-    QLineEdit*    m_prependInput     = nullptr;
-    QCheckBox*    m_appendCheck      = nullptr;
-    QLineEdit*    m_appendInput      = nullptr;
-    QCheckBox*    m_logFreqCheck     = nullptr;  // read-only - log only
+    QCheckBox* m_removeTagCheck = nullptr;
+    QLineEdit* m_removeTagInput = nullptr;
+    QCheckBox* m_removeFirstCheck = nullptr;
+    QCheckBox* m_prependCheck = nullptr;
+    QLineEdit* m_prependInput = nullptr;
+    QCheckBox* m_appendCheck = nullptr;
+    QLineEdit* m_appendInput = nullptr;
+    QCheckBox* m_logFreqCheck = nullptr; // read-only - log only
 
-    QPushButton*  m_runBtn           = nullptr;
+    QPushButton* m_runBtn = nullptr;
 
     // ── Right panel (progress + log) ────────────────────────────────────────
-    QLabel*         m_statusLabel    = nullptr;
-    QProgressBar*   m_progressBar    = nullptr;
-    QPlainTextEdit* m_log            = nullptr;
+    QLabel* m_statusLabel = nullptr;
+    QProgressBar* m_progressBar = nullptr;
+    QPlainTextEdit* m_log = nullptr;
 
     void onRun();
     void persistSettings();

@@ -11,9 +11,9 @@ class QImage;
 namespace core {
 
 struct TagPrediction {
-    QString tag;       // normalized to space form (utils::normalizeTagInput)
-    int     category;  // mirrors tags.csv category column (Danbooru convention)
-    float   score;
+    QString tag;  // normalized to space form (utils::normalizeTagInput)
+    int category; // mirrors tags.csv category column (Danbooru convention)
+    float score;
 };
 
 // Output of one image's inference. Rating is split out from regular tags -
@@ -24,10 +24,10 @@ struct TagPrediction {
 // threshold (sorted descending). The UI shows them dimmed under the main
 // list so a user lowering the threshold has a sense of what would come in.
 struct TagResult {
-    QList<TagPrediction> tags;        // sorted by score, descending
-    QList<TagPrediction> nearMisses;  // top-N below threshold, descending
-    QString              rating;
-    float                ratingScore = 0.0f;
+    QList<TagPrediction> tags;       // sorted by score, descending
+    QList<TagPrediction> nearMisses; // top-N below threshold, descending
+    QString rating;
+    float ratingScore = 0.0f;
 };
 
 // Wraps one loaded ONNX tagger session + its preprocessing config + label
@@ -62,12 +62,21 @@ public:
     // Loads <dir>/{model.onnx, config.json, tags.csv}. Returns nullptr on
     // failure with `*err` populated when non-null. Shares `env` so the whole
     // app sits on a single ORT environment.
-    static std::unique_ptr<AutoTaggerModel> loadFromDir(
-        Ort::Env& env, const QString& dir, QString* err = nullptr);
+    static std::unique_ptr<AutoTaggerModel> loadFromDir(Ort::Env& env, const QString& dir,
+                                                        QString* err = nullptr);
 
-    QString name()        const { return m_name; }
-    QString directory()   const { return m_dir; }
-    int     numClasses()  const { return int(m_tagInfo.size()); }
+    QString name() const
+    {
+        return m_name;
+    }
+    QString directory() const
+    {
+        return m_dir;
+    }
+    int numClasses() const
+    {
+        return int(m_tagInfo.size());
+    }
 
     // `threshold` filters non-rating tags only - rating is always populated
     // (argmax of the rating subset).
@@ -76,7 +85,10 @@ public:
 private:
     AutoTaggerModel() = default;
 
-    struct TagInfo { QString tag; int category; };
+    struct TagInfo {
+        QString tag;
+        int category;
+    };
     enum class Layout { NCHW, NHWC };
 
     bool readConfig(const QString& configPath, QString* err);
@@ -88,18 +100,17 @@ private:
     // then arranges into NCHW or NHWC per the session's declared layout.
     std::vector<float> preprocessImage(const QString& imagePath) const;
 
-    TagResult interpretOutput(const float* out, int64_t outSize,
-                              float threshold) const;
+    TagResult interpretOutput(const float* out, int64_t outSize, float threshold) const;
 
     QString m_name;
     QString m_dir;
 
     // Inference state
     std::unique_ptr<Ort::Session> m_session;
-    Ort::SessionOptions           m_sessionOptions;
-    Layout                        m_layout = Layout::NCHW;
-    int                           m_height = 448;
-    int                           m_width  = 448;
+    Ort::SessionOptions m_sessionOptions;
+    Layout m_layout = Layout::NCHW;
+    int m_height = 448;
+    int m_width = 448;
 
     // I/O names - kept alive on the model so the const char* we hand to
     // Run() stays valid. ORT returns these as allocator-owned C strings; we
@@ -109,12 +120,12 @@ private:
 
     // Preprocessing - ImageNet-style timm config: mean/std per channel,
     // applied after /255 and channel reorder to RGB.
-    std::array<float, 3> m_mean{ 0.5f, 0.5f, 0.5f };
-    std::array<float, 3> m_std{  0.5f, 0.5f, 0.5f };
+    std::array<float, 3> m_mean{0.5f, 0.5f, 0.5f};
+    std::array<float, 3> m_std{0.5f, 0.5f, 0.5f};
 
     // Labels
     QList<TagInfo> m_tagInfo;
-    QList<int>     m_ratingIndices;  // category == 9
+    QList<int> m_ratingIndices; // category == 9
 };
 
 } // namespace core
@@ -123,4 +134,3 @@ private:
 // (queued connections need Qt's metatype system to copy the value).
 Q_DECLARE_METATYPE(core::TagPrediction)
 Q_DECLARE_METATYPE(core::TagResult)
-

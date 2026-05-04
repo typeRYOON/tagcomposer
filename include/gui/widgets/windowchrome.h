@@ -29,8 +29,8 @@ class WindowChrome : public QObject {
     Q_OBJECT
 public:
     struct Options {
-        bool showMin   = true;
-        bool showMax   = true;
+        bool showMin = true;
+        bool showMax = true;
         bool showClose = true;
         // Set when the host is a QDialog using exec(). The application-modal
         // event loop disrupts Qt's implicit mouse grab during the resize
@@ -42,10 +42,19 @@ public:
     WindowChrome(QWidget* host, Options opt = {});
 
     // Add this to the host's layout (or setCentralWidget for QMainWindow).
-    QWidget*  frame()         const { return m_frame; }
+    QWidget* frame() const
+    {
+        return m_frame;
+    }
     // The host should layout its content into this.
-    QWidget*  bodyWidget()    const { return m_body; }
-    TitleBar* titleBar()      const { return m_titleBar; }
+    QWidget* bodyWidget() const
+    {
+        return m_body;
+    }
+    TitleBar* titleBar() const
+    {
+        return m_titleBar;
+    }
 
     // Hosts forward window state changes here so the chrome adapts to
     // fullscreen / maximize: titlebar hidden in fullscreen, no cosmetic
@@ -56,21 +65,21 @@ protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
-    void  beginResizeDrag(Qt::Edges edges, const QPoint& globalStart);
-    void  updateResizeOutline(const QPoint& globalNow);
-    void  endResizeDrag(const QPoint& globalNow);
+    void beginResizeDrag(Qt::Edges edges, const QPoint& globalStart);
+    void updateResizeOutline(const QPoint& globalNow);
+    void endResizeDrag(const QPoint& globalNow);
     QRect computeResizeGeometry(const QPoint& globalNow) const;
 
-    QWidget*  m_host           = nullptr;
-    QWidget*  m_frame          = nullptr;
-    QWidget*  m_body           = nullptr;
-    QWidget*  m_resizeOverlay  = nullptr;
-    QWidget*  m_resizeOutline  = nullptr;  // lazy
-    TitleBar* m_titleBar       = nullptr;
-    Options   m_opt;
+    QWidget* m_host = nullptr;
+    QWidget* m_frame = nullptr;
+    QWidget* m_body = nullptr;
+    QWidget* m_resizeOverlay = nullptr;
+    QWidget* m_resizeOutline = nullptr; // lazy
+    TitleBar* m_titleBar = nullptr;
+    Options m_opt;
     Qt::Edges m_dragEdges{};
-    QRect     m_dragStartGeo;
-    QPoint    m_dragStartGlobal;
+    QRect m_dragStartGeo;
+    QPoint m_dragStartGlobal;
 };
 
 } // namespace gui

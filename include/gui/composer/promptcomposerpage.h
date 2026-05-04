@@ -28,7 +28,9 @@ class QPropertyAnimation;
 class QMenu;
 class QAction;
 
-namespace core { class EntryModel; }
+namespace core {
+class EntryModel;
+}
 
 namespace gui {
 
@@ -40,26 +42,26 @@ class WorkflowDropList;
 class PromptComposerPage : public QWidget {
     Q_OBJECT
 public:
-    explicit PromptComposerPage(
-        core::PromptPipeline*      pipeline,
-        core::RuleEngine*          rules,
-        const core::TagGroupIndex& groups,
-        QWidget*                   parent = nullptr
-    );
+    explicit PromptComposerPage(core::PromptPipeline* pipeline, core::RuleEngine* rules,
+                                const core::TagGroupIndex& groups, QWidget* parent = nullptr);
 
     void setDanbooruIndex(core::DanbooruIndex* index);
     void setVariableIndex(core::VariableIndex* index);
     void setWorkflowManager(core::WorkflowManager* wm, const QString& savePath);
     void setStatesDir(const QString& dir);
     void setEntryModel(core::EntryModel* model);
-    void setInputCache(core::WorkflowInputCache* cache) { m_inputCache = cache; }
-    void setQuickFacets(const QString& characterFacet,
-                        const QString& copyrightFacet,
-                        const QString& triggerWordFacet,
-                        const QString& styleFacet);
+    void setInputCache(core::WorkflowInputCache* cache)
+    {
+        m_inputCache = cache;
+    }
+    void setQuickFacets(const QString& characterFacet, const QString& copyrightFacet,
+                        const QString& triggerWordFacet, const QString& styleFacet);
 
     QString currentPromptString(bool forJson) const;
-    QList<QString> currentActiveTags() const { return m_activeTags; }
+    QList<QString> currentActiveTags() const
+    {
+        return m_activeTags;
+    }
 
     // Synchronously runs the pipeline for an arbitrary tag list and returns
     // the prompt string. Used by the batch runner to build per-entry prompts
@@ -72,7 +74,7 @@ public:
     // by the batch runner to build "composer state + this entry's tags".
     QString computePromptWithExtraTags(const QList<QString>& extraTags, bool forJson) const;
 
-    int     currentPromptCount() const;
+    int currentPromptCount() const;
 
     void saveSession(const QString& path) const;
     void restoreSession(const QString& path);
@@ -141,7 +143,8 @@ private:
     // Tags carrying $VAR$ tokens get their weight stored by the *source*
     // form so the user's weight survives a variable-value change (which
     // rewrites pt.tag but not pt.sourceTag).
-    static QString weightKeyOf(const core::PipelineTag& pt) {
+    static QString weightKeyOf(const core::PipelineTag& pt)
+    {
         return pt.sourceTag.isEmpty() ? pt.tag : pt.sourceTag;
     }
 
@@ -149,9 +152,8 @@ private:
     // display order from `groups`. Tags with result == Deactivated are
     // dropped - callers that want to surface them separately must filter
     // first. Used by both the prompt builders and the on-screen layout.
-    static QList<core::CategoryGroup> bucketForOutput(
-        const QList<core::PipelineTag>& flat,
-        const core::TagGroupIndex&      groups);
+    static QList<core::CategoryGroup> bucketForOutput(const QList<core::PipelineTag>& flat,
+                                                      const core::TagGroupIndex& groups);
 
     // m_activePushes ↔ portable {uuid, imageFileName, tags} translation.
     // Pushes referencing a runtime entryId that no longer resolves are
@@ -171,81 +173,82 @@ private:
     // that's already owned elsewhere.
     void renamePushTag(const QString& oldKey, const QString& newKey);
 
-    core::PromptPipeline*  m_pipeline;
-    core::RuleEngine*      m_rules;
-    core::TagGroupIndex    m_groups;
-    core::VariableIndex*   m_varIndex   = nullptr;
-    core::WorkflowManager*    m_wfManager  = nullptr;
-    core::EntryModel*         m_entryModel = nullptr;
+    core::PromptPipeline* m_pipeline;
+    core::RuleEngine* m_rules;
+    core::TagGroupIndex m_groups;
+    core::VariableIndex* m_varIndex = nullptr;
+    core::WorkflowManager* m_wfManager = nullptr;
+    core::EntryModel* m_entryModel = nullptr;
     core::WorkflowInputCache* m_inputCache = nullptr;
-    QString                   m_wfSavePath;
+    QString m_wfSavePath;
 
     // Empty when the user hasn't opted in via settings - menu items hidden.
-    QString                m_quickCharFacet;
-    QString                m_quickCopyFacet;
-    QString                m_quickTriggerFacet;
-    QString                m_quickStyleFacet;
+    QString m_quickCharFacet;
+    QString m_quickCopyFacet;
+    QString m_quickTriggerFacet;
+    QString m_quickStyleFacet;
 
-    QString                  m_filterQuery;
-    QList<QString>           m_activeLoraUuids;
-    QList<QString>           m_activeTags;
-    QSet<QString>            m_activeTagSet;
-    QSet<QString>            m_deactivatedTags; // tags kept in list but excluded from pipeline
+    QString m_filterQuery;
+    QList<QString> m_activeLoraUuids;
+    QList<QString> m_activeTags;
+    QSet<QString> m_activeTagSet;
+    QSet<QString> m_deactivatedTags; // tags kept in list but excluded from pipeline
     QList<core::PipelineTag> m_lastResult;
-    QHash<QString, float>    m_tagWeights;    // weight keyed via weightKeyOf - sourceTag wins when present
+    QHash<QString, float>
+        m_tagWeights; // weight keyed via weightKeyOf - sourceTag wins when present
 
     QHash<qint64, QList<QString>> m_activePushes;
 
     // UI - main area
-    TagSearchBar*      m_searchBar;
-    QStackedWidget*    m_mainStack;
-    QWidget*           m_groupsContainer;
-    QVBoxLayout*       m_groupsLayout;
-    QWidget*           m_centerBg;
+    TagSearchBar* m_searchBar;
+    QStackedWidget* m_mainStack;
+    QWidget* m_groupsContainer;
+    QVBoxLayout* m_groupsLayout;
+    QWidget* m_centerBg;
 
     // Floating preview widgets (bottom-right, above control bar)
-    PreviewClickLabel*       m_previewLabel = nullptr;  // floating preview image
-    QGraphicsOpacityEffect*  m_previewInsetFx   = nullptr;  // opacity effect for fade
-    QPropertyAnimation*      m_previewInsetFade = nullptr;  // animation driving the effect
-    QWidget*                 m_controlBar = nullptr;        // floating control bar below preview
-    QPushButton*       m_runBtn;
-    QSpinBox*          m_promptCountSpin;
-    QPushButton*       m_interruptBtn;
+    PreviewClickLabel* m_previewLabel = nullptr;        // floating preview image
+    QGraphicsOpacityEffect* m_previewInsetFx = nullptr; // opacity effect for fade
+    QPropertyAnimation* m_previewInsetFade = nullptr;   // animation driving the effect
+    QWidget* m_controlBar = nullptr;                    // floating control bar below preview
+    QPushButton* m_runBtn;
+    QSpinBox* m_promptCountSpin;
+    QPushButton* m_interruptBtn;
 
     // Preview popout window (created on first click, Qt::Window)
-    QWidget*           m_popout = nullptr;
-    QPixmap            m_currentPix;
-    QString            m_outputFolderPattern;
-    QString            m_tempFolder;
+    QWidget* m_popout = nullptr;
+    QPixmap m_currentPix;
+    QString m_outputFolderPattern;
+    QString m_tempFolder;
 
     // UI - workflow/states sidebar
-    WorkflowDropList*  m_wfList        = nullptr;
-    StatesListWidget*  m_statesList    = nullptr;
-    QStackedWidget*    m_wfStateStack  = nullptr;
-    QPushButton*       m_wfEditBtnRef  = nullptr;
-    QPushButton*       m_saveStateBtn  = nullptr;
-    QLabel*            m_statesPreviewPopup = nullptr;
+    WorkflowDropList* m_wfList = nullptr;
+    StatesListWidget* m_statesList = nullptr;
+    QStackedWidget* m_wfStateStack = nullptr;
+    QPushButton* m_wfEditBtnRef = nullptr;
+    QPushButton* m_saveStateBtn = nullptr;
+    QLabel* m_statesPreviewPopup = nullptr;
 
     // State management
     core::StateManager m_stateManager;
-    QString            m_statesDir;
-    bool               m_suppressRuleSave   = false;
-    bool               m_freezeNextRebuild  = false;
+    QString m_statesDir;
+    bool m_suppressRuleSave = false;
+    bool m_freezeNextRebuild = false;
 
     // UI - rule sidebar
-    QWidget*     m_rulesContainer;
+    QWidget* m_rulesContainer;
     QVBoxLayout* m_rulesLayout;
 
     // UI - variable sidebar section
-    QWidget*     m_varsContainer;
+    QWidget* m_varsContainer;
     QVBoxLayout* m_varsLayout;
 
     // Copy-to-clipboard button area
     QPushButton* m_copyBtn;
 
     // Category nav panel (top-right float)
-    QWidget*     m_categoryNav  = nullptr;
-    QPushButton* m_clearBtn     = nullptr;
+    QWidget* m_categoryNav = nullptr;
+    QPushButton* m_clearBtn = nullptr;
     ComposerScrollArea* m_groupsScroll = nullptr;
     QMap<QString, QWidget*> m_groupHeaders; // display name → header label
 };

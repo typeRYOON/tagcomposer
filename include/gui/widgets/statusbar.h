@@ -31,14 +31,14 @@ private:
     void fadeProgressTo(qreal opacity);
     void fadeActiveTo(qreal opacity);
 
-    QLabel*                 m_label          = nullptr;
-    QTimer*                 m_clearTimer     = nullptr;  // auto-clears m_label
-    QLabel*                 m_activeLabel    = nullptr;
-    QGraphicsOpacityEffect* m_activeEffect   = nullptr;
-    QPropertyAnimation*     m_activeFade     = nullptr;
-    QProgressBar*           m_progress       = nullptr;
+    QLabel* m_label = nullptr;
+    QTimer* m_clearTimer = nullptr; // auto-clears m_label
+    QLabel* m_activeLabel = nullptr;
+    QGraphicsOpacityEffect* m_activeEffect = nullptr;
+    QPropertyAnimation* m_activeFade = nullptr;
+    QProgressBar* m_progress = nullptr;
     QGraphicsOpacityEffect* m_progressEffect = nullptr;
-    QPropertyAnimation*     m_progressFade   = nullptr;
+    QPropertyAnimation* m_progressFade = nullptr;
 };
 
 } // namespace gui

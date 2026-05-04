@@ -16,16 +16,15 @@ namespace {
 // Icon resource paths. App icon is the existing taskbar .png; the three
 // chrome glyphs are PNG files registered in resources.qrc. Sized at draw
 // time via setIconSize on each button.
-constexpr auto kAppIcon        = ":/icons/taskbar.png";
-constexpr auto kIconTitleMin   = ":/icons/title_min.png";
-constexpr auto kIconTitleMax   = ":/icons/title_max.png";
+constexpr auto kAppIcon = ":/icons/taskbar.png";
+constexpr auto kIconTitleMin = ":/icons/title_min.png";
+constexpr auto kIconTitleMax = ":/icons/title_max.png";
 constexpr auto kIconTitleClose = ":/icons/title_close.png";
-}
+} // namespace
 
 namespace gui {
 
-TitleBar::TitleBar(QWidget* parent)
-    : QWidget(parent)
+TitleBar::TitleBar(QWidget* parent) : QWidget(parent)
 {
     setObjectName("TitleBar");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -52,8 +51,8 @@ TitleBar::TitleBar(QWidget* parent)
         return b;
     };
 
-    m_minBtn   = makeBtn(kIconTitleMin,   "TitleBarMin");
-    m_maxBtn   = makeBtn(kIconTitleMax,   "TitleBarMax");
+    m_minBtn = makeBtn(kIconTitleMin, "TitleBarMin");
+    m_maxBtn = makeBtn(kIconTitleMax, "TitleBarMax");
     m_closeBtn = makeBtn(kIconTitleClose, "TitleBarClose");
 
     auto* h = new QHBoxLayout(this);
@@ -72,15 +71,11 @@ TitleBar::TitleBar(QWidget* parent)
         // low and the window is restored from the taskbar).
         auto* w = window();
         if (!w || (w->windowState() & Qt::WindowMinimized)) return;
-        auto* anim = utils::propertyAnimate(w, "windowOpacity",
-            w->windowOpacity(), 0.0, 200, QEasingCurve::InOutSine);
-        connect(anim, &QPropertyAnimation::finished, w, [w]() {
-            w->showMinimized();
-        });
+        auto* anim = utils::propertyAnimate(w, "windowOpacity", w->windowOpacity(), 0.0, 200,
+                                            QEasingCurve::InOutSine);
+        connect(anim, &QPropertyAnimation::finished, w, [w]() { w->showMinimized(); });
     });
-    connect(m_maxBtn, &QPushButton::clicked, this, [this]() {
-        toggleFullScreen();
-    });
+    connect(m_maxBtn, &QPushButton::clicked, this, [this]() { toggleFullScreen(); });
     connect(m_closeBtn, &QPushButton::clicked, this, [this]() {
         if (auto* w = window()) w->close();
     });
@@ -140,20 +135,22 @@ void TitleBar::toggleFullScreen()
     // transition is hidden behind a smooth opacity dip instead of a snap.
     auto* w = window();
     if (!w) return;
-    auto* anim = utils::propertyAnimate(w, "windowOpacity",
-        w->windowOpacity(), 0.0, 200, QEasingCurve::InOutSine);
+    auto* anim = utils::propertyAnimate(w, "windowOpacity", w->windowOpacity(), 0.0, 200,
+                                        QEasingCurve::InOutSine);
     connect(anim, &QPropertyAnimation::finished, w, [w]() {
-        if (w->isFullScreen()) w->showNormal();
-        else                   w->showFullScreen();
-        utils::propertyAnimate(w, "windowOpacity",
-            w->windowOpacity(), 1.0, 200, QEasingCurve::InOutSine);
+        if (w->isFullScreen())
+            w->showNormal();
+        else
+            w->showFullScreen();
+        utils::propertyAnimate(w, "windowOpacity", w->windowOpacity(), 1.0, 200,
+                               QEasingCurve::InOutSine);
     });
 }
 
 void TitleBar::setButtons(bool showMin, bool showMax, bool showClose)
 {
-    if (m_minBtn)   m_minBtn  ->setVisible(showMin);
-    if (m_maxBtn)   m_maxBtn  ->setVisible(showMax);
+    if (m_minBtn) m_minBtn->setVisible(showMin);
+    if (m_maxBtn) m_maxBtn->setVisible(showMax);
     if (m_closeBtn) m_closeBtn->setVisible(showClose);
 }
 

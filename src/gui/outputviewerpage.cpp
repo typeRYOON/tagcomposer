@@ -28,9 +28,7 @@
 namespace gui {
 
 // ── Image extensions accepted in tree + thumb pane ───────────────────────────
-static const QStringList kImageFilters = {
-    "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"
-};
+static const QStringList kImageFilters = {"*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"};
 
 // Returns the part of `pattern` before the first `{` - the on-disk root that
 // should anchor the tree, even when the user's pattern points at a date-stamped
@@ -41,7 +39,8 @@ static QString stripPatternToRoot(const QString& pattern)
     const int brace = root.indexOf(QLatin1Char('{'));
     if (brace >= 0) root = root.left(brace);
     root = root.trimmed();
-    while (root.endsWith('/') || root.endsWith('\\')) root.chop(1);
+    while (root.endsWith('/') || root.endsWith('\\'))
+        root.chop(1);
     return root;
 }
 
@@ -55,9 +54,9 @@ static QString evaluateDatePattern(const QString& pattern)
     const int close = pattern.indexOf(QLatin1Char('}'), open);
     if (close < 0) return pattern.left(open);
     const QString prefix = pattern.left(open);
-    const QString fmt    = pattern.mid(open + 1, close - open - 1);
+    const QString fmt = pattern.mid(open + 1, close - open - 1);
     const QString suffix = pattern.mid(close + 1);
-    const QString dated  = QDateTime::currentDateTime().toString(fmt);
+    const QString dated = QDateTime::currentDateTime().toString(fmt);
     return prefix + dated + suffix;
 }
 
@@ -70,24 +69,27 @@ static QString evaluateDatePattern(const QString& pattern)
 // 16×16 display stays sharp on HiDPI screens.
 class FsTypeIconProvider : public QFileIconProvider {
 public:
-    FsTypeIconProvider()
-        : m_folder(makeFolder()),
-          m_image(makeImage())
-    {}
+    FsTypeIconProvider() : m_folder(makeFolder()), m_image(makeImage()) {}
 
-    QIcon icon(IconType t) const override {
+    QIcon icon(IconType t) const override
+    {
         switch (t) {
-        case Folder: return m_folder;
-        case File:   return m_image;
-        default:     return {};
+        case Folder:
+            return m_folder;
+        case File:
+            return m_image;
+        default:
+            return {};
         }
     }
-    QIcon icon(const QFileInfo& fi) const override {
+    QIcon icon(const QFileInfo& fi) const override
+    {
         return fi.isDir() ? m_folder : m_image;
     }
 
 private:
-    static QIcon makeFolder() {
+    static QIcon makeFolder()
+    {
         QPixmap pm(32, 32);
         pm.fill(Qt::transparent);
         QPainter p(&pm);
@@ -101,7 +103,8 @@ private:
         return QIcon(pm);
     }
 
-    static QIcon makeImage() {
+    static QIcon makeImage()
+    {
         QPixmap pm(32, 32);
         pm.fill(Qt::transparent);
         QPainter p(&pm);
@@ -114,7 +117,7 @@ private:
         // rather than stroked so it stays readable when downscaled to 16×16.
         p.setPen(Qt::NoPen);
         QPainterPath mtn;
-        mtn.moveTo( 6, 24);
+        mtn.moveTo(6, 24);
         mtn.lineTo(13, 14);
         mtn.lineTo(17, 19);
         mtn.lineTo(22, 12);
@@ -151,9 +154,7 @@ protected:
     void keyPressEvent(QKeyEvent* event) override
     {
         const int key = event->key();
-        if (key == Qt::Key_Return || key == Qt::Key_Enter ||
-            key == Qt::Key_Right)
-        {
+        if (key == Qt::Key_Return || key == Qt::Key_Enter || key == Qt::Key_Right) {
             const QModelIndex idx = currentIndex();
             if (idx.isValid()) {
                 auto* fs = qobject_cast<QFileSystemModel*>(model());
@@ -165,8 +166,10 @@ protected:
                         return;
                     }
                     if ((key == Qt::Key_Return || key == Qt::Key_Enter)) {
-                        if (dir) emit enterOnDir(idx);
-                        else     emit enterOnFile(fs->filePath(idx));
+                        if (dir)
+                            emit enterOnDir(idx);
+                        else
+                            emit enterOnFile(fs->filePath(idx));
                         event->accept();
                         return;
                     }
@@ -257,10 +260,10 @@ public:
         // Directories first, alphabetical; then images, alphabetical.
         QList<QPair<QString, bool>> sorted = entries;
         std::sort(sorted.begin(), sorted.end(),
-            [](const QPair<QString, bool>& a, const QPair<QString, bool>& b) {
-                if (a.second != b.second) return a.second; // dirs first
-                return QString::localeAwareCompare(a.first, b.first) < 0;
-            });
+                  [](const QPair<QString, bool>& a, const QPair<QString, bool>& b) {
+                      if (a.second != b.second) return a.second; // dirs first
+                      return QString::localeAwareCompare(a.first, b.first) < 0;
+                  });
 
         for (const auto& [path, isDir] : sorted) {
             const QString name = QFileInfo(path).fileName();
@@ -271,7 +274,8 @@ public:
             item->setSizeHint(QSize(kThumbW + 16, kThumbH + 32));
             if (isDir) {
                 item->setIcon(m_folderIcon);
-            } else {
+            }
+            else {
                 item->setIcon(m_placeholderIcon);
                 requestThumbnail(path, gen);
             }
@@ -295,23 +299,26 @@ private:
         QtConcurrent::run([self, path, generation]() {
             QImage img(path);
             if (img.isNull()) {
-                QMetaObject::invokeMethod(self.data(), [self, path, generation]() {
-                    if (!self || self->m_generation != generation) return;
-                    self->m_pending.remove(path);
-                }, Qt::QueuedConnection);
+                QMetaObject::invokeMethod(
+                    self.data(),
+                    [self, path, generation]() {
+                        if (!self || self->m_generation != generation) return;
+                        self->m_pending.remove(path);
+                    },
+                    Qt::QueuedConnection);
                 return;
             }
-            QImage scaled = img.scaled(
-                QSize(kThumbW, kThumbH),
-                Qt::KeepAspectRatio,
-                Qt::SmoothTransformation);
+            QImage scaled =
+                img.scaled(QSize(kThumbW, kThumbH), Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
-            QMetaObject::invokeMethod(self.data(),
+            QMetaObject::invokeMethod(
+                self.data(),
                 [self, path, generation, scaled = std::move(scaled)]() {
                     if (!self || self->m_generation != generation) return;
                     self->applyThumbnail(path, QPixmap::fromImage(scaled));
                     self->m_pending.remove(path);
-                }, Qt::QueuedConnection);
+                },
+                Qt::QueuedConnection);
         });
     }
 
@@ -343,34 +350,32 @@ private:
         // Folder glyph (two-rectangle hand-drawn folder)
         const qreal cx = kThumbW / 2.0;
         const qreal cy = kThumbH / 2.0;
-        const qreal w  = kThumbW * 0.55;
-        const qreal h  = kThumbH * 0.40;
+        const qreal w = kThumbW * 0.55;
+        const qreal h = kThumbH * 0.40;
         const QRectF body(cx - w / 2, cy - h / 2 + 6, w, h);
-        const QRectF tab (cx - w / 2, cy - h / 2 - 8, w * 0.45, 16);
+        const QRectF tab(cx - w / 2, cy - h / 2 - 8, w * 0.45, 16);
 
         QPainterPath fp;
         fp.addRoundedRect(tab, 4, 4);
         fp.addRoundedRect(body, 6, 6);
-        p.fillPath(fp, QColor(204, 204, 204));   // #cccccc, app's primary text colour
+        p.fillPath(fp, QColor(204, 204, 204)); // #cccccc, app's primary text colour
 
         // A subtle highlight strip across the top of the body so the folder
         // reads as 3D rather than a flat block.
-        p.setPen(QPen(QColor(238, 238, 238, 180), 2));   // slightly brighter, semi-transparent
-        p.drawLine(body.left() + 8, body.top() + 4,
-                   body.right() - 8, body.top() + 4);
+        p.setPen(QPen(QColor(238, 238, 238, 180), 2)); // slightly brighter, semi-transparent
+        p.drawLine(body.left() + 8, body.top() + 4, body.right() - 8, body.top() + 4);
         return QIcon(pm);
     }
 
     std::atomic<int> m_generation{0};
-    QSet<QString>    m_pending;
-    QIcon            m_folderIcon;
-    QIcon            m_placeholderIcon;
+    QSet<QString> m_pending;
+    QIcon m_folderIcon;
+    QIcon m_placeholderIcon;
 };
 
 // ── OutputViewerPage ─────────────────────────────────────────────────────────
 
-OutputViewerPage::OutputViewerPage(QWidget* parent)
-    : QWidget(parent)
+OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
 {
     setObjectName("OutputViewerPage");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -409,7 +414,8 @@ OutputViewerPage::OutputViewerPage(QWidget* parent)
     m_tree->setFrameShape(QFrame::NoFrame);
     // QFileSystemModel exposes Name/Size/Type/Date columns; only Name belongs
     // in the navigation tree.
-    for (int c = 1; c < m_fsModel->columnCount(); ++c) m_tree->hideColumn(c);
+    for (int c = 1; c < m_fsModel->columnCount(); ++c)
+        m_tree->hideColumn(c);
 
     m_thumbs = new OutputThumbList(this);
 
@@ -445,12 +451,12 @@ OutputViewerPage::OutputViewerPage(QWidget* parent)
 
         lay->addWidget(titleLabel);
         lay->addWidget(subtitle, 1);
-        return { header, subtitle };
+        return {header, subtitle};
     };
 
-    auto [leftHeader,  leftSubtitle ] = buildHeader(QStringLiteral("OUTPUT FOLDERS"));
+    auto [leftHeader, leftSubtitle] = buildHeader(QStringLiteral("OUTPUT FOLDERS"));
     auto [rightHeader, rightSubtitle] = buildHeader(QStringLiteral("PREVIEW"));
-    m_treeSubtitle  = leftSubtitle;
+    m_treeSubtitle = leftSubtitle;
     m_thumbSubtitle = rightSubtitle;
     // setOutputFolder early-returns when pattern is unchanged, so on the
     // first call with an empty configured path the subtitle would never be
@@ -477,7 +483,7 @@ OutputViewerPage::OutputViewerPage(QWidget* parent)
     m_split->addWidget(rightPanel);
     m_split->setStretchFactor(0, 0);
     m_split->setStretchFactor(1, 1);
-    m_split->setSizes({ 320, 900 });
+    m_split->setSizes({320, 900});
     // Without a non-trivial handle width the QSS background can't render and
     // the divider stays invisible - 5px is the same width WorkflowEditPage's
     // implicit splitters use.
@@ -490,24 +496,19 @@ OutputViewerPage::OutputViewerPage(QWidget* parent)
     root->addWidget(m_split, 1);
     root->addWidget(m_status);
 
-    connect(m_tree->selectionModel(), &QItemSelectionModel::currentChanged,
-            this, &OutputViewerPage::onTreeCurrentChanged);
-    connect(m_tree, &QAbstractItemView::activated,
-            this, &OutputViewerPage::onTreeActivated);
-    connect(m_tree, &OutputTreeView::enterOnFile,
-            this, &OutputViewerPage::openInSystemViewer);
-    connect(m_tree, &OutputTreeView::enterOnDir,
-            this, [this](const QModelIndex& idx) {
-                m_tree->setExpanded(idx, !m_tree->isExpanded(idx));
-            });
-    connect(m_tree, &OutputTreeView::crossToThumbsRequested,
-            this, &OutputViewerPage::focusThumbForImage);
+    connect(m_tree->selectionModel(), &QItemSelectionModel::currentChanged, this,
+            &OutputViewerPage::onTreeCurrentChanged);
+    connect(m_tree, &QAbstractItemView::activated, this, &OutputViewerPage::onTreeActivated);
+    connect(m_tree, &OutputTreeView::enterOnFile, this, &OutputViewerPage::openInSystemViewer);
+    connect(m_tree, &OutputTreeView::enterOnDir, this,
+            [this](const QModelIndex& idx) { m_tree->setExpanded(idx, !m_tree->isExpanded(idx)); });
+    connect(m_tree, &OutputTreeView::crossToThumbsRequested, this,
+            &OutputViewerPage::focusThumbForImage);
 
     // Click in the right pane selects only; Enter (routed through
     // OutputThumbList's keyPressEvent → enterActivated) is the commit action
     // that opens images / navigates folders.
-    connect(m_thumbs, &OutputThumbList::enterActivated,
-            this, &OutputViewerPage::onThumbActivated);
+    connect(m_thumbs, &OutputThumbList::enterActivated, this, &OutputViewerPage::onThumbActivated);
 
     // Escape on the right pane (with a selection, not fullscreen) bounces
     // focus back to the tree - sync the tree's current row to whatever the
@@ -539,14 +540,15 @@ void OutputViewerPage::setOutputFolder(const QString& folderPattern)
         m_tree->setRootIndex(QModelIndex());
         m_thumbs->setEntries({});
         m_currentThumbDir.clear();
-        m_treeSubtitle->setText(m_root.isEmpty()
-            ? QStringLiteral("(not configured)")
-            : QStringLiteral("(missing)"));
+        m_treeSubtitle->setText(m_root.isEmpty() ? QStringLiteral("(not configured)")
+                                                 : QStringLiteral("(missing)"));
         m_thumbSubtitle->clear();
         m_status->setVisible(true);
-        m_status->setText(m_root.isEmpty()
-            ? QStringLiteral("Set a ComfyUI output folder in Settings to browse generated images.")
-            : QStringLiteral("Output folder does not exist: %1").arg(m_root));
+        m_status->setText(
+            m_root.isEmpty()
+                ? QStringLiteral(
+                      "Set a ComfyUI output folder in Settings to browse generated images.")
+                : QStringLiteral("Output folder does not exist: %1").arg(m_root));
         return;
     }
 
@@ -560,9 +562,7 @@ void OutputViewerPage::setOutputFolder(const QString& folderPattern)
     // otherwise the user can navigate to it manually from the root.
     const QString datedPath = evaluateDatePattern(folderPattern);
     QFileInfo datedInfo(datedPath);
-    const bool hasDated = datedPath != m_root
-                       && datedInfo.exists()
-                       && datedInfo.isDir();
+    const bool hasDated = datedPath != m_root && datedInfo.exists() && datedInfo.isDir();
 
     if (hasDated) {
         m_pendingNavTo = datedPath;
@@ -572,7 +572,8 @@ void OutputViewerPage::setOutputFolder(const QString& folderPattern)
         // realised yet. Try once now and retry from directoryLoaded if it
         // wasn't ready (see ctor's signal hookup).
         navigateToPendingIfReady();
-    } else {
+    }
+    else {
         m_currentThumbDir = m_root;
         populateThumbsForDir(m_root);
     }
@@ -595,9 +596,7 @@ void OutputViewerPage::onTreeCurrentChanged(const QModelIndex& current, const QM
     // mirrors the parent dir - that way arrowing between sibling images in
     // the same folder doesn't change the displayed dir at all (handled by
     // the equality check below, which keeps the thumb grid stable).
-    const QString targetDir = m_fsModel->isDir(current)
-        ? path
-        : QFileInfo(path).absolutePath();
+    const QString targetDir = m_fsModel->isDir(current) ? path : QFileInfo(path).absolutePath();
 
     if (targetDir == m_currentThumbDir) return;
     m_currentThumbDir = targetDir;
@@ -607,8 +606,7 @@ void OutputViewerPage::onTreeCurrentChanged(const QModelIndex& current, const QM
 void OutputViewerPage::onTreeActivated(const QModelIndex& index)
 {
     if (!index.isValid()) return;
-    if (!m_fsModel->isDir(index))
-        openInSystemViewer(m_fsModel->filePath(index));
+    if (!m_fsModel->isDir(index)) openInSystemViewer(m_fsModel->filePath(index));
 }
 
 void OutputViewerPage::focusThumbForImage(const QString& imagePath)
@@ -639,8 +637,8 @@ void OutputViewerPage::focusThumbForImage(const QString& imagePath)
 void OutputViewerPage::onThumbActivated(QListWidgetItem* item)
 {
     if (!item) return;
-    const QString path  = item->data(Qt::UserRole).toString();
-    const bool    isDir = item->data(Qt::UserRole + 1).toBool();
+    const QString path = item->data(Qt::UserRole).toString();
+    const bool isDir = item->data(Qt::UserRole + 1).toBool();
     if (path.isEmpty()) return;
     if (isDir)
         selectInTree(path);
@@ -660,26 +658,26 @@ void OutputViewerPage::populateThumbsForDir(const QString& dirPath)
 
     int dirCount = 0;
     int imgCount = 0;
-    for (const QFileInfo& fi : d.entryInfoList(
-             QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::IgnoreCase)) {
+    for (const QFileInfo& fi :
+         d.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::IgnoreCase)) {
         entries << qMakePair(fi.absoluteFilePath(), true);
         ++dirCount;
     }
-    for (const QFileInfo& fi : d.entryInfoList(
-             kImageFilters, QDir::Files, QDir::Name | QDir::IgnoreCase)) {
+    for (const QFileInfo& fi :
+         d.entryInfoList(kImageFilters, QDir::Files, QDir::Name | QDir::IgnoreCase)) {
         entries << qMakePair(fi.absoluteFilePath(), false);
         ++imgCount;
     }
     m_thumbs->setEntries(entries);
 
-    const QString name = QFileInfo(dirPath).fileName().isEmpty()
-        ? dirPath
-        : QFileInfo(dirPath).fileName();
-    m_thumbSubtitle->setText(
-        QStringLiteral("%1 - %2 image%3, %4 folder%5")
-            .arg(name)
-            .arg(imgCount).arg(imgCount == 1 ? "" : "s")
-            .arg(dirCount).arg(dirCount == 1 ? "" : "s"));
+    const QString name =
+        QFileInfo(dirPath).fileName().isEmpty() ? dirPath : QFileInfo(dirPath).fileName();
+    m_thumbSubtitle->setText(QStringLiteral("%1 - %2 image%3, %4 folder%5")
+                                 .arg(name)
+                                 .arg(imgCount)
+                                 .arg(imgCount == 1 ? "" : "s")
+                                 .arg(dirCount)
+                                 .arg(dirCount == 1 ? "" : "s"));
 }
 
 void OutputViewerPage::selectInTree(const QString& path)

@@ -8,8 +8,7 @@
 
 namespace gui {
 
-AddEntryDialog::AddEntryDialog(QWidget* parent)
-    : QDialog(parent)
+AddEntryDialog::AddEntryDialog(QWidget* parent) : QDialog(parent)
 {
     setWindowTitle("New Entry");
     setMinimumWidth(320);
@@ -20,8 +19,7 @@ AddEntryDialog::AddEntryDialog(QWidget* parent)
     auto* form = new QFormLayout;
     form->addRow("Title:", m_titleEdit);
 
-    auto* buttons = new QDialogButtonBox(
-        QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
@@ -38,8 +36,8 @@ void AddEntryDialog::setFields(const QString& title)
 core::Entry AddEntryDialog::buildEntry() const
 {
     core::Entry e;
-    e.uuid         = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    e.title        = m_titleEdit->text().trimmed();
+    e.uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    e.title = m_titleEdit->text().trimmed();
     e.creationTime = QDateTime::currentSecsSinceEpoch();
     return e;
 }

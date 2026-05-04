@@ -13,7 +13,7 @@ class QVBoxLayout;
 namespace core {
 class EntryModel;
 class FacetIndex;
-}
+} // namespace core
 
 namespace gui {
 
@@ -23,18 +23,15 @@ namespace gui {
 class ImportDialog : public ChromedDialog {
     Q_OBJECT
 public:
-    ImportDialog(core::EntryModel* model,
-                 core::FacetIndex* facets,
-                 const QString& dataEntryDir,
-                 const QString& tagDefinitionsPath,
-                 QWidget* parent = nullptr);
+    ImportDialog(core::EntryModel* model, core::FacetIndex* facets, const QString& dataEntryDir,
+                 const QString& tagDefinitionsPath, QWidget* parent = nullptr);
 
 private:
     struct MappingRow {
-        QString      source;
-        QComboBox*   combo  = nullptr;
+        QString source;
+        QComboBox* combo = nullptr;
         QPushButton* dropBtn = nullptr;
-        QWidget*     widget = nullptr;
+        QWidget* widget = nullptr;
     };
 
     void onBrowse();
@@ -43,24 +40,24 @@ private:
     void onDropAllUnmatched();
     void onImport();
 
-    core::EntryModel*  m_model    = nullptr;
-    core::FacetIndex*  m_facets   = nullptr;
-    QString            m_dataEntryDir;
-    QString            m_tagDefinitionsPath;
+    core::EntryModel* m_model = nullptr;
+    core::FacetIndex* m_facets = nullptr;
+    QString m_dataEntryDir;
+    QString m_tagDefinitionsPath;
 
-    core::PortScan     m_scan;
-    QList<MappingRow>  m_rows;
+    core::PortScan m_scan;
+    QList<MappingRow> m_rows;
 
-    QLineEdit*         m_srcInput        = nullptr;
-    QLabel*            m_summary         = nullptr;
-    QButtonGroup*      m_conflictGroup   = nullptr;
-    QScrollArea*       m_mappingScroll   = nullptr;
-    QWidget*           m_mappingHost     = nullptr;
-    QVBoxLayout*       m_mappingLayout   = nullptr;
-    QPushButton*       m_dropAllBtn      = nullptr;
-    QPushButton*       m_importBtn       = nullptr;
-    QLabel*            m_validation      = nullptr;
-    QLabel*            m_status          = nullptr;
+    QLineEdit* m_srcInput = nullptr;
+    QLabel* m_summary = nullptr;
+    QButtonGroup* m_conflictGroup = nullptr;
+    QScrollArea* m_mappingScroll = nullptr;
+    QWidget* m_mappingHost = nullptr;
+    QVBoxLayout* m_mappingLayout = nullptr;
+    QPushButton* m_dropAllBtn = nullptr;
+    QPushButton* m_importBtn = nullptr;
+    QLabel* m_validation = nullptr;
+    QLabel* m_status = nullptr;
 };
 
 } // namespace gui

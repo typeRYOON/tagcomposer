@@ -35,41 +35,39 @@ inline void primeLine(QPainter& p, int px, QColor color, qreal strokeFactor)
 // "Open in editor" - a small NE arrow leaving a half-frame. Conveys "leave
 // this app and open elsewhere" the same way most browsers' external-link
 // glyphs do.
-inline QIcon openExternal(int px = 16,
-                          QColor color = QColor(0x9a, 0x9a, 0x9a))
+inline QIcon openExternal(int px = 16, QColor color = QColor(0x9a, 0x9a, 0x9a))
 {
     QPixmap pm(px, px);
     pm.fill(Qt::transparent);
     QPainter p(&pm);
     detail::primeLine(p, px, color, 1.0 / 9.0);
 
-    const qreal m   = px * 0.20;
+    const qreal m = px * 0.20;
     const qreal cut = px * 0.45;
 
     // Bracket: opens at the upper-right corner.
     QPainterPath frame;
     frame.moveTo(px - m, px - cut);
     frame.lineTo(px - m, px - m);
-    frame.lineTo(m,      px - m);
-    frame.lineTo(m,      m);
+    frame.lineTo(m, px - m);
+    frame.lineTo(m, m);
     frame.lineTo(px - cut, m);
     p.drawPath(frame);
 
     // Diagonal shaft.
     const QPointF tail(px * 0.42, px * 0.58);
-    const QPointF tip (px * 0.86, px * 0.14);
+    const QPointF tip(px * 0.86, px * 0.14);
     p.drawLine(tail, tip);
     // Arrowhead - two short legs back from the tip.
     p.drawLine(tip, tip + QPointF(-px * 0.26, 0));
-    p.drawLine(tip, tip + QPointF(0,           px * 0.26));
+    p.drawLine(tip, tip + QPointF(0, px * 0.26));
 
     return QIcon(pm);
 }
 
 // Circular refresh / reload icon. ~280° arc with a filled triangular
 // arrowhead at the start, evoking "rerun this".
-inline QIcon reload(int px = 16,
-                    QColor color = QColor(0x9a, 0x9a, 0x9a))
+inline QIcon reload(int px = 16, QColor color = QColor(0x9a, 0x9a, 0x9a))
 {
     QPixmap pm(px, px);
     pm.fill(Qt::transparent);
@@ -88,18 +86,17 @@ inline QIcon reload(int px = 16,
     const qreal cx = r.center().x();
     const qreal cy = r.center().y();
     const qreal rr = r.width() / 2.0;
-    const qreal x  = cx + rr * std::cos(ang);
-    const qreal y  = cy - rr * std::sin(ang);
+    const qreal x = cx + rr * std::cos(ang);
+    const qreal y = cy - rr * std::sin(ang);
 
-    const qreal s  = px * 0.18;
-    const qreal rx = std::cos(ang),  ry = -std::sin(ang); // outward radial
-    const qreal tx = std::sin(ang),  ty =  std::cos(ang); // tangent (CCW)
+    const qreal s = px * 0.18;
+    const qreal rx = std::cos(ang), ry = -std::sin(ang); // outward radial
+    const qreal tx = std::sin(ang), ty = std::cos(ang);  // tangent (CCW)
 
     p.setPen(Qt::NoPen);
     p.setBrush(color);
     QPolygonF head;
-    head << QPointF(x + rx * s,       y + ry * s)
-         << QPointF(x - rx * s,       y - ry * s)
+    head << QPointF(x + rx * s, y + ry * s) << QPointF(x - rx * s, y - ry * s)
          << QPointF(x + tx * s * 1.5, y + ty * s * 1.5);
     p.drawPolygon(head);
 
@@ -115,8 +112,8 @@ inline QIcon plus(int px = 16, QColor color = QColor(0x9a, 0x9a, 0x9a))
     detail::primeLine(p, px, color, 1.0 / 8.0);
 
     const qreal m = px * 0.25;
-    p.drawLine(QPointF(px / 2.0, m),     QPointF(px / 2.0, px - m));
-    p.drawLine(QPointF(m,        px / 2.0), QPointF(px - m, px / 2.0));
+    p.drawLine(QPointF(px / 2.0, m), QPointF(px / 2.0, px - m));
+    p.drawLine(QPointF(m, px / 2.0), QPointF(px - m, px / 2.0));
     return QIcon(pm);
 }
 
@@ -133,9 +130,7 @@ inline QIcon play(int px = 16, QColor color = QColor(0x77, 0xaa, 0xdd))
 
     const qreal m = px * 0.22;
     QPolygonF tri;
-    tri << QPointF(m,            m)
-        << QPointF(px - m * 0.7, px / 2.0)
-        << QPointF(m,            px - m);
+    tri << QPointF(m, m) << QPointF(px - m * 0.7, px / 2.0) << QPointF(m, px - m);
     p.drawPolygon(tri);
     return QIcon(pm);
 }

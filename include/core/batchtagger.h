@@ -26,7 +26,10 @@ public:
     explicit BatchTagger(QObject* parent = nullptr);
     ~BatchTagger() override;
 
-    bool isRunning() const { return m_running.load(); }
+    bool isRunning() const
+    {
+        return m_running.load();
+    }
 
     // Kicks off a batch. No-op if already running. `moveImages` moves each
     // tagged source image to its mirrored location under `outputRoot` after
@@ -34,13 +37,8 @@ public:
     // source already sits where it would land. `cooldownMs` is the throttle
     // applied after each image's inference (chunked into 50 ms slices so
     // cancel still responds promptly on long cooldowns).
-    void start(AutoTaggerModel* model,
-               const QString&   inputRoot,
-               const QString&   outputRoot,
-               float            threshold,
-               bool             recursive,
-               bool             moveImages,
-               int              cooldownMs);
+    void start(AutoTaggerModel* model, const QString& inputRoot, const QString& outputRoot,
+               float threshold, bool recursive, bool moveImages, int cooldownMs);
 
     void cancel();
 
@@ -58,8 +56,8 @@ signals:
     void finished(bool cancelled);
 
 private:
-    std::atomic<bool> m_running{ false };
-    std::atomic<bool> m_cancel { false };
+    std::atomic<bool> m_running{false};
+    std::atomic<bool> m_cancel{false};
 
     static QStringList discoverImages(const QString& root, bool recursive);
 };

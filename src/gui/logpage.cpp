@@ -4,8 +4,7 @@
 
 namespace gui {
 
-LogPage::LogPage(QWidget* parent)
-    : QWidget(parent)
+LogPage::LogPage(QWidget* parent) : QWidget(parent)
 {
     setObjectName("LogPage");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -23,8 +22,8 @@ LogPage::LogPage(QWidget* parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_log);
 
-    connect(&utils::Logger::instance(), &utils::Logger::messageLogged,
-            this, &LogPage::appendMessage);
+    connect(&utils::Logger::instance(), &utils::Logger::messageLogged, this,
+            &LogPage::appendMessage);
 }
 
 void LogPage::appendMessage(const QString& message)

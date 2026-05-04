@@ -52,14 +52,22 @@ namespace gui {
 static QString dotColorFor(RuleResult r)
 {
     switch (r) {
-    case RuleResult::Include:  return "#336633";
-    case RuleResult::Injected: return "#44bb44";
-    case RuleResult::Skipped:  return "#2a2a2a";
-    case RuleResult::Replaced: return "#552222";
-    case RuleResult::Flagged:  return "#886622";
-    case RuleResult::NoFacets:    return "#334466";
-    case RuleResult::Deactivated: return "#2a2a2a";
-    case RuleResult::Deleted:     return "#2a2a2a"; // never displayed; case present so the switch is exhaustive
+    case RuleResult::Include:
+        return "#336633";
+    case RuleResult::Injected:
+        return "#44bb44";
+    case RuleResult::Skipped:
+        return "#2a2a2a";
+    case RuleResult::Replaced:
+        return "#552222";
+    case RuleResult::Flagged:
+        return "#886622";
+    case RuleResult::NoFacets:
+        return "#334466";
+    case RuleResult::Deactivated:
+        return "#2a2a2a";
+    case RuleResult::Deleted:
+        return "#2a2a2a"; // never displayed; case present so the switch is exhaustive
     }
     return "#444444";
 }
@@ -71,7 +79,7 @@ static QString resolveOutputPath(const QString& pattern)
     const QDate today = QDate::currentDate();
     QString result;
     result.reserve(pattern.size() + 20);
-    for (int i = 0; i < pattern.size(); ) {
+    for (int i = 0; i < pattern.size();) {
         if (pattern[i] == QLatin1Char('{')) {
             const int j = pattern.indexOf(QLatin1Char('}'), i + 1);
             if (j > i) {
@@ -87,15 +95,9 @@ static QString resolveOutputPath(const QString& pattern)
 
 // ── Ctor ──────────────────────────────────────────────────────────────────────
 
-PromptComposerPage::PromptComposerPage(
-    PromptPipeline*      pipeline,
-    RuleEngine*          rules,
-    const TagGroupIndex& groups,
-    QWidget*             parent)
-    : QWidget(parent)
-    , m_pipeline(pipeline)
-    , m_rules(rules)
-    , m_groups(groups)
+PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rules,
+                                       const TagGroupIndex& groups, QWidget* parent)
+    : QWidget(parent), m_pipeline(pipeline), m_rules(rules), m_groups(groups)
 {
     setObjectName("PromptComposerPage");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -132,24 +134,15 @@ PromptComposerPage::PromptComposerPage(
     groupsScroll->setFrameShape(QFrame::NoFrame);
     groupsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     groupsScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    connect(
-        groupsScroll,
-        &ComposerScrollArea::runRequested,
-        this,
-        [this]() {
-            emit runRequested(m_promptCountSpin->value());
-        }
-    );
-    connect(
-        groupsScroll, &ComposerScrollArea::interruptRequested,
-        this, &PromptComposerPage::interruptRequested
-    );
-    connect(
-        groupsScroll, &ComposerScrollArea::clearPendingRequested,
-        this, &PromptComposerPage::clearPendingRequested
-    );
+    connect(groupsScroll, &ComposerScrollArea::runRequested, this,
+            [this]() { emit runRequested(m_promptCountSpin->value()); });
+    connect(groupsScroll, &ComposerScrollArea::interruptRequested, this,
+            &PromptComposerPage::interruptRequested);
+    connect(groupsScroll, &ComposerScrollArea::clearPendingRequested, this,
+            &PromptComposerPage::clearPendingRequested);
 
-    auto* emptyHint = new QLabel("Press \"Composer Toggle\" on an entry image\nto push its tags here.");
+    auto* emptyHint =
+        new QLabel("Press \"Composer Toggle\" on an entry image\nto push its tags here.");
     emptyHint->setObjectName("ComposerEmptyHint");
     emptyHint->setAlignment(Qt::AlignCenter);
 
@@ -209,10 +202,8 @@ PromptComposerPage::PromptComposerPage(
     rulesOpenBtn->setIconSize(QSize(14, 14));
     rulesOpenBtn->setCursor(Qt::PointingHandCursor);
     rulesOpenBtn->setToolTip("Open rules.fct in editor");
-    connect(rulesOpenBtn, &QPushButton::clicked, this, []() {
-        QDesktopServices::openUrl(
-            QUrl::fromLocalFile(BASE_PATH + "/" + RULES_PATH));
-    });
+    connect(rulesOpenBtn, &QPushButton::clicked, this,
+            []() { QDesktopServices::openUrl(QUrl::fromLocalFile(BASE_PATH + "/" + RULES_PATH)); });
 
     auto* rulesReloadBtn = new QPushButton;
     rulesReloadBtn->setObjectName("SidebarBtn");
@@ -221,8 +212,7 @@ PromptComposerPage::PromptComposerPage(
     rulesReloadBtn->setIconSize(QSize(14, 14));
     rulesReloadBtn->setCursor(Qt::PointingHandCursor);
     rulesReloadBtn->setToolTip("Reload rules from file");
-    connect(rulesReloadBtn, &QPushButton::clicked,
-            this, &PromptComposerPage::reloadRules);
+    connect(rulesReloadBtn, &QPushButton::clicked, this, &PromptComposerPage::reloadRules);
 
     rhrL->addWidget(rulesHeaderLabel, 1);
     rhrL->addWidget(rulesOpenBtn);
@@ -256,10 +246,8 @@ PromptComposerPage::PromptComposerPage(
     varsOpenBtn->setIconSize(QSize(14, 14));
     varsOpenBtn->setCursor(Qt::PointingHandCursor);
     varsOpenBtn->setToolTip("Open vars.fct in editor");
-    connect(varsOpenBtn, &QPushButton::clicked, this, []() {
-        QDesktopServices::openUrl(
-            QUrl::fromLocalFile(BASE_PATH + "/" + VARS_PATH));
-    });
+    connect(varsOpenBtn, &QPushButton::clicked, this,
+            []() { QDesktopServices::openUrl(QUrl::fromLocalFile(BASE_PATH + "/" + VARS_PATH)); });
 
     auto* varsReloadBtn = new QPushButton;
     varsReloadBtn->setObjectName("SidebarBtn");
@@ -268,8 +256,7 @@ PromptComposerPage::PromptComposerPage(
     varsReloadBtn->setIconSize(QSize(14, 14));
     varsReloadBtn->setCursor(Qt::PointingHandCursor);
     varsReloadBtn->setToolTip("Reload variables from file");
-    connect(varsReloadBtn, &QPushButton::clicked,
-            this, &PromptComposerPage::reloadVars);
+    connect(varsReloadBtn, &QPushButton::clicked, this, &PromptComposerPage::reloadVars);
 
     vhrL->addWidget(varsHeaderLabel, 1);
     vhrL->addWidget(varsOpenBtn);
@@ -306,9 +293,8 @@ PromptComposerPage::PromptComposerPage(
     m_wfEditBtnRef->setIconSize(QSize(14, 14));
     m_wfEditBtnRef->setCursor(Qt::PointingHandCursor);
     m_wfEditBtnRef->setToolTip("Workflow Variable Editor");
-    connect(m_wfEditBtnRef, &QPushButton::clicked, this, [this]() {
-        emit workflowEditorRequested();
-    });
+    connect(m_wfEditBtnRef, &QPushButton::clicked, this,
+            [this]() { emit workflowEditorRequested(); });
 
     m_saveStateBtn = new QPushButton;
     m_saveStateBtn->setObjectName("SidebarBtn");
@@ -318,8 +304,7 @@ PromptComposerPage::PromptComposerPage(
     m_saveStateBtn->setCursor(Qt::PointingHandCursor);
     m_saveStateBtn->setToolTip("Save current state");
     m_saveStateBtn->setVisible(false);
-    connect(m_saveStateBtn, &QPushButton::clicked,
-            this, &PromptComposerPage::saveCurrentState);
+    connect(m_saveStateBtn, &QPushButton::clicked, this, &PromptComposerPage::saveCurrentState);
 
     wfHRL->addWidget(wfTabBtn);
     wfHRL->addSpacing(4);
@@ -339,9 +324,8 @@ PromptComposerPage::PromptComposerPage(
             if (wf.path == path) return;
         QFileInfo fi(path);
         const QString newId = QString::number(QDateTime::currentMSecsSinceEpoch());
-        m_wfManager->files() << core::WorkflowFile{ newId, fi.completeBaseName(), path };
-        if (m_wfManager->selectedIndex() < 0)
-            m_wfManager->setSelectedIndex(0);
+        m_wfManager->files() << core::WorkflowFile{newId, fi.completeBaseName(), path};
+        if (m_wfManager->selectedIndex() < 0) m_wfManager->setSelectedIndex(0);
         m_wfManager->saveToFile(m_wfSavePath);
         rebuildWorkflowList();
     });
@@ -354,44 +338,44 @@ PromptComposerPage::PromptComposerPage(
         emit workflowVarsChanged();
     });
 
-    connect(m_wfList, &QListWidget::customContextMenuRequested, this,
-        [this](const QPoint& pos) {
-            if (!m_wfManager) return;
-            QListWidgetItem* item = m_wfList->itemAt(pos);
-            if (!item || item->data(Qt::UserRole).isNull()) return;
-            const int idx = item->data(Qt::UserRole).toInt();
-            if (idx < 0 || idx >= m_wfManager->files().size()) return;
+    connect(m_wfList, &QListWidget::customContextMenuRequested, this, [this](const QPoint& pos) {
+        if (!m_wfManager) return;
+        QListWidgetItem* item = m_wfList->itemAt(pos);
+        if (!item || item->data(Qt::UserRole).isNull()) return;
+        const int idx = item->data(Qt::UserRole).toInt();
+        if (idx < 0 || idx >= m_wfManager->files().size()) return;
 
-            QMenu menu(this);
-            menu.addAction("Open file", this, [this, idx]() {
-                if (idx >= m_wfManager->files().size()) return;
-                QDesktopServices::openUrl(
-                    QUrl::fromLocalFile(m_wfManager->files()[idx].path));
-            });
-            menu.addSeparator();
-            menu.addAction("Rename", this, [this, idx]() {
-                if (idx >= m_wfManager->files().size()) return;
-                bool ok;
-                const QString name = QInputDialog::getText(
-                    this, "Rename Workflow", "Name:",
-                    QLineEdit::Normal, m_wfManager->files()[idx].name, &ok);
-                if (!ok || name.trimmed().isEmpty()) return;
-                m_wfManager->files()[idx].name = name.trimmed();
-                m_wfManager->saveToFile(m_wfSavePath);
-                rebuildWorkflowList();
-            });
-            menu.addAction("Remove", this, [this, idx]() {
-                if (idx >= m_wfManager->files().size()) return;
-                m_wfManager->files().removeAt(idx);
-                int sel = m_wfManager->selectedIndex();
-                const int sz = m_wfManager->files().size();
-                if (sz == 0)      m_wfManager->setSelectedIndex(-1);
-                else if (sel >= sz) m_wfManager->setSelectedIndex(sz - 1);
-                m_wfManager->saveToFile(m_wfSavePath);
-                rebuildWorkflowList();
-            });
-            menu.exec(m_wfList->mapToGlobal(pos));
+        QMenu menu(this);
+        menu.addAction("Open file", this, [this, idx]() {
+            if (idx >= m_wfManager->files().size()) return;
+            QDesktopServices::openUrl(QUrl::fromLocalFile(m_wfManager->files()[idx].path));
         });
+        menu.addSeparator();
+        menu.addAction("Rename", this, [this, idx]() {
+            if (idx >= m_wfManager->files().size()) return;
+            bool ok;
+            const QString name =
+                QInputDialog::getText(this, "Rename Workflow", "Name:", QLineEdit::Normal,
+                                      m_wfManager->files()[idx].name, &ok);
+            if (!ok || name.trimmed().isEmpty()) return;
+            m_wfManager->files()[idx].name = name.trimmed();
+            m_wfManager->saveToFile(m_wfSavePath);
+            rebuildWorkflowList();
+        });
+        menu.addAction("Remove", this, [this, idx]() {
+            if (idx >= m_wfManager->files().size()) return;
+            m_wfManager->files().removeAt(idx);
+            int sel = m_wfManager->selectedIndex();
+            const int sz = m_wfManager->files().size();
+            if (sz == 0)
+                m_wfManager->setSelectedIndex(-1);
+            else if (sel >= sz)
+                m_wfManager->setSelectedIndex(sz - 1);
+            m_wfManager->saveToFile(m_wfSavePath);
+            rebuildWorkflowList();
+        });
+        menu.exec(m_wfList->mapToGlobal(pos));
+    });
 
     rebuildWorkflowList();
 
@@ -402,22 +386,22 @@ PromptComposerPage::PromptComposerPage(
     m_statesList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     m_statesList->installEventFilter(this);
 
-    connect(m_statesList, &StatesListWidget::imageDroppedOnRow,
-            this, [this](int row, const QString& srcPath) {
-        if (row < 0 || row >= m_stateManager.states().size()) return;
-        core::SavedState& state = m_stateManager.states()[row];
-        const QString ext      = QFileInfo(srcPath).suffix().toLower();
-        const QString stateDir = m_statesDir + "/" + state.id;
-        QDir().mkpath(stateDir);
-        // Delete any existing preview regardless of its extension
-        if (!state.previewImagePath.isEmpty() && QFile::exists(state.previewImagePath))
-            QFile::remove(state.previewImagePath);
-        const QString dest = stateDir + "/preview." + ext;
-        if (!QFile::copy(srcPath, dest)) return;
-        state.previewImagePath = dest;
-        m_stateManager.saveToDir(m_statesDir);
-        rebuildStatesList();
-    });
+    connect(m_statesList, &StatesListWidget::imageDroppedOnRow, this,
+            [this](int row, const QString& srcPath) {
+                if (row < 0 || row >= m_stateManager.states().size()) return;
+                core::SavedState& state = m_stateManager.states()[row];
+                const QString ext = QFileInfo(srcPath).suffix().toLower();
+                const QString stateDir = m_statesDir + "/" + state.id;
+                QDir().mkpath(stateDir);
+                // Delete any existing preview regardless of its extension
+                if (!state.previewImagePath.isEmpty() && QFile::exists(state.previewImagePath))
+                    QFile::remove(state.previewImagePath);
+                const QString dest = stateDir + "/preview." + ext;
+                if (!QFile::copy(srcPath, dest)) return;
+                state.previewImagePath = dest;
+                m_stateManager.saveToDir(m_statesDir);
+                rebuildStatesList();
+            });
 
     connect(m_statesList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         const int row = m_statesList->row(item);
@@ -427,67 +411,65 @@ PromptComposerPage::PromptComposerPage(
         }
     });
 
-    connect(m_statesList, &QListWidget::itemEntered, this, [this](QListWidgetItem* item) {
-        showStatePreview(m_statesList->row(item));
-    });
+    connect(m_statesList, &QListWidget::itemEntered, this,
+            [this](QListWidgetItem* item) { showStatePreview(m_statesList->row(item)); });
 
     m_statesList->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_statesList, &QListWidget::customContextMenuRequested, this,
-        [this](const QPoint& pos) {
-            QListWidgetItem* item = m_statesList->itemAt(pos);
-            if (!item) return;
-            const int row = m_statesList->row(item);
-            if (row < 0 || row >= m_stateManager.states().size()) return;
+            [this](const QPoint& pos) {
+                QListWidgetItem* item = m_statesList->itemAt(pos);
+                if (!item) return;
+                const int row = m_statesList->row(item);
+                if (row < 0 || row >= m_stateManager.states().size()) return;
 
-            QMenu menu;
-            QAction* openAct   = menu.addAction("Open state file");
-            menu.addSeparator();
-            QAction* renameAct = menu.addAction("Rename");
-            QAction* deleteAct = menu.addAction("Delete");
-            QAction* chosen    = menu.exec(m_statesList->mapToGlobal(pos));
+                QMenu menu;
+                QAction* openAct = menu.addAction("Open state file");
+                menu.addSeparator();
+                QAction* renameAct = menu.addAction("Rename");
+                QAction* deleteAct = menu.addAction("Delete");
+                QAction* chosen = menu.exec(m_statesList->mapToGlobal(pos));
 
-            if (chosen == openAct) {
-                const QString statePath =
-                    m_statesDir + "/" + m_stateManager.states()[row].id + "/state.json";
-                QDesktopServices::openUrl(QUrl::fromLocalFile(statePath));
-            } else if (chosen == renameAct) {
-                bool ok;
-                const QString name = QInputDialog::getText(
-                    this, "Rename State", "Name:", QLineEdit::Normal,
-                    m_stateManager.states()[row].name, &ok);
-                if (!ok || name.trimmed().isEmpty()) return;
-                m_stateManager.states()[row].name = name.trimmed();
-                m_stateManager.saveToDir(m_statesDir);
-                rebuildStatesList();
-            } else if (chosen == deleteAct) {
-                const QString stateDir =
-                    m_statesDir + "/" + m_stateManager.states()[row].id;
-                QDir(stateDir).removeRecursively();
-                m_stateManager.states().removeAt(row);
-                m_stateManager.saveToDir(m_statesDir);
-                hideStatePreview();
-                rebuildStatesList();
-            }
-        });
+                if (chosen == openAct) {
+                    const QString statePath =
+                        m_statesDir + "/" + m_stateManager.states()[row].id + "/state.json";
+                    QDesktopServices::openUrl(QUrl::fromLocalFile(statePath));
+                }
+                else if (chosen == renameAct) {
+                    bool ok;
+                    const QString name =
+                        QInputDialog::getText(this, "Rename State", "Name:", QLineEdit::Normal,
+                                              m_stateManager.states()[row].name, &ok);
+                    if (!ok || name.trimmed().isEmpty()) return;
+                    m_stateManager.states()[row].name = name.trimmed();
+                    m_stateManager.saveToDir(m_statesDir);
+                    rebuildStatesList();
+                }
+                else if (chosen == deleteAct) {
+                    const QString stateDir = m_statesDir + "/" + m_stateManager.states()[row].id;
+                    QDir(stateDir).removeRecursively();
+                    m_stateManager.states().removeAt(row);
+                    m_stateManager.saveToDir(m_statesDir);
+                    hideStatePreview();
+                    rebuildStatesList();
+                }
+            });
 
     // Tab toggle
-    connect(wfTabBtn, &QPushButton::clicked, this,
-        [this, wfTabBtn, statesTabBtn]() {
-            wfTabBtn->setChecked(true);
-            statesTabBtn->setChecked(false);
-            m_wfStateStack->setCurrentIndex(0);
-            m_wfEditBtnRef->setVisible(true);
-            m_saveStateBtn->setVisible(false);
-            hideStatePreview();
-        });
-    connect(statesTabBtn, &QPushButton::clicked, this,
-        [this, wfTabBtn, statesTabBtn]() {
-            statesTabBtn->setChecked(true);
-            wfTabBtn->setChecked(false);
-            m_wfStateStack->setCurrentIndex(1);
-            m_wfEditBtnRef->setVisible(false);
-            m_saveStateBtn->setVisible(true);
-        });
+    connect(wfTabBtn, &QPushButton::clicked, this, [this, wfTabBtn, statesTabBtn]() {
+        wfTabBtn->setChecked(true);
+        statesTabBtn->setChecked(false);
+        m_wfStateStack->setCurrentIndex(0);
+        m_wfEditBtnRef->setVisible(true);
+        m_saveStateBtn->setVisible(false);
+        hideStatePreview();
+    });
+    connect(statesTabBtn, &QPushButton::clicked, this, [this, wfTabBtn, statesTabBtn]() {
+        statesTabBtn->setChecked(true);
+        wfTabBtn->setChecked(false);
+        m_wfStateStack->setCurrentIndex(1);
+        m_wfEditBtnRef->setVisible(false);
+        m_saveStateBtn->setVisible(true);
+    });
 
     m_wfStateStack = new QStackedWidget;
     m_wfStateStack->addWidget(m_wfList);     // 0
@@ -495,8 +477,8 @@ PromptComposerPage::PromptComposerPage(
     m_wfStateStack->setFixedHeight(200);
 
     // Floating preview popup for state images
-    m_statesPreviewPopup = new QLabel(this,
-        Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+    m_statesPreviewPopup =
+        new QLabel(this, Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
     m_statesPreviewPopup->setObjectName("StatesPreviewPopup");
     m_statesPreviewPopup->setAttribute(Qt::WA_ShowWithoutActivating);
     m_statesPreviewPopup->setAttribute(Qt::WA_StyledBackground, true);
@@ -585,9 +567,8 @@ PromptComposerPage::PromptComposerPage(
     m_copyBtn = new QPushButton("Copy prompt", m_controlBar);
     m_copyBtn->setObjectName("ComposerCopyBtn");
     m_copyBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_copyBtn, &QPushButton::clicked, this, [this]() {
-        QGuiApplication::clipboard()->setText(currentPromptString(false));
-    });
+    connect(m_copyBtn, &QPushButton::clicked, this,
+            [this]() { QGuiApplication::clipboard()->setText(currentPromptString(false)); });
 
     m_runBtn = new QPushButton("Run", m_controlBar);
     m_runBtn->setObjectName("ComposerRunBtn");
@@ -619,12 +600,9 @@ PromptComposerPage::PromptComposerPage(
     barLayout->addWidget(m_interruptBtn);
     m_controlBar->adjustSize();
 
-    connect(m_runBtn, &QPushButton::clicked, this, [this]() {
-        emit runRequested(m_promptCountSpin->value());
-    });
-    connect(m_interruptBtn, &QPushButton::clicked, this, [this]() {
-        emit interruptRequested();
-    });
+    connect(m_runBtn, &QPushButton::clicked, this,
+            [this]() { emit runRequested(m_promptCountSpin->value()); });
+    connect(m_interruptBtn, &QPushButton::clicked, this, [this]() { emit interruptRequested(); });
 
     // Inset preview opacity: starts at 0 so it fades in when the first preview
     // image arrives. Also driven down/up when the popout opens/closes.
@@ -638,7 +616,8 @@ PromptComposerPage::PromptComposerPage(
     // ── Open popout on preview click ──────────────────────────────────────────
     connect(m_previewLabel, &PreviewClickLabel::clicked, this, [this]() {
         if (!m_popout) {
-            auto* popout = new PreviewPopoutWindow(nullptr); // null parent → real top-level (FancyZones)
+            auto* popout =
+                new PreviewPopoutWindow(nullptr); // null parent → real top-level (FancyZones)
             popout->setAttribute(Qt::WA_DeleteOnClose);
             m_popout = popout;
             m_popout->installEventFilter(this);
@@ -647,33 +626,30 @@ PromptComposerPage::PromptComposerPage(
                 // Only fade back in if the inset was actually visible - if the
                 // popout was opened before any preview arrived, leave the inset
                 // hidden until setPreviewImage shows it for real.
-                if (m_previewLabel->isVisible())
-                    fadePreviewInset(1.0);
+                if (m_previewLabel->isVisible()) fadePreviewInset(1.0);
             });
-            if (!m_tempFolder.isEmpty())
-                popout->setTempFolder(m_tempFolder);
+            if (!m_tempFolder.isEmpty()) popout->setTempFolder(m_tempFolder);
 
             // Forward popout's keyboard-shortcut intents to composer signals
             // so they reach AppMainWindow / ComfyUiClient just like the
             // main-window versions.
-            connect(popout, &PreviewPopoutWindow::runRequested,
-                this, [this]() { emit runRequested(m_promptCountSpin->value()); });
-            connect(popout, &PreviewPopoutWindow::interruptRequested,
-                this, &PromptComposerPage::interruptRequested);
-            connect(popout, &PreviewPopoutWindow::clearPendingRequested,
-                this, &PromptComposerPage::clearPendingRequested);
+            connect(popout, &PreviewPopoutWindow::runRequested, this,
+                    [this]() { emit runRequested(m_promptCountSpin->value()); });
+            connect(popout, &PreviewPopoutWindow::interruptRequested, this,
+                    &PromptComposerPage::interruptRequested);
+            connect(popout, &PreviewPopoutWindow::clearPendingRequested, this,
+                    &PromptComposerPage::clearPendingRequested);
         }
         if (!m_currentPix.isNull())
             static_cast<PreviewPopoutWindow*>(m_popout)->setImage(m_currentPix);
         m_popout->show();
         m_popout->raise();
         m_popout->activateWindow();
-        fadePreviewInset(0.0);  // popout taking over → hide the inset
+        fadePreviewInset(0.0); // popout taking over → hide the inset
     });
 
     // ── Wire pipeline ─────────────────────────────────────────────────────────
-    connect(m_pipeline, &PromptPipeline::pipelineReady,
-            this, &PromptComposerPage::onPipelineReady);
+    connect(m_pipeline, &PromptPipeline::pipelineReady, this, &PromptComposerPage::onPipelineReady);
 
     rebuildRulesSidebar();
 }
@@ -696,7 +672,8 @@ bool PromptComposerPage::eventFilter(QObject* obj, QEvent* event)
         if (event->type() == QEvent::Show) {
             // Popout opened - hide the floating preview label to reduce clutter
             m_previewLabel->hide();
-        } else if (event->type() == QEvent::Hide) {
+        }
+        else if (event->type() == QEvent::Hide) {
             // Popout closed - restore preview label if we have an image
             if (!m_currentPix.isNull()) {
                 m_previewLabel->show();
@@ -716,21 +693,17 @@ void PromptComposerPage::setPreviewImage(const QImage& image)
     // Use the known fixed size directly - size() can return 0×0 on first call
     // when the floating label hasn't been laid out yet.
     m_previewLabel->setPixmap(
-        m_currentPix.scaled(
-            QSize(200, 200),
-            Qt::KeepAspectRatio,
-            Qt::SmoothTransformation));
+        m_currentPix.scaled(QSize(200, 200), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
     const bool popoutOpen = m_popout && m_popout->isVisible();
     if (!popoutOpen) {
         m_previewLabel->show();
         m_previewLabel->raise();
-        fadePreviewInset(1.0);  // first show fades 0→1; subsequent calls no-op
+        fadePreviewInset(1.0); // first show fades 0→1; subsequent calls no-op
     }
     repositionFloats();
 
-    if (popoutOpen)
-        static_cast<PreviewPopoutWindow*>(m_popout)->setImage(m_currentPix);
+    if (popoutOpen) static_cast<PreviewPopoutWindow*>(m_popout)->setImage(m_currentPix);
 }
 
 void PromptComposerPage::fadePreviewInset(qreal target)
@@ -756,19 +729,18 @@ void PromptComposerPage::setOutputFolderPattern(const QString& pattern)
 void PromptComposerPage::setTempFolder(const QString& folder)
 {
     m_tempFolder = folder;
-    if (m_popout)
-        static_cast<PreviewPopoutWindow*>(m_popout)->setTempFolder(folder);
+    if (m_popout) static_cast<PreviewPopoutWindow*>(m_popout)->setTempFolder(folder);
 }
 
 void PromptComposerPage::repositionFloats()
 {
     constexpr int sidebarW = 220;
-    constexpr int marginR  = 160;
-    constexpr int marginT  = 42;
-    constexpr int marginB  = 12;
-    constexpr int gap      = 4;
-    const int right  = width() - sidebarW - marginR;
-    int       bottom = height() - marginB;
+    constexpr int marginR = 160;
+    constexpr int marginT = 42;
+    constexpr int marginB = 12;
+    constexpr int gap = 4;
+    const int right = width() - sidebarW - marginR;
+    int bottom = height() - marginB;
 
     if (m_categoryNav) {
         m_categoryNav->move(right - m_categoryNav->width(), marginT);
@@ -781,13 +753,11 @@ void PromptComposerPage::repositionFloats()
         m_clearBtn->raise();
     }
 
-    m_controlBar->move(right - m_controlBar->width(),
-                       bottom - m_controlBar->height());
+    m_controlBar->move(right - m_controlBar->width(), bottom - m_controlBar->height());
     bottom -= m_controlBar->height() + gap;
 
     if (m_previewLabel->isVisible()) {
-        m_previewLabel->move(right - m_previewLabel->width(),
-                             bottom - m_previewLabel->height());
+        m_previewLabel->move(right - m_previewLabel->width(), bottom - m_previewLabel->height());
     }
     // step text is painted inside m_previewLabel via paintEvent - no separate widget
 }
@@ -805,13 +775,13 @@ QList<core::EntryPush> PromptComposerPage::dumpActivePushes() const
     QList<core::EntryPush> out;
     for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
         const int runtimeId = int(quint32(it.key() >> 32));
-        const int imageIdx  = int(quint32(it.key() & 0xFFFFFFFFLL));
-        core::Entry* entry  = m_entryModel ? m_entryModel->entryById(runtimeId) : nullptr;
+        const int imageIdx = int(quint32(it.key() & 0xFFFFFFFFLL));
+        core::Entry* entry = m_entryModel ? m_entryModel->entryById(runtimeId) : nullptr;
         if (!entry || imageIdx < 0 || imageIdx >= entry->images.size()) continue;
         core::EntryPush ep;
-        ep.uuid          = entry->uuid;
+        ep.uuid = entry->uuid;
         ep.imageFileName = entry->images[imageIdx].fileName;
-        ep.tags          = it.value();
+        ep.tags = it.value();
         out << ep;
     }
     return out;
@@ -823,27 +793,34 @@ int PromptComposerPage::loadActivePushes(const QList<core::EntryPush>& pushes)
     int missing = 0;
     for (const core::EntryPush& ep : pushes) {
         core::Entry* entry = m_entryModel ? m_entryModel->entryByUuid(ep.uuid) : nullptr;
-        if (!entry) { ++missing; continue; }
+        if (!entry) {
+            ++missing;
+            continue;
+        }
         int imageIdx = -1;
         for (int i = 0; i < entry->images.size(); ++i)
-            if (entry->images[i].fileName == ep.imageFileName) { imageIdx = i; break; }
-        if (imageIdx < 0) { ++missing; continue; }
+            if (entry->images[i].fileName == ep.imageFileName) {
+                imageIdx = i;
+                break;
+            }
+        if (imageIdx < 0) {
+            ++missing;
+            continue;
+        }
         const qint64 key = (qint64(entry->id) << 32) | quint32(imageIdx);
         m_activePushes[key] = ep.tags;
     }
 
     QMap<int, QList<int>> activeGroups;
     for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
-        activeGroups[int(quint32(it.key() >> 32))].append(
-            int(quint32(it.key() & 0xFFFFFFFFLL)));
+        activeGroups[int(quint32(it.key() >> 32))].append(int(quint32(it.key() & 0xFFFFFFFFLL)));
     }
     emit activeGroupsChanged(activeGroups);
     return missing;
 }
 
-QList<CategoryGroup> PromptComposerPage::bucketForOutput(
-    const QList<PipelineTag>& flat,
-    const TagGroupIndex&      groups)
+QList<CategoryGroup> PromptComposerPage::bucketForOutput(const QList<PipelineTag>& flat,
+                                                         const TagGroupIndex& groups)
 {
     QHash<QString, QList<PipelineTag>> buckets;
     for (const PipelineTag& pt : flat) {
@@ -855,19 +832,18 @@ QList<CategoryGroup> PromptComposerPage::bucketForOutput(
     for (const TagGroup& g : groups.groups()) {
         const auto it = buckets.constFind(g.name);
         if (it == buckets.cend() || it.value().isEmpty()) continue;
-        ordered << CategoryGroup{ g.name, it.value() };
+        ordered << CategoryGroup{g.name, it.value()};
     }
     // Uncategorized bucket goes last in display order.
     const auto unc = buckets.constFind(QString());
     if (unc != buckets.cend() && !unc.value().isEmpty())
-        ordered << CategoryGroup{ QString(), unc.value() };
+        ordered << CategoryGroup{QString(), unc.value()};
     return ordered;
 }
 
 QString PromptComposerPage::currentPromptString(bool forJson) const
 {
-    return PromptPipeline::buildPromptString(
-        bucketForOutput(m_lastResult, m_groups), forJson);
+    return PromptPipeline::buildPromptString(bucketForOutput(m_lastResult, m_groups), forJson);
 }
 
 QString PromptComposerPage::computePromptForTags(const QList<QString>& tags, bool forJson) const
@@ -883,17 +859,18 @@ QString PromptComposerPage::computePromptForTags(const QList<QString>& tags, boo
             pt.weight = m_tagWeights.value(weightKeyOf(pt), 1.0f);
 
     QList<PipelineTag> flat;
-    for (const auto& g : groups) flat << g.tags;
-    return PromptPipeline::buildPromptString(
-        bucketForOutput(flat, m_groups), forJson);
+    for (const auto& g : groups)
+        flat << g.tags;
+    return PromptPipeline::buildPromptString(bucketForOutput(flat, m_groups), forJson);
 }
 
-QString PromptComposerPage::computePromptWithExtraTags(const QList<QString>& extraTags, bool forJson) const
+QString PromptComposerPage::computePromptWithExtraTags(const QList<QString>& extraTags,
+                                                       bool forJson) const
 {
     // Merge: current effective tags (active − deactivated) ∪ extraTags.
     // Dedupe to keep a stable order with composer-state first.
     QList<QString> merged;
-    QSet<QString>  seen;
+    QSet<QString> seen;
     for (const QString& t : m_activeTags) {
         if (m_deactivatedTags.contains(t)) continue;
         if (seen.contains(t)) continue;
@@ -926,7 +903,7 @@ void PromptComposerPage::setVariableIndex(core::VariableIndex* index)
 
 void PromptComposerPage::setWorkflowManager(core::WorkflowManager* wm, const QString& savePath)
 {
-    m_wfManager  = wm;
+    m_wfManager = wm;
     m_wfSavePath = savePath;
     rebuildWorkflowList();
 }
@@ -943,7 +920,8 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
         QSet<QString> otherTags;
         for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
             if (it.key() != key) {
-                for (const QString& t : it.value()) otherTags.insert(t);
+                for (const QString& t : it.value())
+                    otherTags.insert(t);
             }
         }
         for (const QString& tag : m_activePushes[key]) {
@@ -955,7 +933,8 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
             }
         }
         m_activePushes.remove(key);
-    } else {
+    }
+    else {
         // Track only the tags this push actually adds - duplicates shared
         // with a manual entry or another push aren't claimed, so un-pushing
         // later doesn't strip the user's work.
@@ -980,16 +959,18 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
                 m_activeLoraUuids.append(uuid);
                 loraChanged = true;
             }
-        } else {
+        }
+        else {
             bool stillPushed = false;
             for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
-                if (int(quint32(it.key() >> 32)) == entryId) { stillPushed = true; break; }
+                if (int(quint32(it.key() >> 32)) == entryId) {
+                    stillPushed = true;
+                    break;
+                }
             }
-            if (!stillPushed && m_activeLoraUuids.removeAll(uuid) > 0)
-                loraChanged = true;
+            if (!stillPushed && m_activeLoraUuids.removeAll(uuid) > 0) loraChanged = true;
         }
-        if (loraChanged)
-            emit loraUuidsRestored(m_activeLoraUuids);
+        if (loraChanged) emit loraUuidsRestored(m_activeLoraUuids);
     }
 
     QMap<int, QList<int>> activeGroups;
@@ -1015,8 +996,7 @@ void PromptComposerPage::onEntryTagAdded(int entryId, int imageIdx, const QStrin
     if (!m_activeTagSet.contains(tag)) {
         m_activeTags << tag;
         m_activeTagSet.insert(tag);
-        if (!m_activePushes[key].contains(tag))
-            m_activePushes[key] << tag;
+        if (!m_activePushes[key].contains(tag)) m_activePushes[key] << tag;
     }
     QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
 }
@@ -1031,7 +1011,10 @@ void PromptComposerPage::onEntryTagRemoved(int entryId, int imageIdx, const QStr
     // Only drop from active tags if no other active push still references it
     bool stillNeeded = false;
     for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it)
-        if (it.value().contains(tag)) { stillNeeded = true; break; }
+        if (it.value().contains(tag)) {
+            stillNeeded = true;
+            break;
+        }
 
     if (!stillNeeded) {
         m_activeTags.removeOne(tag);
@@ -1046,8 +1029,7 @@ void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
 {
     QList<qint64> keysToRemove;
     for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it)
-        if (int(quint32(it.key() >> 32)) == entryId)
-            keysToRemove << it.key();
+        if (int(quint32(it.key() >> 32)) == entryId) keysToRemove << it.key();
 
     const bool loraGone = m_activeLoraUuids.contains(uuid);
     if (keysToRemove.isEmpty() && !loraGone) return;
@@ -1057,7 +1039,8 @@ void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
     QSet<QString> stillClaimed;
     for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
         if (keysToRemove.contains(it.key())) continue;
-        for (const QString& t : it.value()) stillClaimed.insert(t);
+        for (const QString& t : it.value())
+            stillClaimed.insert(t);
     }
     for (qint64 key : keysToRemove) {
         for (const QString& t : m_activePushes[key]) {
@@ -1078,8 +1061,7 @@ void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
 
     QMap<int, QList<int>> activeGroups;
     for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
-        activeGroups[int(quint32(it.key() >> 32))].append(
-            int(quint32(it.key() & 0xFFFFFFFFLL)));
+        activeGroups[int(quint32(it.key() >> 32))].append(int(quint32(it.key() & 0xFFFFFFFFLL)));
     }
     emit activeGroupsChanged(activeGroups);
 
@@ -1092,8 +1074,7 @@ void PromptComposerPage::repush()
 {
     QList<QString> active;
     for (const QString& t : m_activeTags)
-        if (!m_deactivatedTags.contains(t))
-            active << t;
+        if (!m_deactivatedTags.contains(t)) active << t;
     m_pipeline->push(active);
 }
 
@@ -1105,14 +1086,13 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
     // persist in m_activeTags between pushes.
     QList<QString> deleted;
     for (auto& g : categoryGroups) {
-        auto end = std::remove_if(g.tags.begin(), g.tags.end(),
-            [&deleted](const PipelineTag& pt) {
-                if (pt.result == RuleResult::Deleted) {
-                    deleted << pt.tag;
-                    return true;
-                }
-                return false;
-            });
+        auto end = std::remove_if(g.tags.begin(), g.tags.end(), [&deleted](const PipelineTag& pt) {
+            if (pt.result == RuleResult::Deleted) {
+                deleted << pt.tag;
+                return true;
+            }
+            return false;
+        });
         g.tags.erase(end, g.tags.end());
     }
     if (!deleted.isEmpty()) {
@@ -1137,7 +1117,7 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
     for (const QString& tag : m_activeTags) {
         if (m_deactivatedTags.contains(tag)) {
             PipelineTag pt;
-            pt.tag    = tag;
+            pt.tag = tag;
             pt.result = RuleResult::Deactivated;
             flat << pt;
         }
@@ -1158,10 +1138,9 @@ void PromptComposerPage::applyTagFilter()
     QList<PipelineTag> filtered;
     for (const PipelineTag& pt : m_lastResult) {
         const bool matchTag = pt.tag.startsWith(m_filterQuery, Qt::CaseInsensitive);
-        const bool matchSrc = !pt.sourceTag.isEmpty()
-                           && pt.sourceTag.startsWith(m_filterQuery, Qt::CaseInsensitive);
-        if (matchTag || matchSrc)
-            filtered << pt;
+        const bool matchSrc =
+            !pt.sourceTag.isEmpty() && pt.sourceTag.startsWith(m_filterQuery, Qt::CaseInsensitive);
+        if (matchTag || matchSrc) filtered << pt;
     }
     rebuildGroupsDisplay(filtered);
 }
@@ -1174,16 +1153,14 @@ void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
 
     // Freeze will redraw and flicker but should be fine for large redraws
     if (freeze) {
-        while (m_groupsLayout->count() > 0)
-        {
+        while (m_groupsLayout->count() > 0) {
             QLayoutItem* item = m_groupsLayout->takeAt(0);
             delete item->widget();
             delete item;
         }
     }
     else { // Do not flicker for small incremental layout changes
-        while (m_groupsLayout->count() > 0)
-        {
+        while (m_groupsLayout->count() > 0) {
             QLayoutItem* item = m_groupsLayout->takeAt(0);
             if (QWidget* w = item->widget()) w->deleteLater();
             delete item;
@@ -1195,15 +1172,13 @@ void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
     if (flat.isEmpty()) {
         if (freeze) setUpdatesEnabled(true);
         m_mainStack->setCurrentIndex(0);
-        if (m_categoryNav)
-            static_cast<CategoryNavPanel*>(m_categoryNav)->updateCategories({});
+        if (m_categoryNav) static_cast<CategoryNavPanel*>(m_categoryNav)->updateCategories({});
         return;
     }
     m_mainStack->setCurrentIndex(1);
 
-    auto addSection = [this](const QString& displayName,
-                              const QList<PipelineTag>& tags,
-                              QStringList& navNames) {
+    auto addSection = [this](const QString& displayName, const QList<PipelineTag>& tags,
+                             QStringList& navNames) {
         auto* header = new QLabel(displayName);
         header->setObjectName("ComposerGroupHeader");
         m_groupsLayout->addWidget(header);
@@ -1225,15 +1200,13 @@ void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
     QList<PipelineTag> deactivated;
     for (const PipelineTag& pt : flat)
         if (pt.result == RuleResult::Deactivated) deactivated << pt;
-    if (!deactivated.isEmpty())
-        addSection("Deactivated", deactivated, navNames);
+    if (!deactivated.isEmpty()) addSection("Deactivated", deactivated, navNames);
 
     m_groupsLayout->addStretch();
 
     if (freeze) setUpdatesEnabled(true);
 
-    if (m_categoryNav)
-        static_cast<CategoryNavPanel*>(m_categoryNav)->updateCategories(navNames);
+    if (m_categoryNav) static_cast<CategoryNavPanel*>(m_categoryNav)->updateCategories(navNames);
 }
 
 // ── Tag row ───────────────────────────────────────────────────────────────────
@@ -1251,8 +1224,7 @@ void PromptComposerPage::renamePushTag(const QString& oldKey, const QString& new
     }
 }
 
-void PromptComposerPage::replaceTagVariable(const QString& oldKey,
-                                            const QString& newVarName)
+void PromptComposerPage::replaceTagVariable(const QString& oldKey, const QString& newVarName)
 {
     const int i = m_activeTags.indexOf(oldKey);
     if (i < 0) return;
@@ -1262,7 +1234,8 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey,
 
     if (newVarName.isEmpty()) {
         newKey = VariableIndex::stripVariables(newKey);
-    } else {
+    }
+    else {
         const QString token = "$" + newVarName + "$";
         // Replace every occurrence of any $name$ with the chosen one.
         // Matches behaviour of the badge, which collapses all vars into one
@@ -1279,40 +1252,42 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey,
         m_activeTags.removeAt(i);
         m_activeTagSet.remove(oldKey);
         m_tagWeights.remove(oldKey);
-    } else {
+    }
+    else {
         m_activeTags[i] = newKey;
         m_activeTagSet.remove(oldKey);
         m_activeTagSet.insert(newKey);
         // Migrate any user-set weight under the new source key so the
         // variable swap doesn't silently drop it.
-        if (m_tagWeights.contains(oldKey))
-            m_tagWeights[newKey] = m_tagWeights.take(oldKey);
+        if (m_tagWeights.contains(oldKey)) m_tagWeights[newKey] = m_tagWeights.take(oldKey);
     }
     m_deactivatedTags.remove(oldKey);
     renamePushTag(oldKey, collide ? QString() : newKey);
 
-    QMetaObject::invokeMethod(this, &PromptComposerPage::repush,
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
 }
 
 QHash<QAction*, QString> PromptComposerPage::addQuickFacetActions(QMenu& menu) const
 {
     const QList<QPair<QString, QString>> entries{
-        { "character",    m_quickCharFacet    },
-        { "copyright",    m_quickCopyFacet    },
-        { "trigger word", m_quickTriggerFacet },
-        { "style",        m_quickStyleFacet   },
+        {"character", m_quickCharFacet},
+        {"copyright", m_quickCopyFacet},
+        {"trigger word", m_quickTriggerFacet},
+        {"style", m_quickStyleFacet},
     };
     bool any = false;
-    for (const auto& e : entries) if (!e.second.isEmpty()) { any = true; break; }
+    for (const auto& e : entries)
+        if (!e.second.isEmpty()) {
+            any = true;
+            break;
+        }
     if (!any) return {};
 
     menu.addSeparator();
     QHash<QAction*, QString> out;
     for (const auto& e : entries) {
         if (e.second.isEmpty()) continue;
-        QAction* a = menu.addAction(
-            QString("Quick add as %1 (%2)").arg(e.first, e.second));
+        QAction* a = menu.addAction(QString("Quick add as %1 (%2)").arg(e.first, e.second));
         out.insert(a, e.second);
     }
     return out;
@@ -1320,13 +1295,12 @@ QHash<QAction*, QString> PromptComposerPage::addQuickFacetActions(QMenu& menu) c
 
 QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
 {
-    const bool hasVar        = !pt.sourceTag.isEmpty();
+    const bool hasVar = !pt.sourceTag.isEmpty();
     const bool isDeactivated = (pt.result == RuleResult::Deactivated);
-    const bool inActive      = (pt.result != RuleResult::Injected);
-    const bool editable      = !hasVar && !isDeactivated
-                            && (pt.result == RuleResult::Include
-                             || pt.result == RuleResult::NoFacets
-                             || pt.result == RuleResult::Flagged);
+    const bool inActive = (pt.result != RuleResult::Injected);
+    const bool editable = !hasVar && !isDeactivated &&
+                          (pt.result == RuleResult::Include || pt.result == RuleResult::NoFacets ||
+                           pt.result == RuleResult::Flagged);
 
     const QString activeKey = hasVar ? pt.sourceTag : pt.tag;
 
@@ -1339,8 +1313,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
 
     auto* dot = new QWidget;
     dot->setFixedSize(6, 6);
-    dot->setStyleSheet(
-        QString("background:%1;border-radius:3px;").arg(dotColorFor(pt.result)));
+    dot->setStyleSheet(QString("background:%1;border-radius:3px;").arg(dotColorFor(pt.result)));
     rl->addWidget(dot, 0, Qt::AlignVCenter);
 
     auto* tagEdit = new QLineEdit(pt.tag);
@@ -1368,19 +1341,18 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                 // Drop the orphan weight: the colliding existing tag keeps
                 // its own value rather than being silently overridden.
                 m_tagWeights.remove(oldTag);
-            } else {
+            }
+            else {
                 m_activeTags[i] = newTag;
                 m_activeTagSet.remove(oldTag);
                 m_activeTagSet.insert(newTag);
                 // Migrate any user-set weight to the new key so the rename
                 // doesn't silently drop it.
-                if (m_tagWeights.contains(oldTag))
-                    m_tagWeights[newTag] = m_tagWeights.take(oldTag);
+                if (m_tagWeights.contains(oldTag)) m_tagWeights[newTag] = m_tagWeights.take(oldTag);
             }
             renamePushTag(oldTag, collide ? QString() : newTag);
             tagEdit->setProperty("_tag", newTag);
-            QMetaObject::invokeMethod(
-                this, &PromptComposerPage::repush, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
         });
     }
 
@@ -1390,7 +1362,8 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
         static const QRegularExpression varRe(R"(\$([A-Za-z0-9_]+)\$)");
         QStringList varNames;
         auto it = varRe.globalMatch(pt.sourceTag);
-        while (it.hasNext()) varNames << "$" + it.next().captured(1) + "$";
+        while (it.hasNext())
+            varNames << "$" + it.next().captured(1) + "$";
         auto* badge = new QLabel(varNames.join(" "));
         badge->setObjectName("ComposerVarBadge");
         badge->setAttribute(Qt::WA_StyledBackground, true);
@@ -1416,8 +1389,8 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
     }
 
     // Weight spinbox - shown for tags that appear in the output (not deactivated/removed).
-    if (pt.result != RuleResult::Skipped && pt.result != RuleResult::Replaced
-        && pt.result != RuleResult::Deactivated) {
+    if (pt.result != RuleResult::Skipped && pt.result != RuleResult::Replaced &&
+        pt.result != RuleResult::Deactivated) {
         auto* wSpin = new QDoubleSpinBox;
         wSpin->setObjectName("ComposerWeightSpin");
         wSpin->setRange(0.10, 5.00);
@@ -1439,8 +1412,8 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
         };
         applyWeightColor(double(pt.weight));
 
-        connect(wSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-                this, [this, weightKey, applyWeightColor](double val) {
+        connect(wSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+                [this, weightKey, applyWeightColor](double val) {
                     const float w = float(val);
                     m_tagWeights[weightKey] = w;
                     for (auto& p : m_lastResult)
@@ -1460,8 +1433,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
             // the wikiTag (= expanded form) would orphan the entry.
             m_tagWeights.remove(activeKey);
             m_deactivatedTags.remove(activeKey);
-            QMetaObject::invokeMethod(
-                this, &PromptComposerPage::repush, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
         };
 
         auto onToggleDeactivate = [this, activeKey]() {
@@ -1469,8 +1441,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                 m_deactivatedTags.remove(activeKey);
             else
                 m_deactivatedTags.insert(activeKey);
-            QMetaObject::invokeMethod(
-                this, &PromptComposerPage::repush, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
         };
 
         auto* delBtn = new QPushButton("×", row);
@@ -1483,63 +1454,68 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
         auto installMenu = [&](QWidget* w) {
             w->setContextMenuPolicy(Qt::CustomContextMenu);
             connect(w, &QWidget::customContextMenuRequested, this,
-                [this, wikiTag, activeKey, hasVar, onRemove, onToggleDeactivate, isDeactivated](const QPoint&) {
-                    QMenu menu;
-                    QAction* wikiAct   = menu.addAction("Wiki");
-                    QAction* facetAct  = menu.addAction("Edit facets");
-                    QAction* deactAct  = menu.addAction(isDeactivated ? "Activate" : "Deactivate");
-                    QAction* removeAct = menu.addAction("Remove");
+                    [this, wikiTag, activeKey, hasVar, onRemove, onToggleDeactivate,
+                     isDeactivated](const QPoint&) {
+                        QMenu menu;
+                        QAction* wikiAct = menu.addAction("Wiki");
+                        QAction* facetAct = menu.addAction("Edit facets");
+                        QAction* deactAct =
+                            menu.addAction(isDeactivated ? "Activate" : "Deactivate");
+                        QAction* removeAct = menu.addAction("Remove");
 
-                    // Variable swap - only meaningful if the tag carries one
-                    // already. Lets the user retarget every $foo$ in the tag
-                    // to a different declared variable, or strip vars entirely.
-                    QAction* dropVarAct = nullptr;
-                    QHash<QAction*, QString> setVarActs;
-                    if (hasVar && m_varIndex) {
-                        QMenu* varMenu = menu.addMenu("Change variable");
-                        dropVarAct = varMenu->addAction("Remove variable");
-                        if (!m_varIndex->variables().isEmpty())
-                            varMenu->addSeparator();
-                        for (const auto& v : m_varIndex->variables()) {
-                            QAction* a = varMenu->addAction("$" + v.name + "$");
-                            setVarActs.insert(a, v.name);
+                        // Variable swap - only meaningful if the tag carries one
+                        // already. Lets the user retarget every $foo$ in the tag
+                        // to a different declared variable, or strip vars entirely.
+                        QAction* dropVarAct = nullptr;
+                        QHash<QAction*, QString> setVarActs;
+                        if (hasVar && m_varIndex) {
+                            QMenu* varMenu = menu.addMenu("Change variable");
+                            dropVarAct = varMenu->addAction("Remove variable");
+                            if (!m_varIndex->variables().isEmpty()) varMenu->addSeparator();
+                            for (const auto& v : m_varIndex->variables()) {
+                                QAction* a = varMenu->addAction("$" + v.name + "$");
+                                setVarActs.insert(a, v.name);
+                            }
                         }
-                    }
 
-                    const QHash<QAction*, QString> quickFacetActs =
-                        addQuickFacetActions(menu);
+                        const QHash<QAction*, QString> quickFacetActs = addQuickFacetActions(menu);
 
-                    QAction* chosen = menu.exec(QCursor::pos());
-                    if      (chosen == wikiAct)   emit wikiRequested(wikiTag);
-                    else if (chosen == facetAct)  emit facetEditorRequested(wikiTag);
-                    else if (chosen == deactAct)  onToggleDeactivate();
-                    else if (chosen == removeAct) onRemove();
-                    else if (chosen && quickFacetActs.contains(chosen))
-                        emit quickFacetRequested(wikiTag, quickFacetActs.value(chosen));
-                    else if (dropVarAct && chosen == dropVarAct)
-                        replaceTagVariable(activeKey, QString());
-                    else if (chosen && setVarActs.contains(chosen))
-                        replaceTagVariable(activeKey, setVarActs.value(chosen));
-                });
+                        QAction* chosen = menu.exec(QCursor::pos());
+                        if (chosen == wikiAct)
+                            emit wikiRequested(wikiTag);
+                        else if (chosen == facetAct)
+                            emit facetEditorRequested(wikiTag);
+                        else if (chosen == deactAct)
+                            onToggleDeactivate();
+                        else if (chosen == removeAct)
+                            onRemove();
+                        else if (chosen && quickFacetActs.contains(chosen))
+                            emit quickFacetRequested(wikiTag, quickFacetActs.value(chosen));
+                        else if (dropVarAct && chosen == dropVarAct)
+                            replaceTagVariable(activeKey, QString());
+                        else if (chosen && setVarActs.contains(chosen))
+                            replaceTagVariable(activeKey, setVarActs.value(chosen));
+                    });
         };
         installMenu(row);
         installMenu(tagEdit);
-    } else {
+    }
+    else {
         auto installWiki = [&](QWidget* w) {
             w->setContextMenuPolicy(Qt::CustomContextMenu);
-            connect(w, &QWidget::customContextMenuRequested, this,
-                [this, wikiTag](const QPoint&) {
-                    QMenu menu;
-                    QAction* wikiAct  = menu.addAction("Wiki");
-                    QAction* facetAct = menu.addAction("Edit facets");
-                    const QHash<QAction*, QString> quickFacetActs =
-                        addQuickFacetActions(menu);
-                    QAction* chosen = menu.exec(QCursor::pos());
-                    if (chosen == wikiAct)       emit wikiRequested(wikiTag);
-                    else if (chosen == facetAct) emit facetEditorRequested(wikiTag);
-                    else if (chosen && quickFacetActs.contains(chosen))
-                        emit quickFacetRequested(wikiTag, quickFacetActs.value(chosen));
-                });
+            connect(w, &QWidget::customContextMenuRequested, this, [this, wikiTag](const QPoint&) {
+                QMenu menu;
+                QAction* wikiAct = menu.addAction("Wiki");
+                QAction* facetAct = menu.addAction("Edit facets");
+                const QHash<QAction*, QString> quickFacetActs = addQuickFacetActions(menu);
+                QAction* chosen = menu.exec(QCursor::pos());
+                if (chosen == wikiAct)
+                    emit wikiRequested(wikiTag);
+                else if (chosen == facetAct)
+                    emit facetEditorRequested(wikiTag);
+                else if (chosen && quickFacetActs.contains(chosen))
+                    emit quickFacetRequested(wikiTag, quickFacetActs.value(chosen));
+            });
         };
         installWiki(row);
         installWiki(tagEdit);
@@ -1557,13 +1533,12 @@ void PromptComposerPage::setEntryModel(core::EntryModel* model)
 
 void PromptComposerPage::setQuickFacets(const QString& characterFacet,
                                         const QString& copyrightFacet,
-                                        const QString& triggerWordFacet,
-                                        const QString& styleFacet)
+                                        const QString& triggerWordFacet, const QString& styleFacet)
 {
-    m_quickCharFacet    = characterFacet;
-    m_quickCopyFacet    = copyrightFacet;
+    m_quickCharFacet = characterFacet;
+    m_quickCopyFacet = copyrightFacet;
     m_quickTriggerFacet = triggerWordFacet;
-    m_quickStyleFacet   = styleFacet;
+    m_quickStyleFacet = styleFacet;
 }
 
 void PromptComposerPage::setActiveLoraUuids(const QList<QString>& uuids)

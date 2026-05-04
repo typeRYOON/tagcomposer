@@ -12,20 +12,22 @@ namespace core {
 QJsonObject EntryPush::toJson() const
 {
     QJsonArray tagArr;
-    for (const QString& t : tags) tagArr.append(t);
+    for (const QString& t : tags)
+        tagArr.append(t);
     QJsonObject o;
-    o["uuid"]          = uuid;
+    o["uuid"] = uuid;
     o["imageFileName"] = imageFileName;
-    o["tags"]          = tagArr;
+    o["tags"] = tagArr;
     return o;
 }
 
 EntryPush EntryPush::fromJson(const QJsonObject& obj)
 {
     EntryPush ep;
-    ep.uuid          = obj["uuid"].toString();
+    ep.uuid = obj["uuid"].toString();
     ep.imageFileName = obj["imageFileName"].toString();
-    for (const auto& t : obj["tags"].toArray()) ep.tags << t.toString();
+    for (const auto& t : obj["tags"].toArray())
+        ep.tags << t.toString();
     return ep;
 }
 
@@ -34,7 +36,7 @@ EntryPush EntryPush::fromJson(const QJsonObject& obj)
 SavedState SavedState::fromJson(const QJsonObject& obj)
 {
     SavedState s;
-    s.id   = obj["id"].toString();
+    s.id = obj["id"].toString();
     s.name = obj["name"].toString();
 
     for (const auto& v : obj["activeTags"].toArray())
@@ -71,24 +73,25 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
         if (vv.isArray()) {
             for (const QJsonValue& v : vv.toArray()) {
                 const QJsonObject o = v.toObject();
-                s.varValues.append({ o["name"].toString(),
-                                     o["value"].toString() });
+                s.varValues.append({o["name"].toString(), o["value"].toString()});
             }
-        } else {
+        }
+        else {
             const QJsonObject vars = vv.toObject();
             for (auto it = vars.constBegin(); it != vars.constEnd(); ++it)
-                s.varValues.append({ it.key(), it.value().toString() });
+                s.varValues.append({it.key(), it.value().toString()});
         }
     }
 
-    s.selectedWorkflowId  = obj["selectedWorkflowId"].toString();
+    s.selectedWorkflowId = obj["selectedWorkflowId"].toString();
     {
         // Accept both new array form and legacy object form. Object → array
         // conversion picks up the placeholder from the object key.
         const QJsonValue wfv = obj["workflowVarValues"];
         if (wfv.isArray()) {
             s.workflowVarValues = wfv.toArray();
-        } else if (wfv.isObject()) {
+        }
+        else if (wfv.isObject()) {
             QJsonArray arr;
             const QJsonObject o = wfv.toObject();
             for (auto it = o.constBegin(); it != o.constEnd(); ++it) {
@@ -99,7 +102,7 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
             s.workflowVarValues = arr;
         }
     }
-    s.previewImagePath    = obj["previewImage"].toString();
+    s.previewImagePath = obj["previewImage"].toString();
     for (const auto& v : obj["activeLoraUuids"].toArray())
         s.activeLoraUuids << v.toString();
     return s;
@@ -108,11 +111,12 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
 QJsonObject SavedState::toJson() const
 {
     QJsonObject obj;
-    obj["id"]   = id;
+    obj["id"] = id;
     obj["name"] = name;
 
     QJsonArray tagsArr;
-    for (const auto& t : activeTags) tagsArr.append(t);
+    for (const auto& t : activeTags)
+        tagsArr.append(t);
     obj["activeTags"] = tagsArr;
 
     QJsonObject weightsObj;
@@ -121,7 +125,8 @@ QJsonObject SavedState::toJson() const
     obj["tagWeights"] = weightsObj;
 
     QJsonArray deactArr;
-    for (const auto& t : deactivatedTags) deactArr.append(t);
+    for (const auto& t : deactivatedTags)
+        deactArr.append(t);
     obj["deactivatedTags"] = deactArr;
 
     QJsonArray pushesArr;
@@ -137,7 +142,8 @@ QJsonObject SavedState::toJson() const
     QJsonObject ruleArgsObj;
     for (auto it = ruleArguments.constBegin(); it != ruleArguments.constEnd(); ++it) {
         QJsonArray arr;
-        for (const auto& a : it.value()) arr.append(a);
+        for (const auto& a : it.value())
+            arr.append(a);
         ruleArgsObj[it.key()] = arr;
     }
     obj["ruleArguments"] = ruleArgsObj;
@@ -146,19 +152,19 @@ QJsonObject SavedState::toJson() const
     QJsonArray varsArr;
     for (const auto& v : varValues) {
         QJsonObject one;
-        one["name"]  = v.first;
+        one["name"] = v.first;
         one["value"] = v.second;
         varsArr.append(one);
     }
     obj["varValues"] = varsArr;
 
-    obj["selectedWorkflowId"]  = selectedWorkflowId;
-    obj["workflowVarValues"]   = workflowVarValues;
-    obj["previewImage"] = previewImagePath.isEmpty()
-        ? QString()
-        : QFileInfo(previewImagePath).fileName();
+    obj["selectedWorkflowId"] = selectedWorkflowId;
+    obj["workflowVarValues"] = workflowVarValues;
+    obj["previewImage"] =
+        previewImagePath.isEmpty() ? QString() : QFileInfo(previewImagePath).fileName();
     QJsonArray loraArr;
-    for (const auto& uuid : activeLoraUuids) loraArr.append(uuid);
+    for (const auto& uuid : activeLoraUuids)
+        loraArr.append(uuid);
     obj["activeLoraUuids"] = loraArr;
     return obj;
 }
@@ -194,8 +200,7 @@ void StateManager::saveToDir(const QString& dir) const
         const QString stateDir = dir + "/" + s.id;
         QDir().mkpath(stateDir);
         QFile f(stateDir + "/state.json");
-        if (f.open(QIODevice::WriteOnly))
-            f.write(QJsonDocument(s.toJson()).toJson());
+        if (f.open(QIODevice::WriteOnly)) f.write(QJsonDocument(s.toJson()).toJson());
     }
 }
 

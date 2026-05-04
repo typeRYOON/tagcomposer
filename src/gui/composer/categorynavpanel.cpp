@@ -35,8 +35,8 @@ CategoryNavPanel::CategoryNavPanel(QWidget* parent) : QWidget(parent)
     m_anim->setEasingCurve(QEasingCurve::InOutQuad);
     m_anim->setDuration(160);
     // Resize panel as list height changes so the widget tracks content
-    connect(m_anim, &QPropertyAnimation::valueChanged,
-            m_listFrame, [this](const QVariant&) { adjustSize(); });
+    connect(m_anim, &QPropertyAnimation::valueChanged, m_listFrame,
+            [this](const QVariant&) { adjustSize(); });
 }
 
 void CategoryNavPanel::updateCategories(const QStringList& displayNames)
@@ -61,8 +61,7 @@ void CategoryNavPanel::updateCategories(const QStringList& displayNames)
 
     m_fullHeight = displayNames.size() * 24 + 4;
     // If already expanded, update live
-    if (m_listFrame->maximumHeight() > 0)
-        m_listFrame->setMaximumHeight(m_fullHeight);
+    if (m_listFrame->maximumHeight() > 0) m_listFrame->setMaximumHeight(m_fullHeight);
     adjustSize();
 }
 

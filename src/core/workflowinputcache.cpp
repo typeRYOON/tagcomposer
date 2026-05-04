@@ -1,5 +1,5 @@
 #include <core/workflowinputcache.h>
-#include <core/workflowmanager.h>  // for ImageEdits (resolveEdited renders it)
+#include <core/workflowmanager.h> // for ImageEdits (resolveEdited renders it)
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -30,7 +30,7 @@ QString WorkflowInputCache::importFromFile(const QString& srcPath)
     if (!fi.exists() || !fi.isFile()) return {};
 
     const QString uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    const QString dst  = m_cacheDir + "/" + uuid + ".png";
+    const QString dst = m_cacheDir + "/" + uuid + ".png";
 
     QImage img;
     QImageReader reader(srcPath);
@@ -38,17 +38,16 @@ QString WorkflowInputCache::importFromFile(const QString& srcPath)
     if (!reader.read(&img) || img.isNull()) return {};
 
     // Always store as ARGB so the alpha (mask) round-trip is lossless.
-    if (img.format() != QImage::Format_ARGB32)
-        img = img.convertToFormat(QImage::Format_ARGB32);
+    if (img.format() != QImage::Format_ARGB32) img = img.convertToFormat(QImage::Format_ARGB32);
 
     if (!img.save(dst, "PNG")) return {};
 
     WorkflowInput rec;
-    rec.uuid         = uuid;
-    rec.displayName  = fi.completeBaseName();
+    rec.uuid = uuid;
+    rec.displayName = fi.completeBaseName();
     rec.originalFile = fi.fileName();
-    rec.width        = img.width();
-    rec.height       = img.height();
+    rec.width = img.width();
+    rec.height = img.height();
 
     m_byUuid.insert(uuid, rec);
     writeIndex();
@@ -92,11 +91,11 @@ QString WorkflowInputCache::saveMask(const QImage& mask)
     if (mask.isNull()) return {};
     const QString dir = m_cacheDir + "/_masks";
     if (!QDir().mkpath(dir)) return {};
-    const QString id   = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    const QString id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     const QString path = dir + "/" + id + ".png";
     QImage saved = mask.format() == QImage::Format_Grayscale8
-        ? mask
-        : mask.convertToFormat(QImage::Format_Grayscale8);
+                       ? mask
+                       : mask.convertToFormat(QImage::Format_Grayscale8);
     if (!saved.save(path, "PNG")) return {};
     return id;
 }
@@ -117,13 +116,12 @@ void WorkflowInputCache::removeMask(const QString& maskId)
     QFile::remove(maskPath(maskId));
 }
 
-QString WorkflowInputCache::resolveEdited(const QString& uuid,
-                                          const ImageEdits& edits) const
+QString WorkflowInputCache::resolveEdited(const QString& uuid, const ImageEdits& edits) const
 {
     if (!edits.enabled || uuid.isEmpty()) return localPath(uuid);
 
     const QString src = localPath(uuid);
-    const QString editedDir  = m_cacheDir + "/_edited/" + edits.hash();
+    const QString editedDir = m_cacheDir + "/_edited/" + edits.hash();
     // Basename stays <uuid>.png - uploadInput uses the file's basename as the
     // server-side filename, and applyToJson substitutes "tagcomposer/<uuid>.png".
     const QString editedPath = editedDir + "/" + uuid + ".png";
@@ -147,11 +145,8 @@ QString WorkflowInputCache::resolveEdited(const QString& uuid,
     //
     // Trim mode  (trimToCrop=true): output is just the crop rect. RGB =
     //   cropped pixels, alpha=255 everywhere (no mask).
-    QImage out = edits.trimToCrop
-        ? source.copy(crop)
-        : source.copy();
-    if (out.format() != QImage::Format_ARGB32)
-        out = out.convertToFormat(QImage::Format_ARGB32);
+    QImage out = edits.trimToCrop ? source.copy(crop) : source.copy();
+    if (out.format() != QImage::Format_ARGB32) out = out.convertToFormat(QImage::Format_ARGB32);
 
     if (edits.trimToCrop) {
         // Force alpha=255 everywhere; preserve RGB.
@@ -162,12 +157,12 @@ QString WorkflowInputCache::resolveEdited(const QString& uuid,
                 row[x] = qRgba(qRed(px), qGreen(px), qBlue(px), 255);
             }
         }
-    } else {
+    }
+    else {
         // Resolve effective mask. Painted mask wins; if absent, synthesize
         // from cropRect (the legacy rect-only edits).
         QImage mask = loadMask(edits.maskId);
-        const bool useMask = !mask.isNull()
-                          && mask.size() == source.size();
+        const bool useMask = !mask.isNull() && mask.size() == source.size();
 
         for (int y = 0; y < out.height(); ++y) {
             QRgb* row = reinterpret_cast<QRgb*>(out.scanLine(y));
@@ -179,7 +174,8 @@ QString WorkflowInputCache::resolveEdited(const QString& uuid,
                     // mask value: 0 = not masked → alpha=255
                     //           255 = masked     → alpha=0
                     alpha = 255 - maskRow[x];
-                } else if (yInRect && x >= crop.left() && x <= crop.right()) {
+                }
+                else if (yInRect && x >= crop.left() && x <= crop.right()) {
                     alpha = 0;
                 }
                 const QRgb px = row[x];
@@ -209,18 +205,16 @@ void WorkflowInputCache::readIndex()
     QFile f(m_cacheDir + "/" + kIndexFile);
     if (!f.open(QIODevice::ReadOnly)) return;
 
-    const QJsonArray arr =
-        QJsonDocument::fromJson(f.readAll()).object()["entries"].toArray();
+    const QJsonArray arr = QJsonDocument::fromJson(f.readAll()).object()["entries"].toArray();
     for (const QJsonValue& v : arr) {
         const QJsonObject o = v.toObject();
         WorkflowInput rec;
-        rec.uuid         = o["uuid"].toString();
-        rec.displayName  = o["displayName"].toString();
+        rec.uuid = o["uuid"].toString();
+        rec.displayName = o["displayName"].toString();
         rec.originalFile = o["originalFile"].toString();
-        rec.width        = o["width"].toInt();
-        rec.height       = o["height"].toInt();
-        if (!rec.uuid.isEmpty())
-            m_byUuid.insert(rec.uuid, rec);
+        rec.width = o["width"].toInt();
+        rec.height = o["height"].toInt();
+        if (!rec.uuid.isEmpty()) m_byUuid.insert(rec.uuid, rec);
     }
 }
 
@@ -229,11 +223,11 @@ void WorkflowInputCache::writeIndex() const
     QJsonArray arr;
     for (const WorkflowInput& rec : m_byUuid) {
         QJsonObject o;
-        o["uuid"]         = rec.uuid;
-        o["displayName"]  = rec.displayName;
+        o["uuid"] = rec.uuid;
+        o["displayName"] = rec.displayName;
         o["originalFile"] = rec.originalFile;
-        o["width"]        = rec.width;
-        o["height"]       = rec.height;
+        o["width"] = rec.width;
+        o["height"] = rec.height;
         arr.append(o);
     }
     QJsonObject root;

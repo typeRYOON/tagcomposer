@@ -13,15 +13,15 @@ namespace gui {
 // addWidget()/addButton() in the matching visual position. Reordering means
 // touching all three. Keeps page references self-documenting at the call site.
 enum class Page : int {
-    Home           = 0,
-    EntryViewer    = 1,
-    TagComposer    = 2,
-    FacetEditor    = 3,
+    Home = 0,
+    EntryViewer = 1,
+    TagComposer = 2,
+    FacetEditor = 3,
     WorkflowEditor = 4,
-    OutputViewer   = 5,
+    OutputViewer = 5,
     DatasetHelpers = 6,
-    DanbooruWiki   = 7,
-    Settings       = 8,
+    DanbooruWiki = 7,
+    Settings = 8,
 };
 
 class NavButton : public QPushButton {
@@ -41,8 +41,8 @@ protected:
     void paintEvent(QPaintEvent* e) override;
 
 private:
-    QString  m_tooltipText;
-    QPixmap  m_navIcon;
+    QString m_tooltipText;
+    QPixmap m_navIcon;
 };
 
 
@@ -58,9 +58,9 @@ signals:
     void pageRequested(int index);
 
 private:
-    QLabel*                 m_tooltip;
-    QVector<NavButton*>     m_buttons;
-    QHash<int, NavButton*>  m_pageButtonMap;
+    QLabel* m_tooltip;
+    QVector<NavButton*> m_buttons;
+    QHash<int, NavButton*> m_pageButtonMap;
     void showTooltip(const QString& text, QPoint globalPos);
     void hideTooltip();
 };

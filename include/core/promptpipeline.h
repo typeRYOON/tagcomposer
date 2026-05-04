@@ -9,12 +9,8 @@ namespace core {
 class PromptPipeline : public QObject {
     Q_OBJECT
 public:
-    explicit PromptPipeline(
-        FacetIndex*    facets,
-        RuleEngine*    rules,
-        VariableIndex* vars   = nullptr,
-        QObject*       parent = nullptr
-    );
+    explicit PromptPipeline(FacetIndex* facets, RuleEngine* rules, VariableIndex* vars = nullptr,
+                            QObject* parent = nullptr);
 
     // Push the active image's tags through the full pipeline.
     // Emits pipelineReady when done.
@@ -32,8 +28,8 @@ signals:
     void pipelineReady(QList<core::CategoryGroup> groups);
 
 private:
-    FacetIndex*    m_facets;
-    RuleEngine*    m_rules;
+    FacetIndex* m_facets;
+    RuleEngine* m_rules;
     VariableIndex* m_varIndex;
 
     QList<CategoryGroup> groupByCategory(const QList<PipelineTag>& tags) const;

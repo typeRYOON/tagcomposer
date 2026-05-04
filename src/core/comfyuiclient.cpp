@@ -23,21 +23,28 @@ namespace core {
 class WsWorker : public QObject {
     Q_OBJECT
 public:
-    explicit WsWorker(QObject* parent = nullptr) : QObject(parent)
-        , m_ws(new QWebSocket(QString(), QWebSocketProtocol::VersionLatest, this))
+    explicit WsWorker(QObject* parent = nullptr)
+        : QObject(parent), m_ws(new QWebSocket(QString(), QWebSocketProtocol::VersionLatest, this))
     {
-        connect(m_ws, &QWebSocket::connected,
-                this, &WsWorker::wsConnected);
-        connect(m_ws, &QWebSocket::disconnected,
-                this, [this]() { emit wsDisconnected(m_ws->errorString()); });
-        connect(m_ws, &QWebSocket::textMessageReceived,
-                this, &WsWorker::onText);
+        connect(m_ws, &QWebSocket::connected, this, &WsWorker::wsConnected);
+        connect(m_ws, &QWebSocket::disconnected, this,
+                [this]() { emit wsDisconnected(m_ws->errorString()); });
+        connect(m_ws, &QWebSocket::textMessageReceived, this, &WsWorker::onText);
     }
 
 public slots:
-    void open(const QUrl& url) { m_ws->open(url); }
-    void close()               { m_ws->close(); }
-    void abort()               { m_ws->abort(); }
+    void open(const QUrl& url)
+    {
+        m_ws->open(url);
+    }
+    void close()
+    {
+        m_ws->close();
+    }
+    void abort()
+    {
+        m_ws->abort();
+    }
 
 signals:
     void wsConnected();
@@ -54,7 +61,7 @@ private slots:
 
         if (type == "preview") {
             const QJsonObject data = msg["data"].toObject();
-            const int step  = data["step"].toInt();
+            const int step = data["step"].toInt();
             const int total = data["total_steps"].toInt();
             // Comfy emits steps 0..total-1 (the decoded final image arrives
             // *after* the last preview and isn't sent over the WS); +1 so the
@@ -62,19 +69,17 @@ private slots:
             emit previewProgressChanged(step + 1, total);
 
             // Preview bytes from last gen gets passed for some reason from comfyui.
-            if (step == 0)
-                return;
-            const QByteArray imgBytes =
-                QByteArray::fromBase64(data["image"].toString().toUtf8());
+            if (step == 0) return;
+            const QByteArray imgBytes = QByteArray::fromBase64(data["image"].toString().toUtf8());
             QImage img;
-            if (img.loadFromData(imgBytes))
-                emit previewImageReady(img);
-
-        } else if (type == "status") {
-            const int q = msg["data"].toObject()
-                             ["status"].toObject()
-                             ["exec_info"].toObject()
-                             ["queue_remaining"].toInt();
+            if (img.loadFromData(imgBytes)) emit previewImageReady(img);
+        }
+        else if (type == "status") {
+            const int q = msg["data"]
+                              .toObject()["status"]
+                              .toObject()["exec_info"]
+                              .toObject()["queue_remaining"]
+                              .toInt();
             emit queueCountChanged(q);
         }
     }
@@ -86,10 +91,8 @@ private:
 // ── ComfyUiClient ─────────────────────────────────────────────────────────────
 
 ComfyUiClient::ComfyUiClient(QObject* parent)
-    : QObject(parent)
-    , m_wsThread(new QThread(this))
-    , m_nam(new QNetworkAccessManager(this))
-    , m_clientId(QUuid::createUuid().toString(QUuid::WithoutBraces))
+    : QObject(parent), m_wsThread(new QThread(this)), m_nam(new QNetworkAccessManager(this)),
+      m_clientId(QUuid::createUuid().toString(QUuid::WithoutBraces))
 {
     auto* worker = new WsWorker;
     m_worker = worker;
@@ -97,11 +100,12 @@ ComfyUiClient::ComfyUiClient(QObject* parent)
     worker->moveToThread(m_wsThread);
     connect(m_wsThread, &QThread::finished, worker, &QObject::deleteLater);
 
-    connect(worker, &WsWorker::wsConnected,            this, &ComfyUiClient::onWsConnected);
-    connect(worker, &WsWorker::wsDisconnected,         this, &ComfyUiClient::onWsDisconnected);
-    connect(worker, &WsWorker::previewImageReady,      this, &ComfyUiClient::previewImageReady);
-    connect(worker, &WsWorker::previewProgressChanged, this, &ComfyUiClient::previewProgressChanged);
-    connect(worker, &WsWorker::queueCountChanged,      this, &ComfyUiClient::queueCountChanged);
+    connect(worker, &WsWorker::wsConnected, this, &ComfyUiClient::onWsConnected);
+    connect(worker, &WsWorker::wsDisconnected, this, &ComfyUiClient::onWsDisconnected);
+    connect(worker, &WsWorker::previewImageReady, this, &ComfyUiClient::previewImageReady);
+    connect(worker, &WsWorker::previewProgressChanged, this,
+            &ComfyUiClient::previewProgressChanged);
+    connect(worker, &WsWorker::queueCountChanged, this, &ComfyUiClient::queueCountChanged);
 
     m_wsThread->start();
 }
@@ -183,7 +187,7 @@ void ComfyUiClient::freeMemory(std::function<void(bool, QString)> cb)
 
     QJsonObject body;
     body["unload_models"] = true;
-    body["free_memory"]   = true;
+    body["free_memory"] = true;
     const QJsonObject extra = extraData();
     if (!extra.isEmpty()) body["extra_data"] = extra;
 
@@ -207,11 +211,9 @@ void ComfyUiClient::queuePrompt(const QString& workflowJson)
 
     QJsonObject body;
     body["client_id"] = m_clientId;
-    body["prompt"]    = QJsonDocument::fromJson(workflowJson.toUtf8()).object();
+    body["prompt"] = QJsonDocument::fromJson(workflowJson.toUtf8()).object();
     if (body["prompt"].toObject().isEmpty()) {
-        utils::Logger::instance().log(
-            "Failed to parse the currently selected workflow's JSON."
-        );
+        utils::Logger::instance().log("Failed to parse the currently selected workflow's JSON.");
         return;
     }
 
@@ -222,8 +224,7 @@ void ComfyUiClient::queuePrompt(const QString& workflowJson)
     connect(reply, &QNetworkReply::finished, reply, &QObject::deleteLater);
 }
 
-void ComfyUiClient::uploadInput(const QString& localPath,
-                                const QString& subfolder,
+void ComfyUiClient::uploadInput(const QString& localPath, const QString& subfolder,
                                 const QString& localInputFolder,
                                 std::function<void(bool, QString)> cb)
 {
@@ -269,8 +270,7 @@ void ComfyUiClient::uploadInput(const QString& localPath,
     imagePart.setHeader(QNetworkRequest::ContentTypeHeader,
                         mime.isEmpty() ? QString("image/png") : mime);
     imagePart.setHeader(QNetworkRequest::ContentDispositionHeader,
-                        QString("form-data; name=\"image\"; filename=\"%1\"")
-                            .arg(fi.fileName()));
+                        QString("form-data; name=\"image\"; filename=\"%1\"").arg(fi.fileName()));
     imagePart.setBodyDevice(file);
     multi->append(imagePart);
 
@@ -282,7 +282,7 @@ void ComfyUiClient::uploadInput(const QString& localPath,
         multi->append(p);
     };
     addText("subfolder", subfolder);
-    addText("type",      "input");
+    addText("type", "input");
     addText("overwrite", "true");
 
     QNetworkRequest req(QUrl(QString("http://%1/upload/image").arg(m_serverAddress)));

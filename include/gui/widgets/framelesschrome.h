@@ -19,7 +19,7 @@ constexpr int kResizeBorder = 2;
 // Width of the invisible resize hit-test ring. Mouse events on the outer
 // kResizeHit pixels of the overlay are treated as edge grabs; this is also
 // the threshold edgesAt() uses to decide which edge(s) to pull on.
-constexpr int kResizeHit    = 6;
+constexpr int kResizeHit = 6;
 
 // Returns which edges (if any) of `size`'s rect the cursor at `pos` is
 // within kResizeHit pixels of. Used both for the hover-cursor lookup and
@@ -27,10 +27,14 @@ constexpr int kResizeHit    = 6;
 inline Qt::Edges edgesAt(const QPoint& pos, const QSize& size)
 {
     Qt::Edges e;
-    if      (pos.x() <= kResizeHit)                  e |= Qt::LeftEdge;
-    else if (pos.x() >= size.width()  - kResizeHit)  e |= Qt::RightEdge;
-    if      (pos.y() <= kResizeHit)                  e |= Qt::TopEdge;
-    else if (pos.y() >= size.height() - kResizeHit)  e |= Qt::BottomEdge;
+    if (pos.x() <= kResizeHit)
+        e |= Qt::LeftEdge;
+    else if (pos.x() >= size.width() - kResizeHit)
+        e |= Qt::RightEdge;
+    if (pos.y() <= kResizeHit)
+        e |= Qt::TopEdge;
+    else if (pos.y() >= size.height() - kResizeHit)
+        e |= Qt::BottomEdge;
     return e;
 }
 
@@ -38,14 +42,19 @@ inline Qt::CursorShape cursorForEdges(Qt::Edges e)
 {
     switch (int(e)) {
     case int(Qt::TopEdge | Qt::LeftEdge):
-    case int(Qt::BottomEdge | Qt::RightEdge): return Qt::SizeFDiagCursor;
+    case int(Qt::BottomEdge | Qt::RightEdge):
+        return Qt::SizeFDiagCursor;
     case int(Qt::TopEdge | Qt::RightEdge):
-    case int(Qt::BottomEdge | Qt::LeftEdge):  return Qt::SizeBDiagCursor;
+    case int(Qt::BottomEdge | Qt::LeftEdge):
+        return Qt::SizeBDiagCursor;
     case int(Qt::TopEdge):
-    case int(Qt::BottomEdge):                 return Qt::SizeVerCursor;
+    case int(Qt::BottomEdge):
+        return Qt::SizeVerCursor;
     case int(Qt::LeftEdge):
-    case int(Qt::RightEdge):                  return Qt::SizeHorCursor;
-    default:                                  return Qt::ArrowCursor;
+    case int(Qt::RightEdge):
+        return Qt::SizeHorCursor;
+    default:
+        return Qt::ArrowCursor;
     }
 }
 
@@ -55,10 +64,8 @@ inline Qt::CursorShape cursorForEdges(Qt::Edges e)
 class ResizeOutline : public QWidget {
 public:
     ResizeOutline()
-        : QWidget(nullptr,
-                  Qt::FramelessWindowHint | Qt::Tool
-                  | Qt::WindowStaysOnTopHint
-                  | Qt::WindowDoesNotAcceptFocus)
+        : QWidget(nullptr, Qt::FramelessWindowHint | Qt::Tool | Qt::WindowStaysOnTopHint |
+                               Qt::WindowDoesNotAcceptFocus)
     {
         setAttribute(Qt::WA_TranslucentBackground);
         setAttribute(Qt::WA_ShowWithoutActivating);

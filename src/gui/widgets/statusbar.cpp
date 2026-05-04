@@ -8,8 +8,7 @@
 
 namespace gui {
 
-StatusBar::StatusBar(QWidget* parent)
-    : QWidget(parent)
+StatusBar::StatusBar(QWidget* parent) : QWidget(parent)
 {
     setObjectName("StatusBar");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -69,8 +68,8 @@ StatusBar::StatusBar(QWidget* parent)
     layout->addWidget(m_activeLabel);
     layout->addWidget(m_progress);
 
-    connect(&utils::Logger::instance(), &utils::Logger::messageLogged,
-            this, &StatusBar::showMessage);
+    connect(&utils::Logger::instance(), &utils::Logger::messageLogged, this,
+            &StatusBar::showMessage);
 }
 
 void StatusBar::showMessage(const QString& message)
@@ -78,13 +77,15 @@ void StatusBar::showMessage(const QString& message)
     QFontMetrics fm(m_label->font());
     QString elided = fm.elidedText(message, Qt::ElideRight, m_label->width());
     m_label->setText(elided);
-    if (message.isEmpty()) m_clearTimer->stop();
-    else                   m_clearTimer->start();
+    if (message.isEmpty())
+        m_clearTimer->stop();
+    else
+        m_clearTimer->start();
 }
 
 void StatusBar::setProgress(int step, int total)
 {
-    if (step <= 0 || total <= 0) return;  // ignore between-prompt idle reports
+    if (step <= 0 || total <= 0) return; // ignore between-prompt idle reports
     m_progress->setRange(0, total);
     m_progress->setValue(qMin(step, total));
     m_progress->setFormat(QString("%1 / %2").arg(step).arg(total));
@@ -108,7 +109,7 @@ void StatusBar::setActiveCount(int count)
     // message after a prompt is queued, and we want both to fade in at the
     // same moment instead of the label leading by hundreds of ms).
     m_activeLabel->setText(QString("%1 active").arg(count));
-    if (count <= 0) clearProgress();  // also drives the active label fade-out
+    if (count <= 0) clearProgress(); // also drives the active label fade-out
 }
 
 void StatusBar::fadeProgressTo(qreal opacity)

@@ -30,12 +30,18 @@ namespace {
 QColor danbooruCategoryColor(int cat)
 {
     switch (cat) {
-    case 0:  return { 0xb4, 0xc7, 0xd9 }; // general
-    case 1:  return { 0xf2, 0xac, 0x08 }; // artist
-    case 3:  return { 0xdd, 0x00, 0xdd }; // copyright
-    case 4:  return { 0x00, 0xaa, 0x00 }; // character
-    case 5:  return { 0xaa, 0xaa, 0xaa }; // meta
-    default: return { 0x88, 0x88, 0x88 };
+    case 0:
+        return {0xb4, 0xc7, 0xd9}; // general
+    case 1:
+        return {0xf2, 0xac, 0x08}; // artist
+    case 3:
+        return {0xdd, 0x00, 0xdd}; // copyright
+    case 4:
+        return {0x00, 0xaa, 0x00}; // character
+    case 5:
+        return {0xaa, 0xaa, 0xaa}; // meta
+    default:
+        return {0x88, 0x88, 0x88};
     }
 }
 
@@ -49,13 +55,8 @@ QString tagToApiSlug(const QString& tag)
 }
 } // namespace
 
-FacetEditorPage::FacetEditorPage(
-    core::FacetIndex*  facets,
-    core::EntryModel*  model,
-    QWidget*           parent)
-    : QWidget(parent)
-    , m_facets(facets)
-    , m_model(model)
+FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* model, QWidget* parent)
+    : QWidget(parent), m_facets(facets), m_model(model)
 {
     setObjectName("FacetEditorPage");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -71,13 +72,13 @@ FacetEditorPage::FacetEditorPage(
 
     m_undefinedHeader = new QLabel;
     m_undefinedHeader->setObjectName("FacetPanelHeader");
-    m_undefinedHeader->hide();  // shown by refreshUndefinedList when non-empty
+    m_undefinedHeader->hide(); // shown by refreshUndefinedList when non-empty
 
     m_undefinedList = new QListWidget;
     m_undefinedList->setObjectName("FacetTagList");
     m_undefinedList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_undefinedList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
-    m_undefinedList->setMaximumHeight(160);  // ~6 rows; longer lists scroll
+    m_undefinedList->setMaximumHeight(160); // ~6 rows; longer lists scroll
     m_undefinedList->hide();
 
     m_countLabel = new QLabel;
@@ -91,33 +92,29 @@ FacetEditorPage::FacetEditorPage(
 
     // Both lists feed selectTag; clicking one clears the other's highlight
     // so the selection is always visually unambiguous.
-    connect(m_tagList, &QListWidget::currentTextChanged,
-            this, [this](const QString& text) {
-                if (!text.isEmpty()) m_undefinedList->setCurrentItem(nullptr);
-                selectTag(text);
-            });
-    connect(m_undefinedList, &QListWidget::currentTextChanged,
-            this, [this](const QString& text) {
-                if (!text.isEmpty()) m_tagList->setCurrentItem(nullptr);
-                selectTag(text);
-            });
+    connect(m_tagList, &QListWidget::currentTextChanged, this, [this](const QString& text) {
+        if (!text.isEmpty()) m_undefinedList->setCurrentItem(nullptr);
+        selectTag(text);
+    });
+    connect(m_undefinedList, &QListWidget::currentTextChanged, this, [this](const QString& text) {
+        if (!text.isEmpty()) m_tagList->setCurrentItem(nullptr);
+        selectTag(text);
+    });
 
-    connect(m_searchEdit, &QLineEdit::textChanged,
-            this, &FacetEditorPage::applyListFilter);
+    connect(m_searchEdit, &QLineEdit::textChanged, this, &FacetEditorPage::applyListFilter);
 
     // Right-click → "Go to Wiki" on either list
     auto installWikiMenu = [this](QListWidget* list) {
         list->setContextMenuPolicy(Qt::CustomContextMenu);
-        connect(list, &QListWidget::customContextMenuRequested,
-            this, [this, list](const QPoint& pos) {
-                QListWidgetItem* item = list->itemAt(pos);
-                if (!item) return;
-                const QString tag = item->text();
-                QMenu menu;
-                QAction* wikiAct = menu.addAction("Go to Wiki");
-                if (menu.exec(QCursor::pos()) == wikiAct)
-                    emit wikiRequested(tag);
-            });
+        connect(list, &QListWidget::customContextMenuRequested, this,
+                [this, list](const QPoint& pos) {
+                    QListWidgetItem* item = list->itemAt(pos);
+                    if (!item) return;
+                    const QString tag = item->text();
+                    QMenu menu;
+                    QAction* wikiAct = menu.addAction("Go to Wiki");
+                    if (menu.exec(QCursor::pos()) == wikiAct) emit wikiRequested(tag);
+                });
     };
     installWikiMenu(m_tagList);
     installWikiMenu(m_undefinedList);
@@ -147,8 +144,7 @@ FacetEditorPage::FacetEditorPage(
     schemaOpenBtn->setCursor(Qt::PointingHandCursor);
     schemaOpenBtn->setToolTip("Open facets.fct in editor");
     connect(schemaOpenBtn, &QPushButton::clicked, this, []() {
-        QDesktopServices::openUrl(
-            QUrl::fromLocalFile(utils::BASE_PATH + "/" + utils::FACETS_PATH));
+        QDesktopServices::openUrl(QUrl::fromLocalFile(utils::BASE_PATH + "/" + utils::FACETS_PATH));
     });
 
     auto* schemaReloadBtn = new QPushButton;
@@ -158,8 +154,7 @@ FacetEditorPage::FacetEditorPage(
     schemaReloadBtn->setIconSize(QSize(14, 14));
     schemaReloadBtn->setCursor(Qt::PointingHandCursor);
     schemaReloadBtn->setToolTip("Reload facets.fct (does not touch tag definitions)");
-    connect(schemaReloadBtn, &QPushButton::clicked,
-            this, &FacetEditorPage::schemaReloadRequested);
+    connect(schemaReloadBtn, &QPushButton::clicked, this, &FacetEditorPage::schemaReloadRequested);
 
     // Wrap the row in a styled container so the underline runs the full width
     // (under the open/reload buttons too), not just under the label.
@@ -177,11 +172,10 @@ FacetEditorPage::FacetEditorPage(
     m_facetSearchEdit->setObjectName("FacetSearchBar");
     m_facetSearchEdit->setPlaceholderText("filter facets...");
     m_facetSearchEdit->setClearButtonEnabled(true);
-    connect(m_facetSearchEdit, &QLineEdit::textChanged,
-            this, &FacetEditorPage::applyFacetFilter);
+    connect(m_facetSearchEdit, &QLineEdit::textChanged, this, &FacetEditorPage::applyFacetFilter);
 
     m_facetsContainer = new QWidget;
-    m_facetsLayout    = new QVBoxLayout(m_facetsContainer);
+    m_facetsLayout = new QVBoxLayout(m_facetsContainer);
     m_facetsLayout->setContentsMargins(8, 8, 8, 8);
     m_facetsLayout->setSpacing(6);
     m_facetsLayout->addStretch();
@@ -223,7 +217,7 @@ FacetEditorPage::FacetEditorPage(
     m_previewImage->setObjectName("FacetPreviewImage");
     m_previewImage->setAlignment(Qt::AlignCenter);
     m_previewImage->setMinimumHeight(380);
-    m_previewImage->installEventFilter(this);  // for click-through to the post page
+    m_previewImage->installEventFilter(this); // for click-through to the post page
 
     m_previewStatus = new QLabel;
     m_previewStatus->setObjectName("FacetPreviewStatus");
@@ -290,13 +284,11 @@ void FacetEditorPage::reload()
 
         auto* item = new QListWidgetItem(tag);
         item->setData(Qt::UserRole, defined);
-        if (defined)
-            item->setForeground(QColor("#3a6a3a"));
+        if (defined) item->setForeground(QColor("#3a6a3a"));
         m_tagList->addItem(item);
     }
 
-    m_countLabel->setText(
-        QString("  %1 / %2 defined").arg(definedCount).arg(m_tagList->count()));
+    m_countLabel->setText(QString("  %1 / %2 defined").arg(definedCount).arg(m_tagList->count()));
 
     if (!prevSelected.isEmpty()) {
         const auto items = m_tagList->findItems(prevSelected, Qt::MatchExactly);
@@ -351,8 +343,7 @@ void FacetEditorPage::refreshUndefinedList()
     for (const QString& tag : undefined)
         m_undefinedList->addItem(new QListWidgetItem(tag));
 
-    m_undefinedHeader->setText(
-        QString("UNDEFINED IN COMPOSER  (%1)").arg(undefined.size()));
+    m_undefinedHeader->setText(QString("UNDEFINED IN COMPOSER  (%1)").arg(undefined.size()));
     m_undefinedHeader->show();
     m_undefinedList->show();
     applyListFilter(m_searchEdit->text());
@@ -370,8 +361,7 @@ void FacetEditorPage::applyListFilter(const QString& query)
     auto applyTo = [&](QListWidget* list) {
         for (int i = 0; i < list->count(); ++i) {
             auto* item = list->item(i);
-            item->setHidden(!lower.isEmpty() &&
-                            !item->text().contains(lower, Qt::CaseInsensitive));
+            item->setHidden(!lower.isEmpty() && !item->text().contains(lower, Qt::CaseInsensitive));
         }
     };
     applyTo(m_tagList);
@@ -391,9 +381,8 @@ void FacetEditorPage::applyFacetFilter(const QString& query)
 
         bool anyVisible = false;
         for (auto* pill : block->findChildren<QPushButton*>("FacetPillBtn")) {
-            const bool match = lower.isEmpty()
-                            || catMatches
-                            || pill->text().toLower().contains(lower);
+            const bool match =
+                lower.isEmpty() || catMatches || pill->text().toLower().contains(lower);
             pill->setVisible(match);
             if (match) anyVisible = true;
         }
@@ -410,7 +399,8 @@ void FacetEditorPage::selectTagByName(const QString& tag)
     if (!items.isEmpty()) {
         m_tagList->setCurrentItem(items.first());
         m_tagList->scrollToItem(items.first());
-    } else {
+    }
+    else {
         // Tag not in model's index yet - add it temporarily
         auto* item = new QListWidgetItem(tag);
         const bool defined = m_facets->hasFacets(tag);
@@ -426,21 +416,26 @@ void FacetEditorPage::selectTagByName(const QString& tag)
 
 void FacetEditorPage::selectTag(const QString& tag)
 {
-    if (tag.isEmpty()) { clearEditor(); return; }
+    if (tag.isEmpty()) {
+        clearEditor();
+        return;
+    }
 
     m_selectedTag = tag;
     m_selectedLabel->setText(tag);
 
     // Match the entry-panel tag list: color the header by danbooru category
     // so the selected tag's type is recognisable at a glance.
-    const int    cat = m_danbooruIndex ? m_danbooruIndex->tagCategory(tag) : -1;
+    const int cat = m_danbooruIndex ? m_danbooruIndex->tagCategory(tag) : -1;
     const QColor col = danbooruCategoryColor(cat);
     m_selectedLabel->setStyleSheet(QString("color: %1;").arg(col.name()));
 
     // Drive the right-rail Danbooru preview. cat == -1 means the tag isn't
     // known to Danbooru, so don't waste a request.
-    if (cat >= 0) fetchPreview(tag);
-    else          clearPreview();
+    if (cat >= 0)
+        fetchPreview(tag);
+    else
+        clearPreview();
 
     const QList<QString> existing = m_facets->facetsFor(tag);
     m_saveBtn->setText(m_facets->hasFacets(tag) ? "Update definition" : "Save definition");
@@ -459,7 +454,7 @@ void FacetEditorPage::selectTag(const QString& tag)
         auto* block = new QFrame;
         block->setObjectName("FacetCategoryBlock");
         block->setAttribute(Qt::WA_StyledBackground);
-        block->setProperty("_categoryName", catName);  // for the filter below
+        block->setProperty("_categoryName", catName); // for the filter below
 
         auto* blockLayout = new QVBoxLayout(block);
         blockLayout->setContentsMargins(10, 6, 10, 10);
@@ -474,7 +469,7 @@ void FacetEditorPage::selectTag(const QString& tag)
         // Wrap-flowing toggle pills - bigger click target than a checkbox,
         // visually quicker to scan, and shows selected state via :checked QSS.
         auto* pillsHost = new QWidget;
-        auto* flow      = new FlowLayout(pillsHost, /*margin*/ 0, /*hSpace*/ 6, /*vSpace*/ 6);
+        auto* flow = new FlowLayout(pillsHost, /*margin*/ 0, /*hSpace*/ 6, /*vSpace*/ 6);
 
         for (const QString& f : facets) {
             auto* pill = new QPushButton(f);
@@ -493,12 +488,12 @@ void FacetEditorPage::selectTag(const QString& tag)
     const QList<QString> categories = m_facets->allCategories();
     if (categories.isEmpty()) {
         addBlock({}, m_facets->allFacets());
-    } else {
+    }
+    else {
         for (const QString& cat : categories) {
             QList<QString> catFacets;
             for (const QString& f : m_facets->allFacets())
-                if (m_facets->categoryFor(f) == cat)
-                    catFacets << f;
+                if (m_facets->categoryFor(f) == cat) catFacets << f;
             addBlock(cat, catFacets);
         }
     }
@@ -515,8 +510,7 @@ void FacetEditorPage::saveSelected()
 
     QList<QString> checked;
     for (auto* pill : m_facetsContainer->findChildren<QPushButton*>())
-        if (pill->isChecked())
-            checked << pill->text();
+        if (pill->isChecked()) checked << pill->text();
 
     // Empty list is valid: clears the tag's definition (FacetIndex removes
     // the entry entirely). Don't return early - that left the on-disk file
@@ -538,18 +532,16 @@ void FacetEditorPage::saveSelected()
 
     int definedCount = 0;
     for (int i = 0; i < m_tagList->count(); ++i)
-        if (m_tagList->item(i)->data(Qt::UserRole).toBool())
-            ++definedCount;
-    m_countLabel->setText(
-        QString("  %1 / %2 defined").arg(definedCount).arg(m_tagList->count()));
+        if (m_tagList->item(i)->data(Qt::UserRole).toBool()) ++definedCount;
+    m_countLabel->setText(QString("  %1 / %2 defined").arg(definedCount).arg(m_tagList->count()));
 
     m_saveBtn->setText(nowDefined ? "Update definition" : "Save definition");
-    refreshUndefinedList();  // saved tag drops out (or back into) the undefined section
+    refreshUndefinedList(); // saved tag drops out (or back into) the undefined section
     emit facetsDefined();
 
     if (wasFromUndefined) {
         if (m_undefinedList->count() > 0)
-            m_undefinedList->setCurrentRow(0);  // fires currentTextChanged → selectTag
+            m_undefinedList->setCurrentRow(0); // fires currentTextChanged → selectTag
         else
             clearEditor();
     }
@@ -584,12 +576,11 @@ void FacetEditorPage::setPreviewPixmap(const QPixmap& pix)
     m_previewStatus->hide();
     m_previewStatus->clear();
 
-    constexpr int maxW   = 356;  // panel inner width (380 - 12*2 margins)
-    constexpr int maxH   = 520;
+    constexpr int maxW = 356; // panel inner width (380 - 12*2 margins)
+    constexpr int maxH = 520;
     constexpr qreal kRad = 6.0;
 
-    const QPixmap scaled = pix.scaled(
-        maxW, maxH, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    const QPixmap scaled = pix.scaled(maxW, maxH, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
     // QSS border-radius on QLabel doesn't clip the pixmap content - paint into
     // a transparent canvas with a rounded clip path so the corners are actually
@@ -608,24 +599,16 @@ void FacetEditorPage::setPreviewPixmap(const QPixmap& pix)
 
     m_previewImage->setPixmap(rounded);
     m_previewImage->show();
-    m_previewImage->setCursor(m_previewPostId > 0
-                                  ? Qt::PointingHandCursor
-                                  : Qt::ArrowCursor);
+    m_previewImage->setCursor(m_previewPostId > 0 ? Qt::PointingHandCursor : Qt::ArrowCursor);
 }
 
 bool FacetEditorPage::eventFilter(QObject* obj, QEvent* ev)
 {
-    if (obj == m_previewImage
-        && ev->type() == QEvent::MouseButtonRelease
-        && m_previewPostId > 0)
-    {
+    if (obj == m_previewImage && ev->type() == QEvent::MouseButtonRelease && m_previewPostId > 0) {
         auto* me = static_cast<QMouseEvent*>(ev);
-        if (me->button() == Qt::LeftButton
-            && m_previewImage->rect().contains(me->pos()))
-        {
-            QDesktopServices::openUrl(QUrl(
-                QString("https://danbooru.donmai.us/posts/%1")
-                    .arg(m_previewPostId)));
+        if (me->button() == Qt::LeftButton && m_previewImage->rect().contains(me->pos())) {
+            QDesktopServices::openUrl(
+                QUrl(QString("https://danbooru.donmai.us/posts/%1").arg(m_previewPostId)));
             return true;
         }
     }
@@ -650,8 +633,8 @@ void FacetEditorPage::fetchPreview(const QString& tag)
     // consistent between the two pages.
     const QString slug = tagToApiSlug(tag);
     const QByteArray encoded = QUrl::toPercentEncoding(slug);
-    QUrl url(QString("https://danbooru.donmai.us/wiki_pages/%1.json")
-                 .arg(QString::fromLatin1(encoded)));
+    QUrl url(
+        QString("https://danbooru.donmai.us/wiki_pages/%1.json").arg(QString::fromLatin1(encoded)));
 
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
@@ -660,7 +643,7 @@ void FacetEditorPage::fetchPreview(const QString& tag)
     auto* reply = m_nam->get(req);
     connect(reply, &QNetworkReply::finished, this, [this, tag, reply]() {
         reply->deleteLater();
-        if (tag != m_selectedTag) return;  // user moved on
+        if (tag != m_selectedTag) return; // user moved on
 
         if (reply->error() != QNetworkReply::NoError) {
             // 404 (no wiki) or any network failure → fall through to a posts search.
@@ -669,13 +652,18 @@ void FacetEditorPage::fetchPreview(const QString& tag)
         }
 
         QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        if (!doc.isObject()) { fetchFirstPostByTag(tag); return; }
+        if (!doc.isObject()) {
+            fetchFirstPostByTag(tag);
+            return;
+        }
 
         const QString body = doc.object().value("body").toString();
         static const QRegularExpression postRe(R"(!post\s+#(\d+))");
         const auto m = postRe.match(body);
-        if (m.hasMatch()) fetchPostById(tag, m.captured(1).toInt());
-        else              fetchFirstPostByTag(tag);
+        if (m.hasMatch())
+            fetchPostById(tag, m.captured(1).toInt());
+        else
+            fetchFirstPostByTag(tag);
     });
 }
 
@@ -696,14 +684,20 @@ void FacetEditorPage::fetchPostById(const QString& tag, int postId)
             return;
         }
         QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        if (!doc.isObject()) { fetchFirstPostByTag(tag); return; }
+        if (!doc.isObject()) {
+            fetchFirstPostByTag(tag);
+            return;
+        }
 
         const QJsonObject post = doc.object();
         QString imgUrl = post.value("large_file_url").toString();
         if (imgUrl.isEmpty()) imgUrl = post.value("preview_file_url").toString();
-        if (imgUrl.isEmpty()) { fetchFirstPostByTag(tag); return; }
-        m_previewPostId        = postId;
-        m_previewPostIds[tag]  = postId;
+        if (imgUrl.isEmpty()) {
+            fetchFirstPostByTag(tag);
+            return;
+        }
+        m_previewPostId = postId;
+        m_previewPostIds[tag] = postId;
         fetchPreviewImage(tag, imgUrl);
     });
 }
@@ -745,8 +739,8 @@ void FacetEditorPage::fetchFirstPostByTag(const QString& tag)
             m_previewStatus->setText("(no preview)");
             return;
         }
-        const int postId      = post.value("id").toInt();
-        m_previewPostId       = postId;
+        const int postId = post.value("id").toInt();
+        m_previewPostId = postId;
         m_previewPostIds[tag] = postId;
         fetchPreviewImage(tag, imgUrl);
     });

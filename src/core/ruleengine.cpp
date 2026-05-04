@@ -13,8 +13,7 @@ static QList<QString> splitTrimmed(const QString& s, QChar sep)
 {
     QList<QString> out;
     for (const QString& p : s.split(sep))
-        if (const QString t = p.trimmed(); !t.isEmpty())
-            out << t;
+        if (const QString t = p.trimmed(); !t.isEmpty()) out << t;
     return out;
 }
 
@@ -27,8 +26,14 @@ static QList<QString> splitTopLevel(const QString& expr, const QString& sep)
     int depth = 0;
     int start = 0;
     for (int i = 0; i < expr.size(); ++i) {
-        if (expr[i] == '(') { ++depth; continue; }
-        if (expr[i] == ')') { --depth; continue; }
+        if (expr[i] == '(') {
+            ++depth;
+            continue;
+        }
+        if (expr[i] == ')') {
+            --depth;
+            continue;
+        }
         if (depth == 0 && expr.mid(i, sep.size()) == sep) {
             out << expr.mid(start, i - start).trimmed();
             i += sep.size() - 1;
@@ -47,17 +52,18 @@ static MatchClause parseClause(const QString& raw)
 
     if (expr.startsWith("NOT ")) {
         c.negate = true;
-        expr     = expr.mid(4).trimmed();
+        expr = expr.mid(4).trimmed();
     }
 
     if (!expr.startsWith("anyTag(")) return c;
     const QString inner = expr.mid(7, expr.length() - 8).trimmed();
 
     if (inner.startsWith("facets:")) {
-        c.type   = MatchType::AnyTagFacets;
+        c.type = MatchType::AnyTagFacets;
         c.facets = splitTrimmed(inner.mid(7), ',');
-    } else if (inner.startsWith("name:")) {
-        c.type     = MatchType::AnyTagName;
+    }
+    else if (inner.startsWith("name:")) {
+        c.type = MatchType::AnyTagName;
         c.nameGlob = inner.mid(5).trimmed().remove('"');
     }
 
@@ -74,8 +80,7 @@ static RuleMatch parseMatch(const QString& expr)
         QList<MatchClause> group;
         for (const QString& andPart : splitTopLevel(orPart, " AND "))
             group << parseClause(andPart);
-        if (!group.isEmpty())
-            m.orGroups << group;
+        if (!group.isEmpty()) m.orGroups << group;
     }
     return m;
 }
@@ -106,21 +111,21 @@ static QList<QString> extractArgs(const QString& expr)
     if (l < 0 || r <= l) return {};
 
     QList<QString> args;
-    bool    inQuote = false;
+    bool inQuote = false;
     QString current;
     for (QChar c : expr.mid(l + 1, r - l - 1)) {
         if (c == '"') {
             inQuote = !inQuote;
-        } else if (c == ',' && !inQuote) {
-            if (const QString t = current.trimmed(); !t.isEmpty())
-                args << t;
+        }
+        else if (c == ',' && !inQuote) {
+            if (const QString t = current.trimmed(); !t.isEmpty()) args << t;
             current.clear();
-        } else {
+        }
+        else {
             current += c;
         }
     }
-    if (const QString t = current.trimmed(); !t.isEmpty())
-        args << t;
+    if (const QString t = current.trimmed(); !t.isEmpty()) args << t;
     return args;
 }
 
@@ -135,15 +140,15 @@ static RuleAction parseAction(const QString& expr)
     else if (expr == "delete")
         a.type = ActionType::Delete;
     else if (expr.startsWith("add(")) {
-        a.type      = ActionType::Add;
+        a.type = ActionType::Add;
         a.arguments = extractArgs(expr);
     }
     else if (expr.startsWith("replace(")) {
-        a.type      = ActionType::Replace;
+        a.type = ActionType::Replace;
         a.arguments = extractArgs(expr);
     }
     else if (expr.startsWith("flag(")) {
-        a.type      = ActionType::Flag;
+        a.type = ActionType::Flag;
         a.arguments = extractArgs(expr);
     }
 
@@ -169,12 +174,12 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
         return eng;
     }
 
-    static const QStringList knownActions = { "skip", "add", "replace", "flag", "delete" };
+    static const QStringList knownActions = {"skip", "add", "replace", "flag", "delete"};
 
-    Rule    current;
-    bool    inRule     { false };
-    bool    actionSet  { false };
-    bool    skipBlock  { false };  // current @rule is a duplicate - drop until next @rule
+    Rule current;
+    bool inRule{false};
+    bool actionSet{false};
+    bool skipBlock{false}; // current @rule is a duplicate - drop until next @rule
     QSet<QString> seenNames;
 
     auto finaliseRule = [&]() {
@@ -184,28 +189,29 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
         eng.m_rules << current;
     };
 
-    for (const QString& raw : QString::fromUtf8(f.readAll()).split('\n'))
-    {
+    for (const QString& raw : QString::fromUtf8(f.readAll()).split('\n')) {
         const QString line = raw.trimmed();
         if (line.isEmpty() || line.startsWith('#')) continue;
 
         if (line.startsWith("@rule")) {
             if (inRule) finaliseRule();
-            current      = Rule{};
-            actionSet    = false;
+            current = Rule{};
+            actionSet = false;
             current.name = line.mid(5).trimmed();
-            inRule       = true;
-            skipBlock    = false;
+            inRule = true;
+            skipBlock = false;
 
             if (current.name.isEmpty()) {
                 skipBlock = true;
                 if (errors) *errors << "Rule with empty name skipped";
-            } else if (seenNames.contains(current.name)) {
+            }
+            else if (seenNames.contains(current.name)) {
                 skipBlock = true;
                 if (errors)
                     *errors << QString("Duplicate rule \"%1\" skipped (first definition kept)")
-                                .arg(current.name);
-            } else {
+                                   .arg(current.name);
+            }
+            else {
                 seenNames.insert(current.name);
             }
             continue;
@@ -213,17 +219,23 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
 
         if (!inRule || skipBlock || !line.contains('=')) continue;
 
-        const int     eq  = line.indexOf('=');
+        const int eq = line.indexOf('=');
         const QString key = line.left(eq).trimmed();
         const QString val = line.mid(eq + 1).trimmed();
 
-        if      (key == "enabled") current.enabled = (val == "true");
-        else if (key == "force")   current.force   = (val == "true");
-        else if (key == "match")   current.match   = parseMatch(val);
+        if (key == "enabled")
+            current.enabled = (val == "true");
+        else if (key == "force")
+            current.force = (val == "true");
+        else if (key == "match")
+            current.match = parseMatch(val);
         else if (key == "action") {
             bool known = false;
             for (const QString& kw : knownActions)
-                if (val == kw || val.startsWith(kw + "(")) { known = true; break; }
+                if (val == kw || val.startsWith(kw + "(")) {
+                    known = true;
+                    break;
+                }
             if (!known && errors)
                 *errors << QString("Rule \"%1\": unknown action \"%2\"").arg(current.name, val);
             current.action = parseAction(val);
@@ -246,8 +258,7 @@ void RuleEngine::saveToFile(const QString& path) const
     for (const Rule& r : m_rules) {
         ts << "@rule " << r.name << "\n";
         ts << "    enabled = " << (r.enabled ? "true" : "false") << "\n";
-        if (r.force)
-            ts << "    force   = true\n";
+        if (r.force) ts << "    force   = true\n";
 
         // Serialize match: OR groups joined by " OR ", clauses within joined by " AND "
         QStringList orParts;
@@ -267,11 +278,21 @@ void RuleEngine::saveToFile(const QString& path) const
         };
 
         switch (r.action.type) {
-        case ActionType::Skip:    ts << "    action  = skip\n";   break;
-        case ActionType::Delete:  ts << "    action  = delete\n"; break;
-        case ActionType::Add:     joinArgs("add",     true);      break;
-        case ActionType::Replace: joinArgs("replace", true);      break;
-        case ActionType::Flag:    joinArgs("flag",    false);     break;
+        case ActionType::Skip:
+            ts << "    action  = skip\n";
+            break;
+        case ActionType::Delete:
+            ts << "    action  = delete\n";
+            break;
+        case ActionType::Add:
+            joinArgs("add", true);
+            break;
+        case ActionType::Replace:
+            joinArgs("replace", true);
+            break;
+        case ActionType::Flag:
+            joinArgs("flag", false);
+            break;
         }
 
         ts << "\n";
@@ -280,8 +301,14 @@ void RuleEngine::saveToFile(const QString& path) const
 
 // ── Accessors ─────────────────────────────────────────────────────────────────
 
-QList<Rule>&       RuleEngine::rules()       { return m_rules; }
-const QList<Rule>& RuleEngine::rules() const { return m_rules; }
+QList<Rule>& RuleEngine::rules()
+{
+    return m_rules;
+}
+const QList<Rule>& RuleEngine::rules() const
+{
+    return m_rules;
+}
 
 // ── Matching ──────────────────────────────────────────────────────────────────
 
@@ -293,12 +320,9 @@ bool RuleEngine::globMatch(const QString& pattern, const QString& text)
     auto it = cache.find(pattern);
     if (it == cache.end()) {
         const QRegularExpression re(
-            "\\A" + QRegularExpression::escape(pattern)
-                        .replace("\\*", ".*")
-                        .replace("\\?", ".")
-                  + "\\z",
-            QRegularExpression::CaseInsensitiveOption
-        );
+            "\\A" + QRegularExpression::escape(pattern).replace("\\*", ".*").replace("\\?", ".") +
+                "\\z",
+            QRegularExpression::CaseInsensitiveOption);
         it = cache.insert(pattern, re);
     }
     return it.value().match(text).hasMatch();
@@ -328,7 +352,10 @@ bool RuleEngine::tagMatchesRule(const PipelineTag& pt, const RuleMatch& match)
         for (const MatchClause& clause : group) {
             bool ok = clauseMatches(pt, clause);
             if (clause.negate) ok = !ok;
-            if (!ok) { groupOk = false; break; }
+            if (!ok) {
+                groupOk = false;
+                break;
+            }
         }
         if (groupOk) return true;
     }
@@ -337,9 +364,8 @@ bool RuleEngine::tagMatchesRule(const PipelineTag& pt, const RuleMatch& match)
 
 // ── Evaluate ──────────────────────────────────────────────────────────────────
 
-QList<PipelineTag> RuleEngine::evaluate(
-    const QList<PipelineTag>& input,
-    const FacetIndex&         facets) const
+QList<PipelineTag> RuleEngine::evaluate(const QList<PipelineTag>& input,
+                                        const FacetIndex& facets) const
 {
     QList<PipelineTag> working = input;
 
@@ -348,32 +374,30 @@ QList<PipelineTag> RuleEngine::evaluate(
 
         QList<int> matched;
         for (int i = 0; i < working.size(); ++i)
-            if (working[i].result == RuleResult::Include
-                && tagMatchesRule(working[i], rule.match))
+            if (working[i].result == RuleResult::Include && tagMatchesRule(working[i], rule.match))
                 matched << i;
 
         if (matched.isEmpty() && !rule.force) continue;
 
         switch (rule.action.type) {
-
         case ActionType::Skip:
             for (int i : matched) {
-                working[i].result     = RuleResult::Skipped;
+                working[i].result = RuleResult::Skipped;
                 working[i].ruleSource = rule.name;
             }
             break;
 
         case ActionType::Delete:
             for (int i : matched) {
-                working[i].result     = RuleResult::Deleted;
+                working[i].result = RuleResult::Deleted;
                 working[i].ruleSource = rule.name;
             }
             break;
 
         case ActionType::Flag:
             for (int i : matched) {
-                working[i].result     = RuleResult::Flagged;
-                working[i].flagLabel  = rule.action.arguments.value(0);
+                working[i].result = RuleResult::Flagged;
+                working[i].flagLabel = rule.action.arguments.value(0);
                 working[i].ruleSource = rule.name;
             }
             break;
@@ -381,9 +405,9 @@ QList<PipelineTag> RuleEngine::evaluate(
         case ActionType::Add: {
             for (const QString& tag : rule.action.arguments) {
                 PipelineTag injected;
-                injected.tag        = tag;
-                injected.facets     = facets.facetsFor(tag);
-                injected.result     = RuleResult::Injected;
+                injected.tag = tag;
+                injected.facets = facets.facetsFor(tag);
+                injected.result = RuleResult::Injected;
                 injected.ruleSource = rule.name;
                 working << injected;
             }
@@ -392,14 +416,14 @@ QList<PipelineTag> RuleEngine::evaluate(
 
         case ActionType::Replace: {
             for (int i : matched) {
-                working[i].result     = RuleResult::Replaced;
+                working[i].result = RuleResult::Replaced;
                 working[i].ruleSource = rule.name;
             }
             for (const QString& tag : rule.action.arguments) {
                 PipelineTag injected;
-                injected.tag        = tag;
-                injected.facets     = facets.facetsFor(tag);
-                injected.result     = RuleResult::Injected;
+                injected.tag = tag;
+                injected.facets = facets.facetsFor(tag);
+                injected.result = RuleResult::Injected;
                 injected.ruleSource = rule.name;
                 working << injected;
             }

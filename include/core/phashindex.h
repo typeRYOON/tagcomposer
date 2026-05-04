@@ -24,28 +24,34 @@ namespace core {
 class PHashIndex {
 public:
     struct Match {
-        QString  filename;     // empty when no match was found
-        int      distance = -1;
+        QString filename; // empty when no match was found
+        int distance = -1;
     };
 
     static PHashIndex loadFromDir(const QString& collectionDir);
-    void              saveToDir(const QString& collectionDir) const;
+    void saveToDir(const QString& collectionDir) const;
 
-    int    size() const { return int(m_byName.size()); }
-    bool   contains(const QString& filename) const { return m_byName.contains(filename); }
+    int size() const
+    {
+        return int(m_byName.size());
+    }
+    bool contains(const QString& filename) const
+    {
+        return m_byName.contains(filename);
+    }
 
-    void   add(const QString& filename, uint64_t hash);
-    void   remove(const QString& filename);
-    void   clear();
+    void add(const QString& filename, uint64_t hash);
+    void remove(const QString& filename);
+    void clear();
 
     // Closest match within `threshold` Hamming bits. `Match::filename` is
     // empty if nothing is within threshold.
-    Match  findNearest(uint64_t hash, int threshold) const;
+    Match findNearest(uint64_t hash, int threshold) const;
 
     // Highest "NNNNN.<ext>" prefix in the index plus 1, so the watcher can
     // hand out the next sequential number without rescanning the dir. Drops
     // back to 1 when the index is empty.
-    int    nextNumber() const;
+    int nextNumber() const;
 
 private:
     // QHash so contains/remove are O(1); the linear hamming scan iterates

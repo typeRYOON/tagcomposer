@@ -23,11 +23,11 @@ protected:
     void leaveEvent(QEvent*) override;
 
 private:
-    QLabel*             m_handle;
-    QWidget*            m_listFrame;
-    QVBoxLayout*        m_listLayout;
+    QLabel* m_handle;
+    QWidget* m_listFrame;
+    QVBoxLayout* m_listLayout;
     QPropertyAnimation* m_anim;
-    int                 m_fullHeight = 0;
+    int m_fullHeight = 0;
 };
 
 } // namespace gui

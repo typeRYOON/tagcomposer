@@ -22,12 +22,18 @@ enum {
 static QColor categoryColor(int cat)
 {
     switch (cat) {
-    case 0:  return { 0xb4, 0xc7, 0xd9 }; // general   – light blue-gray
-    case 1:  return { 0xf2, 0xac, 0x08 }; // artist    – orange
-    case 3:  return { 0xdd, 0x00, 0xdd }; // copyright – purple
-    case 4:  return { 0x00, 0xaa, 0x00 }; // character – green
-    case 5:  return { 0xaa, 0xaa, 0xaa }; // meta      – gray
-    default: return { 0xe0, 0xe0, 0xe0 };
+    case 0:
+        return {0xb4, 0xc7, 0xd9}; // general   – light blue-gray
+    case 1:
+        return {0xf2, 0xac, 0x08}; // artist    – orange
+    case 3:
+        return {0xdd, 0x00, 0xdd}; // copyright – purple
+    case 4:
+        return {0x00, 0xaa, 0x00}; // character – green
+    case 5:
+        return {0xaa, 0xaa, 0xaa}; // meta      – gray
+    default:
+        return {0xe0, 0xe0, 0xe0};
     }
 }
 
@@ -37,43 +43,44 @@ public:
 
     QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const override
     {
-        return { 0, 36 };
+        return {0, 36};
     }
 
-    void paint(QPainter* p, const QStyleOptionViewItem& opt,
-               const QModelIndex& idx) const override
+    void paint(QPainter* p, const QStyleOptionViewItem& opt, const QModelIndex& idx) const override
     {
         p->save();
 
         const bool sel = opt.state & QStyle::State_Selected;
-        
+
         if (sel) {
             p->fillRect(opt.rect, QColor(0x22, 0x22, 0x22)); // bg (bug: not contained)
             p->fillRect(QRect(opt.rect.left(), opt.rect.top(), 3, opt.rect.height()),
-                QColor(0x40, 0x80, 0xff)); // blue ticker
+                        QColor(0x40, 0x80, 0xff)); // blue ticker
         }
-            
 
-        const QString display   = idx.data(Qt::DisplayRole).toString();
+
+        const QString display = idx.data(Qt::DisplayRole).toString();
         const QString canonical = idx.data(CanonicalTagRole).toString();
-        const int     cat       = idx.data(CategoryRole).toInt();
-        const int64_t count     = idx.data(CountRole).toLongLong();
-        const bool    isAlias   = idx.data(IsAliasRole).toBool();
-        const int     mStart    = idx.data(MatchStartRole).toInt();
-        const int     mLen      = idx.data(MatchLenRole).toInt();
+        const int cat = idx.data(CategoryRole).toInt();
+        const int64_t count = idx.data(CountRole).toLongLong();
+        const bool isAlias = idx.data(IsAliasRole).toBool();
+        const int mStart = idx.data(MatchStartRole).toInt();
+        const int mLen = idx.data(MatchLenRole).toInt();
 
         const QColor tagCol = categoryColor(cat);
 
-        QFont baseF = opt.font;  baseF.setPointSize(11);
-        QFont boldF = baseF;     boldF.setBold(true);
+        QFont baseF = opt.font;
+        baseF.setPointSize(11);
+        QFont boldF = baseF;
+        boldF.setBold(true);
         QFontMetrics fmBase(baseF);
 
-        const int baseline = opt.rect.top()
-                           + (opt.rect.height() + fmBase.ascent() - fmBase.descent()) / 2;
+        const int baseline =
+            opt.rect.top() + (opt.rect.height() + fmBase.ascent() - fmBase.descent()) / 2;
 
         // Three segments: before match | matched (bold) | after match
-        const QString pre  = display.left(mStart);
-        const QString mid  = display.mid(mStart, mLen);
+        const QString pre = display.left(mStart);
+        const QString mid = display.mid(mStart, mLen);
         const QString post = display.mid(mStart + mLen);
 
         int x = opt.rect.left() + 12;
@@ -84,12 +91,13 @@ public:
             p->drawText(x, baseline, t);
             x += QFontMetrics(f).horizontalAdvance(t);
         };
-        draw(pre,  baseF);
-        draw(mid,  boldF);
+        draw(pre, baseF);
+        draw(mid, boldF);
         draw(post, baseF);
 
         // Pills drawn right-to-left: count first, alias chip second
-        QFont pillF = opt.font;  pillF.setPointSize(9);
+        QFont pillF = opt.font;
+        pillF.setPointSize(9);
         QFontMetrics fmPill(pillF);
 
         int rx = opt.rect.right() - 8;
@@ -122,8 +130,7 @@ public:
 
 namespace gui {
 
-TagSearchBar::TagSearchBar(QWidget* parent)
-    : QWidget(parent)
+TagSearchBar::TagSearchBar(QWidget* parent) : QWidget(parent)
 {
     m_input = new QLineEdit(this);
     m_input->setObjectName("TagSearchInput");
@@ -148,7 +155,7 @@ TagSearchBar::TagSearchBar(QWidget* parent)
     m_list->setMouseTracking(true);
     connect(m_list, &QListWidget::itemClicked, this, [this](QListWidgetItem*) { commitCurrent(); });
     connect(m_list, &QListWidget::itemEntered, m_list,
-        qOverload<QListWidgetItem*>(&QListWidget::setCurrentItem));
+            qOverload<QListWidgetItem*>(&QListWidget::setCurrentItem));
 
     auto* popupLayout = new QVBoxLayout(m_popup);
     popupLayout->setContentsMargins(0, 0, 0, 0);
@@ -160,9 +167,7 @@ TagSearchBar::TagSearchBar(QWidget* parent)
     m_debounce->setInterval(120);
     connect(m_input, &QLineEdit::textChanged, this, &TagSearchBar::queryChanged);
     connect(m_input, &QLineEdit::textChanged, m_debounce, qOverload<>(&QTimer::start));
-    connect(m_debounce, &QTimer::timeout, this, [this]() {
-        runSearch(m_input->text().trimmed());
-    });
+    connect(m_debounce, &QTimer::timeout, this, [this]() { runSearch(m_input->text().trimmed()); });
 }
 
 void TagSearchBar::setIndex(core::DanbooruIndex* index)
@@ -190,19 +195,25 @@ void TagSearchBar::showEvent(QShowEvent* e)
 void TagSearchBar::runSearch(const QString& text)
 {
     m_list->clear();
-    if (!m_index || text.isEmpty()) { hidePopup(); return; }
+    if (!m_index || text.isEmpty()) {
+        hidePopup();
+        return;
+    }
 
     const auto results = m_index->search(text, 12);
-    if (results.isEmpty()) { hidePopup(); return; }
+    if (results.isEmpty()) {
+        hidePopup();
+        return;
+    }
 
     for (const auto& r : results) {
         auto* item = new QListWidgetItem(r.displayName);
         item->setData(CanonicalTagRole, r.canonicalTag);
-        item->setData(CountRole,        (qlonglong)r.count);
-        item->setData(CategoryRole,     r.category);
-        item->setData(IsAliasRole,      r.isAlias);
-        item->setData(MatchStartRole,   r.matchStart);
-        item->setData(MatchLenRole,     r.matchLen);
+        item->setData(CountRole, (qlonglong)r.count);
+        item->setData(CategoryRole, r.category);
+        item->setData(IsAliasRole, r.isAlias);
+        item->setData(MatchStartRole, r.matchStart);
+        item->setData(MatchLenRole, r.matchLen);
         m_list->addItem(item);
     }
 
@@ -277,8 +288,10 @@ bool TagSearchBar::eventFilter(QObject* obj, QEvent* event)
             auto* ke = static_cast<QKeyEvent*>(event);
             switch (ke->key()) {
             case Qt::Key_Down:
-                if (!m_popup->isVisible()) showPopup();
-                else m_list->setCurrentRow(std::min(m_list->currentRow() + 1, m_list->count() - 1));
+                if (!m_popup->isVisible())
+                    showPopup();
+                else
+                    m_list->setCurrentRow(std::min(m_list->currentRow() + 1, m_list->count() - 1));
                 return true;
             case Qt::Key_Up:
                 m_list->setCurrentRow(std::max(m_list->currentRow() - 1, 0));
@@ -309,11 +322,12 @@ bool TagSearchBar::eventFilter(QObject* obj, QEvent* event)
                 if (!m_input->hasFocus()) hidePopup();
             });
         }
-    } else {
+    }
+    else {
         // Parent window moved/resized - keep popup anchored below input
         const auto t = event->type();
-        if ((t == QEvent::Move || t == QEvent::Resize || t == QEvent::WindowStateChange)
-                && m_popup->isVisible())
+        if ((t == QEvent::Move || t == QEvent::Resize || t == QEvent::WindowStateChange) &&
+            m_popup->isVisible())
             repositionPopup();
     }
     return false;

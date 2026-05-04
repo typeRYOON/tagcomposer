@@ -16,8 +16,13 @@ class QListWidget;
 class QListWidgetItem;
 class QVBoxLayout;
 
-namespace utils { struct AppSettings; }
-namespace core  { class AutoTaggerLibrary; class BatchTagger; }
+namespace utils {
+struct AppSettings;
+}
+namespace core {
+class AutoTaggerLibrary;
+class BatchTagger;
+} // namespace core
 
 namespace gui {
 
@@ -28,9 +33,8 @@ namespace gui {
 class AutoTagPage : public QWidget {
     Q_OBJECT
 public:
-    AutoTagPage(core::AutoTaggerLibrary* library,
-                utils::AppSettings*      settings,
-                QWidget*                 parent = nullptr);
+    AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* settings,
+                QWidget* parent = nullptr);
     ~AutoTagPage() override;
 
     // Re-reads the library's available models - called by the parent when
@@ -57,42 +61,42 @@ signals:
     void sendToBatchEditRequested(const QString& folder);
 
 private:
-    core::AutoTaggerLibrary* m_library  = nullptr;
-    utils::AppSettings*      m_settings = nullptr;
-    core::BatchTagger*       m_runner   = nullptr;
+    core::AutoTaggerLibrary* m_library = nullptr;
+    utils::AppSettings* m_settings = nullptr;
+    core::BatchTagger* m_runner = nullptr;
 
     // ── Left panel (params) ──────────────────────────────────────────────────
-    QComboBox*    m_modelBox       = nullptr;
-    QLineEdit*    m_inputEdit      = nullptr;
-    QPushButton*  m_inputBrowseBtn = nullptr;
-    QLineEdit*    m_outputEdit     = nullptr;
-    QPushButton*  m_outBrowseBtn   = nullptr;
-    QSlider*      m_thresholdSlider= nullptr;
-    QLabel*       m_thresholdLbl   = nullptr;
-    QSpinBox*     m_cooldownSpin   = nullptr;
-    QCheckBox*    m_recursiveCheck = nullptr;
-    QCheckBox*    m_moveCheck      = nullptr;
-    QPushButton*  m_runBtn         = nullptr;
-    QPushButton*  m_cancelBtn      = nullptr;
-    QPushButton*  m_sendToEditorBtn= nullptr;
-    QPushButton*  m_sendToBatchBtn = nullptr;
+    QComboBox* m_modelBox = nullptr;
+    QLineEdit* m_inputEdit = nullptr;
+    QPushButton* m_inputBrowseBtn = nullptr;
+    QLineEdit* m_outputEdit = nullptr;
+    QPushButton* m_outBrowseBtn = nullptr;
+    QSlider* m_thresholdSlider = nullptr;
+    QLabel* m_thresholdLbl = nullptr;
+    QSpinBox* m_cooldownSpin = nullptr;
+    QCheckBox* m_recursiveCheck = nullptr;
+    QCheckBox* m_moveCheck = nullptr;
+    QPushButton* m_runBtn = nullptr;
+    QPushButton* m_cancelBtn = nullptr;
+    QPushButton* m_sendToEditorBtn = nullptr;
+    QPushButton* m_sendToBatchBtn = nullptr;
 
     // ── Middle panel (status + results) ──────────────────────────────────────
-    QLabel*       m_statusLabel    = nullptr;
-    QProgressBar* m_progressBar    = nullptr;
-    QListWidget*  m_resultsList    = nullptr;
-    QWidget*      m_emptyState     = nullptr;
-    QLabel*       m_emptyStateLbl  = nullptr;
+    QLabel* m_statusLabel = nullptr;
+    QProgressBar* m_progressBar = nullptr;
+    QListWidget* m_resultsList = nullptr;
+    QWidget* m_emptyState = nullptr;
+    QLabel* m_emptyStateLbl = nullptr;
 
     // ── Right panel (focused result) ─────────────────────────────────────────
-    QLabel*       m_focusImage     = nullptr;
-    QLabel*       m_focusRating    = nullptr;
-    QListWidget*  m_focusTags      = nullptr;
-    QString       m_focusedRel;
+    QLabel* m_focusImage = nullptr;
+    QLabel* m_focusRating = nullptr;
+    QListWidget* m_focusTags = nullptr;
+    QString m_focusedRel;
 
     // Cached results so clicking a list row brings them back without re-running.
     QHash<QString, core::TagResult> m_results;
-    QHash<QString, QString>         m_failures;  // rel → reason
+    QHash<QString, QString> m_failures; // rel → reason
 
     void onRun();
     void onCancel();

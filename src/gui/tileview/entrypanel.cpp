@@ -47,34 +47,40 @@ class LoraDropZone : public QLabel {
 public:
     std::function<void(const QString&)> onFileDropped;
     std::function<void(const QPoint&)> onContextMenuRequested;
-    explicit LoraDropZone(QWidget* parent = nullptr) : QLabel(parent) {
+    explicit LoraDropZone(QWidget* parent = nullptr) : QLabel(parent)
+    {
         setAcceptDrops(true);
         setCursor(Qt::PointingHandCursor);
         setAlignment(Qt::AlignCenter);
         setObjectName("LoraDropZone");
         setWordWrap(false);
     }
+
 protected:
-    void dragEnterEvent(QDragEnterEvent* e) override {
+    void dragEnterEvent(QDragEnterEvent* e) override
+    {
         if (!e->mimeData()->hasUrls()) return;
-        const QString ext = QFileInfo(e->mimeData()->urls().first().toLocalFile()).suffix().toLower();
+        const QString ext =
+            QFileInfo(e->mimeData()->urls().first().toLocalFile()).suffix().toLower();
         if (ext == "safetensors" || ext == "ckpt" || ext == "pt" || ext == "pth")
             e->acceptProposedAction();
     }
-    void dropEvent(QDropEvent* e) override {
+    void dropEvent(QDropEvent* e) override
+    {
         const QString path = e->mimeData()->urls().first().toLocalFile();
         if (!path.isEmpty() && onFileDropped) onFileDropped(path);
     }
-    void mousePressEvent(QMouseEvent* e) override {
+    void mousePressEvent(QMouseEvent* e) override
+    {
         if (e->button() == Qt::LeftButton) {
             const QString path = QFileDialog::getOpenFileName(
-                this, "Select LoRA",  {},
-                "Model files (*.safetensors *.ckpt *.pt *.pth)");
+                this, "Select LoRA", {}, "Model files (*.safetensors *.ckpt *.pt *.pth)");
             if (!path.isEmpty() && onFileDropped) onFileDropped(path);
         }
         QLabel::mousePressEvent(e);
     }
-    void contextMenuEvent(QContextMenuEvent* e) override {
+    void contextMenuEvent(QContextMenuEvent* e) override
+    {
         if (onContextMenuRequested) {
             onContextMenuRequested(e->globalPos());
             e->accept();
@@ -95,8 +101,8 @@ static QJsonObject readSafetensorsMetadata(const QString& path)
     if (!file.open(QIODevice::ReadOnly)) return {};
 
     quint64 headerSize = 0;
-    if (file.read(reinterpret_cast<char*>(&headerSize), sizeof(headerSize))
-        != sizeof(headerSize)) return {};
+    if (file.read(reinterpret_cast<char*>(&headerSize), sizeof(headerSize)) != sizeof(headerSize))
+        return {};
     headerSize = qFromLittleEndian(headerSize);
     // Sanity cap - header is JSON describing tensors, not the tensors themselves.
     if (headerSize == 0 || headerSize > 100ULL * 1024 * 1024) return {};
@@ -138,19 +144,18 @@ static QList<QPair<QString, int>> parseTagFrequency(const QString& tagFreqJson)
     }
     result.reserve(agg.size());
     for (auto it = agg.begin(); it != agg.end(); ++it)
-        result.append({ it.key(), it.value() });
+        result.append({it.key(), it.value()});
     std::sort(result.begin(), result.end(),
-        [](const QPair<QString, int>& a, const QPair<QString, int>& b) {
-            if (a.second != b.second) return a.second > b.second;
-            return a.first < b.first;
-        });
+              [](const QPair<QString, int>& a, const QPair<QString, int>& b) {
+                  if (a.second != b.second) return a.second > b.second;
+                  return a.first < b.first;
+              });
     return result;
 }
 
 class LoraInfoDialog : public gui::ChromedDialog {
 public:
-    LoraInfoDialog(const QString& path, QWidget* parent = nullptr)
-        : gui::ChromedDialog(parent)
+    LoraInfoDialog(const QString& path, QWidget* parent = nullptr) : gui::ChromedDialog(parent)
     {
         setWindowTitle("LoRA Info");
         setMinimumSize(560, 600);
@@ -165,10 +170,10 @@ public:
             return {};
         };
 
-        const QString name      = pickFirst({ "modelspec.title", "ss_output_name" });
-        const QString baseModel = pickFirst({ "ss_base_model_version", "modelspec.architecture" });
-        const QString clipSkip  = pickFirst({ "ss_clip_skip" });
-        QString resolution      = pickFirst({ "modelspec.resolution" });
+        const QString name = pickFirst({"modelspec.title", "ss_output_name"});
+        const QString baseModel = pickFirst({"ss_base_model_version", "modelspec.architecture"});
+        const QString clipSkip = pickFirst({"ss_clip_skip"});
+        QString resolution = pickFirst({"modelspec.resolution"});
         if (resolution.isEmpty())
             resolution = resolutionFromDatasets(meta.value("ss_datasets").toString());
 
@@ -184,10 +189,10 @@ public:
             root->addWidget(l);
         };
 
-        addRow("File:",       QFileInfo(path).fileName());
-        addRow("Name:",       name);
+        addRow("File:", QFileInfo(path).fileName());
+        addRow("Name:", name);
         addRow("Base model:", baseModel);
-        addRow("Clip skip:",  clipSkip);
+        addRow("Clip skip:", clipSkip);
         addRow("Resolution:", resolution);
 
         auto* freqHeader = new QLabel("Tag frequency:");
@@ -207,40 +212,37 @@ public:
         root->addWidget(list, 1);
 
         const auto entries = parseTagFrequency(meta.value("ss_tag_frequency").toString());
-        const int countWidth = entries.isEmpty() ? 1
-            : QString::number(entries.first().second).size();
+        const int countWidth =
+            entries.isEmpty() ? 1 : QString::number(entries.first().second).size();
         for (const auto& [tag, count] : entries) {
             auto* item = new QListWidgetItem(
-                QString("%1  %2")
-                    .arg(count, countWidth, 10, QChar(' '))
-                    .arg(tag),
-                list);
+                QString("%1  %2").arg(count, countWidth, 10, QChar(' ')).arg(tag), list);
             // Bare tag stored separately so copy/double-click yield the tag
             // alone, not the count-prefixed display string.
             item->setData(Qt::UserRole, tag);
         }
 
         list->setContextMenuPolicy(Qt::CustomContextMenu);
-        connect(list, &QListWidget::customContextMenuRequested, list,
-            [list](const QPoint& pos) {
-                QListWidgetItem* item = list->itemAt(pos);
-                if (!item) return;
-                const QString tag = item->data(Qt::UserRole).toString();
-                QMenu menu;
-                QAction* copyAct = menu.addAction(QString("Copy \"%1\"").arg(tag));
-                if (menu.exec(list->viewport()->mapToGlobal(pos)) == copyAct)
-                    QApplication::clipboard()->setText(tag);
-            });
-        connect(list, &QListWidget::itemDoubleClicked, list,
-            [](QListWidgetItem* item) {
-                QApplication::clipboard()->setText(item->data(Qt::UserRole).toString());
-            });
+        connect(list, &QListWidget::customContextMenuRequested, list, [list](const QPoint& pos) {
+            QListWidgetItem* item = list->itemAt(pos);
+            if (!item) return;
+            const QString tag = item->data(Qt::UserRole).toString();
+            QMenu menu;
+            QAction* copyAct = menu.addAction(QString("Copy \"%1\"").arg(tag));
+            if (menu.exec(list->viewport()->mapToGlobal(pos)) == copyAct)
+                QApplication::clipboard()->setText(tag);
+        });
+        connect(list, &QListWidget::itemDoubleClicked, list, [](QListWidgetItem* item) {
+            QApplication::clipboard()->setText(item->data(Qt::UserRole).toString());
+        });
 
         if (meta.isEmpty()) {
             freqHeader->setText("No metadata found in safetensors header");
-        } else if (entries.isEmpty()) {
+        }
+        else if (entries.isEmpty()) {
             freqHeader->setText("Tag frequency: (not present in metadata)");
-        } else {
+        }
+        else {
             freqHeader->setText(QString("Tag frequency (%1 tags):").arg(entries.size()));
         }
 
@@ -263,12 +265,18 @@ public:
 static QColor categoryColor(int cat)
 {
     switch (cat) {
-    case 0:  return { 0xb4, 0xc7, 0xd9 }; // general
-    case 1:  return { 0xf2, 0xac, 0x08 }; // artist
-    case 3:  return { 0xdd, 0x00, 0xdd }; // copyright
-    case 4:  return { 0x00, 0xaa, 0x00 }; // character
-    case 5:  return { 0xaa, 0xaa, 0xaa }; // meta
-    default: return { 0x60, 0x60, 0x60 };
+    case 0:
+        return {0xb4, 0xc7, 0xd9}; // general
+    case 1:
+        return {0xf2, 0xac, 0x08}; // artist
+    case 3:
+        return {0xdd, 0x00, 0xdd}; // copyright
+    case 4:
+        return {0x00, 0xaa, 0x00}; // character
+    case 5:
+        return {0xaa, 0xaa, 0xaa}; // meta
+    default:
+        return {0x60, 0x60, 0x60};
     }
 }
 
@@ -283,10 +291,14 @@ static QString resolveImagePath(const Entry* e, int idx)
 static void saveResized(const QString& src, const QString& dst)
 {
     QImage img(src);
-    if (img.isNull()) { QFile::copy(src, dst); return; }
-    QImage scaled = img.scaled(SAVE_W, SAVE_H, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    if (img.isNull()) {
+        QFile::copy(src, dst);
+        return;
+    }
+    QImage scaled =
+        img.scaled(SAVE_W, SAVE_H, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
     if (scaled.width() > SAVE_W || scaled.height() > SAVE_H) {
-        const int x = (scaled.width()  - SAVE_W) / 2;
+        const int x = (scaled.width() - SAVE_W) / 2;
         const int y = (scaled.height() - SAVE_H) / 2;
         scaled = scaled.copy(x, y, SAVE_W, SAVE_H);
     }
@@ -301,8 +313,7 @@ static void saveResized(const QString& src, const QString& dst)
 
 class LoraImportDialog : public gui::ChromedDialog {
 public:
-    LoraImportDialog(const QString& sourcePath,
-                     const QString& loraBaseDir,
+    LoraImportDialog(const QString& sourcePath, const QString& loraBaseDir,
                      QWidget* parent = nullptr)
         : gui::ChromedDialog(parent), m_loraBaseDir(loraBaseDir)
     {
@@ -310,9 +321,8 @@ public:
         setMinimumSize(800, 480);
 
         // Pre-scan existing safetensors in the lora folder for autocompletion
-        QDirIterator it(loraBaseDir,
-                        QStringList() << "*.safetensors",
-                        QDir::Files, QDirIterator::Subdirectories);
+        QDirIterator it(loraBaseDir, QStringList() << "*.safetensors", QDir::Files,
+                        QDirIterator::Subdirectories);
         const QDir base(loraBaseDir);
         while (it.hasNext()) {
             const QString abs = it.next();
@@ -329,9 +339,8 @@ public:
         sourceLabel->setWordWrap(true);
         root->addWidget(sourceLabel);
 
-        auto* prompt = new QLabel(
-            "Enter a relative path under the lora folder.\n"
-            "Use '/' for subfolders. Extension defaults to .safetensors.");
+        auto* prompt = new QLabel("Enter a relative path under the lora folder.\n"
+                                  "Use '/' for subfolders. Extension defaults to .safetensors.");
         prompt->setWordWrap(true);
         root->addWidget(prompt);
 
@@ -364,12 +373,9 @@ public:
         m_okBtn = btns->addButton("Move", QDialogButtonBox::AcceptRole);
         root->addWidget(btns);
 
-        connect(m_input, &QLineEdit::textChanged,
-                this, &LoraImportDialog::refresh);
+        connect(m_input, &QLineEdit::textChanged, this, &LoraImportDialog::refresh);
         connect(m_matchList, &QListWidget::itemDoubleClicked, this,
-            [this](QListWidgetItem* item) {
-                m_input->setText(item->text());
-            });
+                [this](QListWidgetItem* item) { m_input->setText(item->text()); });
         connect(btns, &QDialogButtonBox::accepted, this, [this]() {
             m_acceptedRelPath = computeFinalPath(m_input->text().trimmed());
             accept();
@@ -379,7 +385,10 @@ public:
         refresh();
     }
 
-    QString relativePath() const { return m_acceptedRelPath; }
+    QString relativePath() const
+    {
+        return m_acceptedRelPath;
+    }
 
 private:
     static QString computeFinalPath(const QString& input)
@@ -401,8 +410,7 @@ private:
             if (ext != ".safetensors")
                 return QString("Extension must be .safetensors (got %1)").arg(ext);
         }
-        if (QFile::exists(m_loraBaseDir + "/" + finalRel))
-            return "Destination file already exists";
+        if (QFile::exists(m_loraBaseDir + "/" + finalRel)) return "Destination file already exists";
         return {};
     }
 
@@ -410,8 +418,7 @@ private:
     {
         const QString input = m_input->text().trimmed();
         const QString finalRel = computeFinalPath(input);
-        m_destPreview->setText(
-            QString("Destination: %1/%2").arg(m_loraBaseDir, finalRel));
+        m_destPreview->setText(QString("Destination: %1/%2").arg(m_loraBaseDir, finalRel));
 
         const QString err = validate(input, finalRel);
         m_validation->setText(err);
@@ -425,14 +432,14 @@ private:
         }
     }
 
-    QString      m_loraBaseDir;
-    QStringList  m_allRelPaths;
-    QLineEdit*   m_input        = nullptr;
-    QLabel*      m_destPreview  = nullptr;
-    QLabel*      m_validation   = nullptr;
-    QListWidget* m_matchList    = nullptr;
-    QPushButton* m_okBtn        = nullptr;
-    QString      m_acceptedRelPath;
+    QString m_loraBaseDir;
+    QStringList m_allRelPaths;
+    QLineEdit* m_input = nullptr;
+    QLabel* m_destPreview = nullptr;
+    QLabel* m_validation = nullptr;
+    QListWidget* m_matchList = nullptr;
+    QPushButton* m_okBtn = nullptr;
+    QString m_acceptedRelPath;
 };
 
 } // anonymous namespace
@@ -440,8 +447,7 @@ private:
 
 namespace gui {
 
-EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
-    : QWidget(parent), m_model(model)
+EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_model(model)
 {
     setObjectName("EntryPanel");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -493,17 +499,16 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     });
 
     // ── Action buttons ────────────────────────────────────────────────────────
-    m_composerBtn  = new QPushButton("Composer toggle", this);
+    m_composerBtn = new QPushButton("Composer toggle", this);
     m_composerBtn->setCheckable(true);
-    m_copyBtn      = new QPushButton("Copy entry tags", this);
-    m_deleteBtn    = new QPushButton("Delete entry", this);
+    m_copyBtn = new QPushButton("Copy entry tags", this);
+    m_deleteBtn = new QPushButton("Delete entry", this);
 
     m_composerBtn->setObjectName("EntryActionBtn");
     m_copyBtn->setObjectName("EntryActionBtn");
     m_deleteBtn->setObjectName("EntryActionBtnDelete");
-    connect(m_copyBtn, &QPushButton::clicked, this, [this]() {
-        QApplication::clipboard()->setText(m_activeTags.values().join(", "));
-    });
+    connect(m_copyBtn, &QPushButton::clicked, this,
+            [this]() { QApplication::clipboard()->setText(m_activeTags.values().join(", ")); });
     connect(m_deleteBtn, &QPushButton::clicked, this, [this]() {
         if (!m_entry) return;
         m_model->deleteEntry(m_entry->id);
@@ -532,25 +537,24 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     });
 
     // ── Image pager ───────────────────────────────────────────────────────────
-    m_prevBtn        = new QPushButton("◄", this);
-    m_nextBtn        = new QPushButton("►", this);
-    m_addImageBtn    = new QPushButton("+", this);
+    m_prevBtn = new QPushButton("◄", this);
+    m_nextBtn = new QPushButton("►", this);
+    m_addImageBtn = new QPushButton("+", this);
     m_removeImageBtn = new QPushButton("−", this);
-    m_pageLabel      = new QLabel("",       this);
-    m_prevBtn       ->setObjectName("EntryPageBtn");
-    m_nextBtn       ->setObjectName("EntryPageBtn");
-    m_addImageBtn   ->setObjectName("EntryPageBtn");
+    m_pageLabel = new QLabel("", this);
+    m_prevBtn->setObjectName("EntryPageBtn");
+    m_nextBtn->setObjectName("EntryPageBtn");
+    m_addImageBtn->setObjectName("EntryPageBtn");
     m_removeImageBtn->setObjectName("EntryPageBtnRemove");
-    m_pageLabel     ->setObjectName("EntryPageLabel");
-    m_prevBtn       ->setFixedSize(24, 24);
-    m_nextBtn       ->setFixedSize(24, 24);
-    m_addImageBtn   ->setFixedSize(24, 24);
+    m_pageLabel->setObjectName("EntryPageLabel");
+    m_prevBtn->setFixedSize(24, 24);
+    m_nextBtn->setFixedSize(24, 24);
+    m_addImageBtn->setFixedSize(24, 24);
     m_removeImageBtn->setFixedSize(24, 24);
     m_pageLabel->setAlignment(Qt::AlignCenter);
 
     connect(m_composerBtn, &QPushButton::clicked, this, [this]() {
-        if (!m_entry || m_imageIdx >= m_entry->images.size())
-            return;
+        if (!m_entry || m_imageIdx >= m_entry->images.size()) return;
         emit tagsExported(int(m_entry->id), m_imageIdx, m_activeTags.values());
     });
 
@@ -558,8 +562,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
         if (m_entry && m_imageIdx > 0) loadImagePage(m_imageIdx - 1);
     });
     connect(m_nextBtn, &QPushButton::clicked, this, [this]() {
-        if (m_entry && m_imageIdx < m_entry->images.size() - 1)
-            loadImagePage(m_imageIdx + 1);
+        if (m_entry && m_imageIdx < m_entry->images.size() - 1) loadImagePage(m_imageIdx + 1);
     });
     connect(m_addImageBtn, &QPushButton::clicked, this, [this]() {
         if (!m_entry) return;
@@ -580,7 +583,8 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
             m_removeImageBtn->setEnabled(false);
             m_searchBar->setEnabled(false);
             rebuildTagList();
-        } else {
+        }
+        else {
             // Navigate to the slot that now occupies this position (or the one before)
             loadImagePage(std::min(removedIdx, (int)m_entry->images.size() - 1));
         }
@@ -617,85 +621,83 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
 
         auto* watcher = new QFutureWatcher<QString>(this);
         connect(watcher, &QFutureWatcher<QString>::finished, this,
-            [this, watcher, path, entryId]() {
-                watcher->deleteLater();
-                const QString hash = watcher->result();
+                [this, watcher, path, entryId]() {
+                    watcher->deleteLater();
+                    const QString hash = watcher->result();
 
-                // Re-resolve the entry; bail out if the user deleted it
-                // (or this panel) while hashing was in flight.
-                core::Entry* targetEntry = m_model->entryById(entryId);
-                if (!targetEntry) return;
+                    // Re-resolve the entry; bail out if the user deleted it
+                    // (or this panel) while hashing was in flight.
+                    core::Entry* targetEntry = m_model->entryById(entryId);
+                    if (!targetEntry) return;
 
-                // Reject duplicates before any file move so we don't shuffle
-                // a file across disks just to throw it away.
-                if (!hash.isEmpty()) {
-                    core::Entry* existing = m_model->entryByLoraSha256(hash);
-                    if (existing && existing != targetEntry) {
-                        emit statusMessageRequested(
-                            QString("LoRA already assigned to \"%1\"").arg(existing->title));
-                        return;
-                    }
-                }
-
-                // Determine where the LoRA file should live. If the dropped
-                // file is outside the configured lora folder, prompt the user
-                // for a relative path and move it in. Reject the drop entirely
-                // if no lora folder is configured - silently using a path
-                // outside the canonical folder breaks workflow JSON paths.
-                QString finalPath = path;
-                {
-                    if (m_loraBaseDir.isEmpty()) {
-                        emit statusMessageRequested(
-                            "LoRA folder not set in Settings - drop rejected");
-                        return;
-                    }
-                    const QString absPath = QDir::cleanPath(QDir(path).absolutePath());
-                    const QString absBase = QDir::cleanPath(QDir(m_loraBaseDir).absolutePath());
-                    const bool insideLoraDir =
-                        absPath.startsWith(absBase + "/", Qt::CaseInsensitive)
-                     || absPath.startsWith(absBase + "\\", Qt::CaseInsensitive);
-
-                    if (!insideLoraDir) {
-                        LoraImportDialog dlg(path, m_loraBaseDir, this);
-                        if (dlg.exec() != QDialog::Accepted) return;
-                        const QString rel  = dlg.relativePath();
-                        const QString dest = m_loraBaseDir + "/" + rel;
-
-                        QDir().mkpath(QFileInfo(dest).absolutePath());
-
-                        // QFile::rename can fail across drives on Windows;
-                        // fall back to copy + remove for that case.
-                        if (!QFile::rename(path, dest)) {
-                            if (!QFile::copy(path, dest)) {
-                                emit statusMessageRequested(
-                                    "Failed to move LoRA into the lora folder");
-                                return;
-                            }
-                            QFile::remove(path);
+                    // Reject duplicates before any file move so we don't shuffle
+                    // a file across disks just to throw it away.
+                    if (!hash.isEmpty()) {
+                        core::Entry* existing = m_model->entryByLoraSha256(hash);
+                        if (existing && existing != targetEntry) {
+                            emit statusMessageRequested(
+                                QString("LoRA already assigned to \"%1\"").arg(existing->title));
+                            return;
                         }
-                        finalPath = dest;
-                        emit statusMessageRequested(
-                            QString("LoRA moved to: %1").arg(rel));
                     }
-                }
 
-                // Re-resolve once more: LoraImportDialog::exec() above pumps
-                // the event loop, which is enough time for the entry to be
-                // deleted from another path (close-to-tray, model rebuild,
-                // etc.). Skip the lora write if the entry vanished.
-                targetEntry = m_model->entryById(entryId);
-                if (!targetEntry) return;
+                    // Determine where the LoRA file should live. If the dropped
+                    // file is outside the configured lora folder, prompt the user
+                    // for a relative path and move it in. Reject the drop entirely
+                    // if no lora folder is configured - silently using a path
+                    // outside the canonical folder breaks workflow JSON paths.
+                    QString finalPath = path;
+                    {
+                        if (m_loraBaseDir.isEmpty()) {
+                            emit statusMessageRequested(
+                                "LoRA folder not set in Settings - drop rejected");
+                            return;
+                        }
+                        const QString absPath = QDir::cleanPath(QDir(path).absolutePath());
+                        const QString absBase = QDir::cleanPath(QDir(m_loraBaseDir).absolutePath());
+                        const bool insideLoraDir =
+                            absPath.startsWith(absBase + "/", Qt::CaseInsensitive) ||
+                            absPath.startsWith(absBase + "\\", Qt::CaseInsensitive);
 
-                if (!targetEntry->lora.has_value())
-                    targetEntry->lora = core::LoraConfig{};
-                targetEntry->lora->file   = finalPath;
-                targetEntry->lora->sha256 = hash;
-                m_model->saveEntry(entryId);
+                        if (!insideLoraDir) {
+                            LoraImportDialog dlg(path, m_loraBaseDir, this);
+                            if (dlg.exec() != QDialog::Accepted) return;
+                            const QString rel = dlg.relativePath();
+                            const QString dest = m_loraBaseDir + "/" + rel;
 
-                if (m_entry == targetEntry) refreshLoraSection();
-                emit statusMessageRequested(
-                    QString("LoRA assigned: %1").arg(QFileInfo(finalPath).fileName()));
-            });
+                            QDir().mkpath(QFileInfo(dest).absolutePath());
+
+                            // QFile::rename can fail across drives on Windows;
+                            // fall back to copy + remove for that case.
+                            if (!QFile::rename(path, dest)) {
+                                if (!QFile::copy(path, dest)) {
+                                    emit statusMessageRequested(
+                                        "Failed to move LoRA into the lora folder");
+                                    return;
+                                }
+                                QFile::remove(path);
+                            }
+                            finalPath = dest;
+                            emit statusMessageRequested(QString("LoRA moved to: %1").arg(rel));
+                        }
+                    }
+
+                    // Re-resolve once more: LoraImportDialog::exec() above pumps
+                    // the event loop, which is enough time for the entry to be
+                    // deleted from another path (close-to-tray, model rebuild,
+                    // etc.). Skip the lora write if the entry vanished.
+                    targetEntry = m_model->entryById(entryId);
+                    if (!targetEntry) return;
+
+                    if (!targetEntry->lora.has_value()) targetEntry->lora = core::LoraConfig{};
+                    targetEntry->lora->file = finalPath;
+                    targetEntry->lora->sha256 = hash;
+                    m_model->saveEntry(entryId);
+
+                    if (m_entry == targetEntry) refreshLoraSection();
+                    emit statusMessageRequested(
+                        QString("LoRA assigned: %1").arg(QFileInfo(finalPath).fileName()));
+                });
         watcher->setFuture(QtConcurrent::run([path]() -> QString {
             QFile f(path);
             if (!f.open(QIODevice::ReadOnly)) return {};
@@ -711,29 +713,27 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
         const QFileInfo fi(path);
 
         QMenu menu;
-        QAction* infoAct   = menu.addAction("Show LoRA info");
+        QAction* infoAct = menu.addAction("Show LoRA info");
         QAction* deleteAct = menu.addAction("Delete from disk...");
 
         const bool canParse =
             fi.exists() && fi.suffix().compare("safetensors", Qt::CaseInsensitive) == 0;
         infoAct->setEnabled(canParse);
-        if (!canParse)
-            infoAct->setText("Show LoRA info  (unavailable: not a .safetensors)");
+        if (!canParse) infoAct->setText("Show LoRA info  (unavailable: not a .safetensors)");
 
         deleteAct->setEnabled(fi.exists());
-        if (!fi.exists())
-            deleteAct->setText("Delete from disk  (file missing)");
+        if (!fi.exists()) deleteAct->setText("Delete from disk  (file missing)");
 
         QAction* chosen = menu.exec(globalPos);
         if (chosen == infoAct) {
             LoraInfoDialog dlg(path, this);
             dlg.exec();
-        } else if (chosen == deleteAct) {
-            const auto reply = QMessageBox::warning(
-                this, "Delete LoRA from disk",
-                QString("Permanently delete this file?\n\n%1").arg(path),
-                QMessageBox::Yes | QMessageBox::Cancel,
-                QMessageBox::Cancel);
+        }
+        else if (chosen == deleteAct) {
+            const auto reply =
+                QMessageBox::warning(this, "Delete LoRA from disk",
+                                     QString("Permanently delete this file?\n\n%1").arg(path),
+                                     QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
             if (reply != QMessageBox::Yes) return;
 
             // Finalises a successful deletion: drop the assignment from the
@@ -747,46 +747,48 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
                 }
                 if (m_entry && m_entry->id == entryId) refreshLoraSection();
                 emit loraCleared(entryId);
-                emit statusMessageRequested(
-                    QString("Deleted: %1").arg(QFileInfo(path).fileName()));
+                emit statusMessageRequested(QString("Deleted: %1").arg(QFileInfo(path).fileName()));
             };
 
-            if (QFile::remove(path)) { onDeleted(); return; }
+            if (QFile::remove(path)) {
+                onDeleted();
+                return;
+            }
 
             // First attempt failed - most common cause on Windows is that
             // ComfyUI still has the file mmap'd from the last generation.
             // Offer to free its model cache and retry once.
             if (!m_comfyClient || !m_comfyClient->isConnected()) {
-                emit statusMessageRequested(
-                    "Delete failed - file may be in use (ComfyUI not connected, can't auto-unload)");
+                emit statusMessageRequested("Delete failed - file may be in use (ComfyUI not "
+                                            "connected, can't auto-unload)");
                 return;
             }
 
-            const auto retryReply = QMessageBox::question(
-                this, "File is locked",
-                "Deletion failed - the file is likely held by ComfyUI from "
-                "the last generation.\n\nUnload ComfyUI's models and retry?",
-                QMessageBox::Yes | QMessageBox::Cancel,
-                QMessageBox::Yes);
+            const auto retryReply =
+                QMessageBox::question(this, "File is locked",
+                                      "Deletion failed - the file is likely held by ComfyUI from "
+                                      "the last generation.\n\nUnload ComfyUI's models and retry?",
+                                      QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Yes);
             if (retryReply != QMessageBox::Yes) return;
 
             emit statusMessageRequested("Asking ComfyUI to unload models...");
-            m_comfyClient->freeMemory(
-                [this, path, entryId, onDeleted](bool ok, QString err) {
-                    if (!ok) {
-                        emit statusMessageRequested(
-                            QString("Unload request failed: %1").arg(err));
+            m_comfyClient->freeMemory([this, path, entryId, onDeleted](bool ok, QString err) {
+                if (!ok) {
+                    emit statusMessageRequested(QString("Unload request failed: %1").arg(err));
+                    return;
+                }
+                // /free returns when the request is accepted, but the
+                // unload itself is async. Give the OS a beat to release
+                // the handle before we retry.
+                QTimer::singleShot(500, this, [this, path, onDeleted]() {
+                    if (QFile::remove(path)) {
+                        onDeleted();
                         return;
                     }
-                    // /free returns when the request is accepted, but the
-                    // unload itself is async. Give the OS a beat to release
-                    // the handle before we retry.
-                    QTimer::singleShot(500, this, [this, path, onDeleted]() {
-                        if (QFile::remove(path)) { onDeleted(); return; }
-                        emit statusMessageRequested(
-                            "Still locked after unload - try restarting ComfyUI");
-                    });
+                    emit statusMessageRequested(
+                        "Still locked after unload - try restarting ComfyUI");
                 });
+            });
         }
     };
 
@@ -825,7 +827,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
         return s;
     };
     m_loraModelStr = makeSpinBox(0.0, 2.0, 0.05, 0.9);
-    m_loraClipStr  = makeSpinBox(0.0, 4.0, 0.1,  2.0);
+    m_loraClipStr = makeSpinBox(0.0, 4.0, 0.1, 2.0);
 
     m_loraTimer = new QTimer(this);
     m_loraTimer->setSingleShot(true);
@@ -833,18 +835,20 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     connect(m_loraTimer, &QTimer::timeout, this, [this]() {
         if (!m_entry || !m_entry->lora.has_value()) return;
         m_entry->lora->modelStr = m_loraModelStr->value();
-        m_entry->lora->clipStr  = m_loraClipStr->value();
+        m_entry->lora->clipStr = m_loraClipStr->value();
         m_model->saveEntry(m_entry->id);
     });
 
     auto onSpinChanged = [this](double) { m_loraTimer->start(); };
-    connect(m_loraModelStr, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, onSpinChanged);
-    connect(m_loraClipStr,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, onSpinChanged);
+    connect(m_loraModelStr, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            onSpinChanged);
+    connect(m_loraClipStr, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            onSpinChanged);
 
     auto* loraHeaderRow = new QHBoxLayout;
     loraHeaderRow->setContentsMargins(0, 3, 0, 0);
     loraHeaderRow->setSpacing(6);
-    
+
     auto makeSpinLabel = [this](const QString& t) {
         auto* l = new QLabel(t, this);
         l->setObjectName("LoraSpinLabel");
@@ -885,7 +889,8 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     m_headerWidget = new QWidget;
     m_headerWidget->setObjectName("EntryHeader");
     auto* headerLayout = new QVBoxLayout(m_headerWidget);
-    headerLayout->setContentsMargins(10, 10, 10, 6); // -----------------------------------------------
+    headerLayout->setContentsMargins(10, 10, 10,
+                                     6); // -----------------------------------------------
     headerLayout->addLayout(headerRow);
 
     // ── Tag search bar ────────────────────────────────────────────────────────
@@ -899,8 +904,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
         emit entryTagAdded(m_entry->id, m_imageIdx, tag);
         updateExtraBtnState();
     });
-    connect(m_searchBar, &TagSearchBar::tagAlreadyPresent,
-            this, &EntryPanel::tagAlreadyPresent);
+    connect(m_searchBar, &TagSearchBar::tagAlreadyPresent, this, &EntryPanel::tagAlreadyPresent);
     connect(m_searchBar, &TagSearchBar::queryChanged, this, [this](const QString& text) {
         const QString lower = text.toLower();
         for (int i = 0; i < m_tagListLayout->count(); ++i) {
@@ -949,8 +953,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     emptyLabel->setObjectName("EntryEmptyLabel");
     emptyLabel->setAlignment(Qt::AlignCenter);
 
-    for (QWidget* w : QList<QWidget*>{ emptyLabel, m_contentWidget })
-    {
+    for (QWidget* w : QList<QWidget*>{emptyLabel, m_contentWidget}) {
         w->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(w, &QWidget::customContextMenuRequested, this, [this](const QPoint& pos) {
             QMenu menu(this);
@@ -959,7 +962,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
             AddEntryDialog dlg(window());
             if (dlg.exec() != QDialog::Accepted) return;
             core::Entry entry = dlg.buildEntry();
-            entry.images.append(core::ImageData{ "00001.png", {} });
+            entry.images.append(core::ImageData{"00001.png", {}});
             // Capture uuid before the move - addEntry assigns the runtime id,
             // and entryListChanged needs to fire first so the entry view has
             // the new entry in its m_entries before we ask it to scroll.
@@ -972,8 +975,8 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     }
 
     m_stack = new QStackedWidget(this);
-    m_stack->addWidget(emptyLabel);       // 0 - no selection
-    m_stack->addWidget(m_contentWidget);  // 1 - entry loaded
+    m_stack->addWidget(emptyLabel);      // 0 - no selection
+    m_stack->addWidget(m_contentWidget); // 1 - entry loaded
 
 
     auto* outerLayout = new QVBoxLayout(this);
@@ -1008,15 +1011,13 @@ void EntryPanel::setComfyClient(core::ComfyUiClient* client)
     m_comfyClient = client;
 }
 
-void EntryPanel::setQuickFacets(const QString& characterFacet,
-                                const QString& copyrightFacet,
-                                const QString& triggerWordFacet,
-                                const QString& styleFacet)
+void EntryPanel::setQuickFacets(const QString& characterFacet, const QString& copyrightFacet,
+                                const QString& triggerWordFacet, const QString& styleFacet)
 {
-    m_quickCharFacet    = characterFacet;
-    m_quickCopyFacet    = copyrightFacet;
+    m_quickCharFacet = characterFacet;
+    m_quickCopyFacet = copyrightFacet;
     m_quickTriggerFacet = triggerWordFacet;
-    m_quickStyleFacet   = styleFacet;
+    m_quickStyleFacet = styleFacet;
 }
 
 void EntryPanel::setEntry(core::Entry* entry)
@@ -1028,7 +1029,7 @@ void EntryPanel::setEntry(core::Entry* entry)
     }
     m_stack->setCurrentIndex(1);
     m_titleEdit->setText(entry->title);
-    m_titleEdit->setCursorPosition(0);  
+    m_titleEdit->setCursorPosition(0);
     m_commentEdit->blockSignals(true);
     m_commentEdit->setPlainText(entry->comment);
     m_commentEdit->blockSignals(false);
@@ -1042,7 +1043,8 @@ void EntryPanel::setEntry(core::Entry* entry)
         m_removeImageBtn->setEnabled(false);
         m_searchBar->setEnabled(false);
         rebuildTagList();
-    } else {
+    }
+    else {
         loadImagePage(0);
     }
 }
@@ -1056,7 +1058,8 @@ void EntryPanel::applyOrientation(bool portrait)
         m_headerWidget->setMaximumHeight(QWIDGETSIZE_MAX);
         m_headerWidget->setMinimumHeight(0);
         m_imageDrop->setFixedSize(120, 154);
-    } else {
+    }
+    else {
         // Panel is tall+narrow - stack header above tags
         m_rootLayout->setDirection(QBoxLayout::TopToBottom);
         m_headerWidget->setMaximumWidth(QWIDGETSIZE_MAX);
@@ -1113,14 +1116,17 @@ void EntryPanel::rebuildTagList()
 
 void EntryPanel::updateExtraBtnState()
 {
-    if (!m_entry) { m_composerBtn->setChecked(false); return; }
+    if (!m_entry) {
+        m_composerBtn->setChecked(false);
+        return;
+    }
     const auto& imgs = m_activeGroups.value(int(m_entry->id));
     m_composerBtn->setChecked(imgs.contains(m_imageIdx));
 }
 
 QWidget* EntryPanel::createTagRow(const QString& tag)
 {
-    const int    cat = m_danbooruIndex ? m_danbooruIndex->tagCategory(tag) : -1;
+    const int cat = m_danbooruIndex ? m_danbooruIndex->tagCategory(tag) : -1;
     const QColor col = categoryColor(cat);
 
     auto* row = new QWidget(m_tagListContainer);
@@ -1150,12 +1156,18 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
     connect(edit, &QLineEdit::returnPressed, this, [this, edit, dot, row]() {
         const QString oldTag = row->property("_tag").toString();
         const QString newTag = edit->text().trimmed();
-        if (newTag.isEmpty()) { edit->setText(oldTag); return; }
+        if (newTag.isEmpty()) {
+            edit->setText(oldTag);
+            return;
+        }
         if (newTag == oldTag) return;
-        if (m_activeTags.contains(newTag)) { edit->setText(oldTag); return; }
+        if (m_activeTags.contains(newTag)) {
+            edit->setText(oldTag);
+            return;
+        }
 
         // Update dot and text color for new tag's category
-        const int    newCat = m_danbooruIndex ? m_danbooruIndex->tagCategory(newTag) : -1;
+        const int newCat = m_danbooruIndex ? m_danbooruIndex->tagCategory(newTag) : -1;
         const QColor newCol = categoryColor(newCat);
         dot->setStyleSheet(QString("background:%1;border-radius:4px;").arg(newCol.name()));
         edit->setStyleSheet(QString("color:%1;").arg(newCol.name()));
@@ -1172,9 +1184,8 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
     });
 
     // editingFinished (focus-loss without Enter): revert to committed tag
-    connect(edit, &QLineEdit::editingFinished, this, [edit, row]() {
-        edit->setText(row->property("_tag").toString());
-    });
+    connect(edit, &QLineEdit::editingFinished, this,
+            [edit, row]() { edit->setText(row->property("_tag").toString()); });
 
     // Remove button - reads current tag from row property so it works after rename
     auto* del = new QPushButton("×", row);
@@ -1197,49 +1208,55 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
     auto showRowMenu = [this, row]() {
         const QString t = row->property("_tag").toString();
         QMenu menu;
-        QAction* wikiAct   = menu.addAction("Go to Wiki");
-        QAction* facetAct  = menu.addAction("Edit facets");
+        QAction* wikiAct = menu.addAction("Go to Wiki");
+        QAction* facetAct = menu.addAction("Edit facets");
         QAction* deleteAct = menu.addAction("Remove tag");
 
         QHash<QAction*, QString> quickFacetActs;
         const QList<QPair<QString, QString>> entries{
-            { "character",    m_quickCharFacet    },
-            { "copyright",    m_quickCopyFacet    },
-            { "trigger word", m_quickTriggerFacet },
-            { "style",        m_quickStyleFacet   },
+            {"character", m_quickCharFacet},
+            {"copyright", m_quickCopyFacet},
+            {"trigger word", m_quickTriggerFacet},
+            {"style", m_quickStyleFacet},
         };
         bool any = false;
-        for (const auto& e : entries) if (!e.second.isEmpty()) { any = true; break; }
+        for (const auto& e : entries)
+            if (!e.second.isEmpty()) {
+                any = true;
+                break;
+            }
         if (any) menu.addSeparator();
         for (const auto& e : entries) {
             if (e.second.isEmpty()) continue;
-            QAction* a = menu.addAction(
-                QString("Quick add as %1 (%2)").arg(e.first, e.second));
+            QAction* a = menu.addAction(QString("Quick add as %1 (%2)").arg(e.first, e.second));
             quickFacetActs.insert(a, e.second);
         }
 
         QAction* chosen = menu.exec(QCursor::pos());
         if (chosen == wikiAct) {
             emit wikiRequested(t);
-        } else if (chosen == facetAct) {
+        }
+        else if (chosen == facetAct) {
             emit facetEditorRequested(t);
-        } else if (chosen == deleteAct) {
+        }
+        else if (chosen == deleteAct) {
             m_activeTags.remove(t);
             row->deleteLater();
             if (m_entry) emit entryTagRemoved(m_entry->id, m_imageIdx, t);
             updateExtraBtnState();
-        } else if (chosen && quickFacetActs.contains(chosen)) {
+        }
+        else if (chosen && quickFacetActs.contains(chosen)) {
             emit quickFacetRequested(t, quickFacetActs.value(chosen));
         }
     };
 
     row->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(row, &QWidget::customContextMenuRequested, this,
-        [showRowMenu](const QPoint&) { showRowMenu(); });
+            [showRowMenu](const QPoint&) { showRowMenu(); });
 
     edit->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(edit, &QWidget::customContextMenuRequested, this,
-        [showRowMenu](const QPoint&) { showRowMenu(); });
+            [showRowMenu](const QPoint&) { showRowMenu(); });
 
     return row;
 }
@@ -1250,7 +1267,7 @@ void EntryPanel::addTagRowToList(const QString& tag)
     const int pos = std::max(0, m_tagListLayout->count() - 1);
     m_tagListLayout->insertWidget(pos, createTagRow(tag));
 }
-    
+
 void EntryPanel::refreshLoraSection()
 {
     if (!m_entry || !m_entry->lora.has_value()) {
@@ -1265,7 +1282,8 @@ void EntryPanel::refreshLoraSection()
         m_loraClipStr->setEnabled(false);
         m_loraClearBtn->setEnabled(false);
         m_loraSha256Btn->setEnabled(false);
-    } else {
+    }
+    else {
         const auto& lc = *m_entry->lora;
         m_loraFileLabel->setText(QFileInfo(lc.file).fileName());
         m_loraModelStr->blockSignals(true);

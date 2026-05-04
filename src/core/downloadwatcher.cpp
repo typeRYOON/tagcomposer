@@ -9,13 +9,10 @@
 namespace core {
 
 namespace {
-const QStringList kImageExtensions = {
-    "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"
-};
+const QStringList kImageExtensions = {"*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"};
 }
 
-DownloadWatcher::DownloadWatcher(QObject* parent)
-    : QObject(parent)
+DownloadWatcher::DownloadWatcher(QObject* parent) : QObject(parent)
 {
     m_timer = new QTimer(this);
     m_timer->setSingleShot(false);
@@ -27,10 +24,8 @@ DownloadWatcher::~DownloadWatcher()
     stop();
 }
 
-void DownloadWatcher::start(const QString& watchFolder,
-                            const QString& collectionDir,
-                            int            hammingThreshold,
-                            int            pollSeconds)
+void DownloadWatcher::start(const QString& watchFolder, const QString& collectionDir,
+                            int hammingThreshold, int pollSeconds)
 {
     if (m_active) return;
     if (watchFolder.isEmpty() || collectionDir.isEmpty()) {
@@ -42,12 +37,12 @@ void DownloadWatcher::start(const QString& watchFolder,
         return;
     }
 
-    m_watchFolder   = watchFolder;
+    m_watchFolder = watchFolder;
     m_collectionDir = collectionDir;
-    m_threshold     = hammingThreshold;
-    m_collected     = 0;
-    m_skipped       = 0;
-    m_index         = PHashIndex::loadFromDir(collectionDir);
+    m_threshold = hammingThreshold;
+    m_collected = 0;
+    m_skipped = 0;
+    m_index = PHashIndex::loadFromDir(collectionDir);
 
     QDir().mkpath(collectionDir);
 
@@ -80,10 +75,11 @@ void DownloadWatcher::poll()
     // unrelated subdirectories the user hasn't opted in.
     QStringList candidates;
     for (const QString& pat : kImageExtensions) {
-        QDirIterator it(m_watchFolder, { pat }, QDir::Files);
-        while (it.hasNext()) candidates << it.next();
+        QDirIterator it(m_watchFolder, {pat}, QDir::Files);
+        while (it.hasNext())
+            candidates << it.next();
     }
-    std::sort(candidates.begin(), candidates.end());  // deterministic order
+    std::sort(candidates.begin(), candidates.end()); // deterministic order
 
     for (const QString& src : candidates) {
         const QFileInfo fi(src);
@@ -95,7 +91,7 @@ void DownloadWatcher::poll()
         //   2. A 0-byte file is mid-create (or a corruption); skip and let
         //      the next tick find it once it has bytes.
         if (QFile::exists(src + ".part")) continue;
-        if (fi.size() == 0)               continue;
+        if (fi.size() == 0) continue;
 
         const uint64_t hash = phashFile(src);
         if (hash == 0) {
@@ -105,9 +101,7 @@ void DownloadWatcher::poll()
 
         // Dedup check against the collection. First match within threshold
         // wins; the Python reference does the same via a flat set lookup.
-        if (auto m = m_index.findNearest(hash, m_threshold);
-            !m.filename.isEmpty())
-        {
+        if (auto m = m_index.findNearest(hash, m_threshold); !m.filename.isEmpty()) {
             if (!QFile::moveToTrash(src)) {
                 emit error(QString("Recycle-bin failed for %1").arg(fi.fileName()));
                 continue;
@@ -120,9 +114,8 @@ void DownloadWatcher::poll()
 
         // New image - allocate the next sequential number, rename + move.
         const int n = m_index.nextNumber();
-        const QString destName = QString("%1.%2")
-            .arg(n, 5, 10, QChar('0'))
-            .arg(fi.suffix().toLower());
+        const QString destName =
+            QString("%1.%2").arg(n, 5, 10, QChar('0')).arg(fi.suffix().toLower());
         const QString destPath = m_collectionDir + "/" + destName;
 
         if (!QFile::rename(src, destPath)) {

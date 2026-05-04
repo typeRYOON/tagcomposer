@@ -9,7 +9,7 @@ class QPushButton;
 namespace core {
 class EntryModel;
 class FacetIndex;
-}
+} // namespace core
 
 namespace gui {
 
@@ -18,22 +18,21 @@ namespace gui {
 class ExportDialog : public ChromedDialog {
     Q_OBJECT
 public:
-    ExportDialog(core::EntryModel* model,
-                 const core::FacetIndex* facets,
+    ExportDialog(core::EntryModel* model, const core::FacetIndex* facets,
                  QWidget* parent = nullptr);
 
 private:
     void refreshPreview();
     void onExport();
 
-    core::EntryModel*       m_model   = nullptr;
-    const core::FacetIndex* m_facets  = nullptr;
+    core::EntryModel* m_model = nullptr;
+    const core::FacetIndex* m_facets = nullptr;
 
-    QLineEdit*   m_query    = nullptr;
-    QLabel*      m_count    = nullptr;
-    QListWidget* m_preview  = nullptr;
+    QLineEdit* m_query = nullptr;
+    QLabel* m_count = nullptr;
+    QListWidget* m_preview = nullptr;
     QPushButton* m_exportBtn = nullptr;
-    QLabel*      m_status   = nullptr;
+    QLabel* m_status = nullptr;
 };
 
 } // namespace gui

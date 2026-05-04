@@ -16,14 +16,10 @@ constexpr int kHeaderHeight = 50;
 // Animated pill that highlights the currently active tab.
 constexpr int kIndicatorAnimMs = 220;
 
-DatasetHelpersPage::DatasetHelpersPage(core::FacetIndex*        facets,
+DatasetHelpersPage::DatasetHelpersPage(core::FacetIndex* facets,
                                        core::AutoTaggerLibrary* taggerLibrary,
-                                       utils::AppSettings*      settings,
-                                       QWidget*                 parent)
-    : QWidget(parent)
-    , m_facets(facets)
-    , m_taggerLibrary(taggerLibrary)
-    , m_settings(settings)
+                                       utils::AppSettings* settings, QWidget* parent)
+    : QWidget(parent), m_facets(facets), m_taggerLibrary(taggerLibrary), m_settings(settings)
 {
     setObjectName("DatasetHelpersPage");
     setAttribute(Qt::WA_StyledBackground, true);
@@ -92,31 +88,31 @@ DatasetHelpersPage::DatasetHelpersPage(core::FacetIndex*        facets,
 
     // Auto-tagger → Tag Editor (input)
     connect(m_autoTagPage, &AutoTagPage::editFolderRequested, this,
-        [this, switchToPage](const QString& folder) {
-            m_tagEditorPage->setInputFolder(folder);
-            switchToPage(m_tagEditorPage);
-        });
+            [this, switchToPage](const QString& folder) {
+                m_tagEditorPage->setInputFolder(folder);
+                switchToPage(m_tagEditorPage);
+            });
 
     // Auto-tagger → Batch Edit (input)
     connect(m_autoTagPage, &AutoTagPage::sendToBatchEditRequested, this,
-        [this, switchToPage](const QString& folder) {
-            m_batchEditPage->setInputFolder(folder);
-            switchToPage(m_batchEditPage);
-        });
+            [this, switchToPage](const QString& folder) {
+                m_batchEditPage->setInputFolder(folder);
+                switchToPage(m_batchEditPage);
+            });
 
     // Tag Editor → Batch Edit (input)
     connect(m_tagEditorPage, &TagEditorPage::sendToBatchEditRequested, this,
-        [this, switchToPage](const QString& folder) {
-            m_batchEditPage->setInputFolder(folder);
-            switchToPage(m_batchEditPage);
-        });
+            [this, switchToPage](const QString& folder) {
+                m_batchEditPage->setInputFolder(folder);
+                switchToPage(m_batchEditPage);
+            });
 
     // Auto-collect → Auto-tagger (input)
     connect(m_collectorPage, &CollectorPage::sendToAutoTaggerRequested, this,
-        [this, switchToPage](const QString& folder) {
-            m_autoTagPage->setInputFolder(folder);
-            switchToPage(m_autoTagPage);
-        });
+            [this, switchToPage](const QString& folder) {
+                m_autoTagPage->setInputFolder(folder);
+                switchToPage(m_autoTagPage);
+            });
 
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
@@ -173,8 +169,7 @@ void DatasetHelpersPage::showEvent(QShowEvent* event)
     // buttons (geometry is zero in the constructor). Subsequent shows don't
     // need to re-place - the indicator already tracks the active button.
     if (!m_indicatorPlaced) {
-        if (auto* btn = m_tabGroup->checkedButton())
-            moveIndicatorTo(btn, /*animate=*/false);
+        if (auto* btn = m_tabGroup->checkedButton()) moveIndicatorTo(btn, /*animate=*/false);
     }
 }
 

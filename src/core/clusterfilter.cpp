@@ -20,8 +20,7 @@ static QList<QString> splitTrimmed(const QString& s, QChar sep)
 {
     QList<QString> out;
     for (const QString& p : s.split(sep))
-        if (const QString t = p.trimmed(); !t.isEmpty())
-            out << t;
+        if (const QString t = p.trimmed(); !t.isEmpty()) out << t;
     return out;
 }
 
@@ -41,9 +40,7 @@ ClusterFilter ClusterFilter::loadFromFile(const QString& path)
             const int eq = line.indexOf('=');
             if (eq >= 0) {
                 const QString val = line.mid(eq + 1).trimmed().toLower();
-                f.mode = (val == "whitelist")
-                             ? Mode::Whitelist
-                             : Mode::Blacklist;
+                f.mode = (val == "whitelist") ? Mode::Whitelist : Mode::Blacklist;
             }
             continue;
         }
@@ -57,13 +54,10 @@ ClusterFilter ClusterFilter::loadFromFile(const QString& path)
 void ClusterFilter::saveToFile(const QString& path) const
 {
     QFile file(path);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
-        return;
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) return;
 
     QTextStream out(&file);
-    out << "mode = "
-        << (mode == Mode::Whitelist ? "whitelist" : "blacklist")
-        << "\n\n";
+    out << "mode = " << (mode == Mode::Whitelist ? "whitelist" : "blacklist") << "\n\n";
 
     for (const QList<QString>& rule : rules)
         out << rule.join(", ") << "\n";
@@ -77,7 +71,10 @@ bool ClusterFilter::matches(const QList<QString>& tagFacets) const
     for (const QList<QString>& rule : rules) {
         bool allPresent = true;
         for (const QString& need : rule) {
-            if (!have.contains(need)) { allPresent = false; break; }
+            if (!have.contains(need)) {
+                allPresent = false;
+                break;
+            }
         }
         if (allPresent) return true;
     }

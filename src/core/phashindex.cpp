@@ -27,15 +27,14 @@ PHashIndex PHashIndex::loadFromDir(const QString& collectionDir)
     PHashIndex idx;
 
     QFile f(collectionDir + "/" + kIndexFilename);
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
-        return idx;
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return idx;
 
     const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
     if (!doc.isArray()) return idx;
 
     for (const QJsonValue& v : doc.array()) {
         const QJsonObject o = v.toObject();
-        const QString name  = o.value("file").toString();
+        const QString name = o.value("file").toString();
         if (name.isEmpty()) continue;
 
         bool ok = false;
@@ -60,8 +59,7 @@ void PHashIndex::saveToDir(const QString& collectionDir) const
     }
 
     QFile f(collectionDir + "/" + kIndexFilename);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
-        return;
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) return;
     f.write(QJsonDocument(arr).toJson(QJsonDocument::Compact));
 }
 
@@ -91,7 +89,7 @@ PHashIndex::Match PHashIndex::findNearest(uint64_t hash, int threshold) const
             bestDist = d;
             best.filename = it.key();
             best.distance = d;
-            if (d == 0) break;  // can't get closer
+            if (d == 0) break; // can't get closer
         }
     }
     if (best.distance > threshold) return {};

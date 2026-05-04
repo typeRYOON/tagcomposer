@@ -16,14 +16,22 @@ namespace core {
 QString WorkflowManager::typeToStr(WorkflowVarType t)
 {
     switch (t) {
-    case WorkflowVarType::Seed:       return "seed";
-    case WorkflowVarType::String:     return "string";
-    case WorkflowVarType::Integer:    return "integer";
-    case WorkflowVarType::Float:      return "float";
-    case WorkflowVarType::DirSearch:  return "dirSearch";
-    case WorkflowVarType::LatentSize: return "latentSize";
-    case WorkflowVarType::Image:      return "image";
-    case WorkflowVarType::Wildcard:   return "wildcard";
+    case WorkflowVarType::Seed:
+        return "seed";
+    case WorkflowVarType::String:
+        return "string";
+    case WorkflowVarType::Integer:
+        return "integer";
+    case WorkflowVarType::Float:
+        return "float";
+    case WorkflowVarType::DirSearch:
+        return "dirSearch";
+    case WorkflowVarType::LatentSize:
+        return "latentSize";
+    case WorkflowVarType::Image:
+        return "image";
+    case WorkflowVarType::Wildcard:
+        return "wildcard";
     }
     return "string";
 }
@@ -32,29 +40,32 @@ WorkflowVarType WorkflowManager::typeFromStr(const QString& s)
 {
     // Lowercase canonical first; CamelCase aliases recognise legacy saved
     // states written before workflowmanager.cpp's serializer was reused.
-    if (s == "seed"       || s == "Seed")       return WorkflowVarType::Seed;
-    if (s == "integer"    || s == "Integer")    return WorkflowVarType::Integer;
-    if (s == "float"      || s == "Float")      return WorkflowVarType::Float;
-    if (s == "dirSearch"  || s == "DirSearch")  return WorkflowVarType::DirSearch;
+    if (s == "seed" || s == "Seed") return WorkflowVarType::Seed;
+    if (s == "integer" || s == "Integer") return WorkflowVarType::Integer;
+    if (s == "float" || s == "Float") return WorkflowVarType::Float;
+    if (s == "dirSearch" || s == "DirSearch") return WorkflowVarType::DirSearch;
     if (s == "latentSize" || s == "LatentSize") return WorkflowVarType::LatentSize;
-    if (s == "image"      || s == "Image")      return WorkflowVarType::Image;
-    if (s == "wildcard"   || s == "Wildcard")   return WorkflowVarType::Wildcard;
+    if (s == "image" || s == "Image") return WorkflowVarType::Image;
+    if (s == "wildcard" || s == "Wildcard") return WorkflowVarType::Wildcard;
     return WorkflowVarType::String;
 }
 
 static QString seedBehToStr(SeedBehavior b)
 {
     switch (b) {
-    case SeedBehavior::Fixed:     return "fixed";
-    case SeedBehavior::Increment: return "increment";
-    case SeedBehavior::Randomize: return "randomize";
+    case SeedBehavior::Fixed:
+        return "fixed";
+    case SeedBehavior::Increment:
+        return "increment";
+    case SeedBehavior::Randomize:
+        return "randomize";
     }
     return "randomize";
 }
 
 static SeedBehavior seedBehFromStr(const QString& s)
 {
-    if (s == "fixed")     return SeedBehavior::Fixed;
+    if (s == "fixed") return SeedBehavior::Fixed;
     if (s == "increment") return SeedBehavior::Increment;
     return SeedBehavior::Randomize;
 }
@@ -64,11 +75,11 @@ QJsonObject WorkflowManager::varToJson(const WorkflowVar& var)
 {
     QJsonObject o;
     o["placeholder"] = var.placeholder;
-    o["type"]        = typeToStr(var.type);
+    o["type"] = typeToStr(var.type);
     switch (var.type) {
     case WorkflowVarType::Seed:
         o["seedBehavior"] = seedBehToStr(var.seedBehavior);
-        o["seedValue"]    = var.seedValue;   // stored as JSON integer, not double
+        o["seedValue"] = var.seedValue; // stored as JSON integer, not double
         break;
     case WorkflowVarType::String:
         o["stringValue"] = var.stringValue;
@@ -80,8 +91,8 @@ QJsonObject WorkflowManager::varToJson(const WorkflowVar& var)
         o["floatValue"] = var.floatValue;
         break;
     case WorkflowVarType::DirSearch:
-        o["searchDir"]       = var.searchDir;
-        o["selectedFile"]    = var.selectedFile;
+        o["searchDir"] = var.searchDir;
+        o["selectedFile"] = var.selectedFile;
         o["extensionFilter"] = var.extensionFilter;
         break;
     case WorkflowVarType::LatentSize:
@@ -93,14 +104,13 @@ QJsonObject WorkflowManager::varToJson(const WorkflowVar& var)
         // files visually clean and avoids touching old workflow files on save.
         if (var.imageEdits.enabled) {
             QJsonObject e;
-            e["enabled"]    = true;
-            e["cropX"]      = var.imageEdits.cropRect.x();
-            e["cropY"]      = var.imageEdits.cropRect.y();
-            e["cropW"]      = var.imageEdits.cropRect.width();
-            e["cropH"]      = var.imageEdits.cropRect.height();
+            e["enabled"] = true;
+            e["cropX"] = var.imageEdits.cropRect.x();
+            e["cropY"] = var.imageEdits.cropRect.y();
+            e["cropW"] = var.imageEdits.cropRect.width();
+            e["cropH"] = var.imageEdits.cropRect.height();
             e["trimToCrop"] = var.imageEdits.trimToCrop;
-            if (!var.imageEdits.maskId.isEmpty())
-                e["maskId"] = var.imageEdits.maskId;
+            if (!var.imageEdits.maskId.isEmpty()) e["maskId"] = var.imageEdits.maskId;
             o["imageEdits"] = e;
         }
         break;
@@ -119,16 +129,15 @@ WorkflowVar WorkflowManager::varFromJson(const QJsonObject& o)
 {
     WorkflowVar var;
     var.placeholder = o["placeholder"].toString();
-    var.type        = typeFromStr(o["type"].toString());
+    var.type = typeFromStr(o["type"].toString());
     switch (var.type) {
     case WorkflowVarType::Seed: {
         // Legacy saved-state JSON encoded seedBehavior as the enum's int
         // value rather than the canonical string - accept either.
         const QJsonValue sb = o["seedBehavior"];
-        var.seedBehavior = sb.isString()
-            ? seedBehFromStr(sb.toString())
-            : SeedBehavior(sb.toInt(int(SeedBehavior::Randomize)));
-        var.seedValue    = o["seedValue"].toInteger();
+        var.seedBehavior = sb.isString() ? seedBehFromStr(sb.toString())
+                                         : SeedBehavior(sb.toInt(int(SeedBehavior::Randomize)));
+        var.seedValue = o["seedValue"].toInteger();
         break;
     }
     case WorkflowVarType::String:
@@ -141,8 +150,8 @@ WorkflowVar WorkflowManager::varFromJson(const QJsonObject& o)
         var.floatValue = o["floatValue"].toDouble();
         break;
     case WorkflowVarType::DirSearch:
-        var.searchDir       = o["searchDir"].toString();
-        var.selectedFile    = o["selectedFile"].toString();
+        var.searchDir = o["searchDir"].toString();
+        var.selectedFile = o["selectedFile"].toString();
         var.extensionFilter = o["extensionFilter"].toString();
         break;
     case WorkflowVarType::LatentSize:
@@ -152,12 +161,11 @@ WorkflowVar WorkflowManager::varFromJson(const QJsonObject& o)
         var.imageUuid = o["imageUuid"].toString();
         if (o.contains("imageEdits")) {
             const QJsonObject e = o["imageEdits"].toObject();
-            var.imageEdits.enabled    = e["enabled"].toBool();
-            var.imageEdits.cropRect   = QRect(
-                e["cropX"].toInt(), e["cropY"].toInt(),
-                e["cropW"].toInt(), e["cropH"].toInt());
+            var.imageEdits.enabled = e["enabled"].toBool();
+            var.imageEdits.cropRect = QRect(e["cropX"].toInt(), e["cropY"].toInt(),
+                                            e["cropW"].toInt(), e["cropH"].toInt());
             var.imageEdits.trimToCrop = e["trimToCrop"].toBool();
-            var.imageEdits.maskId     = e["maskId"].toString();
+            var.imageEdits.maskId = e["maskId"].toString();
         }
         break;
     case WorkflowVarType::Wildcard:
@@ -223,20 +231,18 @@ WorkflowManager WorkflowManager::loadFromFile(const QString& path)
     for (const QJsonValue& v : root["files"].toArray()) {
         const QJsonObject o = v.toObject();
         WorkflowFile wf;
-        wf.id   = o["id"].toString();
+        wf.id = o["id"].toString();
         wf.name = o["name"].toString();
         wf.path = o["path"].toString();
-        if (wf.id.isEmpty())
-            wf.id = QString::number(loadBase + backfillCount++);
+        if (wf.id.isEmpty()) wf.id = QString::number(loadBase + backfillCount++);
         for (const QJsonValue& vv : o["variables"].toArray())
             wf.vars << varFromJson(vv.toObject());
         wm.m_files << wf;
     }
 
     // Apply legacy top-level vars to the selected file if it has none.
-    if (!legacyVars.isEmpty() && wm.m_selectedIndex >= 0
-        && wm.m_selectedIndex < wm.m_files.size()
-        && wm.m_files[wm.m_selectedIndex].vars.isEmpty()) {
+    if (!legacyVars.isEmpty() && wm.m_selectedIndex >= 0 &&
+        wm.m_selectedIndex < wm.m_files.size() && wm.m_files[wm.m_selectedIndex].vars.isEmpty()) {
         for (const QJsonValue& v : legacyVars)
             wm.m_files[wm.m_selectedIndex].vars << varFromJson(v.toObject());
     }
@@ -252,16 +258,16 @@ void WorkflowManager::saveToFile(const QString& path) const
         for (const WorkflowVar& var : wf.vars)
             varsArr.append(varToJson(var));
         QJsonObject o;
-        o["id"]        = wf.id;
-        o["name"]      = wf.name;
-        o["path"]      = wf.path;
+        o["id"] = wf.id;
+        o["name"] = wf.name;
+        o["path"] = wf.path;
         o["variables"] = varsArr;
         filesArr.append(o);
     }
 
     QJsonObject root;
     root["selectedIndex"] = m_selectedIndex;
-    root["files"]         = filesArr;
+    root["files"] = filesArr;
 
     QFile f(path);
     if (!f.open(QIODevice::WriteOnly)) return;
@@ -270,8 +276,7 @@ void WorkflowManager::saveToFile(const QString& path) const
 
 const WorkflowFile* WorkflowManager::selectedFile() const
 {
-    if (m_selectedIndex >= 0 && m_selectedIndex < m_files.size())
-        return &m_files[m_selectedIndex];
+    if (m_selectedIndex >= 0 && m_selectedIndex < m_files.size()) return &m_files[m_selectedIndex];
     return nullptr;
 }
 
@@ -301,11 +306,11 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
                 seed = var.seedValue;
                 break;
             case SeedBehavior::Increment:
-                seed = ++var.seedValue;   // pre-increment: stored value == used value
+                seed = ++var.seedValue; // pre-increment: stored value == used value
                 break;
             case SeedBehavior::Randomize:
                 seed = QRandomGenerator::global()->generate64() & 0x7FFFFFFFFFFFFFFF;
-                var.seedValue = qint64(seed);  // store so editor/state reflect actual seed used
+                var.seedValue = qint64(seed); // store so editor/state reflect actual seed used
                 break;
             }
             replacement = QString::number(seed);
@@ -322,8 +327,8 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
             break;
         case WorkflowVarType::DirSearch: {
             QString rel = var.selectedFile.isEmpty()
-                        ? QString()
-                        : QDir(var.searchDir).relativeFilePath(var.selectedFile);
+                              ? QString()
+                              : QDir(var.searchDir).relativeFilePath(var.selectedFile);
             rel.replace(QLatin1Char('/'), QLatin1String("\\\\"));
             replacement = "\"" + rel + "\"";
             break;
@@ -334,10 +339,11 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
         case WorkflowVarType::Image:
             // Empty when unset - produces an empty JSON string, which ComfyUI
             // will reject downstream with a clearer error than a parse failure.
-            replacement = "\"" + (var.imageUuid.isEmpty()
-                ? QString()
-                : WorkflowInputCache::serverSubfolder() + "/" + var.imageUuid + ".png")
-                + "\"";
+            replacement = "\"" +
+                          (var.imageUuid.isEmpty() ? QString()
+                                                   : WorkflowInputCache::serverSubfolder() + "/" +
+                                                         var.imageUuid + ".png") +
+                          "\"";
             break;
         case WorkflowVarType::Wildcard:
             // Unreachable: wildcards are filtered out before this switch.
@@ -373,38 +379,36 @@ void WorkflowManager::applyPositive(QString& json, const QString& promptForJson)
     // __positive__ (bare) and get the same valid JSON either way.
     const QString quoted = '"' + promptForJson + '"';
     json.replace("\"__positive__\"", quoted);
-    json.replace("__positive__",     quoted);
+    json.replace("__positive__", quoted);
 }
 
-void WorkflowManager::applyLoraStack(QString& json,
-                                     const QList<LoraConfig>& loras,
-                                     const QString& baseDir,
-                                     int maxSlots)
+void WorkflowManager::applyLoraStack(QString& json, const QList<LoraConfig>& loras,
+                                     const QString& baseDir, int maxSlots)
 {
     json.replace("__lora_count__", QString::number(loras.size()));
 
     for (int slot = 1; slot <= maxSlots; ++slot) {
         const int idx = slot - 1;
-        const QString namePh     = QString("__lora_name_%1__").arg(slot);
-        const QString wtPh       = QString("__lora_wt_%1__").arg(slot);
+        const QString namePh = QString("__lora_name_%1__").arg(slot);
+        const QString wtPh = QString("__lora_wt_%1__").arg(slot);
         const QString modelStrPh = QString("__lora_model_str_%1__").arg(slot);
-        const QString clipStrPh  = QString("__lora_clip_str_%1__").arg(slot);
+        const QString clipStrPh = QString("__lora_clip_str_%1__").arg(slot);
 
         if (idx < loras.size()) {
             const LoraConfig& lc = loras[idx];
-            QString rel = lc.file.isEmpty()
-                ? QString("None")
-                : QDir(baseDir).relativeFilePath(lc.file);
+            QString rel =
+                lc.file.isEmpty() ? QString("None") : QDir(baseDir).relativeFilePath(lc.file);
             rel.replace(QLatin1Char('/'), QLatin1String("\\\\"));
-            json.replace(namePh,     "\"" + rel + "\"");
-            json.replace(wtPh,       "1.000000");
+            json.replace(namePh, "\"" + rel + "\"");
+            json.replace(wtPh, "1.000000");
             json.replace(modelStrPh, QString::number(lc.modelStr, 'f', 6));
-            json.replace(clipStrPh,  QString::number(lc.clipStr,  'f', 6));
-        } else {
-            json.replace(namePh,     "\"None\"");
-            json.replace(wtPh,       "1.000000");
+            json.replace(clipStrPh, QString::number(lc.clipStr, 'f', 6));
+        }
+        else {
+            json.replace(namePh, "\"None\"");
+            json.replace(wtPh, "1.000000");
             json.replace(modelStrPh, "0.900000");
-            json.replace(clipStrPh,  "2.000000");
+            json.replace(clipStrPh, "2.000000");
         }
     }
 }
@@ -413,13 +417,11 @@ QList<LatentSizeEntry> WorkflowManager::loadLatentSizes(const QString& path)
 {
     QList<LatentSizeEntry> result;
     QFile f(path);
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
-        return result;
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return result;
 
     while (!f.atEnd()) {
         const QString line = QString::fromUtf8(f.readLine()).trimmed();
-        if (line.isEmpty() || line.startsWith('#'))
-            continue;
+        if (line.isEmpty() || line.startsWith('#')) continue;
         const QStringList parts = line.split(' ', Qt::SkipEmptyParts);
         if (parts.size() < 2) continue;
         bool okW, okH;
@@ -431,8 +433,8 @@ QList<LatentSizeEntry> WorkflowManager::loadLatentSizes(const QString& path)
         while (ratioStr.endsWith('0') && !ratioStr.endsWith(".0"))
             ratioStr.chop(1);
         LatentSizeEntry e;
-        e.w     = w;
-        e.h     = h;
+        e.w = w;
+        e.h = h;
         e.label = QString("%1x%2 (%3)").arg(w).arg(h).arg(ratioStr);
         result << e;
     }

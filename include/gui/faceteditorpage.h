@@ -21,11 +21,8 @@ namespace gui {
 class FacetEditorPage : public QWidget {
     Q_OBJECT
 public:
-    explicit FacetEditorPage(
-        core::FacetIndex*    facets,
-        core::EntryModel*   model,
-        QWidget*             parent = nullptr
-    );
+    explicit FacetEditorPage(core::FacetIndex* facets, core::EntryModel* model,
+                             QWidget* parent = nullptr);
 
     void reload();
 
@@ -33,8 +30,14 @@ public:
     // show of this page so the "undefined in composer" list stays fresh
     // without needing to plumb a signal through the composer.
     void setActiveTagsProvider(std::function<QList<QString>()> provider);
-    void setVariableIndex(core::VariableIndex* vars) { m_varIndex = vars; }
-    void setDanbooruIndex(core::DanbooruIndex* index) { m_danbooruIndex = index; }
+    void setVariableIndex(core::VariableIndex* vars)
+    {
+        m_varIndex = vars;
+    }
+    void setDanbooruIndex(core::DanbooruIndex* index)
+    {
+        m_danbooruIndex = index;
+    }
 
 public slots:
     void selectTagByName(const QString& tag);
@@ -70,37 +73,37 @@ private:
     void setPreviewPixmap(const QPixmap& pix);
     void clearPreview();
 
-    core::FacetIndex*    m_facets;
-    core::EntryModel*    m_model;
-    core::VariableIndex* m_varIndex      = nullptr;
+    core::FacetIndex* m_facets;
+    core::EntryModel* m_model;
+    core::VariableIndex* m_varIndex = nullptr;
     core::DanbooruIndex* m_danbooruIndex = nullptr;
-    QString              m_selectedTag;
+    QString m_selectedTag;
 
     std::function<QList<QString>()> m_activeTagsProvider;
 
     // Left panel
-    QLineEdit*      m_searchEdit;
-    QLabel*         m_undefinedHeader;
-    QListWidget*    m_undefinedList;
-    QListWidget*    m_tagList;
-    QLabel*         m_countLabel;
+    QLineEdit* m_searchEdit;
+    QLabel* m_undefinedHeader;
+    QListWidget* m_undefinedList;
+    QListWidget* m_tagList;
+    QLabel* m_countLabel;
 
     // Right panel
-    QLabel*         m_selectedLabel;
-    QLineEdit*      m_facetSearchEdit;
-    QWidget*        m_facetsContainer;
-    QVBoxLayout*    m_facetsLayout;
-    QPushButton*    m_saveBtn;
+    QLabel* m_selectedLabel;
+    QLineEdit* m_facetSearchEdit;
+    QWidget* m_facetsContainer;
+    QVBoxLayout* m_facetsLayout;
+    QPushButton* m_saveBtn;
     QStackedWidget* m_rightStack;
 
     // Danbooru preview rail
-    QNetworkAccessManager*  m_nam            = nullptr;
-    QWidget*                m_previewPanel   = nullptr;
-    QLabel*                 m_previewImage   = nullptr;
-    QLabel*                 m_previewStatus  = nullptr;
+    QNetworkAccessManager* m_nam = nullptr;
+    QWidget* m_previewPanel = nullptr;
+    QLabel* m_previewImage = nullptr;
+    QLabel* m_previewStatus = nullptr;
     QHash<QString, QPixmap> m_previewCache;
-    QHash<QString, int>     m_previewPostIds; // tag → post id (for click-through)
-    int                     m_previewPostId  = -1;
+    QHash<QString, int> m_previewPostIds; // tag → post id (for click-through)
+    int m_previewPostId = -1;
 };
 
 } // namespace gui

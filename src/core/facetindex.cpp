@@ -11,8 +11,7 @@ static QList<QString> splitTrimmed(const QString& s, QChar sep)
 {
     QList<QString> out;
     for (const QString& p : s.split(sep))
-        if (const QString t = p.trimmed(); !t.isEmpty())
-            out << t;
+        if (const QString t = p.trimmed(); !t.isEmpty()) out << t;
     return out;
 }
 
@@ -41,15 +40,13 @@ void FacetIndex::reloadSchemaFromFile(const QString& schemaPath)
 
     QString currentCat;
 
-    for (const QString& raw : QString::fromUtf8(f.readAll()).split('\n'))
-    {
+    for (const QString& raw : QString::fromUtf8(f.readAll()).split('\n')) {
         const QString line = raw.trimmed();
         if (line.isEmpty() || line.startsWith('#')) continue;
 
         if (line.startsWith("@category")) {
             currentCat = line.mid(9).trimmed();
-            if (!m_categories.contains(currentCat))
-                m_categories << currentCat;
+            if (!m_categories.contains(currentCat)) m_categories << currentCat;
             continue;
         }
 
@@ -57,8 +54,7 @@ void FacetIndex::reloadSchemaFromFile(const QString& schemaPath)
 
         if (!currentCat.isEmpty()) {
             for (const QString& facet : splitTrimmed(line, ',')) {
-                if (!m_facetToCategory.contains(facet))
-                    m_facetList << facet;
+                if (!m_facetToCategory.contains(facet)) m_facetList << facet;
                 m_facetToCategory[facet] = currentCat;
             }
         }
@@ -70,16 +66,14 @@ void FacetIndex::loadDefinitionsFromFile(const QString& definitionsPath)
     QFile f(definitionsPath);
     if (!f.open(QIODevice::ReadOnly)) return;
 
-    for (const QString& raw : QString::fromUtf8(f.readAll()).split('\n'))
-    {
+    for (const QString& raw : QString::fromUtf8(f.readAll()).split('\n')) {
         const QString line = raw.trimmed();
         if (line.isEmpty() || line.startsWith('#') || !line.contains('=')) continue;
 
-        const int eq                 = line.indexOf('=');
-        const QString tag            = line.left(eq).trimmed();
-        const QList<QString> facets  = splitTrimmed(line.mid(eq + 1), ',');
-        if (!tag.isEmpty())
-            m_tagToFacets[tag] = facets;
+        const int eq = line.indexOf('=');
+        const QString tag = line.left(eq).trimmed();
+        const QList<QString> facets = splitTrimmed(line.mid(eq + 1), ',');
+        if (!tag.isEmpty()) m_tagToFacets[tag] = facets;
     }
 }
 
@@ -141,8 +135,7 @@ QList<QString> FacetIndex::undefined(const QList<QString>& tags) const
 {
     QList<QString> out;
     for (const QString& tag : tags)
-        if (!m_tagToFacets.contains(tag))
-            out << tag;
+        if (!m_tagToFacets.contains(tag)) out << tag;
     return out;
 }
 

@@ -49,14 +49,10 @@ private:
     // JSON endpoint instead of /posts/. Same downstream flow once we have a
     // thumbnail URL: download, scale, fade in.
     void fetchAssetData(int assetId);
-    void displayContent(const QString& title,
-                        const QStringList& otherNames,
-                        const QString& body);
+    void displayContent(const QString& title, const QStringList& otherNames, const QString& body);
     void showLoading();
     void showNotFound(const QString& tag);
-    QString dtextToHtml(const QString& dtext,
-                        QList<int>& outPostIds,
-                        QList<int>& outAssetIds);
+    QString dtextToHtml(const QString& dtext, QList<int>& outPostIds, QList<int>& outAssetIds);
 
     // Replaces the resource at `resourceUrl` progressively from transparent
     // to `finalPix` over a short animation. Keeps the broken-image icon
@@ -85,39 +81,38 @@ private:
     // scale and centre on a ThumbW x ThumbH canvas, hand the result to
     // `store` (writes the per-kind cache), then call startThumbFade. Lives
     // on the class so it can reach startThumbFade and m_nam directly.
-    void downloadThumbAndFade(const QString& imageUrl,
-                              const QString& resourceUrl,
+    void downloadThumbAndFade(const QString& imageUrl, const QString& resourceUrl,
                               std::function<void(const QPixmap&)> store);
 
-    QNetworkAccessManager*     m_nam;
-    QString                    m_currentTag;
+    QNetworkAccessManager* m_nam;
+    QString m_currentTag;
     QHash<QString, QByteArray> m_wikiCache;
-    QHash<int, QPixmap>        m_postThumbs;
-    QHash<int, QPixmap>        m_assetThumbs;
-    bool                       m_fontApplied = false;
-    bool                       m_screenChangedConnected = false;
+    QHash<int, QPixmap> m_postThumbs;
+    QHash<int, QPixmap> m_assetThumbs;
+    bool m_fontApplied = false;
+    bool m_screenChangedConnected = false;
 
     // Crossfade between wiki pages when the user clicks an in-document
     // [[wiki link]]. Search-bar lookups and history navigation skip the
     // animation - only set m_pendingTag from the wiki link click path.
-    QGraphicsOpacityEffect* m_fadeEffect    = nullptr;
-    QPropertyAnimation*     m_fadeAnim      = nullptr;
-    QString                 m_pendingTag;          // tag to emit when fade-out finishes
-    bool                    m_pendingFadeIn = false;
+    QGraphicsOpacityEffect* m_fadeEffect = nullptr;
+    QPropertyAnimation* m_fadeAnim = nullptr;
+    QString m_pendingTag; // tag to emit when fade-out finishes
+    bool m_pendingFadeIn = false;
 
     // Navigation history
     QList<QString> m_history;
-    int            m_historyPos = -1;
-    bool           m_navigating = false;
+    int m_historyPos = -1;
+    bool m_navigating = false;
 
     // UI
-    TagSearchBar*   m_searchBar;
-    QPushButton*    m_backBtn         = nullptr;
-    QPushButton*    m_forwardBtn      = nullptr;
-    QPushButton*    m_openExternalBtn = nullptr;
-    QLabel*         m_titleLabel;
-    QLabel*         m_aliasLabel;
-    QTextBrowser*   m_browser;
+    TagSearchBar* m_searchBar;
+    QPushButton* m_backBtn = nullptr;
+    QPushButton* m_forwardBtn = nullptr;
+    QPushButton* m_openExternalBtn = nullptr;
+    QLabel* m_titleLabel;
+    QLabel* m_aliasLabel;
+    QTextBrowser* m_browser;
     QStackedWidget* m_mainStack;
 
     // Refresh enabled state of the three nav buttons (back/forward by

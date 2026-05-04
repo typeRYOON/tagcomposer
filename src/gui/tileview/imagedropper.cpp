@@ -12,10 +12,9 @@
 
 namespace gui {
 
-static const QStringList IMAGE_EXTS = { "jpg", "jpeg", "png", "webp", "bmp", "gif" };
+static const QStringList IMAGE_EXTS = {"jpg", "jpeg", "png", "webp", "bmp", "gif"};
 
-ImageDropper::ImageDropper(QWidget* parent)
-    : QLabel(parent)
+ImageDropper::ImageDropper(QWidget* parent) : QLabel(parent)
 {
     setObjectName("ImageDropper");
     setAcceptDrops(true);
@@ -24,14 +23,14 @@ ImageDropper::ImageDropper(QWidget* parent)
 
 void ImageDropper::setImage(const QString& path)
 {
-    m_path   = path;
+    m_path = path;
     m_pixmap = QPixmap(path);
     update();
 }
 
 void ImageDropper::clearImage()
 {
-    m_path   = {};
+    m_path = {};
     m_pixmap = QPixmap();
     update();
 }
@@ -81,8 +80,8 @@ void ImageDropper::paintEvent(QPaintEvent*)
     QPainter p(this);
     p.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
 
-    const QRectF r      = QRectF(rect());
-    const qreal  radius = 8.0;
+    const QRectF r = QRectF(rect());
+    const qreal radius = 8.0;
 
     QPainterPath clip;
     clip.addRoundedRect(r, radius, radius);
@@ -90,13 +89,11 @@ void ImageDropper::paintEvent(QPaintEvent*)
 
     if (!m_pixmap.isNull()) {
         const QSizeF scaled = m_pixmap.size().scaled(size(), Qt::KeepAspectRatioByExpanding);
-        const QRectF dst(
-            (r.width()  - scaled.width())  / 2.0,
-            (r.height() - scaled.height()) / 2.0,
-            scaled.width(), scaled.height()
-        );
+        const QRectF dst((r.width() - scaled.width()) / 2.0, (r.height() - scaled.height()) / 2.0,
+                         scaled.width(), scaled.height());
         p.drawPixmap(dst.toRect(), m_pixmap);
-    } else {
+    }
+    else {
         p.fillPath(clip, QColor(0x18, 0x18, 0x18));
         p.setClipping(false);
         QPen dashedPen(QColor(0x38, 0x38, 0x38), 1.5, Qt::DashLine);
@@ -104,7 +101,8 @@ void ImageDropper::paintEvent(QPaintEvent*)
         p.drawRoundedRect(r.adjusted(1, 1, -1, -1), radius, radius);
 
         p.setPen(QColor(0x40, 0x40, 0x40));
-        QFont f = font(); f.setPointSize(9);
+        QFont f = font();
+        f.setPointSize(9);
         p.setFont(f);
         p.drawText(r, Qt::AlignCenter, "Drop image");
     }

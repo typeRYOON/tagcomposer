@@ -44,7 +44,8 @@ void PromptComposerPage::rebuildStatesList()
     if (states.isEmpty()) {
         auto* item = new QListWidgetItem("No saved states");
         item->setFlags(Qt::NoItemFlags);
-        QFont f = item->font(); f.setItalic(true);
+        QFont f = item->font();
+        f.setItalic(true);
         item->setFont(f);
         item->setForeground(QColor("#2a2a2a"));
         m_statesList->addItem(item);
@@ -52,8 +53,8 @@ void PromptComposerPage::rebuildStatesList()
     }
 
     for (const auto& state : states) {
-        const bool hasImg = !state.previewImagePath.isEmpty()
-                         && QFile::exists(state.previewImagePath);
+        const bool hasImg =
+            !state.previewImagePath.isEmpty() && QFile::exists(state.previewImagePath);
         auto* item = new QListWidgetItem((hasImg ? "◆  " : "") + state.name);
         m_statesList->addItem(item);
     }
@@ -64,26 +65,24 @@ void PromptComposerPage::saveCurrentState()
     if (m_statesDir.isEmpty()) return;
 
     bool ok;
-    const QString defaultName =
-        QString("State %1").arg(m_stateManager.states().size() + 1);
-    const QString name = QInputDialog::getText(
-        this, "Save State", "Name:", QLineEdit::Normal, defaultName, &ok);
+    const QString defaultName = QString("State %1").arg(m_stateManager.states().size() + 1);
+    const QString name =
+        QInputDialog::getText(this, "Save State", "Name:", QLineEdit::Normal, defaultName, &ok);
     if (!ok || name.trimmed().isEmpty()) return;
 
     core::SavedState state;
-    state.id              = QString::number(QDateTime::currentMSecsSinceEpoch());
-    state.name            = name.trimmed();
-    state.activeTags      = m_activeTags;
+    state.id = QString::number(QDateTime::currentMSecsSinceEpoch());
+    state.name = name.trimmed();
+    state.activeTags = m_activeTags;
     for (auto it = m_tagWeights.cbegin(); it != m_tagWeights.cend(); ++it)
-        if (qAbs(it.value() - 1.0f) >= 0.001f)
-            state.tagWeights[it.key()] = it.value();
+        if (qAbs(it.value() - 1.0f) >= 0.001f) state.tagWeights[it.key()] = it.value();
     state.deactivatedTags = m_deactivatedTags;
 
     // Convert runtime (entryId, imageIdx) keys to stable (uuid, imageFileName).
     state.activePushes = dumpActivePushes();
 
     for (const auto& rule : m_rules->rules()) {
-        state.ruleStates[rule.name]    = rule.enabled;
+        state.ruleStates[rule.name] = rule.enabled;
         // Capture Add/Replace args too - these are what the user types in the
         // rules sidebar arg-edit and they're part of the prompt configuration.
         state.ruleArguments[rule.name] = rule.action.arguments;
@@ -91,7 +90,7 @@ void PromptComposerPage::saveCurrentState()
 
     if (m_varIndex)
         for (const auto& var : m_varIndex->variables())
-            state.varValues.append({ var.name, var.value });
+            state.varValues.append({var.name, var.value});
 
     if (m_wfManager) {
         const core::WorkflowFile* wf = m_wfManager->selectedFile();
@@ -119,9 +118,10 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     m_deactivatedTags.clear();
     // m_activePushes is replaced wholesale by loadActivePushes below.
 
-    m_activeTags      = state.activeTags;
-    for (const auto& t : m_activeTags) m_activeTagSet.insert(t);
-    m_tagWeights      = state.tagWeights;
+    m_activeTags = state.activeTags;
+    for (const auto& t : m_activeTags)
+        m_activeTagSet.insert(t);
+    m_tagWeights = state.tagWeights;
     m_deactivatedTags = state.deactivatedTags;
 
     const int missing = loadActivePushes(state.activePushes);
@@ -142,9 +142,9 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         if (it != state.ruleStates.end()) {
             rule.enabled = it.value();
             auto ait = state.ruleArguments.find(rule.name);
-            if (ait != state.ruleArguments.end())
-                rule.action.arguments = ait.value();
-        } else {
+            if (ait != state.ruleArguments.end()) rule.action.arguments = ait.value();
+        }
+        else {
             rule.enabled = false;
         }
     }
@@ -160,7 +160,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         QList<core::Variable> newVars;
         for (const auto& pair : state.varValues) {
             core::Variable v;
-            v.name  = pair.first;
+            v.name = pair.first;
             v.value = pair.second;
             newVars << v;
         }
@@ -176,7 +176,8 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         if (wfIdx >= 0) {
             m_wfManager->setSelectedIndex(wfIdx);
             rebuildWorkflowList();
-        } else {
+        }
+        else {
             workflowMissing = true;
         }
     }
@@ -210,12 +211,11 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
             // State-restore-specific: warn if an Image var references a
             // cache entry that no longer exists, then clear so the user
             // re-picks rather than silently sending a broken upload.
-            if (v.type == core::WorkflowVarType::Image
-                && !v.imageUuid.isEmpty() && m_inputCache
-                && !m_inputCache->has(v.imageUuid)) {
-                emit statusMessageRequested(QString(
-                    "Image input %1 missing from cache (%2) - repick")
-                    .arg(v.placeholder, v.imageUuid.left(8)));
+            if (v.type == core::WorkflowVarType::Image && !v.imageUuid.isEmpty() && m_inputCache &&
+                !m_inputCache->has(v.imageUuid)) {
+                emit statusMessageRequested(
+                    QString("Image input %1 missing from cache (%2) - repick")
+                        .arg(v.placeholder, v.imageUuid.left(8)));
                 v.imageUuid.clear();
             }
             newVars << v;
@@ -231,10 +231,10 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     repush();
 
     QStringList warnings;
-    if (workflowMissing)
-        warnings << "workflow no longer exists";
+    if (workflowMissing) warnings << "workflow no longer exists";
     if (missing > 0)
-        warnings << QString("%1 entr%2 no longer exist").arg(missing).arg(missing == 1 ? "y" : "ies");
+        warnings
+            << QString("%1 entr%2 no longer exist").arg(missing).arg(missing == 1 ? "y" : "ies");
 
     if (warnings.isEmpty())
         emit statusMessageRequested(QString("Restored: %1").arg(state.name));
@@ -246,23 +246,26 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
 void PromptComposerPage::showStatePreview(int row)
 {
     if (row < 0 || row >= m_stateManager.states().size()) {
-        hideStatePreview(); return;
+        hideStatePreview();
+        return;
     }
     const core::SavedState& state = m_stateManager.states()[row];
     if (state.previewImagePath.isEmpty() || !QFile::exists(state.previewImagePath)) {
-        hideStatePreview(); return;
+        hideStatePreview();
+        return;
     }
     QPixmap pix(state.previewImagePath);
-    if (pix.isNull()) { hideStatePreview(); return; }
+    if (pix.isNull()) {
+        hideStatePreview();
+        return;
+    }
 
     pix = pix.scaled(220, 220, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     m_statesPreviewPopup->setPixmap(pix);
     m_statesPreviewPopup->adjustSize();
 
-    const QRect itemRect = m_statesList->visualRect(
-        m_statesList->model()->index(row, 0));
-    const QPoint globalTopLeft =
-        m_statesList->viewport()->mapToGlobal(itemRect.topLeft());
+    const QRect itemRect = m_statesList->visualRect(m_statesList->model()->index(row, 0));
+    const QPoint globalTopLeft = m_statesList->viewport()->mapToGlobal(itemRect.topLeft());
     int x = globalTopLeft.x() - m_statesPreviewPopup->width() - 8;
     int y = globalTopLeft.y();
 

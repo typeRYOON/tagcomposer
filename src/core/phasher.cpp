@@ -42,8 +42,7 @@ uint64_t phashOf(const cv::Mat& input)
     vals.reserve(63);
     for (int i = 0; i < 8; ++i)
         for (int j = 0; j < 8; ++j)
-            if (!(i == 0 && j == 0))
-                vals.push_back(dct_low.at<float>(i, j));
+            if (!(i == 0 && j == 0)) vals.push_back(dct_low.at<float>(i, j));
 
     std::nth_element(vals.begin(), vals.begin() + vals.size() / 2, vals.end());
     const float median = vals[vals.size() / 2];
@@ -52,8 +51,7 @@ uint64_t phashOf(const cv::Mat& input)
     int bit = 0;
     for (int i = 0; i < 8; ++i) {
         for (int j = 0; j < 8; ++j) {
-            if (dct_low.at<float>(i, j) > median)
-                hash |= (1ULL << bit);
+            if (dct_low.at<float>(i, j) > median) hash |= (1ULL << bit);
             ++bit;
         }
     }
