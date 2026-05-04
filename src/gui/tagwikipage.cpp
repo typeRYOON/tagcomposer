@@ -250,6 +250,7 @@ void TagWikiPage::lookupTag(const QString& tag)
 void TagWikiPage::goBack()
 {
     if (m_historyPos <= 0) return;
+    cancelPendingFade();
     --m_historyPos;
     loadFromHistory();
 }
@@ -257,6 +258,7 @@ void TagWikiPage::goBack()
 void TagWikiPage::goForward()
 {
     if (m_historyPos >= m_history.size() - 1) return;
+    cancelPendingFade();
     ++m_historyPos;
     loadFromHistory();
 }
@@ -266,6 +268,19 @@ void TagWikiPage::loadFromHistory()
     m_navigating = true;
     lookupTag(m_history[m_historyPos]);
     m_navigating = false;
+}
+
+void TagWikiPage::cancelPendingFade()
+{
+    // History navigation sidesteps the wiki-link crossfade. If a fade-out
+    // is mid-flight (user clicked an in-document [[wiki link]] then hit
+    // Back before the 180ms fade landed), the queued m_pendingTag would
+    // otherwise hijack the navigation when the fade-finished handler fires.
+    // Stop the animation, drop the queue, and snap opacity back to 1.0.
+    m_fadeAnim->stop();
+    m_pendingTag.clear();
+    m_pendingFadeIn = false;
+    m_fadeEffect->setOpacity(1.0);
 }
 
 // ── Network ───────────────────────────────────────────────────────────────────

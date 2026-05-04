@@ -76,6 +76,11 @@ private:
     // history navigation, programmatic lookupTag from outside).
     void finishPendingFadeIn();
 
+    // Stops any running fade animation, drops m_pendingTag / m_pendingFadeIn,
+    // and snaps opacity back to 1.0. Used by history navigation so an
+    // in-flight wiki-link fade can't hijack the back/forward target.
+    void cancelPendingFade();
+
     // Shared step 4-7 of the post / asset thumbnail flow: GET imageUrl,
     // scale and centre on a ThumbW x ThumbH canvas, hand the result to
     // `store` (writes the per-kind cache), then call startThumbFade. Lives

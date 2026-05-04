@@ -91,7 +91,7 @@ void PromptComposerPage::saveCurrentState()
 
     if (m_varIndex)
         for (const auto& var : m_varIndex->variables())
-            state.varValues[var.name] = var.value;
+            state.varValues.append({ var.name, var.value });
 
     if (m_wfManager) {
         const core::WorkflowFile* wf = m_wfManager->selectedFile();
@@ -158,10 +158,10 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     // session is dropped. Persists to vars.fct so it survives restart.
     if (m_varIndex) {
         QList<core::Variable> newVars;
-        for (auto it = state.varValues.cbegin(); it != state.varValues.cend(); ++it) {
+        for (const auto& pair : state.varValues) {
             core::Variable v;
-            v.name  = it.key();
-            v.value = it.value();
+            v.name  = pair.first;
+            v.value = pair.second;
             newVars << v;
         }
         m_varIndex->variables() = newVars;

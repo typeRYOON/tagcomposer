@@ -607,18 +607,24 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
 
     loraDropZone->onFileDropped = [this](const QString& path) {
         if (!m_entry) return;
-        core::Entry* targetEntry = m_entry;
+        // Capture the id (not the pointer) so we can re-resolve after the
+        // hash worker finishes. EntryModel::deleteEntry erases the std::list
+        // node, so any Entry* captured here would dangle if the user deleted
+        // the entry while the hash was being computed on the worker thread.
+        const int32_t entryId = m_entry->id;
 
         emit statusMessageRequested("Computing LoRA hash...");
 
         auto* watcher = new QFutureWatcher<QString>(this);
         connect(watcher, &QFutureWatcher<QString>::finished, this,
-            [this, watcher, path, targetEntry]() {
+            [this, watcher, path, entryId]() {
                 watcher->deleteLater();
                 const QString hash = watcher->result();
 
-                // Verify the entry is still loaded and valid
-                if (m_model->entryById(targetEntry->id) != targetEntry) return;
+                // Re-resolve the entry; bail out if the user deleted it
+                // (or this panel) while hashing was in flight.
+                core::Entry* targetEntry = m_model->entryById(entryId);
+                if (!targetEntry) return;
 
                 // Reject duplicates before any file move so we don't shuffle
                 // a file across disks just to throw it away.
@@ -673,11 +679,18 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
                     }
                 }
 
+                // Re-resolve once more: LoraImportDialog::exec() above pumps
+                // the event loop, which is enough time for the entry to be
+                // deleted from another path (close-to-tray, model rebuild,
+                // etc.). Skip the lora write if the entry vanished.
+                targetEntry = m_model->entryById(entryId);
+                if (!targetEntry) return;
+
                 if (!targetEntry->lora.has_value())
                     targetEntry->lora = core::LoraConfig{};
                 targetEntry->lora->file   = finalPath;
                 targetEntry->lora->sha256 = hash;
-                m_model->saveEntry(targetEntry->id);
+                m_model->saveEntry(entryId);
 
                 if (m_entry == targetEntry) refreshLoraSection();
                 emit statusMessageRequested(

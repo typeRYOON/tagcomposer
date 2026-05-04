@@ -1278,10 +1278,15 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey,
         // Already present elsewhere - drop the old one rather than dupe.
         m_activeTags.removeAt(i);
         m_activeTagSet.remove(oldKey);
+        m_tagWeights.remove(oldKey);
     } else {
         m_activeTags[i] = newKey;
         m_activeTagSet.remove(oldKey);
         m_activeTagSet.insert(newKey);
+        // Migrate any user-set weight under the new source key so the
+        // variable swap doesn't silently drop it.
+        if (m_tagWeights.contains(oldKey))
+            m_tagWeights[newKey] = m_tagWeights.take(oldKey);
     }
     m_deactivatedTags.remove(oldKey);
     renamePushTag(oldKey, collide ? QString() : newKey);
@@ -1360,10 +1365,17 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
             if (collide) {
                 m_activeTags.removeAt(i);
                 m_activeTagSet.remove(oldTag);
+                // Drop the orphan weight: the colliding existing tag keeps
+                // its own value rather than being silently overridden.
+                m_tagWeights.remove(oldTag);
             } else {
                 m_activeTags[i] = newTag;
                 m_activeTagSet.remove(oldTag);
                 m_activeTagSet.insert(newTag);
+                // Migrate any user-set weight to the new key so the rename
+                // doesn't silently drop it.
+                if (m_tagWeights.contains(oldTag))
+                    m_tagWeights[newTag] = m_tagWeights.take(oldTag);
             }
             renamePushTag(oldTag, collide ? QString() : newTag);
             tagEdit->setProperty("_tag", newTag);
@@ -1440,10 +1452,13 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
 
     const QString wikiTag = pt.tag;
     if (inActive) {
-        auto onRemove = [this, activeKey, wikiTag]() {
+        auto onRemove = [this, activeKey]() {
             m_activeTags.removeOne(activeKey);
             m_activeTagSet.remove(activeKey);
-            m_tagWeights.remove(wikiTag);
+            // Weights are keyed via weightKeyOf, which is sourceTag for
+            // $VAR$ tags - that's the same as activeKey. Removing under
+            // the wikiTag (= expanded form) would orphan the entry.
+            m_tagWeights.remove(activeKey);
             m_deactivatedTags.remove(activeKey);
             QMetaObject::invokeMethod(
                 this, &PromptComposerPage::repush, Qt::QueuedConnection);

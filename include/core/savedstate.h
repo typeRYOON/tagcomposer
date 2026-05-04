@@ -27,7 +27,11 @@ struct SavedState {
     QList<EntryPush>       activePushes;     // uuid + imageIdx -> tags (stable across restarts)
     QMap<QString, bool>           ruleStates;     // rule name -> enabled
     QMap<QString, QList<QString>> ruleArguments;  // rule name -> action arguments (for Add/Replace)
-    QMap<QString, QString>        varValues;      // var name -> value
+    // Insertion-ordered list of (var name, value) pairs; preserved across
+    // save/restore so the user's vars.fct ordering survives. QMap was the
+    // earlier shape and iterated alphabetically, which silently re-sorted
+    // the user's variable order every time a state was loaded.
+    QList<QPair<QString, QString>> varValues;
     QString                selectedWorkflowId;   // stable id from WorkflowFile::id
     // Array of {placeholder, type, value-fields...} - array (not object) so the
     // workflow's variable order is preserved across save/restore round-trips.

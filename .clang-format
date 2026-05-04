@@ -1,0 +1,38 @@
+---
+Language: Cpp
+Standard: c++23
+ColumnLimit: 100
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+BreakBeforeBraces: Stroustrup
+
+PointerAlignment: Left
+DerivePointerAlignment: false
+
+AccessModifierOffset: -4
+
+NamespaceIndentation: None
+FixNamespaceComments: true
+
+IndentCaseLabels: false
+
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortLambdasOnASingleLine: All
+
+Cpp11BracedListStyle: true
+
+SortIncludes: Never
+
+# Misc
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpaceAfterTemplateKeyword: true
+ContinuationIndentWidth: 4
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: false
+ReflowComments: false

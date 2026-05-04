@@ -62,9 +62,24 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
         s.ruleArguments[it.key()] = args;
     }
 
-    const QJsonObject vars = obj["varValues"].toObject();
-    for (auto it = vars.constBegin(); it != vars.constEnd(); ++it)
-        s.varValues[it.key()] = it.value().toString();
+    // varValues: array form is current ([{name, value}, ...]) and preserves
+    // user-visible ordering. Object form is the legacy shape; JSON objects
+    // have no defined order so we just take whatever Qt's iteration gives,
+    // which means legacy saves can re-order on first re-save (but only once).
+    {
+        const QJsonValue vv = obj["varValues"];
+        if (vv.isArray()) {
+            for (const QJsonValue& v : vv.toArray()) {
+                const QJsonObject o = v.toObject();
+                s.varValues.append({ o["name"].toString(),
+                                     o["value"].toString() });
+            }
+        } else {
+            const QJsonObject vars = vv.toObject();
+            for (auto it = vars.constBegin(); it != vars.constEnd(); ++it)
+                s.varValues.append({ it.key(), it.value().toString() });
+        }
+    }
 
     s.selectedWorkflowId  = obj["selectedWorkflowId"].toString();
     {
@@ -127,10 +142,15 @@ QJsonObject SavedState::toJson() const
     }
     obj["ruleArguments"] = ruleArgsObj;
 
-    QJsonObject varsObj;
-    for (auto it = varValues.constBegin(); it != varValues.constEnd(); ++it)
-        varsObj[it.key()] = it.value();
-    obj["varValues"] = varsObj;
+    // Write as an array so on-disk order matches the user's variable order.
+    QJsonArray varsArr;
+    for (const auto& v : varValues) {
+        QJsonObject one;
+        one["name"]  = v.first;
+        one["value"] = v.second;
+        varsArr.append(one);
+    }
+    obj["varValues"] = varsArr;
 
     obj["selectedWorkflowId"]  = selectedWorkflowId;
     obj["workflowVarValues"]   = workflowVarValues;
