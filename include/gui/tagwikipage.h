@@ -60,12 +60,28 @@ private:
     // once it does. Resource URL is something like "post:42" or "asset:9001".
     void startThumbFade(const QString& resourceUrl, const QPixmap& finalPix);
 
+    // Animates the browser's vertical scrollbar to `target`, clamped to the
+    // scrollbar's current min/max. If a previous scroll animation is running,
+    // its endValue becomes the base so wheel events stack instead of fighting.
+    void smoothScrollTo(int target);
+
+    // scrollToAnchor's animated counterpart. Reads the target position by
+    // briefly snap-jumping to the anchor, snaps back, then animates. The
+    // snap-and-restore happens within one call so no paint event lands in
+    // between - the user only sees the smooth scroll.
+    void smoothScrollToAnchor(const QString& anchor);
+
     // Stages a wiki-page transition: queue `tag`, animate stack opacity to
     // 0, and let the fade-finish handler emit wikiLinkClicked once the
     // fade-out lands. The matching fade-in fires from displayContent /
     // showNotFound when the new content is ready. Used by the search bar
     // commit path and the in-document [[wiki link]] click path.
     void startFadeOutThenLookup(const QString& tag);
+
+    // History-navigation counterpart to startFadeOutThenLookup. Caller has
+    // already advanced m_historyPos; the fade-finished handler picks up
+    // m_pendingHistoryNav and calls loadFromHistory at the dark frame.
+    void startFadeOutThenHistory();
 
     // If a fade-in was queued by the previous fade-out, animate opacity
     // back to 1.0. No-op when m_pendingFadeIn is false (initial show,
@@ -97,8 +113,12 @@ private:
     // animation - only set m_pendingTag from the wiki link click path.
     QGraphicsOpacityEffect* m_fadeEffect = nullptr;
     QPropertyAnimation* m_fadeAnim = nullptr;
+    QPropertyAnimation* m_scrollAnim = nullptr;
     QString m_pendingTag; // tag to emit when fade-out finishes
     bool m_pendingFadeIn = false;
+    // True when goBack / goForward kicked off a fade-out and we should
+    // resolve by loading from history rather than emitting wikiLinkClicked.
+    bool m_pendingHistoryNav = false;
 
     // Navigation history
     QList<QString> m_history;

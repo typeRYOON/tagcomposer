@@ -21,6 +21,8 @@
 #include <QWindow>
 #include <QGraphicsOpacityEffect>
 #include <QPropertyAnimation>
+#include <QScrollBar>
+#include <QWheelEvent>
 
 
 namespace gui {
@@ -82,6 +84,15 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     m_browser->document()->setDocumentMargin(0);
     connect(m_browser, &QTextBrowser::anchorClicked, this, &TagWikiPage::onAnchorClicked);
     m_browser->installEventFilter(this);
+    // Wheel events are delivered to the viewport, not the QAbstractScrollArea
+    // itself, so smooth-scrolling needs an event filter on viewport().
+    m_browser->viewport()->installEventFilter(this);
+
+    // Smooth-scroll animation. Targets the verticalScrollBar's `value` so
+    // both wheel input and anchor jumps go through the same easing curve.
+    m_scrollAnim = new QPropertyAnimation(m_browser->verticalScrollBar(), "value", this);
+    m_scrollAnim->setDuration(220);
+    m_scrollAnim->setEasingCurve(QEasingCurve::OutCubic);
 
     // ── Content widget ────────────────────────────────────────────────────────
     auto* contentWidget = new QWidget;
@@ -121,7 +132,19 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
         // Animation is in fade-out direction when endValue is 0; that's our
         // signal to actually request the new page. The fade-in path runs
         // from displayContent so we don't need to do anything on its finish.
-        if (m_fadeAnim->endValue().toReal() < 0.5 && !m_pendingTag.isEmpty()) {
+        if (m_fadeAnim->endValue().toReal() >= 0.5) return;
+
+        // History nav takes priority over a queued wiki-link tag in case
+        // both got set (rapid click → back). loadFromHistory routes through
+        // lookupTag, which in turn calls displayContent + finishPendingFadeIn.
+        if (m_pendingHistoryNav) {
+            m_pendingHistoryNav = false;
+            m_pendingTag.clear();
+            m_pendingFadeIn = true;
+            loadFromHistory();
+            return;
+        }
+        if (!m_pendingTag.isEmpty()) {
             const QString tag = m_pendingTag;
             m_pendingTag.clear();
             m_pendingFadeIn = true;
@@ -245,17 +268,15 @@ void TagWikiPage::lookupTag(const QString& tag)
 void TagWikiPage::goBack()
 {
     if (m_historyPos <= 0) return;
-    cancelPendingFade();
     --m_historyPos;
-    loadFromHistory();
+    startFadeOutThenHistory();
 }
 
 void TagWikiPage::goForward()
 {
     if (m_historyPos >= m_history.size() - 1) return;
-    cancelPendingFade();
     ++m_historyPos;
-    loadFromHistory();
+    startFadeOutThenHistory();
 }
 
 void TagWikiPage::loadFromHistory()
@@ -267,15 +288,42 @@ void TagWikiPage::loadFromHistory()
 
 void TagWikiPage::cancelPendingFade()
 {
-    // History navigation sidesteps the wiki-link crossfade. If a fade-out
-    // is mid-flight (user clicked an in-document [[wiki link]] then hit
-    // Back before the 180ms fade landed), the queued m_pendingTag would
-    // otherwise hijack the navigation when the fade-finished handler fires.
-    // Stop the animation, drop the queue, and snap opacity back to 1.0.
+    // Stops any in-flight fade and drops both the wiki-link queue and the
+    // history-nav queue. Currently unused since both back/forward and the
+    // wiki-link path now route through fade animations, but kept available
+    // for any future caller that needs to abort cleanly.
     m_fadeAnim->stop();
     m_pendingTag.clear();
+    m_pendingHistoryNav = false;
     m_pendingFadeIn = false;
     m_fadeEffect->setOpacity(1.0);
+}
+
+// ── Smooth scroll ────────────────────────────────────────────────────────────
+
+void TagWikiPage::smoothScrollTo(int target)
+{
+    QScrollBar* sb = m_browser->verticalScrollBar();
+    const int clamped = qBound(sb->minimum(), target, sb->maximum());
+    if (m_scrollAnim->state() == QAbstractAnimation::Running) m_scrollAnim->stop();
+    m_scrollAnim->setStartValue(sb->value());
+    m_scrollAnim->setEndValue(clamped);
+    m_scrollAnim->start();
+}
+
+void TagWikiPage::smoothScrollToAnchor(const QString& anchor)
+{
+    QScrollBar* sb = m_browser->verticalScrollBar();
+    const int from = sb->value();
+    // QTextBrowser doesn't expose the anchor's Y position directly. Letting
+    // it perform the jump and reading the resulting scrollbar value is the
+    // shortest path; the snap-back below happens before any paint event so
+    // the user only sees the smooth animation that follows.
+    m_browser->scrollToAnchor(anchor);
+    const int to = sb->value();
+    if (to == from) return; // anchor missing or already in view
+    sb->setValue(from);
+    smoothScrollTo(to);
 }
 
 // ── Network ───────────────────────────────────────────────────────────────────
@@ -512,6 +560,10 @@ void TagWikiPage::displayContent(const QString& title, const QStringList& otherN
         }
     }
 
+    // Cancel any in-flight scroll animation: setHtml resets the document and
+    // the scrollbar's range, leaving the animation chasing a stale endValue.
+    if (m_scrollAnim->state() == QAbstractAnimation::Running) m_scrollAnim->stop();
+
     m_browser->setHtml(html);
     m_mainStack->setCurrentIndex(1);
     finishPendingFadeIn();
@@ -532,6 +584,28 @@ bool TagWikiPage::eventFilter(QObject* obj, QEvent* event)
         // is dragged to a larger monitor. Marking the whole document dirty
         // forces a full layout pass after the new width is applied.
         if (auto* doc = m_browser->document()) doc->markContentsDirty(0, doc->characterCount());
+    }
+    if (obj == m_browser->viewport() && event->type() == QEvent::Wheel) {
+        auto* we = static_cast<QWheelEvent*>(event);
+        // Modifier-held wheel (Ctrl+Wheel zoom etc.) and precision-touchpad
+        // wheels (continuous pixelDelta) bypass smoothing - the touchpad is
+        // already pixel-smooth, and zoom shouldn't get translated to scroll.
+        if (we->modifiers() != Qt::NoModifier) return false;
+        if (!we->pixelDelta().isNull()) return false;
+
+        const int notches = we->angleDelta().y() / 120;
+        if (notches == 0) return false;
+        // 60 px per notch matches the rough feel of QAbstractScrollArea's
+        // default (3 lines × ~20px line height). Easy to retune later.
+        const int delta = -notches * 60;
+        // Stack on top of the in-flight target instead of the current
+        // animated value, so rapid wheel notches don't fight each other.
+        QScrollBar* sb = m_browser->verticalScrollBar();
+        const int base = (m_scrollAnim->state() == QAbstractAnimation::Running)
+                             ? m_scrollAnim->endValue().toInt()
+                             : sb->value();
+        smoothScrollTo(base + delta);
+        return true;
     }
     return QWidget::eventFilter(obj, event);
 }
@@ -610,6 +684,17 @@ void TagWikiPage::updateNavButtons()
 void TagWikiPage::startFadeOutThenLookup(const QString& tag)
 {
     m_pendingTag = tag;
+    m_pendingHistoryNav = false; // wiki-link click overrides any pending history nav
+    m_fadeAnim->stop();
+    m_fadeAnim->setStartValue(m_fadeEffect->opacity());
+    m_fadeAnim->setEndValue(0.0);
+    m_fadeAnim->start();
+}
+
+void TagWikiPage::startFadeOutThenHistory()
+{
+    m_pendingHistoryNav = true;
+    m_pendingTag.clear(); // history nav overrides any pending wiki-link tag
     m_fadeAnim->stop();
     m_fadeAnim->setStartValue(m_fadeEffect->opacity());
     m_fadeAnim->setEndValue(0.0);
@@ -650,7 +735,7 @@ void TagWikiPage::onAnchorClicked(const QUrl& url)
     // leave a non-empty scheme on the URL. Don't gate on scheme - if there's
     // a fragment and no special scheme matched above, treat it as an anchor.
     if (!url.fragment().isEmpty()) {
-        m_browser->scrollToAnchor(url.fragment());
+        smoothScrollToAnchor(url.fragment());
         return;
     }
 
@@ -1030,7 +1115,7 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
         "}"
         "h1,h2,h3,h4,h5,h6{color:#888;border-bottom:1px solid "
         "#222;padding-bottom:3px;margin-top:14px;}"
-        "a{color:#5599cc;text-decoration:none;}"
+        "a{color:#66aa66;text-decoration:none;}"
         "blockquote{border-left:2px solid #333;margin:4px 0 4px 8px;padding-left:10px;color:#888;}"
         "code{background:#1a1a1a;border-radius:3px;padding:1px "
         "4px;font-family:monospace;font-size:12px;}"
