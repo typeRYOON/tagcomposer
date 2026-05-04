@@ -13,7 +13,6 @@
 #include <QColor>
 #include <QCursor>
 #include <QEnterEvent>
-#include <QFile>
 #include <QFont>
 #include <QFontMetrics>
 #include <QHBoxLayout>
@@ -21,7 +20,6 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QListWidgetItem>
-#include <QPixmap>
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QTimer>
@@ -129,20 +127,14 @@ private:
     QTimer* m_hideTimer = nullptr;
 };
 
-// Build a small status badge. Prefers an icon resource when one is present,
-// falling back to text - drop a PNG/SVG at the resource path to upgrade.
-QLabel* makeBadge(const QString& iconRes, const QString& fallbackText, const QString& objectName)
+// Small status badge for rule rows. Glyph-only - the colour comes from the
+// objectName's QSS rule (#ComposerRuleAddBadge / Replace / Force in
+// composerpage.qss).
+QLabel* makeBadge(const QString& glyph, const QString& objectName)
 {
     auto* lbl = new QLabel;
     lbl->setObjectName(objectName);
-    if (!iconRes.isEmpty() && QFile::exists(iconRes)) {
-        QPixmap pm(iconRes);
-        if (!pm.isNull()) {
-            lbl->setPixmap(pm);
-            return lbl;
-        }
-    }
-    lbl->setText(fallbackText);
+    lbl->setText(glyph);
     return lbl;
 }
 
@@ -227,14 +219,15 @@ void PromptComposerPage::rebuildRulesSidebar()
             cbRowL->addWidget(nameLabel, 1);
 
             if (rules[i].force) {
-                cbRowL->addWidget(
-                    makeBadge(":/icons/rule_force.png", "F", "ComposerRuleForceBadge"));
+                cbRowL->addWidget(makeBadge("⚑", "ComposerRuleForceBadge"));
             }
 
             if (hasArgEdit) {
+                // ✚ (U+271A, Heavy Greek Cross) instead of plain "+" - the
+                // ASCII plus sits on the math baseline so it renders lower
+                // than the flag / arrow glyphs which use cap-height metrics.
                 cbRowL->addWidget(
-                    makeBadge(isReplace ? ":/icons/rule_replace.png" : ":/icons/rule_add.png",
-                              isReplace ? "→" : "+",
+                    makeBadge(isReplace ? "⇄" : "✚",
                               isReplace ? "ComposerRuleReplaceBadge" : "ComposerRuleAddBadge"));
             }
 

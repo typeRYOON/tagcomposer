@@ -70,7 +70,7 @@ if (WIN32)
             #"${ONNXRUNTIME_DIR}/lib/onnxruntime_providers_shared.dll"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
     )
-    set(APP_ICON_RESOURCE_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/icon.rc")
+    set(APP_ICON_RESOURCE_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}/resources/tagcomposer.rc")
     target_sources(${PROJECT_NAME} PRIVATE ${APP_ICON_RESOURCE_WINDOWS})
     set_target_properties(${PROJECT_NAME}
         PROPERTIES

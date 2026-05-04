@@ -83,7 +83,7 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent)
     m_ryoonLogo->installEventFilter(this);
 
     auto* bottomRow = new QHBoxLayout;
-    bottomRow->setContentsMargins(kBottomMargin, 0, kBottomMargin, kBottomMargin);
+    bottomRow->setContentsMargins(kBottomMargin + 10, 0, kBottomMargin + 10, kBottomMargin);
     // Phantom spacer on the left whose width matches the ryoon logo on the
     // right, so the two stretches around the label absorb equal space and
     // the label lands in the actual window centre instead of being shoved
