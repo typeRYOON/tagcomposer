@@ -9,7 +9,7 @@
 #include <cmath>
 
 // Header-only icon factory. Paints small monochrome icons into QPixmaps and
-// returns QIcons — keeps the in-app icons in sync with the rest of the dark
+// returns QIcons - keeps the in-app icons in sync with the rest of the dark
 // theme without needing to ship a new PNG resource for every glyph. Used by
 // header chips on the composer page (open / reload / save) and the run /
 // interrupt buttons in the run bar.
@@ -32,7 +32,7 @@ inline void primeLine(QPainter& p, int px, QColor color, qreal strokeFactor)
 
 } // namespace detail
 
-// "Open in editor" — a small NE arrow leaving a half-frame. Conveys "leave
+// "Open in editor" - a small NE arrow leaving a half-frame. Conveys "leave
 // this app and open elsewhere" the same way most browsers' external-link
 // glyphs do.
 inline QIcon openExternal(int px = 16,
@@ -59,7 +59,7 @@ inline QIcon openExternal(int px = 16,
     const QPointF tail(px * 0.42, px * 0.58);
     const QPointF tip (px * 0.86, px * 0.14);
     p.drawLine(tail, tip);
-    // Arrowhead — two short legs back from the tip.
+    // Arrowhead - two short legs back from the tip.
     p.drawLine(tip, tip + QPointF(-px * 0.26, 0));
     p.drawLine(tip, tip + QPointF(0,           px * 0.26));
 
@@ -106,7 +106,7 @@ inline QIcon reload(int px = 16,
     return QIcon(pm);
 }
 
-// Plus / "add new" — two crossed strokes.
+// Plus / "add new" - two crossed strokes.
 inline QIcon plus(int px = 16, QColor color = QColor(0x9a, 0x9a, 0x9a))
 {
     QPixmap pm(px, px);
@@ -120,7 +120,7 @@ inline QIcon plus(int px = 16, QColor color = QColor(0x9a, 0x9a, 0x9a))
     return QIcon(pm);
 }
 
-// "Play" — solid right-pointing triangle. Centered slightly right of center
+// "Play" - solid right-pointing triangle. Centered slightly right of center
 // so the visual balance feels right inside a square button.
 inline QIcon play(int px = 16, QColor color = QColor(0x77, 0xaa, 0xdd))
 {
@@ -140,7 +140,7 @@ inline QIcon play(int px = 16, QColor color = QColor(0x77, 0xaa, 0xdd))
     return QIcon(pm);
 }
 
-// "Stop" — solid rounded square. Used for the interrupt button.
+// "Stop" - solid rounded square. Used for the interrupt button.
 inline QIcon stopSquare(int px = 16, QColor color = QColor(0xcc, 0x44, 0x44))
 {
     QPixmap pm(px, px);

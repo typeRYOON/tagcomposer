@@ -154,9 +154,9 @@
     background: #141414;
 }
 
+/* Empty-state base (font-size) lives in app.qss - only the colour differs. */
 #WfEmptyHint {
     color: #252525;
-    font-size: 13px;
 }
 
 #LoraStackImage {

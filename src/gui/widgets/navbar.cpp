@@ -107,7 +107,7 @@ NavBar::NavBar(QWidget* tooltipParent, QWidget* parent)
     addButton(Page::TagComposer,    "Tag Composer",    ":/icons/nav_composer.png");
     addButton(Page::FacetEditor,    "Facet Editor",    ":/icons/nav_facets.png"  );
     addButton(Page::WorkflowEditor, "Workflow Editor", ":/icons/nav_workflow.png");
-    // Reuses nav_tiles.png until a dedicated nav_output.png ships — drop one
+    // Reuses nav_tiles.png until a dedicated nav_output.png ships - drop one
     // into resources/icons/, register it in resources.qrc, and update this path.
     addButton(Page::OutputViewer,   "Output Viewer",   ":/icons/nav_tiles.png"   );
     addButton(Page::DatasetHelpers, "Dataset Helpers", ":/icons/nav_dataset.png" );

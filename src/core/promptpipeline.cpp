@@ -20,7 +20,7 @@ QList<CategoryGroup> PromptPipeline::evaluate(const QList<QString>& tags) const
 {
     // 1. Resolve facets for every tag.
     //    Tags with no facet definition are marked NoFacets and bypass the rule
-    //    engine — they still appear in the output so the user can see them.
+    //    engine - they still appear in the output so the user can see them.
     QList<PipelineTag> resolved;
     QList<QString>     noFacetNames;
     QSet<QString>      seenTags;
@@ -59,7 +59,7 @@ QList<CategoryGroup> PromptPipeline::evaluate(const QList<QString>& tags) const
         );
     }
 
-    // 2. Run enabled rules — only over the fully-defined (Include) tags.
+    // 2. Run enabled rules - only over the fully-defined (Include) tags.
     QList<PipelineTag> forRules;
     for (const PipelineTag& pt : resolved)
         if (pt.result == RuleResult::Include)

@@ -196,7 +196,7 @@ void ImportDialog::rebuildMappingTable()
         auto* dropBtn = new QPushButton("✕");
         dropBtn->setCheckable(true);
         dropBtn->setFixedSize(28, 24);
-        dropBtn->setToolTip("Drop this facet — strip from any imported tag definition");
+        dropBtn->setToolTip("Drop this facet - strip from any imported tag definition");
         dropBtn->setCursor(Qt::PointingHandCursor);
         rowLayout->addWidget(dropBtn);
 
@@ -233,7 +233,7 @@ void ImportDialog::validate()
     }
 
     // Always allow proceeding when there are no entries to import AND no tag
-    // defs to merge — the user might just be cancelling out, which the
+    // defs to merge - the user might just be cancelling out, which the
     // Cancel button handles. So gate Import on having anything to do.
     if (m_scan.entries.isEmpty() && m_scan.tagDefs.isEmpty()) {
         m_validation->clear();
@@ -302,7 +302,7 @@ void ImportDialog::onImport()
 
     QString summary = QString(
         "Entries imported: %1 · skipped (duplicates): %2\n"
-        "Tag definitions — added: %3 · merged: %4 · overwritten: %5 · "
+        "Tag definitions - added: %3 · merged: %4 · overwritten: %5 · "
         "skipped: %6 · dropped (empty after mapping): %7")
         .arg(res.entriesImported)
         .arg(res.entriesSkipped)

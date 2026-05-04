@@ -35,7 +35,7 @@ AutoTaggerModel* AutoTaggerLibrary::model(const QString& name)
     QString err;
     auto m = AutoTaggerModel::loadFromDir(m_env, m_root + "/" + name, &err);
     if (!m) {
-        qWarning() << "AutoTaggerLibrary:" << name << "failed to load —" << err;
+        qWarning() << "AutoTaggerLibrary:" << name << "failed to load -" << err;
         return nullptr;
     }
 

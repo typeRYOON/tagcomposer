@@ -18,7 +18,7 @@ namespace core {
 // lose precision through QJsonDocument's double-backed numeric type
 // (which can't faithfully round-trip values above 2^53).
 //
-// Lookup is a linear popcount scan — for collections under ~50k entries
+// Lookup is a linear popcount scan - for collections under ~50k entries
 // that's sub-millisecond. If we ever need more, swap to a BKTree (the
 // imagehasher.py reference has one); the public API doesn't have to change.
 class PHashIndex {

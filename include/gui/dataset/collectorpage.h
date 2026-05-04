@@ -8,6 +8,7 @@ class QSlider;
 class QComboBox;
 class QLabel;
 class QPlainTextEdit;
+class QListWidget;
 
 namespace utils { struct AppSettings; }
 namespace core  { class DownloadWatcher; }
@@ -29,7 +30,7 @@ public:
     void stopWatcher();
 
 signals:
-    // "Send to Auto-tagger" — DatasetHelpersPage routes the active
+    // "Send to Auto-tagger" - DatasetHelpersPage routes the active
     // collection's folder into AutoTagPage and switches tabs.
     void sendToAutoTaggerRequested(const QString& folder);
 
@@ -50,11 +51,17 @@ private:
     QPushButton* m_rebuildBtn      = nullptr;
     QPushButton* m_sendToTaggerBtn = nullptr;
 
-    // ── Right panel (status) ────────────────────────────────────────────────
+    // ── Middle panel (activity) ─────────────────────────────────────────────
     QLabel*         m_activeDot    = nullptr;  // green when running, grey idle
     QLabel*         m_collectedLbl = nullptr;
     QLabel*         m_skippedLbl   = nullptr;
     QPlainTextEdit* m_log          = nullptr;
+
+    // ── Right panel (recent thumbs) ─────────────────────────────────────────
+    // Newest-first thumbnail grid of images the watcher just moved into the
+    // collection. Capped at a fixed count; oldest entries fall off the bottom.
+    QListWidget*    m_recentList   = nullptr;
+    QLabel*         m_recentEmpty  = nullptr;
 
     void refreshCollections();
     void onStartStop();
@@ -63,6 +70,10 @@ private:
     void persistSettings();
     void setRunningUi(bool running);
     QString currentCollectionDir() const;
+
+    // Loads `imagePath` on a worker thread, then prepends a thumbnail to the
+    // recent panel on the GUI thread. Trims the list to the cap once added.
+    void addRecentThumb(const QString& imagePath);
 };
 
 } // namespace gui

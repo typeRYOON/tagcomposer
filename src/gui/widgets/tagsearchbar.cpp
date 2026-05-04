@@ -134,7 +134,7 @@ TagSearchBar::TagSearchBar(QWidget* parent)
     rootLayout->setContentsMargins(0, 0, 0, 0);
     rootLayout->addWidget(m_input);
 
-    // Popup — frameless top-level, shown without stealing focus from m_input
+    // Popup - frameless top-level, shown without stealing focus from m_input
     m_popup = new QFrame(nullptr, Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
     m_popup->setObjectName("TagSearchPopup");
     m_popup->setAttribute(Qt::WA_ShowWithoutActivating);
@@ -304,7 +304,7 @@ bool TagSearchBar::eventFilter(QObject* obj, QEvent* event)
             });
         }
     } else {
-        // Parent window moved/resized — keep popup anchored below input
+        // Parent window moved/resized - keep popup anchored below input
         const auto t = event->type();
         if ((t == QEvent::Move || t == QEvent::Resize || t == QEvent::WindowStateChange)
                 && m_popup->isVisible())

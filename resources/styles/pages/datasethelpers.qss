@@ -12,14 +12,14 @@
     border: none;
     border-radius: 5px;
     padding: 4px 12px;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 #DatasetTabBtn:hover {
     color: #999999;
 }
 
-/* Active button stays transparent — the animated #DatasetTabIndicator below
+/* Active button stays transparent - the animated #DatasetTabIndicator below
    the buttons draws the highlight pill, which slides between tabs. */
 #DatasetTabBtn:checked {
     background: transparent;
@@ -32,7 +32,7 @@
 }
 
 /* The panel owns the single right edge for both the TAG section and the
-   FACET FILTER section — keeping it on the panel (instead of on each body
+   FACET FILTER section - keeping it on the panel (instead of on each body
    widget) avoids the doubled-line look at the boundary between them. */
 #DatasetParamsPanel {
     background: #111111;
@@ -52,12 +52,12 @@
     color: #888888;
 }
 
-/* Subtitle that sits next to a section title — used for things like the
+/* Subtitle that sits next to a section title - used for things like the
    currently focused image's filename in the IMAGE header. Dimmer than the
    title so the eye lands on the title first. */
 #DatasetSectionSubtitle {
     color: #777777;
-    font-size: 12px;
+    font-size: 13px;
 }
 
 #DatasetSectionBody {
@@ -69,7 +69,7 @@
 /* Top border draws the seam between the FACET FILTER header and its body
    (the header skips its own border-bottom so this line stands alone). The
    right edge is owned by #DatasetParamsPanel so we don't paint it here.
-   Background is set explicitly so the QSS border actually paints — Qt's
+   Background is set explicitly so the QSS border actually paints - Qt's
    stylesheet engine skips the box-model paint pass on transparent widgets. */
 #DatasetFilterBody {
     background: #111111;
@@ -77,16 +77,14 @@
     border-right: 1px solid #2a2a2a;
 }
 
-/* Centered "Enter a tag and click Fetch." placeholder shown when the
-   results list is empty. */
+/* Empty-state base (font-size) lives in app.qss - only the colour differs. */
 #DatasetEmptyState {
     color: #555555;
-    font-size: 13px;
 }
 
 #DatasetParamLabel {
     color: #777777;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: bold;
     letter-spacing: 1px;
 }
@@ -97,11 +95,11 @@
     border: 1px solid #222222;
     border-radius: 3px;
     padding: 3px 6px;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 /* QComboBox sharing the #DatasetSpin objectName needs its dropdown view
-   styled separately — without these rules, Qt falls back to the platform
+   styled separately - without these rules, Qt falls back to the platform
    default (white-on-white on Windows) which is unreadable. Mirrors the
    QDialog QComboBox treatment in app.qss. */
 QComboBox#DatasetSpin::drop-down {
@@ -119,7 +117,7 @@ QComboBox#DatasetSpin QAbstractItemView {
 }
 
 /* Square ellipsis buttons next to folder pickers. Text-align center so the
-   "…" sits in the middle — #EntryActionBtn (the obvious other candidate)
+   "…" sits in the middle - #EntryActionBtn (the obvious other candidate)
    has text-align: left because it's used for left-anchored action rows. */
 #DatasetBrowseBtn {
     background: #1a1a1a;
@@ -174,7 +172,7 @@ QComboBox#DatasetSpin QAbstractItemView {
 
 #DatasetStatusLabel {
     color: #777777;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 #DatasetProgressBar {
@@ -182,7 +180,7 @@ QComboBox#DatasetSpin QAbstractItemView {
     border: 1px solid #222222;
     border-radius: 3px;
     color: #888888;
-    font-size: 12px;
+    font-size: 13px;
     text-align: center;
 }
 
@@ -199,7 +197,7 @@ QComboBox#DatasetSpin QAbstractItemView {
     background: transparent;
 }
 
-/* Transparent rows — only the hover state paints a background. */
+/* Transparent rows - only the hover state paints a background. */
 #DatasetResultRow {
     background: transparent;
     border-radius: 3px;
@@ -216,14 +214,14 @@ QComboBox#DatasetSpin QAbstractItemView {
 
 #DatasetResultScore {
     color: #aaaaaa;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 /* Dark-input base in app.qss covers bg/border/selection. */
 #DatasetCopyEdit {
     color: #aaaaaa;
     border-radius: 3px;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 /* Right-pane wiki/post preview. */
@@ -240,12 +238,12 @@ QComboBox#DatasetSpin QAbstractItemView {
 /* Reading the live PMI threshold off the slider. */
 #DatasetParamValue {
     color: #aaaaaa;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 #DatasetSoloCheck {
     color: #aaaaaa;
-    font-size: 13px;
+    font-size: 14px;
     spacing: 6px;
 }
 
@@ -259,7 +257,7 @@ QComboBox#DatasetSpin QAbstractItemView {
 /* Whitelist / blacklist mode radios for the facet-rule editor. */
 #DatasetFilterMode {
     color: #cccccc;
-    font-size: 13px;
+    font-size: 14px;
     spacing: 6px;
 }
 

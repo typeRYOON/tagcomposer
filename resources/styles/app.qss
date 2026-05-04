@@ -1,6 +1,6 @@
 /* ── App-wide ─────────────────────────────────────────────────────────────── */
 
-/* Palette — the de-facto theme tokens used across every QSS file. Qt has no
+/* Palette - the de-facto theme tokens used across every QSS file. Qt has no
    native variables, so these are kept here as a search/replace cheat sheet
    and a hint that these colours are load-bearing. Treat any new use of an
    off-palette colour as a smell unless it's an accent (red/green/amber/blue)
@@ -36,7 +36,7 @@ QMainWindow, QWidget {
 
 /* ── Dialogs ──────────────────────────────────────────────────────────────── */
 /* Scoped to QDialog so existing widget-specific styles (#SettingsInput, the
-   tag search bar, etc.) keep their look — but dialogs get readable defaults. */
+   tag search bar, etc.) keep their look - but dialogs get readable defaults. */
 
 QDialog {
     background: #0d0d0d;
@@ -148,7 +148,7 @@ QDialog QCheckBox::indicator:checked {
    by objectName, not by class, so per-page rules below this file (loaded
    later in alphabetical order) can still override individual declarations. */
 
-/* Dark input — line edits and similar text fields with a #141414 fill and a
+/* Dark input - line edits and similar text fields with a #141414 fill and a
    subtle border. Per-page rules customise color/padding/font-size/radius and
    keep their own :focus declaration since each diverges (some shift bg, some
    shift only color, #EntryComment uses a darker base border). */
@@ -162,7 +162,7 @@ QDialog QCheckBox::indicator:checked {
     selection-background-color: #2a2a2a;
 }
 
-/* Green action button — primary/affirmative actions (Save, Run, Add, Launch).
+/* Green action button - primary/affirmative actions (Save, Run, Add, Launch).
    Per-page rules adjust padding/font-size only. */
 #SettingsLaunchBtn,
 #FacetSaveBtn,
@@ -181,7 +181,7 @@ QDialog QCheckBox::indicator:checked {
     border-color: #336633;
 }
 
-/* Subtle secondary button — Browse, Copy, action-row buttons. Per-page
+/* Subtle secondary button - Browse, Copy, action-row buttons. Per-page
    rules differ only in padding, font-size, and text-align. */
 #SettingsBrowseBtn,
 #WfBrowseBtn,
@@ -200,7 +200,7 @@ QDialog QCheckBox::indicator:checked {
     border-color: #333333;
 }
 
-/* Spinbox container — dark fill with a slim up/down stub stack on the right.
+/* Spinbox container - dark fill with a slim up/down stub stack on the right.
    #LoraSpinBox is intentionally excluded: it diverges enough (different color,
    border, padding, stub width) that an override-per-property would cost more
    than it saves. */
@@ -249,7 +249,7 @@ QDialog QCheckBox::indicator:checked {
     background: #282828;
 }
 
-/* Green-checked square checkbox indicator — the tri-color status checkbox
+/* Green-checked square checkbox indicator - the tri-color status checkbox
    pattern. Per-page rules can override checked colors when the accent
    shifts (e.g. #DatasetSoloCheck uses a slightly different green). */
 #SettingsCheckBox::indicator,
@@ -268,7 +268,7 @@ QDialog QCheckBox::indicator:checked {
     border-color: #336633;
 }
 
-/* Section header label — small bold uppercase letterspaced caption. The
+/* Section header label - small bold uppercase letterspaced caption. The
    #ComposerGroupHeader on the composer page is intentionally larger and
    keeps its own rule. */
 #ComposerHeaderLabel,
@@ -283,7 +283,20 @@ QDialog QCheckBox::indicator:checked {
     letter-spacing: 1px;
 }
 
-/* Section header bar — the dark strip above each panel body, with a 1px
+/* Empty-state placeholder - the centered "nothing here yet, do this" hint
+   shown when a panel or list has no content. Per-page rules keep their own
+   color (and padding when needed); only the size is shared so Hiragino's
+   rounded glyphs render cleanly across every page. */
+#DatasetEmptyState,
+#EntryEmptyLabel,
+#WfEmptyHint,
+#FacetEditorHint,
+#ComposerEmptyHint,
+#ComposerRulesHint {
+    font-size: 15px;
+}
+
+/* Section header bar - the dark strip above each panel body, with a 1px
    separator at its bottom. */
 #WfEditHeader,
 #OvHeader,

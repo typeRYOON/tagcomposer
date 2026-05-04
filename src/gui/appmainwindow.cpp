@@ -67,6 +67,13 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     // ── Load settings ─────────────────────────────────────────────────────────
     m_settings = AppSettings::load(BASE_PATH + "/" + SETTINGS_PATH);
 
+    // Seed the connection cache so the first settingsChanged emit (which fires
+    // the moment the user touches *anything* on the settings page) doesn't see
+    // "host went from empty to <real host>" and trigger a spurious reconnect.
+    m_lastComfyEnabled = m_settings.comfyUiEnabled;
+    m_lastComfyHost    = m_settings.comfyUiServerAddress;
+    m_lastComfyApiKey  = m_settings.comfyUiApiKey;
+
     // ── ComfyUI client ────────────────────────────────────────────────────────
     m_comfyClient = new core::ComfyUiClient(this);
     m_comfyClient->setServerAddress(m_settings.comfyUiServerAddress);
@@ -144,7 +151,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_pages->addWidget(m_outputViewerPage);           // Page::OutputViewer
     m_taggerLibrary = std::make_unique<core::AutoTaggerLibrary>(
         BASE_PATH + "/" + MODELS_DIR);
-    // Settle on a default active model if the user hasn't picked one yet —
+    // Settle on a default active model if the user hasn't picked one yet -
     // first available wins. AutoTagPage and any other consumer reads
     // AppSettings::activeAutoTagModel from there.
     if (m_settings.activeAutoTagModel.isEmpty()) {
@@ -210,7 +217,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_facetEditorPage, &FacetEditorPage::facetsDefined,
             this, &AppMainWindow::reloadFacets);
 
-    // Schema reload — re-read facets.fct, keep tag definitions intact
+    // Schema reload - re-read facets.fct, keep tag definitions intact
     connect(m_facetEditorPage, &FacetEditorPage::schemaReloadRequested,
             this, [this]() {
                 m_facetIndex.reloadSchemaFromFile(BASE_PATH + "/" + FACETS_PATH);
@@ -375,7 +382,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
                 // Each queue decrement = a prompt just completed. Load its
                 // decoded output if we observed progress for it. Skip when the
-                // user just interrupted / cleared — that prompt didn't finish
+                // user just interrupted / cleared - that prompt didn't finish
                 // so any "newest" temp image is stale. Small delay gives
                 // ComfyUI time to write the file before we scan.
                 if (jobFinished && m_skipNextFinalLoad) {
@@ -475,7 +482,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     auto sc = [this](QKeySequence key, auto fn) {
         auto* s = new QShortcut(key, this);
         // Per-window so shortcuts on top-level child windows (e.g., the
-        // preview popout) can register the same keys without ambiguity —
+        // preview popout) can register the same keys without ambiguity -
         // each window's shortcut fires only when it has focus.
         s->setContext(Qt::WindowShortcut);
         connect(s, &QShortcut::activated, this, fn);
@@ -546,7 +553,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     // ── Update check ──────────────────────────────────────────────────────────
     // Once-per-launch GitHub Releases poll, throttled to ~24h via the
-    // lastUpdateCheckTime setting. Not blocking — kicked off 2 s after the
+    // lastUpdateCheckTime setting. Not blocking - kicked off 2 s after the
     // window appears so it doesn't compete with the rest of boot work.
     m_updateChecker = new core::UpdateChecker(this);
     m_updateChecker->setRepo("typeRYOON/tagcomposer_test");
@@ -576,7 +583,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         && (nowSec - m_settings.lastUpdateCheckTime < kThrottleSec);
 
     if (fresh && !m_settings.lastKnownLatestVersion.isEmpty()) {
-        // Re-evaluate the cached version against the current build — if the
+        // Re-evaluate the cached version against the current build - if the
         // user updated manually since the last check, the cached "newer"
         // verdict is now stale.
         if (core::UpdateChecker::compareVersions(
@@ -610,6 +617,21 @@ void AppMainWindow::applyComfySettings()
     m_composerPage->setOutputFolderPattern(m_settings.comfyUiOutputFolder);
     m_composerPage->setTempFolder(m_settings.comfyUiTempFolder);
     m_outputViewerPage->setOutputFolder(m_settings.comfyUiOutputFolder);
+
+    // Bouncing the WebSocket on every settingsChanged emit is what causes the
+    // status indicator to flicker through disconnected → connecting → connected
+    // when the user edits an unrelated field (tile gradient, danmaku toggle,
+    // etc.). Only re-(dis)connect when a connection-relevant value changed.
+    const bool    enabledChanged = (m_settings.comfyUiEnabled       != m_lastComfyEnabled);
+    const bool    hostChanged    = (m_settings.comfyUiServerAddress != m_lastComfyHost);
+    const bool    apiKeyChanged  = (m_settings.comfyUiApiKey        != m_lastComfyApiKey);
+    const bool    needsBounce    = enabledChanged || hostChanged || apiKeyChanged;
+
+    m_lastComfyEnabled = m_settings.comfyUiEnabled;
+    m_lastComfyHost    = m_settings.comfyUiServerAddress;
+    m_lastComfyApiKey  = m_settings.comfyUiApiKey;
+
+    if (!needsBounce) return;
 
     if (m_settings.comfyUiEnabled) {
         m_comfyClient->connectToServer();
@@ -682,7 +704,7 @@ void AppMainWindow::runBatch(const QString& query)
             if (!entry->images.isEmpty())
                 tags = m_entryModel->getTags(entry->images[0].tagIds);
 
-            // Skip entries with no tags — they'd all produce the same prompt
+            // Skip entries with no tags - they'd all produce the same prompt
             // (just the composer's state), which isn't useful for a batch.
             if (tags.isEmpty()) {
                 ++skipped;
@@ -716,7 +738,7 @@ void AppMainWindow::runBatch(const QString& query)
         m_workflowEditPage->refresh();
 
         const QString summary = (skipped > 0)
-            ? QString("Dispatched %1 prompts (%2 entries × %3) — %4 skipped")
+            ? QString("Dispatched %1 prompts (%2 entries × %3) - %4 skipped")
                 .arg(dispatched).arg(matched.size() - skipped).arg(count).arg(skipped)
             : QString("Dispatched %1 prompts (%2 entries × %3)")
                 .arg(dispatched).arg(matched.size()).arg(count);
@@ -735,7 +757,7 @@ void AppMainWindow::loadFinalPreview()
     const QFileInfoList files = QDir(folder).entryInfoList(filters, QDir::Files);
     if (files.isEmpty()) return;
 
-    // Newest by mtime — the run that just finished should have written it.
+    // Newest by mtime - the run that just finished should have written it.
     const QFileInfo* newest = &files[0];
     for (const QFileInfo& fi : files)
         if (fi.lastModified() > newest->lastModified()) newest = &fi;
@@ -748,7 +770,7 @@ void AppMainWindow::loadFinalPreview()
 // Walk the selected workflow's vars; for each Image var with a known uuid we
 // haven't pushed this session, upload it. After every upload settles, run done.
 //
-// Tracking key is (uuid + editsHash) — editing an already-uploaded image
+// Tracking key is (uuid + editsHash) - editing an already-uploaded image
 // produces a different hash, so the rendered variant gets uploaded fresh.
 void AppMainWindow::ensureImageInputsUploaded(std::function<void()> done)
 {
@@ -764,7 +786,7 @@ void AppMainWindow::ensureImageInputsUploaded(std::function<void()> done)
             if (var.imageUuid.isEmpty()) continue;
             if (!m_inputCache->has(var.imageUuid)) {
                 m_statusBar->showMessage(
-                    QString("Image input %1 missing — skipped").arg(var.placeholder));
+                    QString("Image input %1 missing - skipped").arg(var.placeholder));
                 continue;
             }
             const QString trackingKey = var.imageUuid + ":" + var.imageEdits.hash();
@@ -863,7 +885,7 @@ void AppMainWindow::clearUnusedInputs()
     }
 
     // Drop session-upload tracking entries that pointed at removed renderings
-    // — rebuild the keep-set from current var references the same way
+    // - rebuild the keep-set from current var references the same way
     // ensureImageInputsUploaded constructs upload keys.
     QSet<QString> stillUsed;
     for (const core::WorkflowFile& wf : m_workflowManager.files()) {
@@ -888,7 +910,7 @@ void AppMainWindow::clearUnusedInputs()
 void AppMainWindow::keyPressEvent(QKeyEvent* event)
 {
     // Esc only fires here if no focused child consumed it first (popups,
-    // dropdowns, dialogs, line-edit IME, etc.) — so this exits fullscreen
+    // dropdowns, dialogs, line-edit IME, etc.) - so this exits fullscreen
     // without stealing Esc from any of them.
     if (event->key() == Qt::Key_Escape && isFullScreen()) {
         auto* anim = utils::propertyAnimate(this, "windowOpacity",
@@ -944,7 +966,7 @@ void AppMainWindow::closeEvent(QCloseEvent* event)
 
     // Fade other top-level windows (preview popout, any open dialog) out in
     // parallel with the main window. Same 500 ms duration so they all reach
-    // opacity 0 at the same moment — without this, the popout sits at full
+    // opacity 0 at the same moment - without this, the popout sits at full
     // opacity through the whole main-window fade and snap-hides at the end.
     for (QWidget* w : qApp->topLevelWidgets()) {
         if (w != this && w->isWindow() && w->isVisible()) {

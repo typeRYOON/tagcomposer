@@ -82,7 +82,7 @@ bool PortManager::exportEntries(
         }
     }
 
-    // Subset tag_definitions.fct — only tags actually used in the export
+    // Subset tag_definitions.fct - only tags actually used in the export
     // and which have a definition in the live FacetIndex.
     const QString defsPath = destDir.absoluteFilePath("tag_definitions.fct");
     QFile defsFile(defsPath);
@@ -193,7 +193,7 @@ PortResult PortManager::applyImport(
             result.errors << "Could not write .bak (proceeding anyway)";
     }
 
-    // Entries — skip duplicates, copy folder, integrate via EntryModel
+    // Entries - skip duplicates, copy folder, integrate via EntryModel
     QDir().mkpath(dataEntryDir);
     for (const PortEntryRef& ref : scan.entries) {
         if (ref.duplicate) {

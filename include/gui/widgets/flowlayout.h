@@ -5,7 +5,7 @@
 
 namespace gui {
 
-// Wrapping horizontal layout — items flow left-to-right and wrap to the next
+// Wrapping horizontal layout - items flow left-to-right and wrap to the next
 // row when they don't fit. Standard Qt example layout, vendored here so we
 // can use it in pages/widgets that mix variable-width items.
 class FlowLayout : public QLayout {

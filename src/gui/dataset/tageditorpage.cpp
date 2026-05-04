@@ -44,7 +44,7 @@ constexpr int kFolderRowHeight  = 40;
 constexpr int kPreviewMaxWidth  = 720;   // upper bound for the centered image
 constexpr int kPreviewMaxHeight = 720;
 
-// Tinted pairs (background, foreground) — one per comma-separated highlight
+// Tinted pairs (background, foreground) - one per comma-separated highlight
 // token. The highlighter cycles through these so the user sees each token
 // in a distinct colour. Tuned for the dark theme.
 const QList<QPair<QColor, QColor>> kHighlightColors = {
@@ -241,7 +241,7 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex,
     m_sendToBatchBtn->setToolTip(
         "Open this folder in the Batch Edit tab for whole-folder ops.");
 
-    // Folder label + right-aligned "open in file manager" chip — mirrors the
+    // Folder label + right-aligned "open in file manager" chip - mirrors the
     // RULES/VARS header chips on the composer so the whole app shares the
     // same affordance for jumping to a folder on disk.
     {
@@ -300,7 +300,7 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex,
     m_focusImage->installEventFilter(this);
     m_focusImage->setToolTip("Click to open the image in the system viewer.");
     // Expanding/Expanding so the label fills the middle column. We also need
-    // a small minimum width via QSizePolicy::IgnoredHorizontally-style hint —
+    // a small minimum width via QSizePolicy::IgnoredHorizontally-style hint -
     // the natural width of a label tracks its pixmap, which would lock the
     // column width in place; ignoring that lets the layout shrink/grow it.
     auto sp = m_focusImage->sizePolicy();
@@ -370,7 +370,7 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex,
     m_tagEdit->setEnabled(false);
 
     // Visually pair the highlight box with the tag-edit text area below it
-    // — both use #DatasetExcludeEdit so their backgrounds, borders, and
+    // - both use #DatasetExcludeEdit so their backgrounds, borders, and
     // font sizes line up.
     m_highlightEdit = new QLineEdit(rightBody);
     m_highlightEdit->setObjectName("DatasetExcludeEdit");
@@ -433,7 +433,7 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex,
 
     // Arrow-key navigation. Scoped with WidgetWithChildrenShortcut so the
     // bindings only fire when the left panel (or one of its non-text
-    // children) has focus — leaves text editing in the folder field, the
+    // children) has focus - leaves text editing in the folder field, the
     // tag editor, and the search bar alone.
     {
         auto* prevSc = new QShortcut(QKeySequence(Qt::Key_Left), leftPanel);
@@ -567,7 +567,7 @@ void TagEditorPage::jumpTo(int newIndex)
         saveNow();
     }
 
-    // Clamp into range — allows callers to do `jumpTo(currentIndex - 10)`
+    // Clamp into range - allows callers to do `jumpTo(currentIndex - 10)`
     // without bounds-checking themselves.
     newIndex = std::clamp(newIndex, 0, int(m_images.size()) - 1);
 
@@ -704,7 +704,7 @@ void TagEditorPage::onSearchBarTagAdded(const QString& canonical)
     if (!m_tagEdit->isEnabled()) return;
 
     // Append in space-form so the editor stays consistent with what AutoTagger
-    // wrote — utils::normalizeTagInput strips underscores and trims.
+    // wrote - utils::normalizeTagInput strips underscores and trims.
     const QString display = utils::normalizeTagInput(canonical);
 
     QString text = m_tagEdit->toPlainText().trimmed();
@@ -760,7 +760,7 @@ void TagEditorPage::rescalePreview()
     if (!m_focusImage) return;
     if (m_focusPixmapSrc.isNull()) return;
 
-    // Scale to whatever the label currently has — labels grow/shrink with
+    // Scale to whatever the label currently has - labels grow/shrink with
     // the layout, so this is also what we want when the window is resized.
     // Keep aspect ratio, transform smoothly, and apply the rounded clip.
     const QSize area = m_focusImage->size();
@@ -776,11 +776,11 @@ bool TagEditorPage::eventFilter(QObject* obj, QEvent* ev)
 {
     if (obj == m_focusImage) {
         // Resize-to-fit. Triggered both on initial show and every time the
-        // window resizes — the label tracks the layout, so its resizeEvent
+        // window resizes - the label tracks the layout, so its resizeEvent
         // is the right hook for "available area changed".
         if (ev->type() == QEvent::Resize) {
             rescalePreview();
-            // Don't consume — let the label run its own resize logic too.
+            // Don't consume - let the label run its own resize logic too.
         }
         if (ev->type() == QEvent::MouseButtonRelease) {
             auto* me = static_cast<QMouseEvent*>(ev);

@@ -141,7 +141,7 @@ namespace gui {
         // the cap, and scrolling through more entries than this evicts oldest.
         m_pixCache.setMaxCost(200);
 
-        // Transparent in-flight placeholder — keeps the initial paint clean
+        // Transparent in-flight placeholder - keeps the initial paint clean
         // (no flash of the placeholder image while real images stream in).
         m_placeholder = QPixmap(TileW, TileH);
         m_placeholder.fill(Qt::transparent);
@@ -196,7 +196,7 @@ namespace gui {
                         anyActive = true;
                     }
 
-                    // Hover transition — advance toward target (0 or 1)
+                    // Hover transition - advance toward target (0 or 1)
                     const qreal targetHover = (it.key() == m_hoverIndex) ? 1.0 : 0.0;
                     const qreal diff = targetHover - a.hoverT;
                     if (std::abs(diff) > 0.001) {
@@ -281,7 +281,7 @@ namespace gui {
         m_totalH = rows * TileH + std::max(0, rows - 1) * Spacing + PadV * 2;
 
         // Bound the cache to (visible + preload + scroll slack) so eviction never
-        // targets an on-screen tile. Floor at 200 (~55 MB) — preserves the cap on
+        // targets an on-screen tile. Floor at 200 (~55 MB) - preserves the cap on
         // normal monitors; only grows on viewports big enough to need it.
         constexpr int preloadRows = 3;  // matches the preload window in paintEvent
         constexpr int slackRows   = 3;  // covers tiles scrolling in/out mid-frame
@@ -543,7 +543,7 @@ namespace gui {
             }
 
             // Retrieve or default-construct anim state.
-            // Default: fadeOpacity=1, hoverT=0 — correct for tiles restored from
+            // Default: fadeOpacity=1, hoverT=0 - correct for tiles restored from
             // a cache that already existed (e.g. after a re-query with warm cache).
             TileAnim& a = m_anims[i];
 
@@ -627,7 +627,7 @@ namespace gui {
             + "/" + e->images[0].fileName;
         const QString title = e->title;
 
-        // QtConcurrent::run is [[nodiscard]] in Qt 6 — we don't need the
+        // QtConcurrent::run is [[nodiscard]] in Qt 6 - we don't need the
         // future (the worker hops back via QMetaObject::invokeMethod), so
         // queue directly on the global pool to avoid the warning.
         QThreadPool::globalInstance()->start(
@@ -636,7 +636,7 @@ namespace gui {
                 QImage img(path);
 
                 if (img.isNull()) {
-                    // File missing or unreadable — fall back to a placeholder
+                    // File missing or unreadable - fall back to a placeholder
                     // tile (with title), same as entries with no images at all.
                     // Without this, paint requests would refire on every paint
                     // and the cache would never fill, looping indefinitely.
@@ -670,7 +670,7 @@ namespace gui {
                             m_pending.remove(entryIndex);
                         }
 
-                        // Seed the fade-in at 0 — timer will advance it each frame
+                        // Seed the fade-in at 0 - timer will advance it each frame
                         m_anims[entryIndex].fadeOpacity = 0.0;
 
                         if (!m_animTimer->isActive())
@@ -708,7 +708,7 @@ namespace gui {
         grad.setColorAt(1.0, QColor(0, 0, 0, m_gradAlpha));
         p.fillRect(QRectF(0, startY, TileW, TileH - startY), grad);
 
-        // Title text — set all font properties before setFont/QFontMetrics
+        // Title text - set all font properties before setFont/QFontMetrics
         QFont f(QFontDatabase::applicationFontFamilies(0).at(0));
         f.setPointSize(13);
         f.setHintingPreference(QFont::PreferFullHinting);

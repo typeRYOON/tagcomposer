@@ -18,7 +18,7 @@
 
 namespace core {
 
-// ── Worker — lives entirely on the worker thread ──────────────────────────────
+// ── Worker - lives entirely on the worker thread ──────────────────────────────
 
 class WsWorker : public QObject {
     Q_OBJECT
@@ -233,7 +233,7 @@ void ComfyUiClient::uploadInput(const QString& localPath,
         return;
     }
 
-    // Direct-write fast path — only meaningful when ComfyUI runs on the same
+    // Direct-write fast path - only meaningful when ComfyUI runs on the same
     // machine and the user has pointed us at its input/ folder.
     if (!localInputFolder.isEmpty()) {
         QDir target(localInputFolder);

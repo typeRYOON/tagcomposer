@@ -44,7 +44,7 @@ WindowChrome::WindowChrome(QWidget* host, Options opt)
 
     // Resize hit-test overlay: a kResizeHit-wide ring on top of m_frame.
     // setMask carves out the inner area so events there pass through to the
-    // body widgets — only the ring intercepts. Geometry & mask are kept in
+    // body widgets - only the ring intercepts. Geometry & mask are kept in
     // sync with m_frame via the resize handler in eventFilter().
     m_resizeOverlay = new QWidget(m_frame);
     m_resizeOverlay->setObjectName("ResizeOverlay");
@@ -87,7 +87,7 @@ bool WindowChrome::eventFilter(QObject* obj, QEvent* event)
         }
     }
 
-    // Outline-style edge resize. Disabled while maximized/fullscreen — the
+    // Outline-style edge resize. Disabled while maximized/fullscreen - the
     // OS owns geometry in those states, so dragging shouldn't reflow the
     // window.
     if (obj == m_resizeOverlay
@@ -122,7 +122,7 @@ bool WindowChrome::eventFilter(QObject* obj, QEvent* event)
                 return true;
             }
         } else if (event->type() == QEvent::Leave) {
-            // Don't reset the cursor mid-drag — the cursor naturally leaves
+            // Don't reset the cursor mid-drag - the cursor naturally leaves
             // the overlay when the user pulls past the old window edge.
             if (!m_dragEdges) m_resizeOverlay->unsetCursor();
         }
@@ -142,7 +142,7 @@ void WindowChrome::beginResizeDrag(Qt::Edges edges, const QPoint& globalStart)
     m_resizeOutline->show();
     m_resizeOutline->raise();
 
-    // Pin the resize cursor app-wide for the duration of the drag — the
+    // Pin the resize cursor app-wide for the duration of the drag - the
     // mouse routinely leaves m_resizeOverlay while the user pulls beyond
     // the old window edge.
     QApplication::setOverrideCursor(QCursor(cursorForEdges(edges)));

@@ -128,7 +128,7 @@ bool AutoTaggerModel::initSession(Ort::Env& env, const QString& modelPath, QStri
             modelPath.toStdWString().c_str(),
             m_sessionOptions);
 
-        // I/O names — copy out so we can hand stable const char* to Run().
+        // I/O names - copy out so we can hand stable const char* to Run().
         Ort::AllocatorWithDefaultOptions allocator;
         {
             auto in  = m_session->GetInputNameAllocated (0, allocator);
@@ -181,7 +181,7 @@ std::vector<float> AutoTaggerModel::preprocessImage(const QString& imagePath) co
     if (img.empty()) return {};
 
     // Alpha handling. Mirrors the reference autotagger: grayscale → 3-channel,
-    // RGBA → drop alpha (no compositing — the model's resilient to whatever
+    // RGBA → drop alpha (no compositing - the model's resilient to whatever
     // OpenCV produces here). Reduces depth to 8-bit if the source was 16-bit
     // PNG/etc.
     if (img.channels() == 1) {
@@ -208,19 +208,19 @@ std::vector<float> AutoTaggerModel::preprocessImage(const QString& imagePath) co
     cv::Mat resized;
     cv::resize(square, resized, cv::Size(m_width, m_height), 0, 0, cv::INTER_CUBIC);
 
-    // Cast to float32 with raw [0, 255] BGR values — no /255, no mean/std.
+    // Cast to float32 with raw [0, 255] BGR values - no /255, no mean/std.
     // This ONNX export bakes the normalization into the graph, so feeding
     // pre-normalized inputs makes the activations collapse and the model
     // returns the "blank dark image" cluster of tags. config.json's
     // mean/std fields apply to the original PyTorch pipeline, not the ONNX
-    // surface — for this model family they're informational only.
+    // surface - for this model family they're informational only.
     cv::Mat floatImg;
     resized.convertTo(floatImg, CV_32F);
 
     const int H2 = m_height, W2 = m_width;
     std::vector<float> out;
     if (m_layout == Layout::NHWC) {
-        // floatImg is H x W x 3 interleaved — direct memory copy works.
+        // floatImg is H x W x 3 interleaved - direct memory copy works.
         out.assign((float*)floatImg.datastart, (float*)floatImg.dataend);
     } else {
         // NCHW: (3, H, W). Split + pack channel-major.
@@ -317,7 +317,7 @@ TagResult AutoTaggerModel::interpretOutput(const float* out, int64_t outSize,
     };
     std::sort(result.tags.begin(), result.tags.end(), byScoreDesc);
 
-    // Top-N near misses — partial sort is enough since we only show the
+    // Top-N near misses - partial sort is enough since we only show the
     // first kNearMissCount.
     if (below.size() > kNearMissCount) {
         std::partial_sort(below.begin(),

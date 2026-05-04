@@ -213,7 +213,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
     m_cooldownSpin->setSuffix(" ms");
     m_cooldownSpin->setToolTip(
         "Pause inserted between each image's inference. Higher values give\n"
-        "the CPU room to cool down between hits — useful on laptops or\n"
+        "the CPU room to cool down between hits - useful on laptops or\n"
         "during long batches. 0 = run as fast as possible.");
 
     m_recursiveCheck = new QCheckBox("Recursive", paramsBody);
@@ -280,7 +280,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
     rbl->setContentsMargins(12, 12, 12, 12);
     rbl->setSpacing(8);
 
-    // Status label: empty initially — the centered empty-state owns the
+    // Status label: empty initially - the centered empty-state owns the
     // pre-run prompt copy. Status fills in once a run is in progress.
     m_statusLabel = new QLabel(resultsBody);
     m_statusLabel->setObjectName("DatasetStatusLabel");
@@ -295,7 +295,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library,
     m_resultsList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     m_resultsList->setFrameShape(QFrame::NoFrame);
 
-    // Empty state widget — same pattern TagClusterPage uses. Stacked with
+    // Empty state widget - same pattern TagClusterPage uses. Stacked with
     // m_resultsList in the body layout; setRunning + the worker callbacks
     // toggle which is visible.
     m_emptyState = new QWidget(resultsBody);
@@ -492,7 +492,7 @@ void AutoTagPage::onRun()
         return;
     }
 
-    // Refresh the registry first — the user may have added or removed model
+    // Refresh the registry first - the user may have added or removed model
     // folders since launch. If the previously-active model has disappeared,
     // refreshModels keeps the dropdown selection on whatever is still there.
     m_library->rescan();
@@ -514,7 +514,7 @@ void AutoTagPage::onRun()
     auto* model = m_library->model(modelName);
     if (!model) {
         m_statusLabel->setText(QString(
-            "Model '%1' failed to load — check that its model.onnx, config.json, "
+            "Model '%1' failed to load - check that its model.onnx, config.json, "
             "and tags.csv are all present and valid.").arg(modelName));
         return;
     }
@@ -574,7 +574,7 @@ void AutoTagPage::onImageTagged(QString relPath, core::TagResult result)
 {
     m_results.insert(relPath, result);
 
-    // First result of the run flips the list visible — empty state shrinks
+    // First result of the run flips the list visible - empty state shrinks
     // and the user starts seeing rows immediately.
     if (m_resultsList->count() == 0 && m_emptyState->isVisible())
         showEmptyState({});
@@ -611,9 +611,9 @@ void AutoTagPage::onFinished(bool cancelled)
 {
     setRunning(false);
     if (cancelled)
-        m_statusLabel->setText(QString("Cancelled — %1 done.").arg(m_results.size()));
+        m_statusLabel->setText(QString("Cancelled - %1 done.").arg(m_results.size()));
     else
-        m_statusLabel->setText(QString("Done — %1 images tagged, %2 failed.")
+        m_statusLabel->setText(QString("Done - %1 images tagged, %2 failed.")
                                    .arg(m_results.size()).arg(m_failures.size()));
 
     // If the run produced literally nothing (no images discovered, or every
@@ -667,7 +667,7 @@ void AutoTagPage::showFocusedResult()
                 QString("%1   %2").arg(tp.tag, QString::number(tp.score, 'f', 2)),
                 m_focusTags);
         }
-        // Dimmed near-misses — tags that fell just below the threshold,
+        // Dimmed near-misses - tags that fell just below the threshold,
         // top-N first. Gives a sense of what lowering the slider would
         // bring in without re-running. Painted with disabled-text colour.
         for (const core::TagPrediction& tp : r.nearMisses) {

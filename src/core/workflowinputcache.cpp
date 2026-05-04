@@ -124,7 +124,7 @@ QString WorkflowInputCache::resolveEdited(const QString& uuid,
 
     const QString src = localPath(uuid);
     const QString editedDir  = m_cacheDir + "/_edited/" + edits.hash();
-    // Basename stays <uuid>.png — uploadInput uses the file's basename as the
+    // Basename stays <uuid>.png - uploadInput uses the file's basename as the
     // server-side filename, and applyToJson substitutes "tagcomposer/<uuid>.png".
     const QString editedPath = editedDir + "/" + uuid + ".png";
     if (QFile::exists(editedPath)) return editedPath;
@@ -134,7 +134,7 @@ QString WorkflowInputCache::resolveEdited(const QString& uuid,
     if (source.format() != QImage::Format_ARGB32)
         source = source.convertToFormat(QImage::Format_ARGB32);
 
-    // Clamp the crop rect to the image bounds defensively — a stale edit from
+    // Clamp the crop rect to the image bounds defensively - a stale edit from
     // a re-imported (smaller) image could otherwise overflow.
     QRect crop = edits.cropRect.intersected(source.rect());
     if (crop.isEmpty()) crop = source.rect();

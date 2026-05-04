@@ -29,7 +29,7 @@ struct SavedState {
     QMap<QString, QList<QString>> ruleArguments;  // rule name -> action arguments (for Add/Replace)
     QMap<QString, QString>        varValues;      // var name -> value
     QString                selectedWorkflowId;   // stable id from WorkflowFile::id
-    // Array of {placeholder, type, value-fields...} — array (not object) so the
+    // Array of {placeholder, type, value-fields...} - array (not object) so the
     // workflow's variable order is preserved across save/restore round-trips.
     QJsonArray             workflowVarValues;
     QString                previewImagePath;

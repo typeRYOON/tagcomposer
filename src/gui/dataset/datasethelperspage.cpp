@@ -66,7 +66,7 @@ DatasetHelpersPage::DatasetHelpersPage(core::FacetIndex*        facets,
     addTab("Auto-tagger", m_autoTagPage);
 
     // DanbooruIndex is set later via AppMainWindow once the async load
-    // finishes — hand a nullptr in so construction proceeds either way.
+    // finishes - hand a nullptr in so construction proceeds either way.
     m_tagEditorPage = new TagEditorPage(/*danbooru=*/nullptr, m_settings, this);
     addTab("Tag Editor", m_tagEditorPage);
 
@@ -74,7 +74,7 @@ DatasetHelpersPage::DatasetHelpersPage(core::FacetIndex*        facets,
     addTab("Batch Edit", m_batchEditPage);
 
     // Inter-tab handoff: switch the stack to `target`'s tab and seed it via
-    // `seed`. Mirrors what clicking a tab button does — flips the checked
+    // `seed`. Mirrors what clicking a tab button does - flips the checked
     // state, slides the indicator pill. Pulled from the layout (which
     // preserves addTab order) rather than QButtonGroup::buttons (order
     // undocumented).
@@ -171,7 +171,7 @@ void DatasetHelpersPage::showEvent(QShowEvent* event)
     QWidget::showEvent(event);
     // Place the indicator on the active tab once the layout has measured the
     // buttons (geometry is zero in the constructor). Subsequent shows don't
-    // need to re-place — the indicator already tracks the active button.
+    // need to re-place - the indicator already tracks the active button.
     if (!m_indicatorPlaced) {
         if (auto* btn = m_tabGroup->checkedButton())
             moveIndicatorTo(btn, /*animate=*/false);

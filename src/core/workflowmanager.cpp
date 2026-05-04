@@ -89,7 +89,7 @@ QJsonObject WorkflowManager::varToJson(const WorkflowVar& var)
         break;
     case WorkflowVarType::Image:
         o["imageUuid"] = var.imageUuid;
-        // Only persist edits when actually engaged — keeps unedited workflow
+        // Only persist edits when actually engaged - keeps unedited workflow
         // files visually clean and avoids touching old workflow files on save.
         if (var.imageEdits.enabled) {
             QJsonObject e;
@@ -123,7 +123,7 @@ WorkflowVar WorkflowManager::varFromJson(const QJsonObject& o)
     switch (var.type) {
     case WorkflowVarType::Seed: {
         // Legacy saved-state JSON encoded seedBehavior as the enum's int
-        // value rather than the canonical string — accept either.
+        // value rather than the canonical string - accept either.
         const QJsonValue sb = o["seedBehavior"];
         var.seedBehavior = sb.isString()
             ? seedBehFromStr(sb.toString())
@@ -287,7 +287,7 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
     QString result = jsonContent;
 
     for (WorkflowVar& var : variables()) {
-        // Wildcards have no JSON placeholder substitution — they're injected
+        // Wildcards have no JSON placeholder substitution - they're injected
         // into the positive prompt by the run path via pickWildcardTags().
         if (var.type == WorkflowVarType::Wildcard) continue;
         if (var.placeholder.isEmpty()) continue;
@@ -332,7 +332,7 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
             replacement = "\"" + var.stringValue + "\"";
             break;
         case WorkflowVarType::Image:
-            // Empty when unset — produces an empty JSON string, which ComfyUI
+            // Empty when unset - produces an empty JSON string, which ComfyUI
             // will reject downstream with a clearer error than a parse failure.
             replacement = "\"" + (var.imageUuid.isEmpty()
                 ? QString()

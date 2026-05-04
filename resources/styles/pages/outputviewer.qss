@@ -21,7 +21,7 @@
     padding: 8px;
 }
 
-/* Visible drag handle between the two panes — without an explicit background
+/* Visible drag handle between the two panes - without an explicit background
    the QSplitter handle is invisible against the page's dark fill. */
 #OvSplit::handle:horizontal {
     background: #161616;
@@ -37,10 +37,10 @@
     background: #333333;
 }
 
-/* Tree view styling — keeps the dark theme consistent with the rest of the
+/* Tree view styling - keeps the dark theme consistent with the rest of the
    app. `outline: 0` suppresses the dotted focus rectangle some styles draw.
    `padding-top` reserves a 16 px inset above the viewport so the first row
-   doesn't sit flush against the section header — the widget itself stays
+   doesn't sit flush against the section header - the widget itself stays
    full-height (no gap stripe between header and tree). */
 #OutputViewerPage QTreeView {
     background: #0f0f0f;

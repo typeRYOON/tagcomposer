@@ -15,7 +15,7 @@ namespace core {
 // Output policy: for each tagged image at `<inputRoot>/<rel>/foo.png`, writes
 // `<outputRoot>/<rel>/foo.txt` containing the comma-separated tags above
 // `threshold`. Existing .txt files at the same path are overwritten without
-// prompt — this is a regenerate-from-source pipeline.
+// prompt - this is a regenerate-from-source pipeline.
 //
 // Cancellation: cancel() flips an atomic; the worker checks it between images
 // (mid-inference cancel would require ORT RunOptions.SetTerminate per call,

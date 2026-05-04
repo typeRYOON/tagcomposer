@@ -102,17 +102,17 @@ namespace gui {
         int m_hoverIndex = -1;
 
         // Pixel cache (key = entry index in m_entries).
-        // Bounded LRU — see ctor for max cost. Each tile is ~274 KB
+        // Bounded LRU - see ctor for max cost. Each tile is ~274 KB
         // (TileW * TileH * 4 bytes), so cost is just the entry count.
         QCache<int, QPixmap> m_pixCache;
         QSet<int>            m_pending;
         QMutex               m_cacheMutex;
 
-        QPixmap m_placeholder;       // transparent — drawn while a tile loads
+        QPixmap m_placeholder;       // transparent - drawn while a tile loads
         QImage  m_emptyTileBg;       // resource-backed; fed into makeTileImage
                                      // when an entry has no (or a missing) image
 
-        // Bottom-fade gradient + title text colour — defaults match the
+        // Bottom-fade gradient + title text colour - defaults match the
         // original hardcoded look, overridden once at startup from settings.
         qreal  m_gradStart  = 0.6;
         int    m_gradAlpha  = 180;

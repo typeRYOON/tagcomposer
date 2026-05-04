@@ -1,4 +1,4 @@
-// PromptComposerPage — sidebar rebuild logic.
+// PromptComposerPage - sidebar rebuild logic.
 // The composer has three sidebars (rules, vars, workflow); each rebuild
 // blows away its container's child widgets and repopulates from the model.
 
@@ -58,10 +58,10 @@ private:
 };
 
 // Rule container that collapses its args area unless the row is hovered or
-// one of its descendants has focus — keeps the rules sidebar compact.
+// one of its descendants has focus - keeps the rules sidebar compact.
 //
 // Hide is debounced through a short timer and the final check uses the global
-// cursor position rather than QWidget::underMouse() — the latter only updates
+// cursor position rather than QWidget::underMouse() - the latter only updates
 // on enter/leave, which can lag while the row's geometry shifts on collapse.
 class RuleRow : public QWidget {
 public:
@@ -112,7 +112,7 @@ private:
         if (rg.contains(g)) return;
         // Only stay open when focus is *inside the args area* (a line edit the
         // user is typing into). Earlier this checked the whole row, which kept
-        // the args area open after toggling the rule's checkbox — the checkbox
+        // the args area open after toggling the rule's checkbox - the checkbox
         // is also a row descendant, so it falsely triggered the keep-open path.
         if (QWidget* fw = QApplication::focusWidget())
             if (m_args->isAncestorOf(fw)) return;
@@ -124,7 +124,7 @@ private:
 };
 
 // Build a small status badge. Prefers an icon resource when one is present,
-// falling back to text — drop a PNG/SVG at the resource path to upgrade.
+// falling back to text - drop a PNG/SVG at the resource path to upgrade.
 QLabel* makeBadge(const QString& iconRes,
                   const QString& fallbackText,
                   const QString& objectName)
@@ -292,7 +292,7 @@ void PromptComposerPage::rebuildRulesSidebar()
                     acl->addWidget(row);
                 }
 
-                // Trailing add row — committing pushes a new arg and rebuilds.
+                // Trailing add row - committing pushes a new arg and rebuilds.
                 auto* addEdit = new QLineEdit;
                 addEdit->setObjectName("ComposerRuleArgEdit");
                 addEdit->setPlaceholderText("add tag…");
@@ -397,7 +397,7 @@ void PromptComposerPage::rebuildVarsSidebar()
                 this, &PromptComposerPage::repush, Qt::QueuedConnection);
         });
 
-        // Reuse the rules-arg delete button styling — same dim ✕ that brightens
+        // Reuse the rules-arg delete button styling - same dim ✕ that brightens
         // on hover. NoFocus so Tab traversal stays on the value edits.
         auto* delBtn = new QPushButton("✕");
         delBtn->setObjectName("ComposerRuleArgDelBtn");
@@ -417,7 +417,7 @@ void PromptComposerPage::rebuildVarsSidebar()
         m_varsLayout->addWidget(row);
     }
 
-    // Trailing add row — name + value side by side. Pressing Enter on either
+    // Trailing add row - name + value side by side. Pressing Enter on either
     // field appends a new variable. editingFinished is intentionally NOT used
     // here: tabbing between the two fields would trigger it with a half-typed
     // value, so the explicit Enter keeps the commit unambiguous.
@@ -438,7 +438,7 @@ void PromptComposerPage::rebuildVarsSidebar()
     auto commit = [this, addName, addValue, persistAndRepush]() {
         const QString name = addName->text().trimmed();
         if (name.isEmpty()) return;
-        // Quietly ignore a duplicate name — the placeholder + reset below
+        // Quietly ignore a duplicate name - the placeholder + reset below
         // makes it obvious nothing was added.
         for (const Variable& v : m_varIndex->variables())
             if (v.name == name) {

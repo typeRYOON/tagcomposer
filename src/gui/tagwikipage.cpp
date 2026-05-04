@@ -11,6 +11,7 @@
 #include <QFontDatabase>
 #include <QFont>
 #include <QShortcut>
+#include <QDebug>
 
 
 namespace gui {
@@ -84,7 +85,7 @@ TagWikiPage::TagWikiPage(QWidget* parent)
     contentLayout->addWidget(m_browser, 1);
 
     // ── Loading / not-found placeholders ─────────────────────────────────────
-    // Loading state is intentionally empty — the search bar above is enough
+    // Loading state is intentionally empty - the search bar above is enough
     // of a hint that the user types a tag in.
     auto* loadingLabel = new QLabel();
     loadingLabel->setObjectName("WikiStatusLabel");
@@ -296,6 +297,15 @@ void TagWikiPage::displayContent(const QString& title,
                                  const QStringList& otherNames,
                                  const QString& body)
 {
+    // Debug: dump raw DText body so layout / table-of-contents bugs can be
+    // reproduced from the exact source markup. Surrounded with markers so the
+    // multi-line content is easy to copy/paste out of the debug stream.
+    qDebug().noquote().nospace()
+        << "\n=== TagWikiPage body for tag \"" << m_currentTag
+        << "\" (title=\"" << title << "\") ===\n"
+        << body
+        << "\n=== end TagWikiPage body ===";
+
     m_titleLabel->setText(title.isEmpty() ? m_currentTag : utils::normalizeTagInput(title));
 
     if (!otherNames.isEmpty()) {
@@ -469,7 +479,7 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds)
             QString("<h%1>\\1</h%1>").arg(n));
 
     // 8. Wiki links  [[tag|display]] then [[tag|]] (empty alias) then [[tag]]
-    // Use opaque URI "wiki:TAG" — tag lands in url.path(), not url.host(),
+    // Use opaque URI "wiki:TAG" - tag lands in url.path(), not url.host(),
     // so underscores and parens in tag names are handled correctly.
     text.replace(QRegularExpression(R"(\[\[([^\|\]]+)\|([^\]]+)\]\])"),
                  "<a href='wiki:\\1'>\\2</a>");

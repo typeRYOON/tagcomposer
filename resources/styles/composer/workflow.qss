@@ -119,7 +119,7 @@
     border: 1px solid #3a3a3a;
     background: #0f0f0f;
 }
-/* Step text is painted directly in PreviewClickLabel::paintEvent — no separate widget */
+/* Step text is painted directly in PreviewClickLabel::paintEvent - no separate widget */
 
 #ComposerControlBar {
     background: #111111;
@@ -184,7 +184,7 @@
 }
 
 /* Subtle-button base in app.qss covers bg/color/border/radius + hover. The
-   border here is faintly darker (#1e1e1e) than the shared #222222 — keep
+   border here is faintly darker (#1e1e1e) than the shared #222222 - keep
    it because the copy button sits on the slightly raised control bar. */
 #ComposerCopyBtn {
     border-color: #1e1e1e;

@@ -10,17 +10,17 @@ namespace core {
 // configured `<owner>/<repo>` and compares the latest tag against the
 // current app version (numeric semver, leading 'v' tolerated, prerelease
 // suffixes after '-' ignored). Emits `updateAvailable` only when the latest
-// release is strictly newer than the current version — same or older
+// release is strictly newer than the current version - same or older
 // releases fire `upToDate`.
 //
-// No self-update / binary replacement — the click target is just the
+// No self-update / binary replacement - the click target is just the
 // release's HTML page in the user's browser.
 class UpdateChecker : public QObject {
     Q_OBJECT
 public:
     explicit UpdateChecker(QObject* parent = nullptr);
 
-    // "owner/repo" — e.g. "typeRYOON/tagcomposer_test".
+    // "owner/repo" - e.g. "typeRYOON/tagcomposer_test".
     void setRepo(const QString& ownerSlashRepo);
     void setCurrentVersion(const QString& v);
 

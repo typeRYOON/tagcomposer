@@ -249,8 +249,8 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
     batchBodyLayout->setSpacing(8);
 
     auto* batchHint = new QLabel(
-        "Run the current composer prompt across every entry matching the\n"
-        "query — same syntax as the tile-view search bar.");
+        "Run the current composer prompt across every entry matching the "
+        "query - same syntax as the tile-view search bar.");
     batchHint->setObjectName("WfEmptyHint");
     batchHint->setWordWrap(true);
     batchBodyLayout->addWidget(batchHint);
@@ -274,7 +274,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent)
 
     auto* batchRunBtn = new QPushButton(" Run Batch");
     batchRunBtn->setObjectName("WfAddBtn");
-    // #66aa66 is the hover-shade green from the WfAddBtn theme — matches
+    // #66aa66 is the hover-shade green from the WfAddBtn theme - matches
     // the button's text color so the icon and label read as one piece.
     batchRunBtn->setIcon(gui::icons::play(14, QColor(0x66, 0xaa, 0x66)));
     batchRunBtn->setIconSize(QSize(12, 12));
@@ -408,8 +408,8 @@ void WorkflowEditPage::addVariable(core::WorkflowVarType type)
     if (!m_wm) return;
     core::WorkflowVar var;
     var.type = type;
-    // Wildcards don't substitute a __TOKEN__ in the workflow JSON — they
-    // inject into the positive prompt — so they don't need a placeholder.
+    // Wildcards don't substitute a __TOKEN__ in the workflow JSON - they
+    // inject into the positive prompt - so they don't need a placeholder.
     if (type != core::WorkflowVarType::Wildcard)
         var.placeholder = "__NEW__";
     m_wm->variables() << var;
@@ -454,7 +454,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     card->setObjectName("WfVarCard");
     card->setAttribute(Qt::WA_StyledBackground, true);
     // Cap height to sizeHint so cards don't stretch vertically when the
-    // m_varLayout has extra space — extra space goes to the trailing stretch.
+    // m_varLayout has extra space - extra space goes to the trailing stretch.
     card->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
     auto* cardLayout = new QVBoxLayout(card);
@@ -960,7 +960,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
                 m_wm->variables()[index].imageEdits = dlg.result();
 
                 // Drop the previous mask file if it was replaced (or cleared)
-                // — saveMask always mints a fresh uuid, so any change leaves
+                // - saveMask always mints a fresh uuid, so any change leaves
                 // the old file orphaned.
                 const QString newMaskId =
                     m_wm->variables()[index].imageEdits.maskId;
@@ -992,7 +992,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     case core::WorkflowVarType::Wildcard: {
         auto* hint = new QLabel(
             "One slot per line. A random line is picked for each prompt run\n"
-            "and merged into the positive prompt — rules and replacement\n"
+            "and merged into the positive prompt - rules and replacement\n"
             "vars apply. Commas split a line into multiple tags.");
         hint->setObjectName("WfFieldLabel");
         hint->setWordWrap(true);
@@ -1005,7 +1005,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         edit->setMaximumHeight(220);
         edit->setPlaceholderText("blue hair, blue eyes\nred hair\nblonde hair, twintails");
 
-        // Debounce disk writes — textChanged fires on every keystroke.
+        // Debounce disk writes - textChanged fires on every keystroke.
         auto* saveTimer = new QTimer(card);
         saveTimer->setSingleShot(true);
         saveTimer->setInterval(400);
@@ -1140,7 +1140,7 @@ QFrame* WorkflowEditPage::makeLoraCard(int index)
 
     row->addLayout(infoCol, 1);
 
-    // If we couldn't find the entry, the spinboxes are display-only —
+    // If we couldn't find the entry, the spinboxes are display-only -
     // editing won't be persisted because there's nothing to save.
     if (!entry) {
         modelSpin->setEnabled(false);

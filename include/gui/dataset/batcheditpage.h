@@ -16,7 +16,7 @@ namespace gui {
 
 // Bulk operations across a folder of <image>+<image>.txt pairs. Reads every
 // .txt sidecar, applies a configurable sequence of edits, and writes them
-// back. Each operation is independent — toggle the ones you want, click Run.
+// back. Each operation is independent - toggle the ones you want, click Run.
 //
 // Edit operations (applied in this order, so results are predictable):
 //   1. Remove specific tag (by name)
@@ -25,12 +25,12 @@ namespace gui {
 //   4. Append tag
 //
 // Read-only operation:
-//   * "Log tag frequencies" — does not modify any file. Counts every tag
+//   * "Log tag frequencies" - does not modify any file. Counts every tag
 //     across the folder and writes the totals to the log pane (descending
 //     by count). Useful for spotting outliers / under-tagged classes.
 //
 // All edits are in-place rewrites of the existing .txt files. There's no
-// undo — point this at a folder you've already backed up if it matters.
+// undo - point this at a folder you've already backed up if it matters.
 class BatchEditPage : public QWidget {
     Q_OBJECT
 public:
@@ -55,7 +55,7 @@ private:
     QLineEdit*    m_prependInput     = nullptr;
     QCheckBox*    m_appendCheck      = nullptr;
     QLineEdit*    m_appendInput      = nullptr;
-    QCheckBox*    m_logFreqCheck     = nullptr;  // read-only — log only
+    QCheckBox*    m_logFreqCheck     = nullptr;  // read-only - log only
 
     QPushButton*  m_runBtn           = nullptr;
 

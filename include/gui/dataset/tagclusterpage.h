@@ -29,7 +29,7 @@ class TagClusterPage : public QWidget {
 public:
     explicit TagClusterPage(core::FacetIndex* facets, QWidget* parent = nullptr);
 
-    // Quick-facet menu wiring — same names AppMainWindow uses for the composer
+    // Quick-facet menu wiring - same names AppMainWindow uses for the composer
     // and tile view. Empty string disables that quick-add entry.
     void setQuickFacets(const QString& character,
                         const QString& copyright,
@@ -72,7 +72,7 @@ private:
     // ── Results (results panel) ──────────────────────────────────────────────
     QWidget*        m_resultsContainer;
     QVBoxLayout*    m_resultsLayout;
-    QWidget*        m_resultsScroll  = nullptr; // stacks with m_emptyState — only one visible
+    QWidget*        m_resultsScroll  = nullptr; // stacks with m_emptyState - only one visible
     QWidget*        m_emptyState     = nullptr;
     QLabel*         m_emptyStateLbl  = nullptr;
     QPlainTextEdit* m_copyEdit;
@@ -142,7 +142,7 @@ private:
     void    saveGlobalCache();
     QString cachePath() const;
 
-    // Preview chain — mirrors FacetEditorPage's pattern (wiki → first post).
+    // Preview chain - mirrors FacetEditorPage's pattern (wiki → first post).
     void clearPreview();
     void fetchPreview(const QString& tag);
     void fetchPostById(const QString& tag, int postId);

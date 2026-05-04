@@ -88,7 +88,7 @@ int UpdateChecker::compareVersions(const QString& a, const QString& b)
 {
     auto split = [](QString s) -> QList<int> {
         if (s.startsWith('v', Qt::CaseInsensitive)) s = s.mid(1);
-        // Drop prerelease / build suffixes — "0.1.0-beta1" → "0.1.0".
+        // Drop prerelease / build suffixes - "0.1.0-beta1" → "0.1.0".
         const int cut = s.indexOf(QRegularExpression(QStringLiteral("[-+]")));
         if (cut >= 0) s = s.left(cut);
 

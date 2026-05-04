@@ -64,7 +64,7 @@ int DanmakuOverlay::chooseIndex(int layer)
 
     // Build the candidate pool from indices not already on-screen in this
     // layer. If every available line is in use (more items than lines), we
-    // fall back to a random pick — duplicates show up only when the user
+    // fall back to a random pick - duplicates show up only when the user
     // genuinely has fewer lines than items per layer.
     QList<int> candidates;
     candidates.reserve(total);
@@ -107,7 +107,7 @@ void DanmakuOverlay::spawnItem(Item& item, bool scatter)
         item.text    = m_texts[idx];
         item.pixmap  = QPixmap{};
 
-        // Cache the rendered text width using the same font we paint with —
+        // Cache the rendered text width using the same font we paint with -
         // the off-screen check in timerEvent reads this so wide strings
         // don't pop out of view before their tail clears the left edge.
         QFont font("Hiragino Maru Gothic ProN W4");

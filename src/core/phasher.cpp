@@ -8,7 +8,7 @@ namespace core {
 namespace {
 
 // Computes a 64-bit pHash from an in-memory cv::Mat. Direct port of the
-// reference phash.cc — kept identical to the implementation we already
+// reference phash.cc - kept identical to the implementation we already
 // validated, so a hash from this app is byte-equivalent to one from the
 // standalone tool.
 uint64_t phashOf(const cv::Mat& input)
@@ -69,7 +69,7 @@ uint64_t phashFile(const QString& imagePath)
     const QByteArray buffer = f.readAll();
     if (buffer.isEmpty()) return 0;
 
-    // imdecode handles every format OpenCV was built with — png/jpg/webp/bmp/gif.
+    // imdecode handles every format OpenCV was built with - png/jpg/webp/bmp/gif.
     cv::Mat data(1, int(buffer.size()), CV_8UC1, (void*)buffer.data());
     cv::Mat img = cv::imdecode(data, cv::IMREAD_UNCHANGED);
     if (img.empty()) return 0;

@@ -105,7 +105,7 @@ signals:
     void workflowVarsChanged();
     void statusMessageRequested(const QString& message);
     void loraUuidsRestored(QList<QString> uuids);
-    // Right-click → "Quick add as character/copyright" — handled by AppMainWindow,
+    // Right-click → "Quick add as character/copyright" - handled by AppMainWindow,
     // which mutates FacetIndex, persists, and triggers a facet reload.
     void quickFacetRequested(const QString& tag, const QString& facetName);
 
@@ -147,7 +147,7 @@ private:
 
     // Re-bucket a flat tag list into CategoryGroups in the user-defined
     // display order from `groups`. Tags with result == Deactivated are
-    // dropped — callers that want to surface them separately must filter
+    // dropped - callers that want to surface them separately must filter
     // first. Used by both the prompt builders and the on-screen layout.
     static QList<core::CategoryGroup> bucketForOutput(
         const QList<core::PipelineTag>& flat,
@@ -180,7 +180,7 @@ private:
     core::WorkflowInputCache* m_inputCache = nullptr;
     QString                   m_wfSavePath;
 
-    // Empty when the user hasn't opted in via settings — menu items hidden.
+    // Empty when the user hasn't opted in via settings - menu items hidden.
     QString                m_quickCharFacet;
     QString                m_quickCopyFacet;
     QString                m_quickTriggerFacet;
@@ -192,11 +192,11 @@ private:
     QSet<QString>            m_activeTagSet;
     QSet<QString>            m_deactivatedTags; // tags kept in list but excluded from pipeline
     QList<core::PipelineTag> m_lastResult;
-    QHash<QString, float>    m_tagWeights;    // weight keyed via weightKeyOf — sourceTag wins when present
+    QHash<QString, float>    m_tagWeights;    // weight keyed via weightKeyOf - sourceTag wins when present
 
     QHash<qint64, QList<QString>> m_activePushes;
 
-    // UI — main area
+    // UI - main area
     TagSearchBar*      m_searchBar;
     QStackedWidget*    m_mainStack;
     QWidget*           m_groupsContainer;
@@ -218,7 +218,7 @@ private:
     QString            m_outputFolderPattern;
     QString            m_tempFolder;
 
-    // UI — workflow/states sidebar
+    // UI - workflow/states sidebar
     WorkflowDropList*  m_wfList        = nullptr;
     StatesListWidget*  m_statesList    = nullptr;
     QStackedWidget*    m_wfStateStack  = nullptr;
@@ -232,11 +232,11 @@ private:
     bool               m_suppressRuleSave   = false;
     bool               m_freezeNextRebuild  = false;
 
-    // UI — rule sidebar
+    // UI - rule sidebar
     QWidget*     m_rulesContainer;
     QVBoxLayout* m_rulesLayout;
 
-    // UI — variable sidebar section
+    // UI - variable sidebar section
     QWidget*     m_varsContainer;
     QVBoxLayout* m_varsLayout;
 

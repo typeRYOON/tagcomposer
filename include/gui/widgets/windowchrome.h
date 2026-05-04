@@ -13,7 +13,7 @@ class TitleBar;
 
 // Reusable frameless-window chrome: titlebar, cosmetic border, and outline-
 // style edge resize. Composes into any QWidget-derived host (QMainWindow,
-// QDialog, top-level QWidget) — the host owns the WindowChrome instance and
+// QDialog, top-level QWidget) - the host owns the WindowChrome instance and
 // delegates chrome work to it.
 //
 // Wiring (host responsibilities):

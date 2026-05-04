@@ -37,7 +37,7 @@ private:
         int     contentIndex = -1;
         // Pixel width of the rendered text or pixmap. Cached at spawn so
         // the per-frame off-screen check doesn't re-measure text every
-        // tick — and so long text/wide images don't pop out of view before
+        // tick - and so long text/wide images don't pop out of view before
         // their right edge actually clears the left side of the widget.
         float   contentWidth = 0.0f;
     };

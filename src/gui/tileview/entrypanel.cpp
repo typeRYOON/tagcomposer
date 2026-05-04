@@ -98,7 +98,7 @@ static QJsonObject readSafetensorsMetadata(const QString& path)
     if (file.read(reinterpret_cast<char*>(&headerSize), sizeof(headerSize))
         != sizeof(headerSize)) return {};
     headerSize = qFromLittleEndian(headerSize);
-    // Sanity cap — header is JSON describing tensors, not the tensors themselves.
+    // Sanity cap - header is JSON describing tensors, not the tensors themselves.
     if (headerSize == 0 || headerSize > 100ULL * 1024 * 1024) return {};
 
     QByteArray headerData = file.read(headerSize);
@@ -177,7 +177,7 @@ public:
         root->setSpacing(6);
 
         auto addRow = [&](const QString& label, const QString& value) {
-            const QString display = value.isEmpty() ? QStringLiteral("—") : value;
+            const QString display = value.isEmpty() ? QStringLiteral("-") : value;
             auto* l = new QLabel(QString("<span style='color:#666'>%1</span>  %2")
                                      .arg(label, display.toHtmlEscaped()));
             l->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -480,7 +480,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     // ── Title ─────────────────────────────────────────────────────────────────
     m_titleEdit = new QLineEdit(this);
     m_titleEdit->setObjectName("EntryTitle");
-    m_titleEdit->setPlaceholderText("—");
+    m_titleEdit->setPlaceholderText("-");
     connect(m_titleEdit, &QLineEdit::returnPressed, this, [this]() {
         if (!m_entry) return;
         m_entry->title = m_titleEdit->text().trimmed();
@@ -571,10 +571,10 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
         m_model->removeImageFromEntry(m_entry->id, removedIdx);
 
         if (m_entry->images.isEmpty()) {
-            // Last image removed — fall back to empty state
+            // Last image removed - fall back to empty state
             m_imageIdx = 0;
             m_imageDrop->clearImage();
-            m_pageLabel->setText("—");
+            m_pageLabel->setText("-");
             m_prevBtn->setEnabled(false);
             m_nextBtn->setEnabled(false);
             m_removeImageBtn->setEnabled(false);
@@ -634,13 +634,13 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
                 // Determine where the LoRA file should live. If the dropped
                 // file is outside the configured lora folder, prompt the user
                 // for a relative path and move it in. Reject the drop entirely
-                // if no lora folder is configured — silently using a path
+                // if no lora folder is configured - silently using a path
                 // outside the canonical folder breaks workflow JSON paths.
                 QString finalPath = path;
                 {
                     if (m_loraBaseDir.isEmpty()) {
                         emit statusMessageRequested(
-                            "LoRA folder not set in Settings — drop rejected");
+                            "LoRA folder not set in Settings - drop rejected");
                         return;
                     }
                     const QString absPath = QDir::cleanPath(QDir(path).absolutePath());
@@ -740,18 +740,18 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
 
             if (QFile::remove(path)) { onDeleted(); return; }
 
-            // First attempt failed — most common cause on Windows is that
+            // First attempt failed - most common cause on Windows is that
             // ComfyUI still has the file mmap'd from the last generation.
             // Offer to free its model cache and retry once.
             if (!m_comfyClient || !m_comfyClient->isConnected()) {
                 emit statusMessageRequested(
-                    "Delete failed — file may be in use (ComfyUI not connected, can't auto-unload)");
+                    "Delete failed - file may be in use (ComfyUI not connected, can't auto-unload)");
                 return;
             }
 
             const auto retryReply = QMessageBox::question(
                 this, "File is locked",
-                "Deletion failed — the file is likely held by ComfyUI from "
+                "Deletion failed - the file is likely held by ComfyUI from "
                 "the last generation.\n\nUnload ComfyUI's models and retry?",
                 QMessageBox::Yes | QMessageBox::Cancel,
                 QMessageBox::Yes);
@@ -771,7 +771,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
                     QTimer::singleShot(500, this, [this, path, onDeleted]() {
                         if (QFile::remove(path)) { onDeleted(); return; }
                         emit statusMessageRequested(
-                            "Still locked after unload — try restarting ComfyUI");
+                            "Still locked after unload - try restarting ComfyUI");
                     });
                 });
         }
@@ -947,7 +947,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
             if (dlg.exec() != QDialog::Accepted) return;
             core::Entry entry = dlg.buildEntry();
             entry.images.append(core::ImageData{ "00001.png", {} });
-            // Capture uuid before the move — addEntry assigns the runtime id,
+            // Capture uuid before the move - addEntry assigns the runtime id,
             // and entryListChanged needs to fire first so the entry view has
             // the new entry in its m_entries before we ask it to scroll.
             const QString newUuid = entry.uuid;
@@ -959,8 +959,8 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent)
     }
 
     m_stack = new QStackedWidget(this);
-    m_stack->addWidget(emptyLabel);       // 0 — no selection
-    m_stack->addWidget(m_contentWidget);  // 1 — entry loaded
+    m_stack->addWidget(emptyLabel);       // 0 - no selection
+    m_stack->addWidget(m_contentWidget);  // 1 - entry loaded
 
 
     auto* outerLayout = new QVBoxLayout(this);
@@ -1023,7 +1023,7 @@ void EntryPanel::setEntry(core::Entry* entry)
     if (entry->images.isEmpty()) {
         m_imageIdx = 0;
         m_imageDrop->clearImage();
-        m_pageLabel->setText("—");
+        m_pageLabel->setText("-");
         m_prevBtn->setEnabled(false);
         m_nextBtn->setEnabled(false);
         m_removeImageBtn->setEnabled(false);
@@ -1037,14 +1037,14 @@ void EntryPanel::setEntry(core::Entry* entry)
 void EntryPanel::applyOrientation(bool portrait)
 {
     if (portrait) {
-        // Panel is short+wide — place header left, tags right
+        // Panel is short+wide - place header left, tags right
         m_rootLayout->setDirection(QBoxLayout::LeftToRight);
         m_headerWidget->setFixedWidth(300);
         m_headerWidget->setMaximumHeight(QWIDGETSIZE_MAX);
         m_headerWidget->setMinimumHeight(0);
         m_imageDrop->setFixedSize(120, 154);
     } else {
-        // Panel is tall+narrow — stack header above tags
+        // Panel is tall+narrow - stack header above tags
         m_rootLayout->setDirection(QBoxLayout::TopToBottom);
         m_headerWidget->setMaximumWidth(QWIDGETSIZE_MAX);
         m_headerWidget->setMinimumWidth(0);
@@ -1163,7 +1163,7 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
         edit->setText(row->property("_tag").toString());
     });
 
-    // Remove button — reads current tag from row property so it works after rename
+    // Remove button - reads current tag from row property so it works after rename
     auto* del = new QPushButton("×", row);
     del->setObjectName("TagRemoveBtn");
     del->setFixedSize(18, 18);
@@ -1180,7 +1180,7 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
     // Install the context menu on both the row and the inner line edit. The
     // QLineEdit would otherwise eat the right-click and show its own
     // cut/copy/paste menu, so the user has to aim at the small dot to get
-    // ours — which is what they reported.
+    // ours - which is what they reported.
     auto showRowMenu = [this, row]() {
         const QString t = row->property("_tag").toString();
         QMenu menu;

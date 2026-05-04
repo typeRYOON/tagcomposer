@@ -32,7 +32,7 @@ namespace core {
         e.title        = obj["title"].toString();
         e.comment      = obj["comment"].toString();
         e.creationTime = obj["creation"].toInteger();
-        // id left default — caller assigns
+        // id left default - caller assigns
 
         if (obj.contains("lora") && obj["lora"].isObject()) {
             const QJsonObject lo = obj["lora"].toObject();

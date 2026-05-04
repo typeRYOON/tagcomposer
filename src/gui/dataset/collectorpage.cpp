@@ -16,6 +16,14 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QPlainTextEdit>
+#include <QListWidget>
+#include <QListWidgetItem>
+#include <QListView>
+#include <QImage>
+#include <QPixmap>
+#include <QIcon>
+#include <QFile>
+#include <QFileInfo>
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QMessageBox>
@@ -33,8 +41,11 @@ using namespace utils;
 namespace gui {
 
 namespace {
-constexpr int kPanelWidth      = 380;
-constexpr int kFolderRowHeight = 40;
+constexpr int kPanelWidth       = 380;
+constexpr int kFolderRowHeight  = 40;
+constexpr int kRecentPanelWidth = 420;   // matches AutoTagPage's preview column
+constexpr int kRecentThumb      = 96;    // square thumb side, in px
+constexpr int kRecentMax        = 50;    // newest-first cap; oldest rolls off
 
 QWidget* makeSectionHeader(QWidget* parent, const QString& title)
 {
@@ -113,7 +124,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     m_collectionBox->setObjectName("DatasetSpin");
     m_collectionBox->setFixedHeight(kFolderRowHeight);
     m_collectionBox->setToolTip(
-        "Active collection — new images land in data/collections/<name>/\n"
+        "Active collection - new images land in data/collections/<name>/\n"
         "renamed as 00001.png, 00002.jpg, … Each collection has its own\n"
         "__hashes.json so duplicate detection picks up where you left off.");
 
@@ -121,7 +132,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     m_newCollectionBtn->setObjectName("DatasetBrowseBtn");
     m_newCollectionBtn->setFixedSize(56, kFolderRowHeight);
     m_newCollectionBtn->setToolTip(
-        "Create a new collection folder. You'll be prompted for a name —\n"
+        "Create a new collection folder. You'll be prompted for a name -\n"
         "use anything filesystem-safe (no slashes, no leading dots).");
 
     auto* collectionRow = new QHBoxLayout;
@@ -140,7 +151,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
         "skipped (sent to the recycle bin) if it's within this many bits\n"
         "of any existing entry.\n"
         "  0–2  : nearly identical (recompresses, watermark removed, etc)\n"
-        "  3–6  : same image, different edits — sweet spot for dedup\n"
+        "  3–6  : same image, different edits - sweet spot for dedup\n"
         "  7+   : looser, may false-merge similar but distinct images");
 
     m_thresholdValue = new QLabel(leftBody);
@@ -290,12 +301,67 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     };
     syncCounters();
 
+    // ── Far-right panel (recent thumbs) ─────────────────────────────────────
+    // Newest-first grid of images the watcher moved into the collection. Same
+    // column position + width as AutoTagPage's PREVIEW so the dataset tabs
+    // read consistently.
+    auto* recentPanel = new QWidget(this);
+    recentPanel->setObjectName("DatasetPreviewPanel");
+    recentPanel->setAttribute(Qt::WA_StyledBackground, true);
+    recentPanel->setFixedWidth(kRecentPanelWidth);
+
+    auto* rcl = new QVBoxLayout(recentPanel);
+    rcl->setContentsMargins(0, 0, 0, 0);
+    rcl->setSpacing(0);
+
+    auto* recentBody = new QWidget(recentPanel);
+    auto* rcbl = new QVBoxLayout(recentBody);
+    rcbl->setContentsMargins(12, 12, 12, 12);
+    rcbl->setSpacing(8);
+
+    m_recentList = new QListWidget(recentBody);
+    m_recentList->setObjectName("DatasetResultsList");
+    m_recentList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+    m_recentList->setFrameShape(QFrame::NoFrame);
+    m_recentList->setViewMode(QListView::IconMode);
+    m_recentList->setIconSize(QSize(kRecentThumb, kRecentThumb));
+    m_recentList->setResizeMode(QListView::Adjust);
+    m_recentList->setMovement(QListView::Static);
+    m_recentList->setSpacing(6);
+    m_recentList->setUniformItemSizes(true);
+    m_recentList->setWordWrap(true);
+    m_recentList->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_recentList->setVisible(false);   // hidden until first thumb arrives
+
+    m_recentEmpty = new QLabel(
+        "Recently collected images will appear here.", recentBody);
+    m_recentEmpty->setObjectName("DatasetEmptyState");
+    m_recentEmpty->setAlignment(Qt::AlignCenter);
+    m_recentEmpty->setWordWrap(true);
+
+    rcbl->addWidget(m_recentList, 1);
+    rcbl->addWidget(m_recentEmpty, 1);
+
+    rcl->addWidget(makeSectionHeader(recentPanel, "RECENT"));
+    rcl->addWidget(recentBody, 1);
+
+    // Click / Enter on a recent thumb opens it in the system viewer.
+    auto openRecent = [](QListWidgetItem* it) {
+        if (!it) return;
+        const QString path = it->data(Qt::UserRole).toString();
+        if (!path.isEmpty() && QFile::exists(path))
+            QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+    };
+    connect(m_recentList, &QListWidget::itemActivated,     this, openRecent);
+    connect(m_recentList, &QListWidget::itemDoubleClicked, this, openRecent);
+
     // ── Root ────────────────────────────────────────────────────────────────
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
     root->addWidget(leftPanel);
     root->addWidget(rightPanel, 1);
+    root->addWidget(recentPanel);
 
     // ── Hydrate from settings ────────────────────────────────────────────────
     if (m_settings) {
@@ -366,6 +432,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
             const QString toName   = QFileInfo(toAbs).fileName();
             m_log->appendPlainText(QString("[%1] moved %2 → %3")
                                        .arg(timestamp(), fromName, toName));
+            addRecentThumb(toAbs);
         });
     connect(m_watcher, &core::DownloadWatcher::imageSkipped, this,
         [this](QString fromAbs, int dist, QString matchName) {
@@ -375,7 +442,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
         });
     connect(m_watcher, &core::DownloadWatcher::error, this,
         [this](QString msg) {
-            m_log->appendPlainText(QString("[%1] error — %2").arg(timestamp(), msg));
+            m_log->appendPlainText(QString("[%1] error - %2").arg(timestamp(), msg));
         });
     connect(m_watcher, &core::DownloadWatcher::status, this,
         [this, syncCounters](int, int) { syncCounters(); });
@@ -535,7 +602,7 @@ void CollectorPage::onRebuildIndex()
     connect(watcher, &QFutureWatcher<int>::finished, this,
         [this, watcher, dir]() {
             const int n = watcher->result();
-            m_log->appendPlainText(QString("[%1] rebuild done — %2 entries")
+            m_log->appendPlainText(QString("[%1] rebuild done - %2 entries")
                                        .arg(timestamp()).arg(n));
             m_rebuildBtn->setEnabled(true);
             watcher->deleteLater();
@@ -564,6 +631,56 @@ void CollectorPage::persistSettings()
     m_settings->collectorActiveCollection = m_collectionBox->currentText();
     m_settings->collectorThreshold        = m_thresholdSlider->value();
     m_settings->collectorPollSeconds      = m_pollSpin->value();
+}
+
+// ── Recent thumbs ────────────────────────────────────────────────────────────
+
+void CollectorPage::addRecentThumb(const QString& imagePath)
+{
+    if (!m_recentList) return;
+
+    // Decode off the GUI thread so a large image doesn't stutter the watcher
+    // log update sitting next to it. Watcher is per-call so multiple in-flight
+    // loads can interleave without stepping on each other.
+    auto* w = new QFutureWatcher<QImage>(this);
+    connect(w, &QFutureWatcher<QImage>::finished, this,
+        [this, w, imagePath]() {
+            const QImage img = w->result();
+            w->deleteLater();
+            if (img.isNull()) return;
+
+            // KeepAspectRatioByExpanding fills the icon square, then we crop
+            // the centre via QPixmap::copy so the grid stays visually uniform.
+            QPixmap pm = QPixmap::fromImage(img).scaled(
+                kRecentThumb, kRecentThumb,
+                Qt::KeepAspectRatioByExpanding,
+                Qt::SmoothTransformation);
+            if (pm.width() > kRecentThumb || pm.height() > kRecentThumb) {
+                const int x = (pm.width()  - kRecentThumb) / 2;
+                const int y = (pm.height() - kRecentThumb) / 2;
+                pm = pm.copy(x, y, kRecentThumb, kRecentThumb);
+            }
+
+            auto* it = new QListWidgetItem;
+            it->setIcon(QIcon(pm));
+            it->setText(QFileInfo(imagePath).fileName());
+            it->setData(Qt::UserRole, imagePath);
+            it->setToolTip(imagePath);
+            m_recentList->insertItem(0, it);
+
+            // Cap at kRecentMax - drop oldest from the bottom.
+            while (m_recentList->count() > kRecentMax)
+                delete m_recentList->takeItem(m_recentList->count() - 1);
+
+            // First thumb arrived: swap the empty-state placeholder for the grid.
+            if (m_recentEmpty && m_recentEmpty->isVisible()) {
+                m_recentEmpty->setVisible(false);
+                m_recentList->setVisible(true);
+            }
+        });
+    w->setFuture(QtConcurrent::run([imagePath]() -> QImage {
+        return QImage(imagePath);
+    }));
 }
 
 } // namespace gui

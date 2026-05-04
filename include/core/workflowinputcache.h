@@ -45,7 +45,7 @@ public:
 
     // Mask storage for the clip editor. saveMask writes the QImage to
     // <cacheDir>/_masks/<newUuid>.png and returns the new uuid. Each save
-    // produces a fresh uuid (we don't try to dedupe identical masks — the
+    // produces a fresh uuid (we don't try to dedupe identical masks - the
     // editsHash will differ anyway because maskId is content-addressed).
     QString saveMask(const QImage& mask);
     QImage  loadMask(const QString& maskId) const;

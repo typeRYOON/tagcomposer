@@ -9,7 +9,7 @@
 namespace gui {
 
 // Page identifiers for the main window's QStackedWidget. Values are the index
-// into the stack — adding a page means appending here AND inserting an
+// into the stack - adding a page means appending here AND inserting an
 // addWidget()/addButton() in the matching visual position. Reordering means
 // touching all three. Keeps page references self-documenting at the call site.
 enum class Page : int {

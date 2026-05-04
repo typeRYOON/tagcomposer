@@ -72,7 +72,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
 
     m_nam = new QNetworkAccessManager(this);
 
-    // Coalesces bursts of recompute() requests — slider drags would otherwise
+    // Coalesces bursts of recompute() requests - slider drags would otherwise
     // tear down + rebuild every result row 60+ times per second, which causes
     // visible flicker as widget cleanup races with new rows being inserted.
     m_recomputeTimer = new QTimer(this);
@@ -80,7 +80,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     m_recomputeTimer->setInterval(150);
     connect(m_recomputeTimer, &QTimer::timeout, this, &TagClusterPage::recompute);
 
-    // Section header builder — mirrors WorkflowEditPage's #WfEditHeader so the
+    // Section header builder - mirrors WorkflowEditPage's #WfEditHeader so the
     // dataset page reads consistently with the other styled pages. Returns the
     // 50 px bar; place it at the top of each panel and put the body widget
     // beneath. The dataset tab bar above already provides the visual gap.
@@ -141,7 +141,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     m_soloCheck->setToolTip(
         "Restrict the Danbooru query to solo posts of this character.\n"
         "Helpful for cleaner clusters, but characters with few solo\n"
-        "posts will return less data — leave off if results are sparse.");
+        "posts will return less data - leave off if results are sparse.");
 
     m_charPagesSpin   = mkSpin(1, 100, 15);
     m_globalPagesSpin = mkSpin(1, 200, 30);
@@ -152,18 +152,18 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
         "More pages = better PMI signal but slower.");
     m_globalPagesSpin->setToolTip(
         "Pages of unrelated posts used to build the baseline tag\n"
-        "distribution. Cached after the first fetch — only matters\n"
+        "distribution. Cached after the first fetch - only matters\n"
         "the first run or after clearing the global cache.");
     m_minCountSpin->setToolTip(
         "Drop tags that appear in fewer than this many of the\n"
-        "character's posts. Live-applied — no re-fetch needed.");
+        "character's posts. Live-applied - no re-fetch needed.");
 
     m_minPmiSlider = new QSlider(Qt::Horizontal, paramsBody);
     m_minPmiSlider->setObjectName("DatasetPmiSlider");
     m_minPmiSlider->setRange(kPmiSliderMin, kPmiSliderMax);
     m_minPmiSlider->setValue(kPmiSliderDefault);
     m_minPmiSlider->setToolTip(
-        "Pointwise mutual information threshold — higher values keep\n"
+        "Pointwise mutual information threshold - higher values keep\n"
         "only the most distinctive tags for this character. Live-applied.");
 
     m_minPmiValueLbl = new QLabel(paramsBody);
@@ -207,7 +207,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     pbl->addWidget(m_fetchBtn);
     pbl->addWidget(m_clearCacheBtn);
 
-    // Filter-section body — gets its own objectName so we can frame it with a
+    // Filter-section body - gets its own objectName so we can frame it with a
     // visible top + right border to set it apart from the params section above.
     auto* filterBody = new QWidget(paramsPanel);
     filterBody->setObjectName("DatasetFilterBody");
@@ -234,7 +234,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     m_filterEdit = new QPlainTextEdit(filterBody);
     m_filterEdit->setObjectName("DatasetExcludeEdit");
     m_filterEdit->setPlaceholderText(
-        "One rule per line — comma-separated facet names (AND).\n"
+        "One rule per line - comma-separated facet names (AND).\n"
         "Multiple lines = OR.\n\n"
         "Example (whitelist):\n"
         "  eye, color >> (red eyes, blue eyes, ...)\n"
@@ -243,7 +243,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     m_filterEdit->setToolTip(
         "Each line is a rule: every facet name listed (comma-separated)\n"
         "must be present on the tag. Any rule matching = the tag matched\n"
-        "the filter. Live-applied — no re-fetch needed.");
+        "the filter. Live-applied - no re-fetch needed.");
     m_filterEdit->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_filterEdit->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
 
@@ -260,7 +260,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     fbl->addWidget(m_filterStatusLbl);
 
     // The FACET FILTER section gets its own header objectName so its
-    // border-bottom can be skipped — the filter body draws a single border-top
+    // border-bottom can be skipped - the filter body draws a single border-top
     // instead, avoiding two stacked horizontal lines at the seam.
     auto* filterHeader = makeSectionHeader("FACET FILTER");
     filterHeader->setObjectName("DatasetFilterSectionHeader");
@@ -281,7 +281,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     rbl->setContentsMargins(12, 12, 12, 12);
     rbl->setSpacing(8);
 
-    // Initial text is left empty — the centered emptyState placeholder below
+    // Initial text is left empty - the centered emptyState placeholder below
     // owns the "no fetch yet" copy. The status label only appears once a fetch
     // is in flight or has produced a result count.
     m_statusLabel = new QLabel(resultsBody);
@@ -307,7 +307,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     scroll->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     m_resultsScroll = scroll;
 
-    // Centered empty-state — shown when there are no rows. Stretches above
+    // Centered empty-state - shown when there are no rows. Stretches above
     // and below pin the label vertically; AlignHCenter on the addWidget pins
     // it horizontally, so the message sits in the middle of the result area.
     auto* emptyContainer = new QWidget(resultsBody);
@@ -406,13 +406,13 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
         QApplication::clipboard()->setText(m_copyEdit->toPlainText());
     });
 
-    // +solo flips the Danbooru query — flag the cached data as stale until the
+    // +solo flips the Danbooru query - flag the cached data as stale until the
     // user re-fetches, since the underlying post population is now different.
     connect(m_soloCheck, &QCheckBox::toggled, this, [this](bool) {
         markStaleIfFetched();
     });
 
-    // Debounced recompute — bursts (slider drag, typing in the filter editor)
+    // Debounced recompute - bursts (slider drag, typing in the filter editor)
     // collapse into a single rebuild after the user pauses for ~150 ms.
     connect(m_minPmiSlider, &QSlider::valueChanged, this, [this, syncPmiLabel](int) {
         syncPmiLabel();
@@ -481,7 +481,7 @@ void TagClusterPage::onFetchClicked()
     setFetchRunning(true);
     if (m_emptyStateLbl) m_emptyStateLbl->setText("Fetching…");
 
-    // Kick off the right-pane preview in parallel — independent of the fetch
+    // Kick off the right-pane preview in parallel - independent of the fetch
     // pipeline, no need to block on it.
     fetchPreview(m_targetTag);
 
@@ -495,7 +495,7 @@ void TagClusterPage::fetchNextPage()
     q.addQueryItem("limit", "200");
     q.addQueryItem("page",  QString::number(m_currentPage + 1));
     if (m_phase == Phase::CharFetch) {
-        // +solo lives directly in the tag string — Danbooru treats space as AND.
+        // +solo lives directly in the tag string - Danbooru treats space as AND.
         QString tags = m_targetTag;
         if (m_fetchedSolo) tags += " solo";
         q.addQueryItem("tags", tags);
@@ -514,7 +514,7 @@ void TagClusterPage::fetchNextPage()
             setFetchRunning(false);
             m_phase = Phase::Idle;
             if (m_emptyStateLbl)
-                m_emptyStateLbl->setText("Network error — try again.");
+                m_emptyStateLbl->setText("Network error - try again.");
             setResultsEmpty(true);
             return;
         }
@@ -573,7 +573,7 @@ void TagClusterPage::onPhaseDone()
         setFetchRunning(false);
         m_charDataReady = true;
 
-        // Most common copyright (computed once per fetch — not part of the
+        // Most common copyright (computed once per fetch - not part of the
         // recompute hot path).
         m_copyright = "No Copyright";
         int maxCop = 0;
@@ -619,9 +619,9 @@ void TagClusterPage::recompute()
         if (!filter.keep(facets)) continue;
 
         const int gCount = m_globalCounter.value(tag, 0);
-        if (gCount < 50) continue;  // global rarity floor — keeps PMI stable
+        if (gCount < 50) continue;  // global rarity floor - keeps PMI stable
 
-        // Pure MLE PMI — the gCount floor above is what protects the log()
+        // Pure MLE PMI - the gCount floor above is what protects the log()
         // from blowing up on rare/zero-count tags.
         const double p_tc = double(count)  / double(m_charTotal);
         const double p_t  = double(gCount) / double(m_globalTotal);
@@ -641,7 +641,7 @@ void TagClusterPage::recompute()
     });
 
     // Rebuild result widgets. We use direct delete (not deleteLater) so the
-    // old rows are gone before the new ones get inserted — otherwise quick
+    // old rows are gone before the new ones get inserted - otherwise quick
     // recomputes pile up zombie widgets briefly visible during the layout
     // reflow, which the user perceived as "the list collapses then comes back".
     clearResultRows();
@@ -698,13 +698,13 @@ QWidget* TagClusterPage::makeResultRow(const QString& tag, double pmi, int idx)
     tagLbl->setObjectName("DatasetResultTag");
 
     // The user threshold is in PMI units, so the displayed value is the raw
-    // PMI (not the freq-weighted sort key) — that way the slider directly
+    // PMI (not the freq-weighted sort key) - that way the slider directly
     // matches the score column.
     auto* pmiLbl = new QLabel(QString::number(pmi, 'f', 2), row);
     pmiLbl->setObjectName("DatasetResultScore");
     pmiLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     pmiLbl->setFixedWidth(48);
-    pmiLbl->setToolTip("PMI — pointwise mutual information vs. the global tag distribution.");
+    pmiLbl->setToolTip("PMI - pointwise mutual information vs. the global tag distribution.");
 
     layout->addWidget(removeBtn);
     layout->addWidget(tagLbl, 1);
@@ -725,7 +725,7 @@ QWidget* TagClusterPage::makeResultRow(const QString& tag, double pmi, int idx)
 
 void TagClusterPage::installRowContextMenu(QWidget* w, const QString& tag)
 {
-    // Wiki / facet-editor / quick-add menu — same surface the composer offers,
+    // Wiki / facet-editor / quick-add menu - same surface the composer offers,
     // so the cluster results page reads the same way for the user. The wiki
     // tag is stored with spaces (in-app convention); FacetIndex and the wiki
     // page both resolve from that form.
@@ -1094,7 +1094,7 @@ void TagClusterPage::markStaleIfFetched()
 {
     if (!m_charDataReady) return;
     m_charDataReady = false;
-    setStatus("Parameters changed — click Fetch to refresh.");
+    setStatus("Parameters changed - click Fetch to refresh.");
 
     clearResultRows();
     m_copyEdit->clear();

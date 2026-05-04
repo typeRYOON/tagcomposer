@@ -221,7 +221,7 @@ void PreviewPopoutWindow::loadNewestTempImage()
     const QString newestPath = newest->absoluteFilePath();
     // Dedupe: nothing to do if we've already loaded this file (matters now
     // that the load-finished handler re-arms the debounce as a coalescing
-    // backstop — without this, every directoryChanged would re-decode).
+    // backstop - without this, every directoryChanged would re-decode).
     if (newestPath == m_lastTempPath) return;
     if (m_loadWatcher->isRunning()) return;
     m_lastTempPath = newestPath;

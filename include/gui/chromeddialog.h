@@ -9,7 +9,7 @@ namespace gui {
 class WindowChrome;
 
 // Frameless dialog with the same custom titlebar treatment as AppMainWindow:
-// a 30 px chrome bar (close button only — modal flows don't need min/max),
+// a 30 px chrome bar (close button only - modal flows don't need min/max),
 // a thin cosmetic border, and outline-style edge-resize.
 //
 // Subclasses build their UI inside contentArea() instead of `this`:
@@ -17,8 +17,8 @@ class WindowChrome;
 //   auto* layout = new QVBoxLayout(contentArea());
 //   layout->addWidget(...);
 //
-// The dialog still behaves like a normal QDialog — exec(), accept(), reject(),
-// modality semantics all work — it just paints its own chrome.
+// The dialog still behaves like a normal QDialog - exec(), accept(), reject(),
+// modality semantics all work - it just paints its own chrome.
 class ChromedDialog : public QDialog {
     Q_OBJECT
 public:

@@ -135,7 +135,7 @@ FacetEditorPage::FacetEditorPage(
     leftLayout->addWidget(m_countLabel);
     leftLayout->addWidget(m_tagList, 1);
 
-    // ── Right panel — facet assignment editor ─────────────────────────────────
+    // ── Right panel - facet assignment editor ─────────────────────────────────
     m_selectedLabel = new QLabel;
     m_selectedLabel->setObjectName("FacetSelectedTag");
 
@@ -347,7 +347,7 @@ void FacetEditorPage::refreshUndefinedList()
         return;
     }
 
-    // Preserve composer's tag order — the user typed them in that order
+    // Preserve composer's tag order - the user typed them in that order
     for (const QString& tag : undefined)
         m_undefinedList->addItem(new QListWidgetItem(tag));
 
@@ -411,7 +411,7 @@ void FacetEditorPage::selectTagByName(const QString& tag)
         m_tagList->setCurrentItem(items.first());
         m_tagList->scrollToItem(items.first());
     } else {
-        // Tag not in model's index yet — add it temporarily
+        // Tag not in model's index yet - add it temporarily
         auto* item = new QListWidgetItem(tag);
         const bool defined = m_facets->hasFacets(tag);
         item->setData(Qt::UserRole, defined);
@@ -471,7 +471,7 @@ void FacetEditorPage::selectTag(const QString& tag)
             blockLayout->addWidget(header);
         }
 
-        // Wrap-flowing toggle pills — bigger click target than a checkbox,
+        // Wrap-flowing toggle pills - bigger click target than a checkbox,
         // visually quicker to scan, and shows selected state via :checked QSS.
         auto* pillsHost = new QWidget;
         auto* flow      = new FlowLayout(pillsHost, /*margin*/ 0, /*hSpace*/ 6, /*vSpace*/ 6);
@@ -519,7 +519,7 @@ void FacetEditorPage::saveSelected()
             checked << pill->text();
 
     // Empty list is valid: clears the tag's definition (FacetIndex removes
-    // the entry entirely). Don't return early — that left the on-disk file
+    // the entry entirely). Don't return early - that left the on-disk file
     // out of sync with the user's intent to "uncategorize" a tag.
     const bool nowDefined = !checked.isEmpty();
 
@@ -591,7 +591,7 @@ void FacetEditorPage::setPreviewPixmap(const QPixmap& pix)
     const QPixmap scaled = pix.scaled(
         maxW, maxH, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
-    // QSS border-radius on QLabel doesn't clip the pixmap content — paint into
+    // QSS border-radius on QLabel doesn't clip the pixmap content - paint into
     // a transparent canvas with a rounded clip path so the corners are actually
     // rounded on the image itself.
     QPixmap rounded(scaled.size());

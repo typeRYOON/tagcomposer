@@ -12,7 +12,7 @@ namespace gui {
 // maximize/restore. Min/max/close buttons mirror the native chrome.
 //
 // The bar pulls its label from window()->windowTitle() and keeps it in sync
-// via an event filter on the top-level window — call setWindowTitle() on the
+// via an event filter on the top-level window - call setWindowTitle() on the
 // main window as usual.
 class TitleBar : public QWidget {
     Q_OBJECT

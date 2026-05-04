@@ -14,7 +14,7 @@ namespace core {
 // either move-to-recycle-bin (duplicate) or rename-and-move with a sequential
 // "NNNNN.<ext>" name.
 //
-// Lifetime: only one Watcher should be running at a time across the app —
+// Lifetime: only one Watcher should be running at a time across the app -
 // otherwise two tickers would race for the same source files. The Collector
 // page enforces that by owning a single instance.
 class DownloadWatcher : public QObject {

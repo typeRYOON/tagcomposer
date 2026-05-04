@@ -103,7 +103,7 @@ void StatusBar::clearProgress()
 
 void StatusBar::setActiveCount(int count)
 {
-    // Text only — fade-in is driven by setProgress so the label appears in
+    // Text only - fade-in is driven by setProgress so the label appears in
     // sync with the progress bar (ComfyUI delays its first preview step
     // message after a prompt is queued, and we want both to fade in at the
     // same moment instead of the label leading by hundreds of ms).

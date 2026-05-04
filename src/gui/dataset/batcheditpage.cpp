@@ -174,7 +174,7 @@ BatchEditPage::BatchEditPage(utils::AppSettings* settings, QWidget* parent)
     m_runBtn->setToolTip(
         "Apply every checked operation to every image+.txt pair in the\n"
         "folder. Edits run in a fixed top-to-bottom order so results are\n"
-        "predictable. There's no undo — back the folder up first if it\n"
+        "predictable. There's no undo - back the folder up first if it\n"
         "matters.");
 
     {
@@ -260,7 +260,7 @@ BatchEditPage::BatchEditPage(utils::AppSettings* settings, QWidget* parent)
     root->addWidget(leftPanel);
     root->addWidget(rightPanel, 1);
 
-    // Disable inputs whose checkbox is off — visual hint that the value won't
+    // Disable inputs whose checkbox is off - visual hint that the value won't
     // be read when Run is clicked.
     auto bindEnable = [&](QCheckBox* c, QLineEdit* e) {
         e->setEnabled(c->isChecked());
@@ -297,7 +297,7 @@ void BatchEditPage::setInputFolder(const QString& folder)
 void BatchEditPage::persistSettings()
 {
     if (!m_settings) return;
-    // Reuse the tag-editor folder slot — same kind of folder, same convenience.
+    // Reuse the tag-editor folder slot - same kind of folder, same convenience.
     m_settings->tagEditorFolder = m_folderEdit->text().trimmed();
 }
 
@@ -396,7 +396,7 @@ void BatchEditPage::onRun()
 
             const QString after = tags.join(", ");
             if (tags == originalTags) {
-                // No effective change — skip the write so mtimes only
+                // No effective change - skip the write so mtimes only
                 // change for files we actually edited.
                 m_progressBar->setValue(i + 1);
                 continue;
@@ -421,12 +421,12 @@ void BatchEditPage::onRun()
             if ((i & 0x1F) == 0) QApplication::processEvents();
         }
     } else {
-        // No edits — fast-forward the progress bar so it doesn't sit at 0
+        // No edits - fast-forward the progress bar so it doesn't sit at 0
         // while we're tallying frequencies below.
         m_progressBar->setValue(sidecars.size());
     }
 
-    // Read-only frequency log. Always reads the *post-edit* state — if the
+    // Read-only frequency log. Always reads the *post-edit* state - if the
     // user combined edits with logging, the totals reflect what the files
     // look like now. Walking the sidecars again is fine; tag-files are tiny.
     if (doLogFreq) {
@@ -464,10 +464,10 @@ void BatchEditPage::onRun()
                                                           .arg(sidecars.size())
                                                           .arg(failed);
     if (doLogFreq) {
-        if (!summary.isEmpty()) summary += " — ";
+        if (!summary.isEmpty()) summary += " - ";
         summary += "frequencies logged";
     }
-    m_statusLabel->setText("Done — " + summary + ".");
+    m_statusLabel->setText("Done - " + summary + ".");
     m_runBtn->setEnabled(true);
 }
 

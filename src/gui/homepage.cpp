@@ -13,20 +13,20 @@ namespace gui {
 
 namespace {
 
-// ── Logo composition — tune these to position the two layers ────────────────
+// ── Logo composition - tune these to position the two layers ────────────────
 //
 // The composite logo is a fixed-size frame with absolutely-positioned
 // children. tc_logo0 is the bottom layer (the tag-mark); tc_logo1 is the
 // top layer (the wordmark) and gets the shine sweep. Adjust the rects to
-// shift, scale, or overlap them — the wordmark stays aspect-correct (its
+// shift, scale, or overlap them - the wordmark stays aspect-correct (its
 // pixmap is rendered with KeepAspectRatio inside whatever rect you give it).
 constexpr QSize  kLogoFrameSize { 626, 252 };
 constexpr QRect  kTagRect       { 174,  1, 280, 251 };
 constexpr QRect  kWordmarkRect  { 0, 0, 626, 173 };
 
-// Bottom-strip insets — match the existing 20 px right margin we had before.
+// Bottom-strip insets - match the existing 20 px right margin we had before.
 constexpr int kBottomMargin     = 20;
-// ryoon_logo.png is a wide wordmark, not a square — fixing it to N×N
+// ryoon_logo.png is a wide wordmark, not a square - fixing it to N×N
 // crushes it to a tiny strip. Scale it by height instead, let the width
 // follow the image's natural aspect.
 constexpr int kRyoonLogoHeight  = 50;
@@ -74,7 +74,7 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent)
             .scaledToHeight(kRyoonLogoHeight, Qt::SmoothTransformation);
         m_ryoonLogo->setPixmap(ryoon);
         // Lock the QLabel to the rendered pixmap's size so the click target
-        // matches the visible artwork — no surrounding chrome to suggest a
+        // matches the visible artwork - no surrounding chrome to suggest a
         // "button". It's just an image you can click.
         m_ryoonLogo->setFixedSize(ryoon.size());
     }
@@ -122,7 +122,7 @@ void HomePage::setUpdateAvailable(const QString& version, const QString& release
         return;
     }
     m_updateUrl = releaseUrl;
-    m_updateLabel->setText(QString("Update available — %1 (click to view)").arg(version));
+    m_updateLabel->setText(QString("Update available - %1 (click to view)").arg(version));
     m_updateLabel->setCursor(releaseUrl.isEmpty()
                                  ? Qt::ArrowCursor
                                  : Qt::PointingHandCursor);

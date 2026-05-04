@@ -174,7 +174,7 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
     Rule    current;
     bool    inRule     { false };
     bool    actionSet  { false };
-    bool    skipBlock  { false };  // current @rule is a duplicate — drop until next @rule
+    bool    skipBlock  { false };  // current @rule is a duplicate - drop until next @rule
     QSet<QString> seenNames;
 
     auto finaliseRule = [&]() {
@@ -287,7 +287,7 @@ const QList<Rule>& RuleEngine::rules() const { return m_rules; }
 
 bool RuleEngine::globMatch(const QString& pattern, const QString& text)
 {
-    // Cache compiled regexes — evaluate() runs this against every tag for
+    // Cache compiled regexes - evaluate() runs this against every tag for
     // every name-glob clause, so recompiling per-call adds up quickly.
     static QHash<QString, QRegularExpression> cache;
     auto it = cache.find(pattern);

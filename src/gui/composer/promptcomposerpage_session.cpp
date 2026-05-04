@@ -1,4 +1,4 @@
-// PromptComposerPage — session save/restore.
+// PromptComposerPage - session save/restore.
 // Persisted on app close, loaded on app start; lives next to the main
 // PromptComposerPage TU, no separate class.
 

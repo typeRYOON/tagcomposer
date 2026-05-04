@@ -90,7 +90,7 @@ void ExportDialog::onExport()
     if (folder.isEmpty()) return;
 
     if (!m_facets) {
-        m_status->setText("Facet index unavailable — cannot export.");
+        m_status->setText("Facet index unavailable - cannot export.");
         return;
     }
 

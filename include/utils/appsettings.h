@@ -13,7 +13,7 @@ struct AppSettings {
     // are persisted but require a restart to take effect.
     qreal   tileGradientStart    = 0.6;
     int     tileGradientAlpha    = 180;
-    // Hex "#rrggbb" — colour of the tile title text. Same startup-only
+    // Hex "#rrggbb" - colour of the tile title text. Same startup-only
     // semantics as the gradient.
     QString tileTitleColor       = "#ffffff";
 
@@ -23,19 +23,19 @@ struct AppSettings {
     QString comfyUiApiKey;
     QString comfyUiOutputFolder; // path pattern, e.g. C:/ComfyUI/output/{yyyy-MM-dd}
     QString comfyUiTempFolder;   // flat folder watched for in-progress decode images
-    QString comfyUiInputFolder;  // optional path to ComfyUI's input/ — enables direct file copy for image vars (HTTP upload is the fallback when unset)
+    QString comfyUiInputFolder;  // optional path to ComfyUI's input/ - enables direct file copy for image vars (HTTP upload is the fallback when unset)
     QString loraBaseDir;         // base dir for LoRA relative-path computation (ComfyUI models/loras)
 
     // ── Facets ────────────────────────────────────────────────────────────────
-    // Names of facets used by the composer's quick-add context menu.
-    // character/copyright default empty — menu items are hidden when unset,
-    // so users with their own facet schema aren't forced to use a baked-in
-    // name. trigger_word/style default to the conventional rtrigger_word and
-    // rstyle since those map directly to LoRA training/usage conventions.
+    // Names of facets used by the composer's quick-add context menu. All four
+    // default empty - menu items are hidden when unset, so users with their
+    // own facet schema aren't forced to use a baked-in name. The settings
+    // page exposes "rcharacter" / "rcopyright" / "rtrigger_word" / "rstyle"
+    // as placeholder hints for the LoRA-training convention.
     QString quickCharacterFacet;
     QString quickCopyrightFacet;
-    QString quickTriggerWordFacet = "rtrigger_word";
-    QString quickStyleFacet       = "rstyle";
+    QString quickTriggerWordFacet;
+    QString quickStyleFacet;
 
     // ── AutoTag ──────────────────────────────────────────────────────────────
     // Name of the active AutoTagger model dir under data/models/. Empty until
@@ -47,7 +47,7 @@ struct AppSettings {
     // Per-image cooldown applied between inferences. Default 100 ms keeps
     // the CPU from pegging on long batches; 0 = run as fast as possible.
     int     autoTagCooldownMs = 100;
-    // Last-used input/output roots for the AutoTag page — convenience so the
+    // Last-used input/output roots for the AutoTag page - convenience so the
     // page reopens onto the same folders.
     QString autoTagInputFolder;
     QString autoTagOutputFolder;

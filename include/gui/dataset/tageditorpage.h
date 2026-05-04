@@ -41,14 +41,14 @@ private:
 };
 
 // Standalone editor for the .txt sidecars produced by AutoTagPage. No
-// inference, no model loading — just file I/O on `<folder>/<basename>.txt`
+// inference, no model loading - just file I/O on `<folder>/<basename>.txt`
 // next to each image.
 //
 // Workflow:
-//   1. Pick a folder (recursive optional) — populates the image list.
-//   2. Click an image — loads the image preview + the .txt contents.
-//   3. Edit text — debounced auto-save back to the .txt file.
-//   4. Search box — substring highlighting in the editor pane.
+//   1. Pick a folder (recursive optional) - populates the image list.
+//   2. Click an image - loads the image preview + the .txt contents.
+//   3. Edit text - debounced auto-save back to the .txt file.
+//   4. Search box - substring highlighting in the editor pane.
 class TagEditorPage : public QWidget {
     Q_OBJECT
 public:
@@ -60,12 +60,12 @@ public:
     // Public entry point used by the AutoTag → Tag Editor handoff.
     void setInputFolder(const QString& folder);
 
-    // Late-binding hook for AppMainWindow — DanbooruIndex loads asynchronously
+    // Late-binding hook for AppMainWindow - DanbooruIndex loads asynchronously
     // at startup; this page may be constructed before it's ready.
     void setDanbooruIndex(core::DanbooruIndex* index);
 
 signals:
-    // "Send to Batch Edit" — DatasetHelpersPage routes the folder into
+    // "Send to Batch Edit" - DatasetHelpersPage routes the folder into
     // BatchEditPage and switches tabs.
     void sendToBatchEditRequested(const QString& folder);
 

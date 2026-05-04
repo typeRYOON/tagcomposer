@@ -75,7 +75,7 @@ void DownloadWatcher::poll()
 {
     if (!m_active) return;
 
-    // Discover candidates. We don't recurse — the Python reference watches a
+    // Discover candidates. We don't recurse - the Python reference watches a
     // flat downloads folder, and recursing would risk pulling files out of
     // unrelated subdirectories the user hasn't opted in.
     QStringList candidates;
@@ -91,7 +91,7 @@ void DownloadWatcher::poll()
         // Skip files still being downloaded. Two heuristics:
         //   1. Browser/wget/etc. typically write to a sibling .part file
         //      (or the same name with a .part suffix) until the transfer
-        //      finishes — wait until that's gone.
+        //      finishes - wait until that's gone.
         //   2. A 0-byte file is mid-create (or a corruption); skip and let
         //      the next tick find it once it has bytes.
         if (QFile::exists(src + ".part")) continue;
@@ -118,7 +118,7 @@ void DownloadWatcher::poll()
             continue;
         }
 
-        // New image — allocate the next sequential number, rename + move.
+        // New image - allocate the next sequential number, rename + move.
         const int n = m_index.nextNumber();
         const QString destName = QString("%1.%2")
             .arg(n, 5, 10, QChar('0'))

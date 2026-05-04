@@ -170,7 +170,7 @@ namespace core {
         QDir(BASE_PATH + "/data/entry/" + uuid).removeRecursively();
 
         // Hard-delete the std::list node so the Entry's storage is freed.
-        // The id slot is nulled but never reclaimed — addEntry only ever
+        // The id slot is nulled but never reclaimed - addEntry only ever
         // appends, so dangling indices in m_entryByIndex stay correct.
         for (auto it = m_entries.begin(); it != m_entries.end(); ++it) {
             if (&*it == e) {

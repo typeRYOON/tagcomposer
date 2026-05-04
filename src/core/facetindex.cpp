@@ -89,7 +89,7 @@ void FacetIndex::saveDefinitions(const QString& definitionsPath) const
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) return;
     QTextStream ts(&f);
     // Sort so successive saves produce identical files when nothing changed
-    // (QHash iteration order is unspecified — would otherwise generate
+    // (QHash iteration order is unspecified - would otherwise generate
     // spurious diffs in version control).
     QStringList tags = m_tagToFacets.keys();
     std::sort(tags.begin(), tags.end());

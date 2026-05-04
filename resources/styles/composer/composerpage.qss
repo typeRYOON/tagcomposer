@@ -10,7 +10,7 @@
 }
 
 /* Floating preview shown next to a hovered saved-state row. Top-level Tool
-   window — we set WA_StyledBackground so the QSS background paints. */
+   window - we set WA_StyledBackground so the QSS background paints. */
 #StatesPreviewPopup {
     background: #0d0d0d;
     border: 1px solid #2a2a2a;
@@ -21,9 +21,9 @@
     background: transparent;
 }
 
+/* Empty-state base (font-size) lives in app.qss - only the colour differs. */
 #ComposerEmptyHint {
     color: #2e2e2e;
-    font-size: 13px;
 }
 
 #ComposerGroupHeader {
@@ -197,9 +197,10 @@
     background: transparent;
 }
 
+/* Empty-state base (font-size) lives in app.qss - colour and padding stay
+   per-file because the rules-sidebar hint sits inside its own panel. */
 #ComposerRulesHint {
     color: #282828;
-    font-size: 12px;
     padding: 8px;
 }
 

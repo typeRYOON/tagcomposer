@@ -1,4 +1,4 @@
-// PromptComposerPage — saved-state management (named user presets).
+// PromptComposerPage - saved-state management (named user presets).
 // Distinct from session save/restore: states are explicit, named snapshots
 // with optional preview thumbnails, hover-previewed in the states sidebar.
 
@@ -84,7 +84,7 @@ void PromptComposerPage::saveCurrentState()
 
     for (const auto& rule : m_rules->rules()) {
         state.ruleStates[rule.name]    = rule.enabled;
-        // Capture Add/Replace args too — these are what the user types in the
+        // Capture Add/Replace args too - these are what the user types in the
         // rules sidebar arg-edit and they're part of the prompt configuration.
         state.ruleArguments[rule.name] = rule.action.arguments;
     }
@@ -153,7 +153,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     rebuildRulesSidebar();
     m_suppressRuleSave = false;
 
-    // Variables: state is canonical. Fully replace the current var set —
+    // Variables: state is canonical. Fully replace the current var set -
     // any var only in the state is added, any var only in the current
     // session is dropped. Persists to vars.fct so it survives restart.
     if (m_varIndex) {
@@ -182,7 +182,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     }
 
     // Workflow variables: state is canonical for the selected workflow.
-    // Fully replace the var list — vars only in the state are added, vars
+    // Fully replace the var list - vars only in the state are added, vars
     // only in the live workflow are dropped. Order from the saved array is
     // preserved. Skip when the saved workflow id no longer exists (would
     // blow away the *current* workflow's vars with a different workflow's
@@ -214,7 +214,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
                 && !v.imageUuid.isEmpty() && m_inputCache
                 && !m_inputCache->has(v.imageUuid)) {
                 emit statusMessageRequested(QString(
-                    "Image input %1 missing from cache (%2) — repick")
+                    "Image input %1 missing from cache (%2) - repick")
                     .arg(v.placeholder, v.imageUuid.left(8)));
                 v.imageUuid.clear();
             }

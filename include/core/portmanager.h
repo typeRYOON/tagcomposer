@@ -23,7 +23,7 @@ struct PortTagDef {
     bool    collision = false;  // true if FacetIndex already has a definition for tag
 };
 
-// Snapshot of what an import would touch — gathered up-front so the dialog
+// Snapshot of what an import would touch - gathered up-front so the dialog
 // can render a mapping table and a summary before any disk mutation.
 struct PortScan {
     QList<PortEntryRef> entries;
@@ -35,7 +35,7 @@ enum class TagConflictMode { Skip, Merge, Overwrite };
 
 struct PortConfig {
     // source facet name -> destination facet name. An empty value (or absent
-    // key) means "drop this facet" — strip from any imported tag definition.
+    // key) means "drop this facet" - strip from any imported tag definition.
     QHash<QString, QString> facetMapping;
     TagConflictMode tagConflict = TagConflictMode::Skip;
 };

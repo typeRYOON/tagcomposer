@@ -644,7 +644,7 @@ PromptComposerPage::PromptComposerPage(
             m_popout->installEventFilter(this);
             connect(m_popout, &QObject::destroyed, this, [this]() {
                 m_popout = nullptr;
-                // Only fade back in if the inset was actually visible — if the
+                // Only fade back in if the inset was actually visible - if the
                 // popout was opened before any preview arrived, leave the inset
                 // hidden until setPreviewImage shows it for real.
                 if (m_previewLabel->isVisible())
@@ -694,10 +694,10 @@ bool PromptComposerPage::eventFilter(QObject* obj, QEvent* event)
     }
     if (obj == m_popout) {
         if (event->type() == QEvent::Show) {
-            // Popout opened — hide the floating preview label to reduce clutter
+            // Popout opened - hide the floating preview label to reduce clutter
             m_previewLabel->hide();
         } else if (event->type() == QEvent::Hide) {
-            // Popout closed — restore preview label if we have an image
+            // Popout closed - restore preview label if we have an image
             if (!m_currentPix.isNull()) {
                 m_previewLabel->show();
                 repositionFloats();
@@ -713,7 +713,7 @@ void PromptComposerPage::setPreviewImage(const QImage& image)
 {
     if (image.isNull()) return;
     m_currentPix = QPixmap::fromImage(image);
-    // Use the known fixed size directly — size() can return 0×0 on first call
+    // Use the known fixed size directly - size() can return 0×0 on first call
     // when the floating label hasn't been laid out yet.
     m_previewLabel->setPixmap(
         m_currentPix.scaled(
@@ -789,7 +789,7 @@ void PromptComposerPage::repositionFloats()
         m_previewLabel->move(right - m_previewLabel->width(),
                              bottom - m_previewLabel->height());
     }
-    // step text is painted inside m_previewLabel via paintEvent — no separate widget
+    // step text is painted inside m_previewLabel via paintEvent - no separate widget
 }
 
 void PromptComposerPage::resizeEvent(QResizeEvent* event)
@@ -876,7 +876,7 @@ QString PromptComposerPage::computePromptForTags(const QList<QString>& tags, boo
 
     QList<core::CategoryGroup> groups = m_pipeline->evaluate(tags);
 
-    // Apply user weights — only meaningful for tags that happen to overlap
+    // Apply user weights - only meaningful for tags that happen to overlap
     // m_tagWeights (typically batch tags differ from the composer's set).
     for (auto& g : groups)
         for (auto& pt : g.tags)
@@ -956,7 +956,7 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
         }
         m_activePushes.remove(key);
     } else {
-        // Track only the tags this push actually adds — duplicates shared
+        // Track only the tags this push actually adds - duplicates shared
         // with a manual entry or another push aren't claimed, so un-pushing
         // later doesn't strip the user's work.
         QList<QString> claimed;
@@ -1009,7 +1009,7 @@ void PromptComposerPage::onEntryTagAdded(int entryId, int imageIdx, const QStrin
     const qint64 key = (qint64(entryId) << 32) | quint32(imageIdx);
     if (!m_activePushes.contains(key)) return;
 
-    // Only claim the tag if this push actually contributes it — i.e. it's
+    // Only claim the tag if this push actually contributes it - i.e. it's
     // not already present from a manual add or another push. Symmetric with
     // loadPipeline's else-branch tracking.
     if (!m_activeTagSet.contains(tag)) {
@@ -1052,7 +1052,7 @@ void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
     const bool loraGone = m_activeLoraUuids.contains(uuid);
     if (keysToRemove.isEmpty() && !loraGone) return;
 
-    // Tags still claimed by *other* pushes survive — only drop tags whose
+    // Tags still claimed by *other* pushes survive - only drop tags whose
     // last claim was the disappearing entry.
     QSet<QString> stillClaimed;
     for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
@@ -1101,7 +1101,7 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
 {
     // Strip tags the rule engine flagged for deletion. Unlike Skipped (kept
     // in active set, just removed from output), Deleted means "remove from
-    // the composer entirely" — used for search-only tags that shouldn't
+    // the composer entirely" - used for search-only tags that shouldn't
     // persist in m_activeTags between pushes.
     QList<QString> deleted;
     for (auto& g : categoryGroups) {
@@ -1266,7 +1266,7 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey,
         const QString token = "$" + newVarName + "$";
         // Replace every occurrence of any $name$ with the chosen one.
         // Matches behaviour of the badge, which collapses all vars into one
-        // pill — swapping every placeholder keeps the displayed pill in sync.
+        // pill - swapping every placeholder keeps the displayed pill in sync.
         newKey.replace(varRe, token);
     }
 
@@ -1275,7 +1275,7 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey,
 
     const bool collide = m_activeTagSet.contains(newKey);
     if (collide) {
-        // Already present elsewhere — drop the old one rather than dupe.
+        // Already present elsewhere - drop the old one rather than dupe.
         m_activeTags.removeAt(i);
         m_activeTagSet.remove(oldKey);
     } else {
@@ -1403,7 +1403,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
         rl->addWidget(badge);
     }
 
-    // Weight spinbox — shown for tags that appear in the output (not deactivated/removed).
+    // Weight spinbox - shown for tags that appear in the output (not deactivated/removed).
     if (pt.result != RuleResult::Skipped && pt.result != RuleResult::Replaced
         && pt.result != RuleResult::Deactivated) {
         auto* wSpin = new QDoubleSpinBox;
@@ -1475,7 +1475,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                     QAction* deactAct  = menu.addAction(isDeactivated ? "Activate" : "Deactivate");
                     QAction* removeAct = menu.addAction("Remove");
 
-                    // Variable swap — only meaningful if the tag carries one
+                    // Variable swap - only meaningful if the tag carries one
                     // already. Lets the user retarget every $foo$ in the tag
                     // to a different declared variable, or strip vars entirely.
                     QAction* dropVarAct = nullptr;

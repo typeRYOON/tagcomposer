@@ -112,6 +112,14 @@ private:
     core::WorkflowInputCache* m_inputCache    = nullptr;
     QSet<QString>             m_uploadedThisSession;
 
+    // Last connection-relevant comfy values that applyComfySettings actually
+    // reconnected on. Compared against m_settings on every settingsChanged
+    // emit so unrelated edits (tile gradient, danmaku toggle, …) don't bounce
+    // the WebSocket and flicker the connect indicator.
+    bool    m_lastComfyEnabled = false;
+    QString m_lastComfyHost;
+    QString m_lastComfyApiKey;
+
     utils::AppSettings m_settings;
 
     QList<core::LoraConfig> m_activeLoraStack;

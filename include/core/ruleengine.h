@@ -64,9 +64,9 @@ enum class RuleResult {
     Replaced,    // removed by a Replace rule (paired with an Injected tag)
     Injected,    // added by an Add or Replace rule
     Flagged,     // kept but marked by a Flag rule
-    NoFacets,    // no definition in FacetIndex — passes through unaffected by rules
+    NoFacets,    // no definition in FacetIndex - passes through unaffected by rules
     Deactivated, // user-muted: excluded from pipeline and rules, displayed separately
-    Deleted,     // matched by a Delete rule — composer removes from active set
+    Deleted,     // matched by a Delete rule - composer removes from active set
 };
 
 struct PipelineTag {

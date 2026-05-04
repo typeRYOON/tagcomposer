@@ -27,7 +27,7 @@ BatchTagger::BatchTagger(QObject* parent) : QObject(parent)
 BatchTagger::~BatchTagger()
 {
     cancel();
-    // Wait for the worker to wind down before tearing the object down — the
+    // Wait for the worker to wind down before tearing the object down - the
     // worker holds a `this` pointer for the lifetime of its loop.
     while (m_running.load()) QThread::msleep(10);
 }
@@ -54,7 +54,7 @@ void BatchTagger::start(AutoTaggerModel* model,
     const int cooldown = qMax(0, cooldownMs);
 
     // Capture by value so the worker has stable copies of every input. The
-    // model* is owned by the library — outlives any single batch run.
+    // model* is owned by the library - outlives any single batch run.
     QtConcurrent::run([this, model, inputRoot, outputRoot,
                        threshold, recursive, moveImages, sameRoot, cooldown]() {
         const QStringList images = discoverImages(inputRoot, recursive);
@@ -88,7 +88,7 @@ void BatchTagger::start(AutoTaggerModel* model,
                 ? outputRoot
                 : outputRoot + "/" + relDir;
 
-            // Make sure the mirrored subtree exists — overwrite policy means
+            // Make sure the mirrored subtree exists - overwrite policy means
             // we don't probe for the .txt's existence first.
             QDir().mkpath(outDir);
 
@@ -104,7 +104,7 @@ void BatchTagger::start(AutoTaggerModel* model,
 
             // Move the source image alongside its .txt. Skip when in==out
             // (already there) or when the source/dest paths resolve to the
-            // same file. Overwrites any existing destination — matches the
+            // same file. Overwrites any existing destination - matches the
             // .txt overwrite policy.
             if (moveImages && !sameRoot) {
                 const QString destAbs = outDir + "/" + relInfo.fileName();
@@ -120,7 +120,7 @@ void BatchTagger::start(AutoTaggerModel* model,
             ++done;
             emit progress(done, images.size());
 
-            // Cooldown — give the CPU a breather between inferences. Chunked
+            // Cooldown - give the CPU a breather between inferences. Chunked
             // so a cancel during a long cooldown still feels responsive.
             int remaining = cooldown;
             while (remaining > 0 && !m_cancel.load()) {

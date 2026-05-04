@@ -76,7 +76,7 @@ void ShinyLogo::startShine()
     rebuildAnimation();
     // Only actually kick the animation off if we're on-screen. Hidden
     // widgets (e.g. HomePage swapped out of the QStackedWidget) shouldn't
-    // burn CPU on a sweep + paint loop the user can't see — the next
+    // burn CPU on a sweep + paint loop the user can't see - the next
     // showEvent will resume.
     if (isVisible() && m_group->state() != QAbstractAnimation::Running)
         m_group->start();
@@ -104,7 +104,7 @@ void ShinyLogo::showEvent(QShowEvent* event)
 void ShinyLogo::hideEvent(QHideEvent* event)
 {
     QWidget::hideEvent(event);
-    // Tab switched away (or window minimised) — stop the timer-driven
+    // Tab switched away (or window minimised) - stop the timer-driven
     // repaints. m_autoStart is left as-is so the next showEvent resumes
     // automatically without the caller having to re-issue startShine.
     if (m_group && m_group->state() == QAbstractAnimation::Running)
@@ -124,7 +124,7 @@ void ShinyLogo::paintEvent(QPaintEvent*)
 {
     if (m_logo.isNull()) return;
 
-    // Compute the target rect — fit the logo into the widget keeping its
+    // Compute the target rect - fit the logo into the widget keeping its
     // aspect ratio, centered.
     const QSize fit = m_logo.size().scaled(size(), Qt::KeepAspectRatio);
     const QRect target((width()  - fit.width())  / 2,
@@ -146,7 +146,7 @@ void ShinyLogo::paintEvent(QPaintEvent*)
         cp.drawPixmap(target, m_logo, m_logo.rect());
 
         // Source pixels are only painted where the destination has alpha >
-        // 0 — i.e., on the logo's silhouette. Transparent surroundings stay
+        // 0 - i.e., on the logo's silhouette. Transparent surroundings stay
         // transparent.
         cp.setCompositionMode(QPainter::CompositionMode_SourceAtop);
 
@@ -162,7 +162,7 @@ void ShinyLogo::paintEvent(QPaintEvent*)
         const qreal halfBand = 0.5 * m_widthFrac * w;
         // Center moves from −0.4·W (off-screen left) to 1.4·W (off-screen
         // right) over m_progress 0 → 1. m_progress is animated outside that
-        // [0, 1] range — see m_sweep's start/end values — so the band
+        // [0, 1] range - see m_sweep's start/end values - so the band
         // already enters and exits the frame within a single sweep.
         const qreal centerX  = m_progress * w;
         const qreal tilt     = std::tan(qDegreesToRadians(m_angleDeg)) * h;
@@ -177,7 +177,7 @@ void ShinyLogo::paintEvent(QPaintEvent*)
         cp.fillRect(target, grad);
     }
 
-    // Blit the composited canvas to the widget — straight-up SourceOver so
+    // Blit the composited canvas to the widget - straight-up SourceOver so
     // alpha is preserved against whatever's behind the widget.
     QPainter p(this);
     p.drawPixmap(0, 0, canvas);

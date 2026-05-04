@@ -39,7 +39,7 @@ private:
     void updateToolControls();
     // Adjusts the tool palette to match trim/mask mode: trim mode forces
     // Rect, disables Brush/Bucket/Erase (they have no effect when alpha is
-    // forced to 255 everywhere). Doesn't touch the mask itself — clearing
+    // forced to 255 everywhere). Doesn't touch the mask itself - clearing
     // the mask on user-initiated toggle is handled in the toggled callback.
     void applyTrimModeUI(bool on);
 

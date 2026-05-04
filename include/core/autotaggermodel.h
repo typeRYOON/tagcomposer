@@ -16,7 +16,7 @@ struct TagPrediction {
     float   score;
 };
 
-// Output of one image's inference. Rating is split out from regular tags —
+// Output of one image's inference. Rating is split out from regular tags -
 // rating tags are typed via `category == 9` in the CSV, and the model emits
 // them alongside the per-tag sigmoids; we report just the argmax rating.
 //
@@ -56,7 +56,7 @@ struct TagResult {
 //                        with category == 9 are treated as ratings; the
 //                        argmax of those is reported separately. If the
 //                        CSV has no rating rows, the rating field stays
-//                        empty — that's a valid model.
+//                        empty - that's a valid model.
 class AutoTaggerModel {
 public:
     // Loads <dir>/{model.onnx, config.json, tags.csv}. Returns nullptr on
@@ -69,7 +69,7 @@ public:
     QString directory()   const { return m_dir; }
     int     numClasses()  const { return int(m_tagInfo.size()); }
 
-    // `threshold` filters non-rating tags only — rating is always populated
+    // `threshold` filters non-rating tags only - rating is always populated
     // (argmax of the rating subset).
     TagResult tag(const QString& imagePath, float threshold) const;
 
@@ -101,13 +101,13 @@ private:
     int                           m_height = 448;
     int                           m_width  = 448;
 
-    // I/O names — kept alive on the model so the const char* we hand to
+    // I/O names - kept alive on the model so the const char* we hand to
     // Run() stays valid. ORT returns these as allocator-owned C strings; we
     // copy into std::string for simpler ownership.
     std::string m_inputName;
     std::string m_outputName;
 
-    // Preprocessing — ImageNet-style timm config: mean/std per channel,
+    // Preprocessing - ImageNet-style timm config: mean/std per channel,
     // applied after /255 and channel reorder to RGB.
     std::array<float, 3> m_mean{ 0.5f, 0.5f, 0.5f };
     std::array<float, 3> m_std{  0.5f, 0.5f, 0.5f };

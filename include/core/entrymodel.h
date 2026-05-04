@@ -35,7 +35,7 @@ namespace core {
     private:
         // m_entryByIndex[id] holds a pointer into m_entries (stable thanks to
         // std::list) or nullptr for ids that have been deleted. ids are
-        // forever-monotonic — addEntry uses m_entryByIndex.size() as the next
+        // forever-monotonic - addEntry uses m_entryByIndex.size() as the next
         // id, never reusing slots emptied by deleteEntry.
         std::list<Entry> m_entries;
         QList<Entry*> m_entryByIndex;

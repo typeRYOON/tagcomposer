@@ -35,14 +35,10 @@ AppSettings AppSettings::load(const QString& path)
     s.loraBaseDir          = cui["loraBaseDir"].toString();
 
     const QJsonObject facets = root["facets"].toObject();
-    s.quickCharacterFacet = facets["quickCharacter"].toString();
-    s.quickCopyrightFacet = facets["quickCopyright"].toString();
-    // For the two new fields, missing key → struct default; present key (even
-    // empty) → user override, so users can explicitly disable a quick-add.
-    if (facets.contains("quickTriggerWord"))
-        s.quickTriggerWordFacet = facets["quickTriggerWord"].toString();
-    if (facets.contains("quickStyle"))
-        s.quickStyleFacet = facets["quickStyle"].toString();
+    s.quickCharacterFacet   = facets["quickCharacter"].toString();
+    s.quickCopyrightFacet   = facets["quickCopyright"].toString();
+    s.quickTriggerWordFacet = facets["quickTriggerWord"].toString();
+    s.quickStyleFacet       = facets["quickStyle"].toString();
 
     const QJsonObject autotag = root["autotag"].toObject();
     s.activeAutoTagModel  = autotag["activeModel"].toString();
@@ -109,7 +105,7 @@ void AppSettings::save(const QString& path) const
     collector["pollSeconds"]      = collectorPollSeconds;
 
     QJsonObject upd;
-    // QJsonValue stores numbers as double — fine for unix timestamps until
+    // QJsonValue stores numbers as double - fine for unix timestamps until
     // the year 287396 or so. No need for the hex-string trick we use for
     // 64-bit hashes.
     upd["lastCheckTime"]   = double(lastUpdateCheckTime);

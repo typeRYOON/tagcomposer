@@ -32,7 +32,7 @@ ChromedDialog::ChromedDialog(QWidget* parent)
     outer->setSpacing(0);
     outer->addWidget(m_chrome->frame());
 
-    // Fade in/out on show/close — matches AppMainWindow & PreviewPopoutWindow.
+    // Fade in/out on show/close - matches AppMainWindow & PreviewPopoutWindow.
     // The first showEvent transitions opacity from 0 → 1; done() (covering
     // accept/reject and the default closeEvent) fades 1 → 0 then defers to
     // QDialog::done() so exec() returns only after the animation finishes.
@@ -51,7 +51,7 @@ void ChromedDialog::changeEvent(QEvent* event)
 void ChromedDialog::keyPressEvent(QKeyEvent* event)
 {
     // Esc only fires here if no focused child consumed it. While fullscreen,
-    // catch it for "exit fullscreen" instead of letting QDialog close — the
+    // catch it for "exit fullscreen" instead of letting QDialog close - the
     // titlebar isn't visible in fullscreen so otherwise the user has no way
     // out short of F11.
     if (event->key() == Qt::Key_Escape && isFullScreen()) {
@@ -77,7 +77,7 @@ void ChromedDialog::showEvent(QShowEvent* event)
 void ChromedDialog::done(int result)
 {
     // Re-entrant guard: once the fade-out animation finishes it calls back
-    // into done() to actually close the dialog — the second call should fall
+    // into done() to actually close the dialog - the second call should fall
     // straight through to QDialog::done() instead of starting another fade.
     if (m_isClosing) {
         QDialog::done(result);

@@ -33,7 +33,7 @@ public:
                 QWidget*                 parent = nullptr);
     ~AutoTagPage() override;
 
-    // Re-reads the library's available models — called by the parent when
+    // Re-reads the library's available models - called by the parent when
     // the user adds/removes model dirs externally.
     void refreshModels();
 
@@ -53,7 +53,7 @@ signals:
     // listens, calls TagEditorPage::setInputFolder, and switches tabs.
     void editFolderRequested(const QString& folder);
 
-    // "Send to Batch Edit" — same handoff pattern, target is BatchEditPage.
+    // "Send to Batch Edit" - same handoff pattern, target is BatchEditPage.
     void sendToBatchEditRequested(const QString& folder);
 
 private:

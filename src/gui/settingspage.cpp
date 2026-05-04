@@ -275,7 +275,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
 
     m_inputFolder = new QLineEdit;
     m_inputFolder->setObjectName("SettingsInput");
-    m_inputFolder->setPlaceholderText("e.g. C:/ComfyUI/input  (optional — enables direct file copy)");
+    m_inputFolder->setPlaceholderText("e.g. C:/ComfyUI/input  (optional - enables direct file copy)");
     m_inputFolder->setText(settings->comfyUiInputFolder);
 
     auto* inputBrowseBtn = new QPushButton("Browse");
@@ -436,7 +436,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     auto* inputsHint = new QLabel(
         "Workflow image inputs, painted masks, and rendered edit variants are "
         "cached on disk. This removes any cache entry that no current workflow "
-        "variable references — useful after deleting workflows or replacing "
+        "variable references - useful after deleting workflows or replacing "
         "image inputs.");
     inputsHint->setObjectName("SettingsHintLabel");
     inputsHint->setWordWrap(true);
@@ -495,7 +495,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     });
 
     // Tile-gradient values are read once at startup by EntryView, so these
-    // just persist to the settings file — they take effect on next launch.
+    // just persist to the settings file - they take effect on next launch.
     connect(m_tileGradStart, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, [this](double v) {
         m_settings->tileGradientStart = v;
@@ -585,7 +585,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
         emit settingsChanged();
     });
 
-    // Empty value disables the corresponding menu item — placeholder text
+    // Empty value disables the corresponding menu item - placeholder text
     // shows a conventional name as a suggestion, not as a fallback.
     connect(m_quickCharFacet, &QLineEdit::editingFinished, this, [this]() {
         m_settings->quickCharacterFacet = m_quickCharFacet->text().trimmed();

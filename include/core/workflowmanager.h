@@ -24,7 +24,7 @@ struct LatentSizeEntry {
 // for two purposes: (a) backward-compat read of older "rect only" edits, and
 // (b) trim-mode bounds when the user wants to ship a smaller cropped image.
 struct ImageEdits {
-    bool    enabled    = false;     // master switch — unedited images skip the resolve path
+    bool    enabled    = false;     // master switch - unedited images skip the resolve path
     QRect   cropRect;               // bounds for trim mode + legacy "rect-as-mask" form
     QString maskId;                 // uuid into WorkflowInputCache's _masks/; empty = no painted mask
     bool    trimToCrop = false;     // false → source-sized output with mask shaping alpha
@@ -55,9 +55,9 @@ struct WorkflowVar {
     QString         searchDir;
     QString         selectedFile;   // absolute path
     QString         extensionFilter;
-    QString         imageUuid;      // for Image type — references WorkflowInputCache
-    ImageEdits      imageEdits;     // for Image type — applied at upload time
-    QStringList     wildcardTags;   // for Wildcard type — one line per slot; commas split into multiple tags at pick time
+    QString         imageUuid;      // for Image type - references WorkflowInputCache
+    ImageEdits      imageEdits;     // for Image type - applied at upload time
+    QStringList     wildcardTags;   // for Wildcard type - one line per slot; commas split into multiple tags at pick time
 };
 
 struct WorkflowFile {
@@ -99,7 +99,7 @@ public:
     QStringList pickWildcardTags() const;
 
     // Single-WorkflowVar (de)serialization. Public so saved-state code shares
-    // the same JSON format as workflows.json — keeps the formats from drifting
+    // the same JSON format as workflows.json - keeps the formats from drifting
     // (and silently dropping fields like wildcardTags or imageEdits).
     // varFromJson accepts legacy CamelCase type names ("Seed", "String", ...)
     // and integer seedBehavior values that the saved-state code wrote before
@@ -115,7 +115,7 @@ public:
     // Substitutes the __positive__ token in a workflow JSON with the prompt,
     // adding the surrounding JSON quotes itself. Accepts both the legacy form
     // ("__positive__" already wrapped in quotes inside the template) and the
-    // bare form (__positive__) — workflow authors can write whichever they
+    // bare form (__positive__) - workflow authors can write whichever they
     // find more natural. promptForJson must already be JSON-escape-safe;
     // PromptPipeline::buildPromptString(forJson=true) returns a string fit
     // for direct embedding.

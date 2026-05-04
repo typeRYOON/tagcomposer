@@ -10,7 +10,7 @@
 
 // Shared building blocks for our frameless windows (AppMainWindow, the
 // preview popout, etc). Each window owns its own m_frame / m_resizeOverlay /
-// drag state — but the geometric helpers and the outline preview widget
+// drag state - but the geometric helpers and the outline preview widget
 // don't vary between windows, so they live here.
 namespace gui::framelesschrome {
 
@@ -51,7 +51,7 @@ inline Qt::CursorShape cursorForEdges(Qt::Edges e)
 
 // Top-level transparent widget that draws a 2px rectangle outline at its
 // geometry. Used to preview the new window size during an outline-resize
-// drag — the actual window is left alone until the mouse is released.
+// drag - the actual window is left alone until the mouse is released.
 class ResizeOutline : public QWidget {
 public:
     ResizeOutline()
