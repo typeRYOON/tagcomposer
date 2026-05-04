@@ -13,20 +13,14 @@ enum class MatchType {
     AnyTagName,   // tag name matches a glob pattern
 };
 
-// One atomic condition, optionally negated.
 struct MatchClause {
     bool negate{false};
     MatchType type{MatchType::AnyTagFacets};
-    QList<QString> facets; // AnyTagFacets: ALL must be present
-    QString nameGlob;      // AnyTagName
+    QList<QString> facets;
+    QString nameGlob;
 };
 
 // OR of AND-groups: a tag matches if ANY group has ALL its clauses satisfied.
-//
-// Examples (file syntax):
-//   anyTag(facets: hairstyle) AND NOT anyTag(facets: bangs)
-//   anyTag(facets: eye_color) OR anyTag(facets: eye_shape)
-//   anyTag(facets: clothing) OR anyTag(name: "*dress*")
 struct RuleMatch {
     QList<QList<MatchClause>> orGroups;
 };
@@ -34,16 +28,16 @@ struct RuleMatch {
 // ── Action ────────────────────────────────────────────────────────────────────
 
 enum class ActionType {
-    Skip,    // remove matched tag(s) from the output
+    Skip,    // remove matched tag from output
     Add,     // inject a new tag without removing anything
-    Replace, // remove matched tag(s) and inject a new one
-    Flag,    // keep matched tag(s) but mark them with a label
-    Delete,  // permanently remove matched tag(s) from the composer's active set
+    Replace, // remove matched, inject a new one
+    Flag,    // keep matched, attach a label
+    Delete,  // permanently remove from the composer's active set
 };
 
 struct RuleAction {
     ActionType type{ActionType::Skip};
-    QList<QString> arguments; // new tags for Add/Replace; single label for Flag
+    QList<QString> arguments; // new tags for Add/Replace, label for Flag
 };
 
 // ── Rule ──────────────────────────────────────────────────────────────────────
@@ -56,31 +50,31 @@ struct Rule {
     RuleAction action;
 };
 
-// ── Pipeline types (produced by evaluation) ───────────────────────────────────
+// ── Pipeline types ────────────────────────────────────────────────────────────
 
 enum class RuleResult {
-    Include,     // kept as-is
-    Skipped,     // removed by a Skip rule
-    Replaced,    // removed by a Replace rule (paired with an Injected tag)
-    Injected,    // added by an Add or Replace rule
-    Flagged,     // kept but marked by a Flag rule
-    NoFacets,    // no definition in FacetIndex - passes through unaffected by rules
-    Deactivated, // user-muted: excluded from pipeline and rules, displayed separately
-    Deleted,     // matched by a Delete rule - composer removes from active set
+    Include,
+    Skipped,
+    Replaced,    // paired with an Injected entry that contains the new tag
+    Injected,    // added by Add or Replace
+    Flagged,
+    NoFacets,    // no FacetIndex definition; bypasses rules
+    Deactivated, // user-muted; displayed separately
+    Deleted,     // composer removes from the active set
 };
 
 struct PipelineTag {
     QString tag;
-    QString sourceTag; // original tag before variable expansion (empty if none)
+    QString sourceTag; // pre-variable-expansion form, empty if none
     QList<QString> facets;
     RuleResult result{RuleResult::Include};
-    QString ruleSource; // name of the rule that set this result
-    QString flagLabel;  // populated when result == Flagged
-    float weight{1.0f}; // prompt attention weight; 1.0 = no wrapper
+    QString ruleSource;
+    QString flagLabel;
+    float weight{1.0f};
 };
 
 struct CategoryGroup {
-    QString category; // empty string = "Uncategorized"
+    QString category; // empty = Uncategorized
     QList<PipelineTag> tags;
 };
 
@@ -94,8 +88,7 @@ public:
     QList<Rule>& rules();
     const QList<Rule>& rules() const;
 
-    // Applies all enabled rules to the input set. Rules run in order;
-    // only tags currently marked Include are tested by each rule.
+    // Rules run in order; only Include tags are eligible per rule.
     QList<PipelineTag> evaluate(const QList<PipelineTag>& input, const FacetIndex& facets) const;
 
 private:

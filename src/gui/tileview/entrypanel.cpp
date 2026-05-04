@@ -91,10 +91,8 @@ protected:
 };
 
 
-// Reads the __metadata__ block from a .safetensors file. Format:
-//   [u64 LE: header bytes][header bytes: UTF-8 JSON][tensor data]
-// The JSON's "__metadata__" key holds string→string training metadata.
-// Some values are themselves JSON-encoded strings (e.g. ss_tag_frequency).
+// Format: [u64 LE: header bytes][UTF-8 JSON header][tensor data].
+// Some __metadata__ values are themselves JSON-encoded (e.g. ss_tag_frequency).
 static QJsonObject readSafetensorsMetadata(const QString& path)
 {
     QFile file(path);
@@ -104,7 +102,6 @@ static QJsonObject readSafetensorsMetadata(const QString& path)
     if (file.read(reinterpret_cast<char*>(&headerSize), sizeof(headerSize)) != sizeof(headerSize))
         return {};
     headerSize = qFromLittleEndian(headerSize);
-    // Sanity cap - header is JSON describing tensors, not the tensors themselves.
     if (headerSize == 0 || headerSize > 100ULL * 1024 * 1024) return {};
 
     QByteArray headerData = file.read(headerSize);
@@ -126,8 +123,7 @@ static QString resolutionFromDatasets(const QString& datasetsJson)
     return QString("%1x%2").arg(int(res[0].toDouble())).arg(int(res[1].toDouble()));
 }
 
-// ss_tag_frequency is a JSON-encoded {"<subset>": {"tag": count}}.
-// Aggregate counts across subsets, sort by count desc, then tag asc.
+// ss_tag_frequency: {"<subset>": {"tag": count}} -> flattened, count desc.
 static QList<QPair<QString, int>> parseTagFrequency(const QString& tagFreqJson)
 {
     QList<QPair<QString, int>> result;
@@ -217,8 +213,7 @@ public:
         for (const auto& [tag, count] : entries) {
             auto* item = new QListWidgetItem(
                 QString("%1  %2").arg(count, countWidth, 10, QChar(' ')).arg(tag), list);
-            // Bare tag stored separately so copy/double-click yield the tag
-            // alone, not the count-prefixed display string.
+            // UserRole holds the bare tag so copy yields the tag, not the count.
             item->setData(Qt::UserRole, tag);
         }
 
@@ -306,10 +301,8 @@ static void saveResized(const QString& src, const QString& dst)
 }
 
 // ── LoRA import dialog ───────────────────────────────────────────────────────
-// Shown when a dropped LoRA file lives outside the configured lora folder.
-// User picks a relative path (auto-completed against existing files); the file
-// is moved into {loraBaseDir}/{relpath}. Extension must be .safetensors;
-// missing extension is auto-appended.
+// Shown for LoRAs dropped from outside the configured roots: user picks a
+// relative path under primary, file moves there.
 
 class LoraImportDialog : public gui::ChromedDialog {
 public:
@@ -320,7 +313,7 @@ public:
         setWindowTitle("Import LoRA");
         setMinimumSize(800, 480);
 
-        // Pre-scan existing safetensors in the lora folder for autocompletion
+        // Pre-scan existing safetensors for autocompletion.
         QDirIterator it(loraBaseDir, QStringList() << "*.safetensors", QDir::Files,
                         QDirIterator::Subdirectories);
         const QDir base(loraBaseDir);
@@ -611,10 +604,8 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
 
     loraDropZone->onFileDropped = [this](const QString& path) {
         if (!m_entry) return;
-        // Capture the id (not the pointer) so we can re-resolve after the
-        // hash worker finishes. EntryModel::deleteEntry erases the std::list
-        // node, so any Entry* captured here would dangle if the user deleted
-        // the entry while the hash was being computed on the worker thread.
+        // Capture id, not pointer: deleteEntry erases the list node, so any
+        // Entry* would dangle by the time the hash worker resolves.
         const int32_t entryId = m_entry->id;
 
         emit statusMessageRequested("Computing LoRA hash...");
@@ -625,13 +616,10 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                     watcher->deleteLater();
                     const QString hash = watcher->result();
 
-                    // Re-resolve the entry; bail out if the user deleted it
-                    // (or this panel) while hashing was in flight.
                     core::Entry* targetEntry = m_model->entryById(entryId);
                     if (!targetEntry) return;
 
-                    // Reject duplicates before any file move so we don't shuffle
-                    // a file across disks just to throw it away.
+                    // Reject dupes before any file move.
                     if (!hash.isEmpty()) {
                         core::Entry* existing = m_model->entryByLoraSha256(hash);
                         if (existing && existing != targetEntry) {
@@ -641,12 +629,9 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                         }
                     }
 
-                    // Classify the dropped file against the two configured roots.
-                    // Inside primary or test = already placed where ComfyUI can
-                    // see it, no move needed. Outside both = prompt the user
-                    // and move into primary. Primary must be configured at all
-                    // times - silently using paths outside the canonical roots
-                    // breaks workflow JSON paths.
+                    // Inside either root -> use in place. Outside both -> import
+                    // dialog, file moves into primary. Primary must be set;
+                    // paths outside the configured roots break the workflow JSON.
                     QString finalRootKey;
                     QString finalRel;
                     {
@@ -677,7 +662,6 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                             finalRel = relInTest;
                         }
                         else {
-                            // Outside both - prompt for a path under primary.
                             LoraImportDialog dlg(path, m_loraPrimaryDir, this);
                             if (dlg.exec() != QDialog::Accepted) return;
                             const QString rel = dlg.relativePath();
@@ -685,8 +669,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
 
                             QDir().mkpath(QFileInfo(dest).absolutePath());
 
-                            // QFile::rename can fail across drives on Windows;
-                            // fall back to copy + remove for that case.
+                            // QFile::rename fails across drives on Windows.
                             if (!QFile::rename(path, dest)) {
                                 if (!QFile::copy(path, dest)) {
                                     emit statusMessageRequested(
@@ -701,10 +684,8 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                         }
                     }
 
-                    // Re-resolve once more: LoraImportDialog::exec() above pumps
-                    // the event loop, which is enough time for the entry to be
-                    // deleted from another path (close-to-tray, model rebuild,
-                    // etc.). Skip the lora write if the entry vanished.
+                    // Re-resolve again: dlg.exec() pumps events, entry could
+                    // have vanished while we were modal.
                     targetEntry = m_model->entryById(entryId);
                     if (!targetEntry) return;
 
@@ -756,8 +737,6 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                                      QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
             if (reply != QMessageBox::Yes) return;
 
-            // Finalises a successful deletion: drop the assignment from the
-            // entry so we don't keep referencing a path that no longer exists.
             const int32_t entryId = m_entry->id;
             auto onDeleted = [this, entryId, path]() {
                 core::Entry* live = m_model->entryById(entryId);
@@ -775,8 +754,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                 return;
             }
 
-            // First attempt failed - most common cause on Windows is that
-            // ComfyUI still has the file mmap'd from the last generation.
+            // Most common cause on Windows: ComfyUI still has the file mmap'd.
             // Offer to free its model cache and retry once.
             if (!m_comfyClient || !m_comfyClient->isConnected()) {
                 emit statusMessageRequested("Delete failed - file may be in use (ComfyUI not "
@@ -797,9 +775,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                     emit statusMessageRequested(QString("Unload request failed: %1").arg(err));
                     return;
                 }
-                // /free returns when the request is accepted, but the
-                // unload itself is async. Give the OS a beat to release
-                // the handle before we retry.
+                // /free is async; wait for the OS to release the handle.
                 QTimer::singleShot(500, this, [this, path, onDeleted]() {
                     if (QFile::remove(path)) {
                         onDeleted();

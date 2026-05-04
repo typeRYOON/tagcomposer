@@ -16,8 +16,7 @@ namespace core {
 
 namespace {
 
-// Recursive folder copy. Creates dst, copies files and recurses into subdirs.
-// Existing destination files are removed first so re-imports overwrite cleanly.
+// Recursive copy that overwrites destination files (re-imports clobber).
 bool copyDirContents(const QDir& src, const QDir& dst)
 {
     if (!QDir().mkpath(dst.absolutePath())) return false;
@@ -77,8 +76,7 @@ bool PortManager::exportEntries(const QString& query, const QString& destFolder,
         }
     }
 
-    // Subset tag_definitions.fct - only tags actually used in the export
-    // and which have a definition in the live FacetIndex.
+    // Subset tag_definitions.fct: only tags used by exported entries.
     const QString defsPath = destDir.absoluteFilePath("tag_definitions.fct");
     QFile defsFile(defsPath);
     if (!defsFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
@@ -104,7 +102,6 @@ PortScan PortManager::scanImport(const QString& srcFolder, EntryModel* model,
     PortScan scan;
     if (!model) return scan;
 
-    // Entries
     QDir entriesDir(srcFolder + "/entries");
     if (entriesDir.exists()) {
         for (const QString& sub : entriesDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
@@ -125,7 +122,6 @@ PortScan PortManager::scanImport(const QString& srcFolder, EntryModel* model,
         }
     }
 
-    // Tag definitions
     QSet<QString> facetSet;
     QFile defsFile(srcFolder + "/tag_definitions.fct");
     if (defsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -173,8 +169,7 @@ PortResult PortManager::applyImport(const PortScan& scan, const PortConfig& conf
         return result;
     }
 
-    // Backup tag_definitions.fct before any in-memory mutation. The .bak
-    // captures the on-disk state at this moment, which is the rollback target.
+    // .bak captures the on-disk state before any mutation; rollback target.
     if (QFile::exists(tagDefinitionsPath)) {
         const QString bakPath = tagDefinitionsPath + ".bak";
         if (QFile::exists(bakPath)) QFile::remove(bakPath);
@@ -182,7 +177,6 @@ PortResult PortManager::applyImport(const PortScan& scan, const PortConfig& conf
             result.errors << "Could not write .bak (proceeding anyway)";
     }
 
-    // Entries - skip duplicates, copy folder, integrate via EntryModel
     QDir().mkpath(dataEntryDir);
     for (const PortEntryRef& ref : scan.entries) {
         if (ref.duplicate) {
@@ -205,17 +199,16 @@ PortResult PortManager::applyImport(const PortScan& scan, const PortConfig& conf
         }
     }
 
-    // Tag definitions
     for (const PortTagDef& def : scan.tagDefs) {
-        // Apply facet mapping: drop missing/empty entries; otherwise rename.
+        // Apply facetMapping: missing key or empty value means drop.
         QList<QString> mapped;
         QSet<QString> seen;
         for (const QString& f : def.facets) {
             const auto it = config.facetMapping.find(f);
-            if (it == config.facetMapping.end()) continue; // implicit drop
+            if (it == config.facetMapping.end()) continue;
             const QString target = it.value();
-            if (target.isEmpty()) continue;      // explicit drop
-            if (seen.contains(target)) continue; // dedupe after rename
+            if (target.isEmpty()) continue;
+            if (seen.contains(target)) continue;
             seen.insert(target);
             mapped << target;
         }

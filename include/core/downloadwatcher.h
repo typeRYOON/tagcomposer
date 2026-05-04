@@ -8,35 +8,25 @@ class QTimer;
 
 namespace core {
 
-// Watches a single source folder ("downloads") and routes new image files
-// into a single named collection folder. On each poll tick: list candidates,
-// hash, dedup against the collection's PHashIndex (Hamming threshold), then
-// either move-to-recycle-bin (duplicate) or rename-and-move with a sequential
-// "NNNNN.<ext>" name.
-//
-// Lifetime: only one Watcher should be running at a time across the app -
-// otherwise two tickers would race for the same source files. The Collector
-// page enforces that by owning a single instance.
+// Polls a source folder, dedups against a collection's PHashIndex, then
+// recycles duplicates or moves new images in as "NNNNN.<ext>".
+// One instance only - concurrent watchers race over the same files.
 class DownloadWatcher : public QObject {
     Q_OBJECT
 public:
     explicit DownloadWatcher(QObject* parent = nullptr);
     ~DownloadWatcher() override;
 
-    // Spins up the timer. Re-loads the destination's PHashIndex from disk
-    // so the watcher picks up wherever the user left off.
+    // Reloads the destination's PHashIndex; counters reset to zero.
     void start(const QString& watchFolder, const QString& collectionDir, int hammingThreshold,
                int pollSeconds);
 
-    // Stops the timer immediately. Safe to call when not running.
     void stop();
 
     bool isRunning() const
     {
         return m_active;
     }
-
-    // Counters reset to zero on every start().
     int collectedCount() const
     {
         return m_collected;

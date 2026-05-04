@@ -15,9 +15,7 @@ const QStringList kImageFilters = {"*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp"
 
 BatchTagger::BatchTagger(QObject* parent) : QObject(parent)
 {
-    // Queued-connection signal payloads need to round-trip through QMetaType.
-    // Q_DECLARE_METATYPE in the header opts the type in; this call ensures
-    // the registry is populated before the worker thread emits.
+    // Populate the metatype registry before the worker thread can emit.
     qRegisterMetaType<TagResult>("core::TagResult");
     qRegisterMetaType<TagPrediction>("core::TagPrediction");
 }
@@ -25,8 +23,7 @@ BatchTagger::BatchTagger(QObject* parent) : QObject(parent)
 BatchTagger::~BatchTagger()
 {
     cancel();
-    // Wait for the worker to wind down before tearing the object down - the
-    // worker holds a `this` pointer for the lifetime of its loop.
+    // Worker holds `this`; wait for it to wind down before destruction.
     while (m_running.load())
         QThread::msleep(10);
 }
@@ -39,15 +36,12 @@ void BatchTagger::start(AutoTaggerModel* model, const QString& inputRoot, const 
     m_running.store(true);
     m_cancel.store(false);
 
-    // Same canonical path = no-op for the move (the source already lives
-    // exactly where it would land). Compared via QDir::cleanPath to avoid
-    // trailing-slash mismatches.
+    // cleanPath comparison sidesteps trailing-slash mismatches.
     const bool sameRoot = QDir::cleanPath(inputRoot) == QDir::cleanPath(outputRoot);
 
     const int cooldown = qMax(0, cooldownMs);
 
-    // Capture by value so the worker has stable copies of every input. The
-    // model* is owned by the library - outlives any single batch run.
+    // model* outlives any batch (owned by the library).
     QtConcurrent::run([this, model, inputRoot, outputRoot, threshold, recursive, moveImages,
                        sameRoot, cooldown]() {
         const QStringList images = discoverImages(inputRoot, recursive);
@@ -67,24 +61,16 @@ void BatchTagger::start(AutoTaggerModel* model, const QString& inputRoot, const 
             TagResult res = model->tag(abs, threshold);
 
             if (res.tags.isEmpty() && res.rating.isEmpty()) {
-                // Either decode failed or the model returned literally
-                // nothing above threshold + zero ratings. The latter is
-                // weird; surface as a failure so the user can see it.
                 emit imageFailed(rel, "no tags produced");
                 ++done;
                 emit progress(done, images.size());
                 continue;
             }
 
-            // <outputRoot>/<rel>/foo.png → <outputRoot>/<rel>/foo.txt
-            // (and optionally also moves the image to <outputRoot>/<rel>/foo.png).
             const QFileInfo relInfo(rel);
-            const QString relDir = relInfo.path(); // "." for top-level
+            const QString relDir = relInfo.path();
             const QString outDir =
                 (relDir.isEmpty() || relDir == ".") ? outputRoot : outputRoot + "/" + relDir;
-
-            // Make sure the mirrored subtree exists - overwrite policy means
-            // we don't probe for the .txt's existence first.
             QDir().mkpath(outDir);
 
             const QString txtAbs = outDir + "/" + relInfo.completeBaseName() + ".txt";
@@ -98,10 +84,6 @@ void BatchTagger::start(AutoTaggerModel* model, const QString& inputRoot, const 
                 ts << parts.join(", ");
             }
 
-            // Move the source image alongside its .txt. Skip when in==out
-            // (already there) or when the source/dest paths resolve to the
-            // same file. Overwrites any existing destination - matches the
-            // .txt overwrite policy.
             if (moveImages && !sameRoot) {
                 const QString destAbs = outDir + "/" + relInfo.fileName();
                 if (QFileInfo(abs).canonicalFilePath() != QFileInfo(destAbs).canonicalFilePath()) {
@@ -114,8 +96,7 @@ void BatchTagger::start(AutoTaggerModel* model, const QString& inputRoot, const 
             ++done;
             emit progress(done, images.size());
 
-            // Cooldown - give the CPU a breather between inferences. Chunked
-            // so a cancel during a long cooldown still feels responsive.
+            // Chunked so cancel during a long cooldown feels responsive.
             int remaining = cooldown;
             while (remaining > 0 && !m_cancel.load()) {
                 const int slice = qMin(remaining, 50);

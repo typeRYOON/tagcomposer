@@ -18,7 +18,7 @@ EntryModel::EntryModel(QObject* parent) : QObject{parent}
     for (auto& e : EntryIO::loadAll(m_tagIndex, BASE_PATH + "/data/entry"))
         m_entries.push_back(std::move(e));
 
-    // Build id -> entry pointer (std::list nodes are stable, pointers won't be invalidated)
+    // std::list nodes are stable; the pointers in m_entryByIndex stay valid.
     m_entryByIndex.resize(m_entries.size());
     for (auto& e : m_entries)
         m_entryByIndex[e.id] = &e;
@@ -54,7 +54,6 @@ QList<Entry*> EntryModel::filter(const QString& query)
                 tagParts << t;
         }
 
-        // Build base set from positive tag terms (or all entries if none)
         if (tagParts.isEmpty()) {
             ret.reserve(m_entryByIndex.size());
             for (Entry* e : m_entryByIndex)
@@ -67,7 +66,6 @@ QList<Entry*> EntryModel::filter(const QString& query)
                 if (Entry* e = m_entryByIndex[id]) ret << e;
         }
 
-        // LoRA filter
         if (!loraTerm.isEmpty()) {
             const QString lower = loraTerm.toLower();
             auto end = std::remove_if(ret.begin(), ret.end(), [&](const Entry* e) {
@@ -78,7 +76,6 @@ QList<Entry*> EntryModel::filter(const QString& query)
             ret.erase(end, ret.end());
         }
 
-        // Negative tag exclusion
         if (!negParts.isEmpty()) {
             QSet<int32_t> excludeIds;
             for (const QString& neg : negParts)
@@ -92,7 +89,6 @@ QList<Entry*> EntryModel::filter(const QString& query)
             }
         }
 
-        // Title filter
         if (!titleTerm.isEmpty()) {
             auto end = std::remove_if(ret.begin(), ret.end(), [&](const Entry* e) {
                 return !e->title.contains(titleTerm, Qt::CaseInsensitive);
@@ -160,7 +156,7 @@ void EntryModel::deleteEntry(int32_t entryId)
     Entry* e = m_entryByIndex[entryId];
     if (!e) return;
 
-    const QString uuid = e->uuid; // capture before erase invalidates `e`
+    const QString uuid = e->uuid; // capture before erase invalidates e
 
     const auto tags = collectTags(*e);
     for (int32_t tagId : tags)
@@ -168,9 +164,8 @@ void EntryModel::deleteEntry(int32_t entryId)
 
     QDir(BASE_PATH + "/data/entry/" + uuid).removeRecursively();
 
-    // Hard-delete the std::list node so the Entry's storage is freed.
-    // The id slot is nulled but never reclaimed - addEntry only ever
-    // appends, so dangling indices in m_entryByIndex stay correct.
+    // Hard-delete the list node; addEntry only appends so the nulled slot
+    // is never reclaimed and stale ids stay safely null.
     for (auto it = m_entries.begin(); it != m_entries.end(); ++it) {
         if (&*it == e) {
             m_entries.erase(it);

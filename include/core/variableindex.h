@@ -5,8 +5,8 @@
 namespace core {
 
 struct Variable {
-    QString name;  // without delimiters, e.g. "CC"
-    QString value; // current substitution value, e.g. "blue"
+    QString name;  // without $ delimiters
+    QString value;
 };
 
 class VariableIndex {
@@ -14,13 +14,11 @@ public:
     static VariableIndex loadFromFile(const QString& path);
     void saveToFile(const QString& path) const;
 
-    // Expand all $NAME$ patterns using current values.
-    // When a variable has an empty value the pattern plus any adjacent
-    // separator (space or hyphen immediately after) is stripped instead.
+    // Expands $NAME$ tokens. Empty values strip the token plus an adjacent
+    // space or hyphen, so "blue $CC$ eyes" with $CC$="" produces "blue eyes".
     QString expand(const QString& tag) const;
 
-    // Strip all $NAME$ patterns (and any adjacent separator) unconditionally.
-    // Used as a display/fallback base when expansion is unknown.
+    // Unconditional strip; used as a display fallback.
     static QString stripVariables(const QString& tag);
 
     static bool hasVariable(const QString& tag);

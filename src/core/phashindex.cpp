@@ -89,7 +89,7 @@ PHashIndex::Match PHashIndex::findNearest(uint64_t hash, int threshold) const
             bestDist = d;
             best.filename = it.key();
             best.distance = d;
-            if (d == 0) break; // can't get closer
+            if (d == 0) break;
         }
     }
     if (best.distance > threshold) return {};
@@ -100,7 +100,6 @@ int PHashIndex::nextNumber() const
 {
     int high = 0;
     for (auto it = m_byName.constBegin(); it != m_byName.constEnd(); ++it) {
-        // "NNNNN.ext" → take the basename's first 5 digits.
         const QString stem = QFileInfo(it.key()).completeBaseName();
         if (stem.size() < 5) continue;
         bool ok = false;

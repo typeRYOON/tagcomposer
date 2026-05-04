@@ -12,7 +12,6 @@
 #include <QFontDatabase>
 #include <QFont>
 #include <QShortcut>
-#include <QDebug>
 #include <QPixmap>
 #include <QPainter>
 #include <QTimer>
@@ -50,7 +49,6 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     m_aliasLabel->setWordWrap(true);
     m_aliasLabel->hide();
 
-    // Inner column constrained to same max-width as the browser content
     auto* headerInner = new QWidget;
     headerInner->setObjectName("WikiHeaderInner");
     headerInner->setAttribute(Qt::WA_StyledBackground, true);
@@ -84,12 +82,9 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     m_browser->document()->setDocumentMargin(0);
     connect(m_browser, &QTextBrowser::anchorClicked, this, &TagWikiPage::onAnchorClicked);
     m_browser->installEventFilter(this);
-    // Wheel events are delivered to the viewport, not the QAbstractScrollArea
-    // itself, so smooth-scrolling needs an event filter on viewport().
+    // Wheel events go to the viewport, not the scroll area itself.
     m_browser->viewport()->installEventFilter(this);
 
-    // Smooth-scroll animation. Targets the verticalScrollBar's `value` so
-    // both wheel input and anchor jumps go through the same easing curve.
     m_scrollAnim = new QPropertyAnimation(m_browser->verticalScrollBar(), "value", this);
     m_scrollAnim->setDuration(220);
     m_scrollAnim->setEasingCurve(QEasingCurve::OutCubic);
@@ -103,8 +98,7 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     contentLayout->addWidget(m_browser, 1);
 
     // ── Loading / not-found placeholders ─────────────────────────────────────
-    // Loading state is intentionally empty - the search bar above is enough
-    // of a hint that the user types a tag in.
+    // Loading state is intentionally blank: the search bar is hint enough.
     auto* loadingLabel = new QLabel();
     loadingLabel->setObjectName("WikiStatusLabel");
     loadingLabel->setAlignment(Qt::AlignCenter);
@@ -118,10 +112,7 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     m_mainStack->addWidget(contentWidget); // 1
     m_mainStack->addWidget(notFoundLabel); // 2
 
-    // Cross-fade effect for wiki-link transitions. The graphics effect is
-    // attached to the stack so all three children (loading / content /
-    // not-found) share one opacity. Single permanent finished-handler reads
-    // m_pendingTag / m_pendingFadeIn to decide what happens at end-of-anim.
+    // Effect lives on the stack so all three children share one opacity.
     m_fadeEffect = new QGraphicsOpacityEffect(m_mainStack);
     m_fadeEffect->setOpacity(1.0);
     m_mainStack->setGraphicsEffect(m_fadeEffect);
@@ -129,14 +120,10 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     m_fadeAnim->setDuration(180);
     m_fadeAnim->setEasingCurve(QEasingCurve::InOutSine);
     connect(m_fadeAnim, &QPropertyAnimation::finished, this, [this]() {
-        // Animation is in fade-out direction when endValue is 0; that's our
-        // signal to actually request the new page. The fade-in path runs
-        // from displayContent so we don't need to do anything on its finish.
+        // Only the fade-out direction triggers the next step; fade-in just lands.
         if (m_fadeAnim->endValue().toReal() >= 0.5) return;
 
-        // History nav takes priority over a queued wiki-link tag in case
-        // both got set (rapid click → back). loadFromHistory routes through
-        // lookupTag, which in turn calls displayContent + finishPendingFadeIn.
+        // History nav wins over a queued wiki-link tag if both are set.
         if (m_pendingHistoryNav) {
             m_pendingHistoryNav = false;
             m_pendingTag.clear();
@@ -153,22 +140,15 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     });
 
     m_searchBar = new TagSearchBar(this);
-    // Search-bar commits go through the same fade-out / fade-in path as
-    // in-document wiki links so the page transition feels consistent.
     connect(m_searchBar, &TagSearchBar::tagAdded, this, &TagWikiPage::startFadeOutThenLookup);
 
-    // Top bar: [back] [forward] [search bar] [open in browser]. The two
-    // history buttons sit to the left of the search bar; open-in-browser
-    // hangs off the right. WikiNavBtn is a transparent flat-button style
-    // already in wiki.qss, with proper disabled-state colour for the
-    // history-bounds case.
-    m_backBtn = new QPushButton("←"); // ←
+    m_backBtn = new QPushButton("←");
     m_backBtn->setObjectName("WikiNavBtn");
     m_backBtn->setCursor(Qt::PointingHandCursor);
     m_backBtn->setToolTip("Back (Alt+Left)");
     connect(m_backBtn, &QPushButton::clicked, this, &TagWikiPage::goBack);
 
-    m_forwardBtn = new QPushButton("→"); // →
+    m_forwardBtn = new QPushButton("→");
     m_forwardBtn->setObjectName("WikiNavBtn");
     m_forwardBtn->setCursor(Qt::PointingHandCursor);
     m_forwardBtn->setToolTip("Forward (Alt+Right)");
@@ -202,10 +182,6 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     root->addWidget(topBar);
     root->addWidget(m_mainStack, 1);
 
-    // Browser-style keybindings. Ctrl+Z used to be wired here but the
-    // search-bar's QLineEdit consumes it for text-undo when focused, so
-    // the navigation never fired. Alt+Left / Alt+Right have no QLineEdit
-    // conflict and match what users expect from web browsers.
     auto* backShortcut = new QShortcut(QKeySequence(Qt::ALT | Qt::Key_Left), this);
     backShortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(backShortcut, &QShortcut::activated, this, &TagWikiPage::goBack);
@@ -227,14 +203,12 @@ void TagWikiPage::setDanbooruIndex(core::DanbooruIndex* index)
 void TagWikiPage::lookupTag(const QString& tag)
 {
     if (tag == m_currentTag && m_mainStack->currentIndex() == 1) {
-        // No-op early exit. If a fade-out already ran (e.g. user committed
-        // the same tag from the search bar), restore opacity so the page
-        // doesn't get stuck blank.
+        // Same-tag no-op still has to clear any in-flight fade so we don't
+        // leave the page blank.
         finishPendingFadeIn();
         return;
     }
 
-    // Push to history unless we're already navigating through it
     if (!m_navigating) {
         while (m_history.size() > m_historyPos + 1)
             m_history.removeLast();
@@ -288,10 +262,6 @@ void TagWikiPage::loadFromHistory()
 
 void TagWikiPage::cancelPendingFade()
 {
-    // Stops any in-flight fade and drops both the wiki-link queue and the
-    // history-nav queue. Currently unused since both back/forward and the
-    // wiki-link path now route through fade animations, but kept available
-    // for any future caller that needs to abort cleanly.
     m_fadeAnim->stop();
     m_pendingTag.clear();
     m_pendingHistoryNav = false;
@@ -313,15 +283,13 @@ void TagWikiPage::smoothScrollTo(int target)
 
 void TagWikiPage::smoothScrollToAnchor(const QString& anchor)
 {
+    // QTextBrowser doesn't expose anchor positions; jump, read, snap back,
+    // animate. The snap happens before any paint so it isn't visible.
     QScrollBar* sb = m_browser->verticalScrollBar();
     const int from = sb->value();
-    // QTextBrowser doesn't expose the anchor's Y position directly. Letting
-    // it perform the jump and reading the resulting scrollbar value is the
-    // shortest path; the snap-back below happens before any paint event so
-    // the user only sees the smooth animation that follows.
     m_browser->scrollToAnchor(anchor);
     const int to = sb->value();
-    if (to == from) return; // anchor missing or already in view
+    if (to == from) return;
     sb->setValue(from);
     smoothScrollTo(to);
 }
@@ -390,11 +358,8 @@ void TagWikiPage::downloadThumbAndFade(const QString& imageUrl, const QString& r
                 QPixmap pix;
                 if (!pix.loadFromData(imgReply->readAll()) || pix.isNull()) return;
 
-                // Aspect-ratio-preserving fit into a ThumbW x ThumbH box, then
-                // compose onto a transparent ThumbW x ThumbH canvas so every
-                // thumbnail is exactly the same logical size. The HTML img tag
-                // sets width='150' height='150', so without this padding step
-                // non-square thumbs would get stretched to fill the cell.
+                // Pad onto a fixed ThumbW x ThumbH canvas so the <img> sized
+                // to those same dimensions doesn't stretch non-square thumbs.
                 const QPixmap scaled =
                     pix.scaled(ThumbW, ThumbH, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                 QPixmap fitted(ThumbW, ThumbH);
@@ -468,10 +433,7 @@ void TagWikiPage::fetchAssetData(int assetId)
         QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
         if (!doc.isObject()) return;
 
-        // media_assets returns a `variants` array with entries like
-        // {"type": "180x180", "url": "...", ...}. Pick the smallest variant
-        // we can find; fall back to whatever's first if Danbooru ever
-        // changes the catalogue.
+        // Pick the smallest available variant; first-of-array as last resort.
         const QJsonArray variants = doc.object()["variants"].toArray();
         static const QStringList preferred = {"180x180", "360x360", "720x720", "sample",
                                               "original"};
@@ -512,13 +474,6 @@ void TagWikiPage::showNotFound(const QString& tag)
 void TagWikiPage::displayContent(const QString& title, const QStringList& otherNames,
                                  const QString& body)
 {
-    // Debug: dump raw DText body so layout / table-of-contents bugs can be
-    // reproduced from the exact source markup. Surrounded with markers so the
-    // multi-line content is easy to copy/paste out of the debug stream.
-    qDebug().noquote().nospace() << "\n=== TagWikiPage body for tag \"" << m_currentTag
-                                 << "\" (title=\"" << title << "\") ===\n"
-                                 << body << "\n=== end TagWikiPage body ===";
-
     m_titleLabel->setText(title.isEmpty() ? m_currentTag : utils::normalizeTagInput(title));
 
     if (!otherNames.isEmpty()) {
@@ -533,12 +488,8 @@ void TagWikiPage::displayContent(const QString& title, const QStringList& otherN
     QList<int> assetIds;
     const QString html = dtextToHtml(body, postIds, assetIds);
 
-    // Register a resource for every <kind>:<id> referenced in the HTML.
-    // Cached thumbs get the real pixmap immediately. Non-cached ones get a
-    // fully transparent placeholder of the same dimensions: this prevents
-    // the broken-image icon from flashing before the network fetch lands,
-    // and pins the cell size so layout stays stable when the real thumbnail
-    // fades in later.
+    // Transparent placeholder for not-yet-fetched thumbs: stops the broken-
+    // image glyph from flashing and pins layout for the eventual fade-in.
     QPixmap placeholder(ThumbW, ThumbH);
     placeholder.fill(Qt::transparent);
     for (int id : postIds) {
@@ -560,8 +511,7 @@ void TagWikiPage::displayContent(const QString& title, const QStringList& otherN
         }
     }
 
-    // Cancel any in-flight scroll animation: setHtml resets the document and
-    // the scrollbar's range, leaving the animation chasing a stale endValue.
+    // setHtml resets scrollbar range; in-flight scroll target would be stale.
     if (m_scrollAnim->state() == QAbstractAnimation::Running) m_scrollAnim->stop();
 
     m_browser->setHtml(html);
@@ -579,27 +529,20 @@ void TagWikiPage::displayContent(const QString& title, const QStringList& otherN
 bool TagWikiPage::eventFilter(QObject* obj, QEvent* event)
 {
     if (obj == m_browser && event->type() == QEvent::Resize) {
-        // QTextDocument's automatic re-flow on viewport resize sometimes
-        // leaves text overlapping image cells, most visibly when the window
-        // is dragged to a larger monitor. Marking the whole document dirty
-        // forces a full layout pass after the new width is applied.
+        // QTextDocument's lazy re-flow can leave image cells overlapping
+        // text after a width change. Force a full re-layout.
         if (auto* doc = m_browser->document()) doc->markContentsDirty(0, doc->characterCount());
     }
     if (obj == m_browser->viewport() && event->type() == QEvent::Wheel) {
         auto* we = static_cast<QWheelEvent*>(event);
-        // Modifier-held wheel (Ctrl+Wheel zoom etc.) and precision-touchpad
-        // wheels (continuous pixelDelta) bypass smoothing - the touchpad is
-        // already pixel-smooth, and zoom shouldn't get translated to scroll.
+        // Skip smoothing for zoom modifiers and precision-touchpad pixel deltas.
         if (we->modifiers() != Qt::NoModifier) return false;
         if (!we->pixelDelta().isNull()) return false;
 
         const int notches = we->angleDelta().y() / 120;
         if (notches == 0) return false;
-        // 60 px per notch matches the rough feel of QAbstractScrollArea's
-        // default (3 lines × ~20px line height). Easy to retune later.
         const int delta = -notches * 60;
-        // Stack on top of the in-flight target instead of the current
-        // animated value, so rapid wheel notches don't fight each other.
+        // Use in-flight target as base so rapid notches stack instead of restart.
         QScrollBar* sb = m_browser->verticalScrollBar();
         const int base = (m_scrollAnim->state() == QAbstractAnimation::Running)
                              ? m_scrollAnim->endValue().toInt()
@@ -614,14 +557,8 @@ void TagWikiPage::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
 
-    // Hook the top-level window's screenChanged signal exactly once. Moving
-    // a window between monitors that share the same logical size but differ
-    // in device-pixel ratio doesn't fire a Resize event on the browser - the
-    // text re-rasterises automatically but cached image-cell metrics from
-    // the previous DPR are kept, so images end up oversized relative to text
-    // until something forces a re-layout. screenChanged is the right signal
-    // for that case; markContentsDirty here matches what the resize filter
-    // does for window-size changes.
+    // Same-size moves to a different-DPR monitor don't fire Resize but do
+    // leave stale image-cell metrics. screenChanged catches that case.
     if (!m_screenChangedConnected) {
         if (QWidget* topLevel = window()) {
             if (QWindow* handle = topLevel->windowHandle()) {
@@ -742,7 +679,7 @@ void TagWikiPage::onAnchorClicked(const QUrl& url)
     QDesktopServices::openUrl(url);
 }
 
-// ── DText → HTML ─────────────────────────────────────────────────────────────
+// ── DText -> HTML ─────────────────────────────────────────────────────────────
 
 static QString applyInlineMarkup(const QString& raw)
 {
@@ -763,9 +700,8 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
     text.replace("\r\n", "\n");
     text.replace('\r', '\n');
 
-    // 1. Extract !post / !asset bullet IDs for image fetching. Each kind
-    //    capped at 20 entries so a runaway page doesn't queue hundreds of
-    //    fetches before the user has a chance to navigate away.
+    // 1. Extract !post / !asset bullet IDs. Capped at 20 each so a runaway
+    //    page can't queue hundreds of network fetches.
     {
         static const QRegularExpression mediaBulletExtractRe(R"(^\*+[ \t]+!(post|asset) #(\d+))",
                                                              QRegularExpression::MultilineOption);
@@ -786,17 +722,12 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
     // 2. Strip {{...}} tag-search embeds
     text.remove(QRegularExpression(R"(\{\{[^}]*\}\})"));
 
-    // 3. Pre-tokenize external links before HTML-escaping quotes.
-    //    Handles both absolute (https?://) and Danbooru-relative (/pools/, /posts/, etc.) URLs.
-    //    If a parenthetical description follows the link  "title":url (desc)  it is used as the
-    //    display text instead of the title; this matches how Danbooru renders pool/search links.
-    //    Inline DText markup inside titles (e.g. [i]...[/i]) is processed here so it renders
-    //    correctly after HTML-escaping.
-    QHash<QString, QPair<QString, QString>> linkTokens; // token → {displayHtml, resolvedUrl}
+    // 3. Pre-tokenize external links before HTML escaping. Captures:
+    //      1: link title (may contain DText inline markup)
+    //      2: URL - https?://, Danbooru-relative /, or same-page #anchor
+    //      3: optional parenthetical override for display text (pool/search links)
+    QHash<QString, QPair<QString, QString>> linkTokens; // token -> {displayHtml, resolvedUrl}
     {
-        // Group 1: link title (may contain DText markup)
-        // Group 2: URL - absolute https?://, Danbooru-relative /, or same-page #anchor
-        // Group 3: optional following parenthetical text (without the outer parens)
         static const QRegularExpression extRe(
             R"~("([^"]+)":\[?((?:https?://|/|#)[^\]\s"]+)\]?(?:\s*\(([^)]*)\))?)~");
 
@@ -808,14 +739,10 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
 
             const QString rawTitle = m.captured(1);
             const QString rawUrl = m.captured(2);
-            const QString rawParen = m.captured(3); // empty if no parenthetical
+            const QString rawParen = m.captured(3);
 
-            // Resolve relative URLs to danbooru.donmai.us
             const QString resolvedUrl =
                 rawUrl.startsWith('/') ? "https://danbooru.donmai.us" + rawUrl : rawUrl;
-
-            // Display text: parenthetical if present (pool/search links), else title.
-            // Process DText inline markup in the title so [i]...[/i] renders correctly.
             const QString displayHtml =
                 rawParen.isEmpty() ? applyInlineMarkup(rawTitle) : rawParen.toHtmlEscaped();
 
@@ -835,10 +762,7 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
         QRegularExpression::DotMatchesEverythingOption | QRegularExpression::CaseInsensitiveOption);
     text.replace(sectionRe, "<div class='ws'><p class='wsh'>\\1</p>\\2</div>");
 
-    // [expand=Title]...[/expand] (or bare [expand]...[/expand]) - DText's
-    // collapsible block. QTextBrowser can't actually collapse, so render the
-    // same way as [section]: titled box, contents inline. Title group is
-    // optional so the bare form doesn't fall through unmatched.
+    // QTextBrowser can't actually collapse [expand], so render it as [section].
     static const QRegularExpression expandRe(R"(\[expand(?:=([^\]]*))?\](.*?)\[/expand\])",
                                              QRegularExpression::DotMatchesEverythingOption |
                                                  QRegularExpression::CaseInsensitiveOption);
@@ -881,16 +805,11 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
         QRegularExpression(R"(\[color=[^\]]*\])", QRegularExpression::CaseInsensitiveOption));
     text.remove(QRegularExpression(R"(\[/color\])", QRegularExpression::CaseInsensitiveOption));
 
-    // 7. Headers (h1. - h6. at start of line). Two passes per level:
-    //   a) explicit form `h%n#name. Title` - rare; uses the named anchor.
-    //   b) bare form    `h%n. Title`       - common; auto-anchor from title.
-    // Bare-form headings on Danbooru get a slug-based id (dtext-<slug>) baked
-    // by their renderer, and TOCs reference that. We mirror the algorithm so
-    // same-page jumps land on the right heading.
+    // 7. Headers. Both explicit (`h%n#name. Title`) and bare (`h%n. Title`)
+    // forms produce a `dtext-<slug>` anchor: that's the prefix Danbooru's
+    // own renderer bakes into headings, and TOCs target it.
     auto slugify = [](const QString& title) -> QString {
         QString s = title;
-        // Strip HTML tags (step 6 already turned [b]/[i]/etc into <b>/<i>/etc)
-        // and any leftover DText brackets before slugging.
         s.remove(QRegularExpression("<[^>]*>"));
         s.remove(QRegularExpression("\\[/?[a-zA-Z]+(?:=[^\\]]*)?\\]"));
         s = s.toLower();
@@ -901,15 +820,11 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
     };
 
     for (int n = 6; n >= 1; --n) {
-        // Explicit form: heading author writes `h5#intro.` but Danbooru's
-        // renderer (and TOCs targeting `#dtext-intro`) prefixes the slug with
-        // "dtext-". Mirror that here so the named-anchor case lands too.
         text.replace(QRegularExpression(QString("^h%1#([\\w-]+)\\.[ \\t]*(.+)$").arg(n),
                                         QRegularExpression::MultilineOption),
                      QString("<h%1><a name='dtext-\\1'></a>\\2</h%1>").arg(n));
 
-        // Bare form: rebuild the string with per-match slug substitution.
-        // QString::replace can't run a callback, so iterate matches manually.
+        // Bare form: per-match slug requires manual iteration.
         const QRegularExpression bareRe(QString("^h%1\\.[ \\t]*(.+)$").arg(n),
                                         QRegularExpression::MultilineOption);
         QString rebuilt;
@@ -929,19 +844,14 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
         }
     }
 
-    // 8. Wiki links  [[tag|display]] then [[tag|]] (empty alias) then [[tag]]
-    // Use opaque URI "wiki:TAG" - tag lands in url.path(), not url.host(),
-    // so underscores and parens in tag names are handled correctly.
+    // 8. Wiki links: opaque URI "wiki:TAG" so url.path() (not host) gets the
+    // tag, which preserves underscores and parens.
     text.replace(QRegularExpression(R"(\[\[([^\|\]]+)\|([^\]]+)\]\])"),
                  "<a href='wiki:\\1'>\\2</a>");
     text.replace(QRegularExpression(R"(\[\[([^\|\]]+)\|?\]\])"), "<a href='wiki:\\1'>\\1</a>");
 
-    // 8.5. Convert !post / !asset bullet groups into inline image galleries.
-    // Runs after step 8 so wiki-link captions are already converted to <a>
-    // tags. Both kinds use the same gallery layout; only the URL scheme and
-    // the default caption prefix differ. Mixed runs (e.g. !post then !asset
-    // back-to-back) flow into one table since they share the same row width
-    // budget - the cells already carry their own kind in the href.
+    // 8.5. !post / !asset bullet runs become a single inline image gallery.
+    // Mixed kinds flow into one table; the cells encode their own kind in href.
     {
         static const QRegularExpression mediaBulletRe(
             "^\\*+[ \\t]+!(post|asset) #(\\d+)(?::\\s*(.*))?$");
@@ -967,14 +877,9 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
                 const GalleryItem& g = gallery[i];
                 const QString cap =
                     g.caption.isEmpty() ? QString("%1 #%2").arg(g.kind).arg(g.id) : g.caption;
-                // width/height on the <img> lock the cell to ThumbW x ThumbH
-                // *logical* pixels. Without these attrs the document uses the
-                // pixmap's pixel dimensions for layout, which means dragging
-                // the window to a screen with a different device-pixel ratio
-                // can scale image cells without scaling the surrounding text.
-                // The href / src share `<kind>:<id>`; onAnchorClicked routes
-                // the click to /posts/ or /media_assets/ accordingly, and
-                // the resource is registered under the same URL.
+                // Explicit width/height on <img> locks the cell to logical
+                // pixels: without them, DPR changes scale image cells but
+                // not surrounding text.
                 out << QString("<td class='thumb' align='center' style='padding:0 10px 4px "
                                "0;vertical-align:middle;width:%3px;'>"
                                "<a href='%1:%2'><img src='%1:%2' width='%3' height='%5'></a>"
@@ -1003,14 +908,12 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
         text = out.join('\n');
     }
 
-    // 9. Remaining standalone "post #N" references → clickable links
+    // 9. Remaining standalone "post #N" references -> clickable links
     text.replace(QRegularExpression(R"(\bpost #(\d+))"),
                  "<a href='https://danbooru.donmai.us/posts/\\1'>post #\\1</a>");
 
-    // 10. Lists (line-by-line). The leading `*` / `#` count is the nesting
-    // depth, so `* foo` / `** bar` / `*** baz` produce a nested <ul> tree
-    // rather than three flat siblings. Switching between unordered and
-    // ordered closes the open list type completely before opening the other.
+    // 10. Lists: leading `*` / `#` count is nesting depth. Switching between
+    // unordered and ordered closes the open type fully before opening the other.
     {
         static const QRegularExpression ulRe("^(\\*+)[ \\t]+(.+)$");
         static const QRegularExpression olRe("^(#+)[ \\t]+(.+)$");
@@ -1102,7 +1005,6 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
         text = result.join('\n');
     }
 
-    // Font from the application's loaded custom font (ID 0 in QFontDatabase)
     const QStringList fontFamilies = QFontDatabase::applicationFontFamilies(0);
     const QString fontDecl =
         fontFamilies.isEmpty() ? QString()

@@ -49,24 +49,19 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     setWindowTitle("Tag Composer");
     setWindowOpacity(0.0);
 
-    // Frameless: we draw our own titlebar (gui::TitleBar) and a thin border
-    // around the central frame for resize hit-testing. The Min/Max/Close
-    // hints stay set so the OS still treats us as a normal app window in the
-    // taskbar (snap, animations, alt-tab) even with no native chrome.
+    // Frameless; titlebar drawn by gui::TitleBar. Min/Max/Close hints stay set
+    // so the OS still treats this as a normal taskbar window.
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowMinimizeButtonHint |
                    Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
 
-    // Initial size + floor. Most window managers honor these; tiling WMs
-    // ignore them and tile the window however they prefer.
     resize(1420, 920);
     setMinimumSize(1420, 920);
 
     // ── Load settings ─────────────────────────────────────────────────────────
     m_settings = AppSettings::load(BASE_PATH + "/" + SETTINGS_PATH);
 
-    // Seed the connection cache so the first settingsChanged emit (which fires
-    // the moment the user touches *anything* on the settings page) doesn't see
-    // "host went from empty to <real host>" and trigger a spurious reconnect.
+    // Seed the change-detection cache so the first settingsChanged emit
+    // (any settings-page edit) doesn't read as "host went from empty".
     m_lastComfyEnabled = m_settings.comfyUiEnabled;
     m_lastComfyHost = m_settings.comfyUiServerAddress;
     m_lastComfyApiKey = m_settings.comfyUiApiKey;
@@ -78,7 +73,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     // ── Workflow input cache ──────────────────────────────────────────────────
     m_inputCache = new core::WorkflowInputCache(BASE_PATH + "/" + WORKFLOW_INPUTS_DIR, this);
-    // Forget upload state on (re)connect so a server restart re-uploads inputs.
+    // Reset upload state on (re)connect so a server restart re-uploads inputs.
     connect(m_comfyClient, &core::ComfyUiClient::connected, this,
             [this]() { m_uploadedThisSession.clear(); });
     connect(m_comfyClient, &core::ComfyUiClient::disconnected, this,
@@ -97,8 +92,6 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_tileViewPage = new TileViewPage(m_entryModel, this);
     m_tileViewPage->setLoraDirs(m_settings.loraBaseDir, m_settings.loraTestDir);
     m_tileViewPage->setComfyClient(m_comfyClient);
-    // Tile gradient + title colour are read once at startup; mid-session
-    // edits in Settings are persisted but require a restart to take effect.
     m_tileViewPage->setTileGradient(m_settings.tileGradientStart, m_settings.tileGradientAlpha);
     m_tileViewPage->setTileTitleColor(QColor(m_settings.tileTitleColor));
     m_composerPage = new PromptComposerPage(m_pipeline, &m_ruleEngine, m_tagGroupIndex, this);
@@ -131,8 +124,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_pages = new QStackedWidget(this);
     m_pages->setObjectName("MainPages");
     m_pages->installEventFilter(this);
-    // Order must match gui::Page enum (navbar.h) and the navbar's addButton
-    // sequence. Adding/reordering pages = touch all three together.
+    // Order must match gui::Page enum and the navbar's addButton sequence.
     m_homePage = new HomePage(this);
     m_pages->addWidget(m_homePage);         // Page::Home
     m_pages->addWidget(m_tileViewPage);     // Page::EntryViewer
@@ -141,9 +133,6 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_pages->addWidget(m_workflowEditPage); // Page::WorkflowEditor
     m_pages->addWidget(m_outputViewerPage); // Page::OutputViewer
     m_taggerLibrary = std::make_unique<core::AutoTaggerLibrary>(BASE_PATH + "/" + MODELS_DIR);
-    // Settle on a default active model if the user hasn't picked one yet -
-    // first available wins. AutoTagPage and any other consumer reads
-    // AppSettings::activeAutoTagModel from there.
     if (m_settings.activeAutoTagModel.isEmpty()) {
         const auto names = m_taggerLibrary->availableModels();
         if (!names.isEmpty()) m_settings.activeAutoTagModel = names.first();
@@ -162,7 +151,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(nav, &NavBar::pageRequested, m_pages, &QStackedWidget::setCurrentIndex);
     connect(m_pages, &QStackedWidget::currentChanged, nav, &NavBar::setCurrentPage);
 
-    // ── LoRA stack: tile view → main window + composer + workflow editor ─────
+    // ── LoRA stack: tile view -> main window + composer + workflow editor ────
     connect(m_tileViewPage, &TileViewPage::loraStackChanged, this,
             [this](const QList<core::LoraConfig>& stack) {
                 m_activeLoraStack = stack;
@@ -171,9 +160,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
                 m_workflowEditPage->setActiveLoraStack(stack);
             });
 
-    // Strength edits in the workflow editor mutate the entries directly;
-    // mirror the new values into our cached stack so the next workflow run
-    // uses them without waiting for a tile-view re-emit.
+    // Mirror workflow-editor strength edits into the cached stack so the next
+    // run uses them without waiting for the tile-view to re-emit.
     connect(m_workflowEditPage, &WorkflowEditPage::loraStrengthsChanged, this,
             [this](const QList<core::LoraConfig>& stack) { m_activeLoraStack = stack; });
 
@@ -181,11 +169,11 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_workflowEditPage, &WorkflowEditPage::batchRunRequested, this,
             &AppMainWindow::runBatch);
 
-    // ── LoRA restore: composer session/state → tile view ─────────────────────
+    // ── LoRA restore: composer session/state -> tile view ────────────────────
     connect(m_composerPage, &PromptComposerPage::loraUuidsRestored, m_tileViewPage,
             &TileViewPage::setLoraActiveByUuids);
 
-    // ── Wire export: extraBtn → composer page ─────────────────────────────────
+    // ── Wire export: extraBtn -> composer page ───────────────────────────────
     connect(m_tileViewPage, &TileViewPage::tagsExported, m_composerPage,
             &PromptComposerPage::loadPipeline);
     connect(m_tileViewPage, &TileViewPage::entryTagAdded, m_composerPage,
@@ -204,7 +192,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     // ── Wire facet editor reload ───────────────────────────────────────────────
     connect(m_facetEditorPage, &FacetEditorPage::facetsDefined, this, &AppMainWindow::reloadFacets);
 
-    // Schema reload - re-read facets.fct, keep tag definitions intact
+    // Re-read facets.fct, keep tag definitions intact.
     connect(m_facetEditorPage, &FacetEditorPage::schemaReloadRequested, this, [this]() {
         m_facetIndex.reloadSchemaFromFile(BASE_PATH + "/" + FACETS_PATH);
         reloadFacets();
@@ -212,9 +200,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     });
 
     // ── Quick-add facet shortcut ──────────────────────────────────────────────
-    // Right-click → "Quick add as <kind>" mutates the FacetIndex here
-    // (the panels don't own the index), persists, and reloads. Both the
-    // composer and the entry panel emit the same (tag, facetName) signal.
+    // Panels emit (tag, facetName); FacetIndex lives here, so apply + persist.
     connect(m_composerPage, &PromptComposerPage::quickFacetRequested, this,
             &AppMainWindow::applyQuickFacet);
     connect(m_tileViewPage, &TileViewPage::quickFacetRequested, this,
@@ -255,10 +241,9 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_composerPage, &PromptComposerPage::workflowVarsChanged, m_workflowEditPage,
             &WorkflowEditPage::refresh);
 
-    // ── Run with workflow: apply vars + positive tags, queue to ComfyUI ──────
-    // Positive prompt is recomputed inside the loop because Wildcard vars pick
-    // a fresh tag per run, and that pick must flow through the rule/var
-    // pipeline along with the composer's persistent state.
+    // ── Run with workflow ─────────────────────────────────────────────────────
+    // Wildcard vars pick fresh tags per run, so the prompt is rebuilt each
+    // iteration to flow that pick through the rule/var pipeline.
     connect(m_composerPage, &PromptComposerPage::runRequested, this, [this](int count) {
         const core::WorkflowFile* wf = m_workflowManager.selectedFile();
         if (!wf) return;
@@ -267,8 +252,6 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         const QString tmpl = QString::fromUtf8(f.readAll());
 
         ensureImageInputsUploaded([this, tmpl, count]() {
-            // Heal once per run, not per prompt: cross-root file moves and
-            // settings-changed reroots are stable across the batch.
             QList<core::LoraConfig> healed = m_activeLoraStack;
             healLoraStackInPlace(healed);
 
@@ -317,7 +300,6 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_settingsPage, &SettingsPage::reconnectRequested, this,
             [this]() { m_comfyClient->connectToServer(); });
 
-    // Import / Export dialogs launched from Settings → DATA section.
     connect(m_settingsPage, &SettingsPage::exportEntriesRequested, this, [this]() {
         ExportDialog dlg(m_entryModel, &m_facetIndex, this);
         dlg.exec();
@@ -326,8 +308,6 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         ImportDialog dlg(m_entryModel, &m_facetIndex, BASE_PATH + "/data/entry",
                          BASE_PATH + "/" + DEFINITIONS_PATH, this);
         if (dlg.exec() == QDialog::Accepted) {
-            // Pick up new entries in the tile view, and refresh facet editor +
-            // composer so freshly-added/merged definitions take effect now.
             m_tileViewPage->refreshEntries();
             reloadFacets();
         }
@@ -345,23 +325,15 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_comfyClient, &core::ComfyUiClient::previewImageReady, m_composerPage,
             &PromptComposerPage::setPreviewImage);
     connect(m_comfyClient, &core::ComfyUiClient::queueCountChanged, this, [this](int count) {
-        // Routed through a lambda because m_statusBar is constructed
-        // further down in this ctor; the receiver pointer would be
-        // null at connect time if we wired the signal directly.
+        // Lambda receiver: m_statusBar is constructed below this connect.
         m_statusBar->setActiveCount(count);
 
         const bool jobFinished = (count < m_lastQueueCount);
         m_lastQueueCount = count;
 
-        // Progress bar fade-out is owned by StatusBar::setActiveCount
-        // (called above), so the bar and the active-count label drop
-        // together when the queue drains.
-
-        // Each queue decrement = a prompt just completed. Load its
-        // decoded output if we observed progress for it. Skip when the
-        // user just interrupted / cleared - that prompt didn't finish
-        // so any "newest" temp image is stale. Small delay gives
-        // ComfyUI time to write the file before we scan.
+        // Each queue decrement is a finished prompt. Load its output unless
+        // we just interrupted / cleared (in which case "newest temp image"
+        // is stale). Delay gives ComfyUI time to write the file.
         if (jobFinished && m_skipNextFinalLoad) {
             m_skipNextFinalLoad = false;
             m_pendingFinalLoad = false;
@@ -369,7 +341,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         }
         if (jobFinished && m_skipFinalOnPendingClear) {
             m_skipFinalOnPendingClear = false;
-            return; // running prompt still in flight; keep pending state
+            return;
         }
         if (jobFinished && m_pendingFinalLoad) {
             m_pendingFinalLoad = false;
@@ -396,9 +368,6 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     m_statusBar = new StatusBar(this);
 
-    // Frameless chrome: titlebar + cosmetic border + edge-resize, all owned
-    // by WindowChrome. The body widget hosts the actual app content (nav +
-    // pages + statusbar). Top-level window so all three chrome buttons.
     m_chrome = new WindowChrome(this);
 
     auto* bodyLayout = new QVBoxLayout(m_chrome->bodyWidget());
@@ -430,8 +399,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     watcher->setFuture(
         QtConcurrent::run([csvPath]() { return core::DanbooruIndex::loadFromFile(csvPath); }));
 
-    // Load and concatenate every .qss under :/styles. app.qss sorts first so
-    // its app-wide rules act as the base; subdir files override as needed.
+    // app.qss sorts first so its app-wide rules act as the base.
     QStringList qssPaths;
     QDirIterator qssIt(":/styles", {"*.qss"}, QDir::Files, QDirIterator::Subdirectories);
     while (qssIt.hasNext())
@@ -446,17 +414,15 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     qApp->setStyleSheet(combinedQss);
 
     // ── Global keyboard shortcuts ─────────────────────────────────────────────
-    // Fired app-wide; guard skips action when a text input has keyboard focus.
+    // Guard against firing while typing in a text input.
     auto textInput = []() -> bool {
         const QWidget* fw = qApp->focusWidget();
         return fw &&
                (qobject_cast<const QLineEdit*>(fw) || qobject_cast<const QPlainTextEdit*>(fw));
     };
+    // WindowShortcut so child windows (preview popout) can re-bind the keys.
     auto sc = [this](QKeySequence key, auto fn) {
         auto* s = new QShortcut(key, this);
-        // Per-window so shortcuts on top-level child windows (e.g., the
-        // preview popout) can register the same keys without ambiguity -
-        // each window's shortcut fires only when it has focus.
         s->setContext(Qt::WindowShortcut);
         connect(s, &QShortcut::activated, this, fn);
     };
@@ -588,7 +554,7 @@ void AppMainWindow::applyComfySettings()
     m_outputViewerPage->setOutputFolder(m_settings.comfyUiOutputFolder);
 
     // Bouncing the WebSocket on every settingsChanged emit is what causes the
-    // status indicator to flicker through disconnected → connecting → connected
+    // status indicator to flicker through disconnected -> connecting -> connected
     // when the user edits an unrelated field (tile gradient, danmaku toggle,
     // etc.). Only re-(dis)connect when a connection-relevant value changed.
     const bool enabledChanged = (m_settings.comfyUiEnabled != m_lastComfyEnabled);
@@ -612,9 +578,7 @@ void AppMainWindow::applyComfySettings()
 
 void AppMainWindow::reloadFacets()
 {
-    // Persist on every facet mutation rather than relying on close-event save.
-    // Cheap (text file, ~few hundred lines) and keeps the on-disk state aligned
-    // with what the user just did, even across crashes.
+    // Persist on every mutation: cheap, and keeps disk state crash-aligned.
     m_facetIndex.saveDefinitions(BASE_PATH + "/" + DEFINITIONS_PATH);
     m_facetEditorPage->reload();
     m_composerPage->repush();
@@ -635,9 +599,6 @@ void AppMainWindow::applyQuickFacet(const QString& tag, const QString& facetName
 }
 
 // ── Batch run ───────────────────────────────────────────────────────────────
-// Fire-and-forget: resolve query → for each entry build prompt (composer
-// state ∪ entry tags) → queue `count` prompts to ComfyUI per entry. Returns
-// immediately; ComfyUI handles the actual generation in its own queue.
 
 void AppMainWindow::runBatch(const QString& query)
 {
@@ -670,22 +631,17 @@ void AppMainWindow::runBatch(const QString& query)
             QList<QString> tags;
             if (!entry->images.isEmpty()) tags = m_entryModel->getTags(entry->images[0].tagIds);
 
-            // Skip entries with no tags - they'd all produce the same prompt
-            // (just the composer's state), which isn't useful for a batch.
+            // No tags = same prompt as composer state alone, not batchable.
             if (tags.isEmpty()) {
                 ++skipped;
                 continue;
             }
 
-            // Stack: current LoRAs + entry's own LoRA if it has one.
-            // Heal once per entry, before the inner prompt loop.
             QList<core::LoraConfig> stackForEntry = m_activeLoraStack;
             if (entry->lora.has_value()) stackForEntry << entry->lora.value();
             healLoraStackInPlace(stackForEntry);
 
             for (int i = 0; i < count; ++i) {
-                // Per-run wildcard pick gets unioned with composer state +
-                // entry tags, then the full pipeline runs over the merged set.
                 QList<QString> extraTags = tags;
                 for (const QString& wt : m_workflowManager.pickWildcardTags())
                     extraTags << wt;
@@ -728,7 +684,7 @@ void AppMainWindow::loadFinalPreview()
     const QFileInfoList files = QDir(folder).entryInfoList(filters, QDir::Files);
     if (files.isEmpty()) return;
 
-    // Newest by mtime - the run that just finished should have written it.
+    // Newest by mtime: the run that just finished is the freshest write.
     const QFileInfo* newest = &files[0];
     for (const QFileInfo& fi : files)
         if (fi.lastModified() > newest->lastModified()) newest = &fi;
@@ -737,16 +693,12 @@ void AppMainWindow::loadFinalPreview()
     if (!img.isNull()) m_composerPage->setPreviewImage(img);
 }
 
-// Walk the selected workflow's vars; for each Image var with a known uuid we
-// haven't pushed this session, upload it. After every upload settles, run done.
-//
-// Tracking key is (uuid + editsHash) - editing an already-uploaded image
-// produces a different hash, so the rendered variant gets uploaded fresh.
+// Tracking key is (uuid + editsHash) so editing forces a re-upload.
 void AppMainWindow::ensureImageInputsUploaded(std::function<void()> done)
 {
     struct UploadTask {
-        QString trackingKey; // m_uploadedThisSession key
-        QString localPath;   // file to upload (may be a rendered edited variant)
+        QString trackingKey;
+        QString localPath; // may be a rendered edited variant
     };
     QList<UploadTask> tasks;
 
@@ -796,10 +748,9 @@ void AppMainWindow::ensureImageInputsUploaded(std::function<void()> done)
 
 void AppMainWindow::healLoraStackInPlace(QList<core::LoraConfig>& stack)
 {
+    // Mirror healed shape back to the source entry so future runs skip the work.
     for (core::LoraConfig& lc : stack) {
         if (!lc.healAcrossRoots(m_settings.loraBaseDir, m_settings.loraTestDir)) continue;
-        // Patch the source entry so future runs (and future launches) see
-        // the healed shape immediately rather than re-doing the work.
         if (lc.sha256.isEmpty()) continue;
         if (core::Entry* e = m_entryModel->entryByLoraSha256(lc.sha256)) {
             if (e->lora.has_value()) {
@@ -815,8 +766,7 @@ void AppMainWindow::clearUnusedInputs()
 {
     if (!m_inputCache) return;
 
-    // 1. Walk every workflow's vars and collect the set of references that
-    //    keep cache entries alive. Anything not in these sets is orphaned.
+    // Collect references that keep cache entries alive; anything else orphans.
     QSet<QString> usedImageUuids;
     QSet<QString> usedMaskIds;
     QSet<QString> usedEditsHashes;
@@ -833,7 +783,7 @@ void AppMainWindow::clearUnusedInputs()
     int masksRemoved = 0;
     int rendersRemoved = 0;
 
-    // 2. Source images. Snapshot all() first since remove() mutates the map.
+    // Snapshot all() first since remove() mutates the map.
     for (const core::WorkflowInput& inp : m_inputCache->all()) {
         if (!usedImageUuids.contains(inp.uuid)) {
             m_inputCache->remove(inp.uuid);
@@ -841,7 +791,6 @@ void AppMainWindow::clearUnusedInputs()
         }
     }
 
-    // 3. Painted masks under _masks/<id>.png.
     QDir masksDir(m_inputCache->cacheDir() + "/_masks");
     if (masksDir.exists()) {
         for (const QFileInfo& fi : masksDir.entryInfoList(QStringList{"*.png"}, QDir::Files)) {
@@ -853,9 +802,7 @@ void AppMainWindow::clearUnusedInputs()
         }
     }
 
-    // 4. Rendered edit variants under _edited/<editsHash>/<uuid>.png. The
-    //    directory is per-hash so we just nuke whole subdirectories that no
-    //    active edits hash references.
+    // Edit variants live under _edited/<editsHash>/, drop whole subdirectories.
     QDir editedDir(m_inputCache->cacheDir() + "/_edited");
     if (editedDir.exists()) {
         for (const QFileInfo& fi : editedDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {

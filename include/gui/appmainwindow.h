@@ -58,43 +58,26 @@ protected:
 private:
     void reloadFacets();
     void applyComfySettings();
-    // Adds `facetName` to `tag`'s facet list (no-op if already present),
-    // persists, and reloads. Shared by composer + entry-panel quick-add menus.
     void applyQuickFacet(const QString& tag, const QString& facetName);
-
-    // Resolve query to entries, build per-entry prompts (composer state ∪
-    // each entry's tags) and push them all to ComfyUI. Fire-and-forget.
     void runBatch(const QString& query);
-
-    // Walks the selected workflow's image vars and uploads every uuid not
-    // already pushed this session. Calls done() once every upload settled.
     void ensureImageInputsUploaded(std::function<void()> done);
 
-    // Walks every workflow var across every workflow, collects the set of
-    // referenced image uuids / mask ids / edits hashes, and removes any
-    // cache entry not in those sets. Also clears m_uploadedThisSession
-    // entries that point at removed files.
+    // Sweep WorkflowInputCache: drop entries no workflow var references.
     void clearUnusedInputs();
 
-    // Heals each LoRA's (rootKey, relPath) against the current primary/test
-    // dirs. Mutates `stack` in place; for any item that changed, also patches
-    // and persists the source entry (matched by sha256) so the heal sticks.
+    // Heal each LoRA's (rootKey, relPath) against the current dirs and
+    // mirror changes back to the source entry (matched by sha256).
     void healLoraStackInPlace(QList<core::LoraConfig>& stack);
 
-    // After the last comfy job in a queue completes, load the newest image
-    // from the temp folder and pin it as the inline preview (so the preview
-    // shows the actual decoded output, not the last latent step).
+    // After the last queued ComfyUI job finishes, pin the freshest temp-folder
+    // image as the inline preview so it shows the decoded output, not a latent.
     void loadFinalPreview();
     bool m_pendingFinalLoad = false;
     int m_lastQueueCount = 0;
-    // Set on interrupt; consumed by the next queue-decrement event to
-    // suppress the final-image load (the just-killed prompt's output either
-    // doesn't exist or is stale).
+    // Suppress the next final-image load: m_skipNextFinalLoad on interrupt
+    // (output is stale), m_skipFinalOnPendingClear on clearPending (only the
+    // dropped queue, not a real finish).
     bool m_skipNextFinalLoad = false;
-    // Set on clearPending; suppresses the next queue-decrement final load
-    // (which is the cleared-pending drop, not a finished prompt) but leaves
-    // m_pendingFinalLoad alone so the still-running prompt still loads when
-    // it actually finishes.
     bool m_skipFinalOnPendingClear = false;
 
     core::EntryModel* m_entryModel;
@@ -119,10 +102,8 @@ private:
     core::WorkflowInputCache* m_inputCache = nullptr;
     QSet<QString> m_uploadedThisSession;
 
-    // Last connection-relevant comfy values that applyComfySettings actually
-    // reconnected on. Compared against m_settings on every settingsChanged
-    // emit so unrelated edits (tile gradient, danmaku toggle, …) don't bounce
-    // the WebSocket and flicker the connect indicator.
+    // Cache of the comfy values applyComfySettings last actually reconnected
+    // on, so unrelated settings edits don't bounce the WebSocket.
     bool m_lastComfyEnabled = false;
     QString m_lastComfyHost;
     QString m_lastComfyApiKey;
@@ -132,7 +113,7 @@ private:
     QList<core::LoraConfig> m_activeLoraStack;
     QList<QString> m_activeLoraUuids;
 
-    // Pipeline stack (value types stored here; pipeline holds pointers to them)
+    // Pipeline owned here as values; PromptPipeline holds pointers to them.
     core::FacetIndex m_facetIndex;
     core::RuleEngine m_ruleEngine;
     core::TagGroupIndex m_tagGroupIndex;
@@ -140,8 +121,7 @@ private:
     core::WorkflowManager m_workflowManager;
     core::PromptPipeline* m_pipeline = nullptr;
 
-    // Lazy registry of AutoTagger ONNX models under data/models/. Constructed
-    // here so the whole app shares one Ort::Env + one cache of loaded sessions.
+    // One library per app: shares the Ort::Env and cached sessions.
     std::unique_ptr<core::AutoTaggerLibrary> m_taggerLibrary;
 };
 

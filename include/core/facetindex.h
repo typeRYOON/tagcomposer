@@ -5,35 +5,28 @@
 
 namespace core {
 
+// schema (facets.fct): @category blocks; never rewritten.
+// definitions (definitions.fct): tag=facet,facet pairs; rewritten by saveDefinitions.
 class FacetIndex {
 public:
-    // schemaPath: @category blocks only - never rewritten by the app
     static FacetIndex loadFromFile(const QString& schemaPath);
 
-    // Re-reads the schema from disk into this instance, replacing categories
-    // and facet definitions but leaving tag → facet mappings untouched.
+    // Replaces categories and facets; leaves tag -> facet mappings alone.
     void reloadSchemaFromFile(const QString& schemaPath);
 
-    // definitionsPath: tag=facet lines - loaded separately, saved at shutdown
     void loadDefinitionsFromFile(const QString& definitionsPath);
     void saveDefinitions(const QString& definitionsPath) const;
 
-    // Tag lookups
     QList<QString> facetsFor(const QString& tag) const;
     bool hasFacets(const QString& tag) const;
-
-    // In-memory update - persisted via saveDefinitions at shutdown
     void setDefinition(const QString& tag, const QList<QString>& facets);
 
-    // Facet lookups
     QString categoryFor(const QString& facet) const;
 
-    // Enumeration
-    QList<QString> allCategories() const; // in definition order
+    QList<QString> allCategories() const;
     QList<QString> allFacets() const;
     QList<QString> allDefinedTags() const;
 
-    // Returns tags from the given list that have no definition
     QList<QString> undefined(const QList<QString>& tags) const;
 
 private:

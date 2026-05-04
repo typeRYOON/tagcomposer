@@ -20,9 +20,8 @@ void PromptPipeline::push(const QList<QString>& tags)
 
 QList<CategoryGroup> PromptPipeline::evaluate(const QList<QString>& tags) const
 {
-    // 1. Resolve facets for every tag.
-    //    Tags with no facet definition are marked NoFacets and bypass the rule
-    //    engine - they still appear in the output so the user can see them.
+    // 1. Resolve facets. Tags without a definition get marked NoFacets and
+    //    bypass the rule engine but stay in the output.
     QList<PipelineTag> resolved;
     QList<QString> noFacetNames;
     QSet<QString> seenTags;
@@ -59,15 +58,14 @@ QList<CategoryGroup> PromptPipeline::evaluate(const QList<QString>& tags) const
                                           .arg(noFacetNames.join(", ")));
     }
 
-    // 2. Run enabled rules - only over the fully-defined (Include) tags.
+    // 2. Run rules over Include tags only.
     QList<PipelineTag> forRules;
     for (const PipelineTag& pt : resolved)
         if (pt.result == RuleResult::Include) forRules << pt;
 
     const QList<PipelineTag> afterRules = m_rules->evaluate(forRules, *m_facets);
 
-    // 3. Merge: NoFacets tags first (so they appear in Uncategorized),
-    //    then the rule-engine output (which may contain Injected tags).
+    // 3. NoFacets first (Uncategorized), then rule-engine output.
     QList<PipelineTag> final;
     for (const PipelineTag& pt : resolved)
         if (pt.result == RuleResult::NoFacets) final << pt;
@@ -80,7 +78,7 @@ QList<CategoryGroup> PromptPipeline::evaluate(const QList<QString>& tags) const
 
 QList<CategoryGroup> PromptPipeline::groupByCategory(const QList<PipelineTag>& tags) const
 {
-    // Seed groups in category definition order (preserves the user's ordering).
+    // Group order matches the user's category definition order.
     QHash<QString, int> catIndex;
     QList<CategoryGroup> groups;
 
@@ -89,13 +87,11 @@ QList<CategoryGroup> PromptPipeline::groupByCategory(const QList<PipelineTag>& t
         groups << CategoryGroup{cat, {}};
     }
 
-    // Uncategorized bucket: catches NoFacets tags and injected tags whose
-    // replacement target isn't itself defined in the facet index.
+    // Uncategorized bucket for NoFacets and untyped Injected tags.
     const int uncatIdx = groups.size();
     groups << CategoryGroup{"", {}};
 
     for (const PipelineTag& pt : tags) {
-        // Determine category from the first facet that resolves to one.
         QString cat;
         for (const QString& f : pt.facets) {
             cat = m_facets->categoryFor(f);
@@ -105,7 +101,6 @@ QList<CategoryGroup> PromptPipeline::groupByCategory(const QList<PipelineTag>& t
         groups[catIndex.value(cat, uncatIdx)].tags << pt;
     }
 
-    // Drop empty groups before emitting.
     QList<CategoryGroup> out;
     for (const CategoryGroup& g : groups)
         if (!g.tags.isEmpty()) out << g;
@@ -127,7 +122,6 @@ QString PromptPipeline::buildPromptString(const QList<CategoryGroup>& groups, bo
 
     QList<QString> parts;
     for (const CategoryGroup& g : groups) {
-        // Collect tags that appear in the output, in order
         QList<const PipelineTag*> active;
         for (const PipelineTag& pt : g.tags)
             if (pt.result == RuleResult::Include || pt.result == RuleResult::Injected ||

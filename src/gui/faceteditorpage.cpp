@@ -103,7 +103,7 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
 
     connect(m_searchEdit, &QLineEdit::textChanged, this, &FacetEditorPage::applyListFilter);
 
-    // Right-click → "Go to Wiki" on either list
+    // Right-click -> "Go to Wiki" on either list
     auto installWikiMenu = [this](QListWidget* list) {
         list->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(list, &QListWidget::customContextMenuRequested, this,
@@ -272,7 +272,7 @@ void FacetEditorPage::reload()
 {
     const QString prevSelected = m_selectedTag;
 
-    m_tagList->clear(); // triggers selectTag("") → clearEditor()
+    m_tagList->clear(); // triggers selectTag("") -> clearEditor()
 
     QList<QString> all = m_model->tagIndex().allTags();
     std::sort(all.begin(), all.end());
@@ -372,7 +372,7 @@ void FacetEditorPage::applyFacetFilter(const QString& query)
 {
     const QString lower = query.trimmed().toLower();
 
-    // Match logic per block: empty query → show all. Otherwise, if the
+    // Match logic per block: empty query -> show all. Otherwise, if the
     // category name matches, show every pill in the block; else show only
     // pills whose facet name matches. Hide blocks with zero visible pills.
     for (auto* block : m_facetsContainer->findChildren<QFrame*>("FacetCategoryBlock")) {
@@ -541,7 +541,7 @@ void FacetEditorPage::saveSelected()
 
     if (wasFromUndefined) {
         if (m_undefinedList->count() > 0)
-            m_undefinedList->setCurrentRow(0); // fires currentTextChanged → selectTag
+            m_undefinedList->setCurrentRow(0); // fires currentTextChanged -> selectTag
         else
             clearEditor();
     }
@@ -646,7 +646,7 @@ void FacetEditorPage::fetchPreview(const QString& tag)
         if (tag != m_selectedTag) return; // user moved on
 
         if (reply->error() != QNetworkReply::NoError) {
-            // 404 (no wiki) or any network failure → fall through to a posts search.
+            // 404 (no wiki) or any network failure -> fall through to a posts search.
             fetchFirstPostByTag(tag);
             return;
         }

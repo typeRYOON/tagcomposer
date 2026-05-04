@@ -1,5 +1,5 @@
 #include <core/workflowinputcache.h>
-#include <core/workflowmanager.h> // for ImageEdits (resolveEdited renders it)
+#include <core/workflowmanager.h> // ImageEdits
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -37,7 +37,7 @@ QString WorkflowInputCache::importFromFile(const QString& srcPath)
     reader.setAutoTransform(true);
     if (!reader.read(&img) || img.isNull()) return {};
 
-    // Always store as ARGB so the alpha (mask) round-trip is lossless.
+    // ARGB so alpha (mask) round-trip is lossless.
     if (img.format() != QImage::Format_ARGB32) img = img.convertToFormat(QImage::Format_ARGB32);
 
     if (!img.save(dst, "PNG")) return {};
@@ -67,7 +67,7 @@ void WorkflowInputCache::remove(const QString& uuid)
 bool WorkflowInputCache::has(const QString& uuid) const
 {
     if (uuid.isEmpty() || !m_byUuid.contains(uuid)) return false;
-    // Index can drift from disk if the file was deleted manually; reflect that.
+    // Index can drift if a file was deleted out-of-band.
     return QFile::exists(localPath(uuid));
 }
 
@@ -122,8 +122,8 @@ QString WorkflowInputCache::resolveEdited(const QString& uuid, const ImageEdits&
 
     const QString src = localPath(uuid);
     const QString editedDir = m_cacheDir + "/_edited/" + edits.hash();
-    // Basename stays <uuid>.png - uploadInput uses the file's basename as the
-    // server-side filename, and applyToJson substitutes "tagcomposer/<uuid>.png".
+    // Basename must stay <uuid>.png so the server-side path stays
+    // `tagcomposer/<uuid>.png` regardless of which variant was uploaded.
     const QString editedPath = editedDir + "/" + uuid + ".png";
     if (QFile::exists(editedPath)) return editedPath;
 
@@ -132,24 +132,18 @@ QString WorkflowInputCache::resolveEdited(const QString& uuid, const ImageEdits&
     if (source.format() != QImage::Format_ARGB32)
         source = source.convertToFormat(QImage::Format_ARGB32);
 
-    // Clamp the crop rect to the image bounds defensively - a stale edit from
-    // a re-imported (smaller) image could otherwise overflow.
+    // Clamp against stale edits from a re-imported smaller image.
     QRect crop = edits.cropRect.intersected(source.rect());
     if (crop.isEmpty()) crop = source.rect();
 
-    // ComfyUI's LoadImage: IMAGE = RGB channels, MASK = 1 - alpha.
-    //
-    // Mask mode  (trimToCrop=false): source-sized. RGB untouched everywhere;
-    //   alpha=0 where the painted mask is set (MASK=1 there), alpha=255
-    //   elsewhere. Falls back to "rect-as-mask" if no painted mask exists.
-    //
-    // Trim mode  (trimToCrop=true): output is just the crop rect. RGB =
-    //   cropped pixels, alpha=255 everywhere (no mask).
+    // ComfyUI's LoadImage reads RGB as IMAGE, (1 - alpha) as MASK.
+    //   trimToCrop=true:  output is the crop, alpha=255 (no mask).
+    //   trimToCrop=false: source-size, alpha encodes the painted mask
+    //                     (or rect-as-mask fallback when none).
     QImage out = edits.trimToCrop ? source.copy(crop) : source.copy();
     if (out.format() != QImage::Format_ARGB32) out = out.convertToFormat(QImage::Format_ARGB32);
 
     if (edits.trimToCrop) {
-        // Force alpha=255 everywhere; preserve RGB.
         for (int y = 0; y < out.height(); ++y) {
             QRgb* row = reinterpret_cast<QRgb*>(out.scanLine(y));
             for (int x = 0; x < out.width(); ++x) {
@@ -159,8 +153,7 @@ QString WorkflowInputCache::resolveEdited(const QString& uuid, const ImageEdits&
         }
     }
     else {
-        // Resolve effective mask. Painted mask wins; if absent, synthesize
-        // from cropRect (the legacy rect-only edits).
+        // Painted mask wins; rect-as-mask is the legacy fallback.
         QImage mask = loadMask(edits.maskId);
         const bool useMask = !mask.isNull() && mask.size() == source.size();
 
@@ -171,9 +164,7 @@ QString WorkflowInputCache::resolveEdited(const QString& uuid, const ImageEdits&
             for (int x = 0; x < out.width(); ++x) {
                 int alpha = 255;
                 if (useMask) {
-                    // mask value: 0 = not masked → alpha=255
-                    //           255 = masked     → alpha=0
-                    alpha = 255 - maskRow[x];
+                    alpha = 255 - maskRow[x]; // mask 255 -> alpha 0
                 }
                 else if (yInRect && x >= crop.left() && x <= crop.right()) {
                     alpha = 0;

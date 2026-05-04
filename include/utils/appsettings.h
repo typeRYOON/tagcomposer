@@ -6,16 +6,11 @@ namespace utils {
 struct AppSettings {
     // ── Appearance ───────────────────────────────────────────────────────────
     bool danmakuEnabled = false;
-    // Tile-view bottom gradient. start = where the fade begins as a fraction
-    // of tile height (0.0 = top, 1.0 = bottom edge); alpha = 0–255 darkness
-    // at the bottom edge. Defaults match the values previously hardcoded in
-    // EntryView::makeTileImage. Read once at startup; mid-session changes
-    // are persisted but require a restart to take effect.
+    // Tile bottom gradient. start = fade-begin fraction (0=top, 1=bottom);
+    // alpha = bottom-edge darkness. Read at startup only; restart to apply.
     qreal tileGradientStart = 0.6;
     int tileGradientAlpha = 180;
-    // Hex "#rrggbb" - colour of the tile title text. Same startup-only
-    // semantics as the gradient.
-    QString tileTitleColor = "#ffffff";
+    QString tileTitleColor = "#ffffff"; // tile title hex; startup-only like gradient
 
     // ── ComfyUI ───────────────────────────────────────────────────────────────
     bool comfyUiEnabled = false;
@@ -23,55 +18,35 @@ struct AppSettings {
     QString comfyUiApiKey;
     QString comfyUiOutputFolder; // path pattern, e.g. C:/ComfyUI/output/{yyyy-MM-dd}
     QString comfyUiTempFolder;   // flat folder watched for in-progress decode images
-    QString
-        comfyUiInputFolder; // optional path to ComfyUI's input/ - enables direct file copy for image vars (HTTP upload is the fallback when unset)
-    QString loraBaseDir;    // primary lora root - ComfyUI's models/loras
-    // Optional secondary root, mirrors ComfyUI's extra_model_paths.yaml entry
-    // for a "test" lora directory (e.g. ~/Downloads). Files dropped from this
-    // folder are recognised as already-placed and skip the import dialog;
-    // workflow JSON paths resolve against whichever root contains the file.
-    QString loraTestDir;
+    QString comfyUiInputFolder;  // optional ComfyUI input/ for direct file copy
+    QString loraBaseDir;         // primary lora root (ComfyUI's models/loras)
+    QString loraTestDir;         // optional secondary root (e.g. ~/Downloads)
 
     // ── Facets ────────────────────────────────────────────────────────────────
-    // Names of facets used by the composer's quick-add context menu. All four
-    // default empty - menu items are hidden when unset, so users with their
-    // own facet schema aren't forced to use a baked-in name. The settings
-    // page exposes "rcharacter" / "rcopyright" / "rtrigger_word" / "rstyle"
-    // as placeholder hints for the LoRA-training convention.
+    // Quick-add facet names. Empty = menu item hidden, so users aren't forced
+    // into a baked-in schema. Settings page shows the LoRA-training convention
+    // names ("rcharacter" / "rcopyright" / "rtrigger_word" / "rstyle") as hints.
     QString quickCharacterFacet;
     QString quickCopyrightFacet;
     QString quickTriggerWordFacet;
     QString quickStyleFacet;
 
     // ── AutoTag ──────────────────────────────────────────────────────────────
-    // Name of the active AutoTagger model dir under data/models/. Empty until
-    // AutoTaggerLibrary picks the first available one on boot.
     QString activeAutoTagModel;
-    // Default threshold for the AutoTag page (per-image overrides live in the
-    // page's UI state, not here).
     float autoTagThreshold = 0.35f;
-    // Per-image cooldown applied between inferences. Default 100 ms keeps
-    // the CPU from pegging on long batches; 0 = run as fast as possible.
-    int autoTagCooldownMs = 100;
-    // Last-used input/output roots for the AutoTag page - convenience so the
-    // page reopens onto the same folders.
+    int autoTagCooldownMs = 100; // 0 = no cooldown between inferences
     QString autoTagInputFolder;
     QString autoTagOutputFolder;
-    // Last-used folder for the Tag Editor page.
     QString tagEditorFolder;
 
     // ── Auto-collect (Collector page) ────────────────────────────────────────
-    QString collectorWatchFolder;      // user's downloads dir
-    QString collectorActiveCollection; // last picked collection name
-    int collectorThreshold = 4;        // Hamming bits cutoff (0–16)
-    int collectorPollSeconds = 5;      // QTimer cadence
+    QString collectorWatchFolder;
+    QString collectorActiveCollection;
+    int collectorThreshold = 4;   // Hamming bits cutoff (0-16)
+    int collectorPollSeconds = 5;
 
     // ── Update checker ──────────────────────────────────────────────────────
-    // Unix epoch seconds of the last successful GitHub Releases API hit, so
-    // we can throttle to ~once/24h instead of pinging on every launch.
-    qint64 lastUpdateCheckTime = 0;
-    // Most-recent latest-release tag we've seen. Lets the UI re-show the
-    // "update available" label across launches without a fresh API hit.
+    qint64 lastUpdateCheckTime = 0; // unix epoch seconds, throttles checks
     QString lastKnownLatestVersion;
 
     // ─────────────────────────────────────────────────────────────────────────

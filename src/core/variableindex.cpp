@@ -25,7 +25,7 @@ VariableIndex VariableIndex::loadFromFile(const QString& path)
         const auto m = lineRe.match(line);
         if (!m.hasMatch()) continue;
         const QString name = m.captured(1);
-        if (seenNames.contains(name)) continue; // first definition wins
+        if (seenNames.contains(name)) continue; // first wins
         seenNames.insert(name);
         idx.m_variables << Variable{name, m.captured(2).trimmed()};
     }

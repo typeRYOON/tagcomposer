@@ -5,16 +5,12 @@
 
 namespace core {
 
-// File format (data/system/cluster_filters.fct):
-//   # comments and blank lines are ignored
-//   mode = blacklist        (or "whitelist")
-//
-//   facetA                  (one rule: tag must have facetA)
-//   facetA, facetB          (one rule: tag must have BOTH facetA and facetB)
-//   ...
-//
-// Saving normalizes whitespace, drops comments, and rewrites `mode = ...`
-// at the top.
+// File format:
+//   # blank lines and comments ignored
+//   mode = blacklist | whitelist
+//   facetA                  (rule: must have facetA)
+//   facetA, facetB          (rule: must have both)
+// Saving rewrites the whole file - comments don't survive a round-trip.
 
 static QList<QString> splitTrimmed(const QString& s, QChar sep)
 {

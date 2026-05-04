@@ -65,8 +65,8 @@ static QString evaluateDatePattern(const QString& pattern)
 // back Windows shell icons (or the Linux/macOS equivalents) which clash with
 // the painted-not-system look of the rest of the app. This provider returns
 // two simple painted glyphs - folder for directories, frame-with-mountain
-// for files - both in the muted-grey palette. Painted at 32×32 so the tree's
-// 16×16 display stays sharp on HiDPI screens.
+// for files - both in the muted-grey palette. Painted at 32x32 so the tree's
+// 16x16 display stays sharp on HiDPI screens.
 class FsTypeIconProvider : public QFileIconProvider {
 public:
     FsTypeIconProvider() : m_folder(makeFolder()), m_image(makeImage()) {}
@@ -114,7 +114,7 @@ private:
         p.setBrush(Qt::NoBrush);
         p.drawRoundedRect(QRectF(3, 5, 26, 22), 3, 3);
         // "Mountain range" inside - universal shorthand for an image. Filled
-        // rather than stroked so it stays readable when downscaled to 16×16.
+        // rather than stroked so it stays readable when downscaled to 16x16.
         p.setPen(Qt::NoPen);
         QPainterPath mtn;
         mtn.moveTo(6, 24);
@@ -196,7 +196,7 @@ signals:
     // Emitted when Escape is pressed while an item is selected. Used by the
     // page to bounce focus back to the tree. Always consumed (even in
     // fullscreen) so the user gets a one-step-at-a-time Escape ladder:
-    // right pane → tree → exit fullscreen.
+    // right pane -> tree -> exit fullscreen.
     void escapePressed();
 
 public:
@@ -506,7 +506,7 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
             &OutputViewerPage::focusThumbForImage);
 
     // Click in the right pane selects only; Enter (routed through
-    // OutputThumbList's keyPressEvent → enterActivated) is the commit action
+    // OutputThumbList's keyPressEvent -> enterActivated) is the commit action
     // that opens images / navigates folders.
     connect(m_thumbs, &OutputThumbList::enterActivated, this, &OutputViewerPage::onThumbActivated);
 
@@ -557,7 +557,7 @@ void OutputViewerPage::setOutputFolder(const QString& folderPattern)
     m_fsModel->setRootPath(m_root);
     m_tree->setRootIndex(m_fsModel->index(m_root));
 
-    // Resolve the configured pattern (e.g. `…/output/{yyyy-MM-dd}`) against
+    // Resolve the configured pattern (e.g. `.../output/{yyyy-MM-dd}`) against
     // today's date. If the resulting path exists, focus there straight away;
     // otherwise the user can navigate to it manually from the root.
     const QString datedPath = evaluateDatePattern(folderPattern);

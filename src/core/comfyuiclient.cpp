@@ -63,12 +63,10 @@ private slots:
             const QJsonObject data = msg["data"].toObject();
             const int step = data["step"].toInt();
             const int total = data["total_steps"].toInt();
-            // Comfy emits steps 0..total-1 (the decoded final image arrives
-            // *after* the last preview and isn't sent over the WS); +1 so the
-            // user-visible range is 1..total instead of 0..total-1.
+            // Comfy emits 0..total-1; +1 so user-visible is 1..total.
             emit previewProgressChanged(step + 1, total);
 
-            // Preview bytes from last gen gets passed for some reason from comfyui.
+            // ComfyUI re-emits the previous generation's preview at step 0.
             if (step == 0) return;
             const QByteArray imgBytes = QByteArray::fromBase64(data["image"].toString().toUtf8());
             QImage img;
@@ -234,8 +232,7 @@ void ComfyUiClient::uploadInput(const QString& localPath, const QString& subfold
         return;
     }
 
-    // Direct-write fast path - only meaningful when ComfyUI runs on the same
-    // machine and the user has pointed us at its input/ folder.
+    // Direct-write path: only when ComfyUI is local and input/ is configured.
     if (!localInputFolder.isEmpty()) {
         QDir target(localInputFolder);
         if (!target.mkpath(subfolder)) {
@@ -263,7 +260,7 @@ void ComfyUiClient::uploadInput(const QString& localPath, const QString& subfold
     }
 
     auto* multi = new QHttpMultiPart(QHttpMultiPart::FormDataType);
-    file->setParent(multi); // tied to multi's lifetime
+    file->setParent(multi);
 
     QHttpPart imagePart;
     const QString mime = QMimeDatabase().mimeTypeForFile(fi).name();

@@ -26,7 +26,7 @@ constexpr QRect kWordmarkRect{0, 0, 626, 173};
 
 // Bottom-strip insets - match the existing 20 px right margin we had before.
 constexpr int kBottomMargin = 20;
-// ryoon_logo.png is a wide wordmark, not a square - fixing it to N×N
+// ryoon_logo.png is a wide wordmark, not a square - fixing it to NxN
 // crushes it to a tiny strip. Scale it by height instead, let the width
 // follow the image's natural aspect.
 constexpr int kRyoonLogoHeight = 50;
@@ -64,9 +64,9 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent)
     m_updateLabel->setObjectName("HomeUpdateLabel");
     m_updateLabel->setAlignment(Qt::AlignCenter);
     m_updateLabel->hide();
-    m_updateLabel->installEventFilter(this); // click → release page
+    m_updateLabel->installEventFilter(this); // click -> release page
 
-    // ── ryoon logo, bottom-right corner, click → github profile ────────────
+    // ── ryoon logo, bottom-right corner, click -> github profile ──────────
     m_ryoonLogo = new QLabel(this);
     m_ryoonLogo->setObjectName("HomeRyoonLogo");
     {

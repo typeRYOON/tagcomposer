@@ -69,11 +69,9 @@ void TagIndex::remove(int32_t tagId, int32_t entryId)
         list.erase(it);
     }
 
-    // Optional cleanup:
-    if (list.isEmpty()) {
-        m_tagIdToEntryId.erase(itHash);
-        // DO NOT remove from m_tagToId unless you want aggressive pruning
-    }
+    // Drop the empty bucket but keep m_tagToId; aggressive pruning would
+    // invalidate live tag-id references the rest of the app holds.
+    if (list.isEmpty()) m_tagIdToEntryId.erase(itHash);
 }
 
 

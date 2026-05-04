@@ -17,9 +17,7 @@ static QList<QString> splitTrimmed(const QString& s, QChar sep)
     return out;
 }
 
-// Split `expr` by the literal token `sep` but only at the top level
-// (i.e. not inside parentheses). Needed so " OR " / " AND " inside
-// anyTag(...) argument lists are never treated as logic operators.
+// Top-level split (depth 0); parens-internal " AND "/" OR " stay intact.
 static QList<QString> splitTopLevel(const QString& expr, const QString& sep)
 {
     QList<QString> out;
@@ -44,7 +42,7 @@ static QList<QString> splitTopLevel(const QString& expr, const QString& sep)
     return out;
 }
 
-// Parse one atomic clause: [NOT] anyTag(facets: ...) | anyTag(name: "...")
+// [NOT] anyTag(facets: ...) | anyTag(name: "...")
 static MatchClause parseClause(const QString& raw)
 {
     MatchClause c;
@@ -70,9 +68,7 @@ static MatchClause parseClause(const QString& raw)
     return c;
 }
 
-// Parse the full match expression into OR-of-AND-groups.
-// Precedence: AND binds tighter than OR (standard).
-//   "A OR B AND C"  →  [ [A], [B, C] ]
+// Parses an OR of AND-groups; AND binds tighter (standard precedence).
 static RuleMatch parseMatch(const QString& expr)
 {
     RuleMatch m;
@@ -85,7 +81,6 @@ static RuleMatch parseMatch(const QString& expr)
     return m;
 }
 
-// Serialize one clause back to the file representation.
 static QString serializeClause(const MatchClause& c)
 {
     QString s;
@@ -101,9 +96,7 @@ static QString serializeClause(const MatchClause& c)
     return s;
 }
 
-// Parses comma-separated quoted or unquoted args from an expression like:
-//   add("closed eyes", "wink")   →  ["closed eyes", "wink"]
-//   flag(nsfw)                   →  ["nsfw"]
+// Comma-split args from add("a", "b") / flag(name) - quotes optional.
 static QList<QString> extractArgs(const QString& expr)
 {
     const int l = expr.indexOf('(');
@@ -133,8 +126,7 @@ static RuleAction parseAction(const QString& expr)
 {
     RuleAction a;
 
-    // Bare keywords match exactly; arg-taking keywords require an open paren
-    // so e.g. "addmore(...)" doesn't accidentally bind to "add(...)".
+    // Arg-taking keywords need the "(" so "addmore(...)" doesn't match "add".
     if (expr == "skip")
         a.type = ActionType::Skip;
     else if (expr == "delete")
@@ -156,14 +148,12 @@ static RuleAction parseAction(const QString& expr)
 }
 
 // ── Load ──────────────────────────────────────────────────────────────────────
-
-//  Format:
-//    @rule Name
-//        enabled = true
-//        match   = anyTag(facets: f1, f2)
-//        match   = anyTag(facets: hairstyle) AND NOT anyTag(facets: bangs)
-//        match   = anyTag(facets: eye_color) OR anyTag(facets: eye_shape)
-//        action  = replace("tag")
+// File format:
+//   @rule Name
+//       enabled = true
+//       match   = anyTag(facets: f1) AND NOT anyTag(facets: f2)
+//       match   = anyTag(facets: a) OR anyTag(name: "*pattern*")
+//       action  = replace("tag")
 
 RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
 {
@@ -179,7 +169,7 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
     Rule current;
     bool inRule{false};
     bool actionSet{false};
-    bool skipBlock{false}; // current @rule is a duplicate - drop until next @rule
+    bool skipBlock{false};
     QSet<QString> seenNames;
 
     auto finaliseRule = [&]() {
@@ -260,7 +250,6 @@ void RuleEngine::saveToFile(const QString& path) const
         ts << "    enabled = " << (r.enabled ? "true" : "false") << "\n";
         if (r.force) ts << "    force   = true\n";
 
-        // Serialize match: OR groups joined by " OR ", clauses within joined by " AND "
         QStringList orParts;
         for (const QList<MatchClause>& group : r.match.orGroups) {
             QStringList andParts;
@@ -314,8 +303,7 @@ const QList<Rule>& RuleEngine::rules() const
 
 bool RuleEngine::globMatch(const QString& pattern, const QString& text)
 {
-    // Cache compiled regexes - evaluate() runs this against every tag for
-    // every name-glob clause, so recompiling per-call adds up quickly.
+    // Cache: evaluate() calls this O(tags * clauses) per push.
     static QHash<QString, QRegularExpression> cache;
     auto it = cache.find(pattern);
     if (it == cache.end()) {

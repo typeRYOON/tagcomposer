@@ -50,9 +50,8 @@ void DownloadWatcher::start(const QString& watchFolder, const QString& collectio
     m_active = true;
     emit started();
 
-    // Immediate first tick so the user sees activity without waiting a full
-    // poll interval after pressing Start.
-    poll();
+    poll(); // immediate tick so the user sees activity right after Start
+
 }
 
 void DownloadWatcher::stop()
@@ -60,8 +59,6 @@ void DownloadWatcher::stop()
     if (!m_active) return;
     m_timer->stop();
     m_active = false;
-    // Persist any in-memory updates one last time. add() inside poll()
-    // already saves after each move, so this is mostly belt-and-braces.
     m_index.saveToDir(m_collectionDir);
     emit stopped();
 }
@@ -70,9 +67,7 @@ void DownloadWatcher::poll()
 {
     if (!m_active) return;
 
-    // Discover candidates. We don't recurse - the Python reference watches a
-    // flat downloads folder, and recursing would risk pulling files out of
-    // unrelated subdirectories the user hasn't opted in.
+    // No recurse: avoid grabbing files from unrelated subdirectories.
     QStringList candidates;
     for (const QString& pat : kImageExtensions) {
         QDirIterator it(m_watchFolder, {pat}, QDir::Files);
@@ -84,12 +79,7 @@ void DownloadWatcher::poll()
     for (const QString& src : candidates) {
         const QFileInfo fi(src);
 
-        // Skip files still being downloaded. Two heuristics:
-        //   1. Browser/wget/etc. typically write to a sibling .part file
-        //      (or the same name with a .part suffix) until the transfer
-        //      finishes - wait until that's gone.
-        //   2. A 0-byte file is mid-create (or a corruption); skip and let
-        //      the next tick find it once it has bytes.
+        // Skip files still downloading: .part sibling and 0-byte placeholders.
         if (QFile::exists(src + ".part")) continue;
         if (fi.size() == 0) continue;
 
@@ -99,8 +89,6 @@ void DownloadWatcher::poll()
             continue;
         }
 
-        // Dedup check against the collection. First match within threshold
-        // wins; the Python reference does the same via a flat set lookup.
         if (auto m = m_index.findNearest(hash, m_threshold); !m.filename.isEmpty()) {
             if (!QFile::moveToTrash(src)) {
                 emit error(QString("Recycle-bin failed for %1").arg(fi.fileName()));
@@ -112,7 +100,6 @@ void DownloadWatcher::poll()
             continue;
         }
 
-        // New image - allocate the next sequential number, rename + move.
         const int n = m_index.nextNumber();
         const QString destName =
             QString("%1.%2").arg(n, 5, 10, QChar('0')).arg(fi.suffix().toLower());
@@ -124,9 +111,7 @@ void DownloadWatcher::poll()
         }
 
         m_index.add(destName, hash);
-        // Save after every successful move so a crash/kill doesn't lose
-        // index state. The JSON is small (16-char hex per entry); writing
-        // it on each move is cheap even at thousands of entries.
+        // Save after every successful move so a crash/kill doesn't lose state.
         m_index.saveToDir(m_collectionDir);
         ++m_collected;
         emit imageMoved(src, destPath);

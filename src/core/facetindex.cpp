@@ -16,11 +16,10 @@ static QList<QString> splitTrimmed(const QString& s, QChar sep)
 }
 
 // ── Load ──────────────────────────────────────────────────────────────────────
-
-//  schemaPath format:
-//    @category Name   → open a new category
-//    f, f, f, ...     → facet declarations for current category
-//    tag = ...        → ignored (belongs in definitionsPath)
+// schema format:
+//   @category Name   - open a new category
+//   f, f, f          - facets in the current category
+//   tag = ...        - ignored here (belongs to definitionsPath)
 
 FacetIndex FacetIndex::loadFromFile(const QString& schemaPath)
 {
@@ -50,7 +49,7 @@ void FacetIndex::reloadSchemaFromFile(const QString& schemaPath)
             continue;
         }
 
-        if (line.contains('=')) continue; // tag definitions live in definitionsPath
+        if (line.contains('=')) continue; // belongs to definitionsPath
 
         if (!currentCat.isEmpty()) {
             for (const QString& facet : splitTrimmed(line, ',')) {
@@ -82,9 +81,7 @@ void FacetIndex::saveDefinitions(const QString& definitionsPath) const
     QFile f(definitionsPath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) return;
     QTextStream ts(&f);
-    // Sort so successive saves produce identical files when nothing changed
-    // (QHash iteration order is unspecified - would otherwise generate
-    // spurious diffs in version control).
+    // Sort for stable diffs - QHash iteration order is unspecified.
     QStringList tags = m_tagToFacets.keys();
     std::sort(tags.begin(), tags.end());
     for (const QString& tag : tags)

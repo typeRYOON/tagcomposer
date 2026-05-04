@@ -53,14 +53,12 @@ bool AutoTaggerModel::readConfig(const QString& configPath, QString* err)
 
     const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
 
-    // timm-style: pretrained_cfg.{input_size, mean, std}. Input size comes
-    // back as [3, H, W] (CHW). We use it as a fallback for H/W if the ONNX
-    // session reports dynamic dims; otherwise the session's shape wins.
+    // input_size comes back as [C, H, W]. Used only when the ONNX session
+    // reports dynamic dims; the session shape otherwise wins in initSession.
     const QJsonObject pre = root["pretrained_cfg"].toObject();
 
     const QJsonArray sz = pre["input_size"].toArray();
     if (sz.size() == 3) {
-        // [C, H, W]
         m_height = sz[1].toInt(m_height);
         m_width = sz[2].toInt(m_width);
     }
@@ -87,8 +85,7 @@ bool AutoTaggerModel::readTags(const QString& csvPath, QString* err)
         return false;
     }
 
-    // Header: tag_id,name,category,count
-    f.readLine();
+    f.readLine(); // header: tag_id,name,category,count
 
     int row = 0;
     while (!f.atEnd()) {
@@ -126,7 +123,7 @@ bool AutoTaggerModel::initSession(Ort::Env& env, const QString& modelPath, QStri
         m_session =
             std::make_unique<Ort::Session>(env, modelPath.toStdWString().c_str(), m_sessionOptions);
 
-        // I/O names - copy out so we can hand stable const char* to Run().
+        // Copy out so we can hand stable const char* to Run().
         Ort::AllocatorWithDefaultOptions allocator;
         {
             auto in = m_session->GetInputNameAllocated(0, allocator);
@@ -135,16 +132,13 @@ bool AutoTaggerModel::initSession(Ort::Env& env, const QString& modelPath, QStri
             m_outputName = out.get();
         }
 
-        // Layout + spatial dims from the ONNX model itself. The dims may be
-        // negative ("dynamic"); when they are, we keep whatever config.json
-        // said (already loaded into m_height/m_width).
+        // Dynamic dims show up as negative; fall back to config.json values
+        // (already in m_height/m_width) for those.
         const auto info = m_session->GetInputTypeInfo(0);
         const auto shape = info.GetTensorTypeAndShapeInfo().GetShape();
 
         if (shape.size() == 4) {
-            // Heuristic: a 3 in dim 1 means NCHW; a 3 in the trailing dim
-            // means NHWC. Models with dynamic channel dim default to NCHW
-            // (the more common ONNX layout for vision models).
+            // 3 at dim 1 = NCHW, 3 at last dim = NHWC; default NCHW otherwise.
             const int64_t d1 = shape[1];
             const int64_t d3 = shape[3];
             if (d1 == 3) {
@@ -179,10 +173,7 @@ std::vector<float> AutoTaggerModel::preprocessImage(const QString& imagePath) co
                                cv::IMREAD_UNCHANGED);
     if (img.empty()) return {};
 
-    // Alpha handling. Mirrors the reference autotagger: grayscale → 3-channel,
-    // RGBA → drop alpha (no compositing - the model's resilient to whatever
-    // OpenCV produces here). Reduces depth to 8-bit if the source was 16-bit
-    // PNG/etc.
+    // Grayscale -> 3-channel; RGBA -> drop alpha; downcast 16-bit to 8-bit.
     if (img.channels() == 1) {
         cv::cvtColor(img, img, cv::COLOR_GRAY2RGB);
     }
@@ -209,23 +200,18 @@ std::vector<float> AutoTaggerModel::preprocessImage(const QString& imagePath) co
     cv::Mat resized;
     cv::resize(square, resized, cv::Size(m_width, m_height), 0, 0, cv::INTER_CUBIC);
 
-    // Cast to float32 with raw [0, 255] BGR values - no /255, no mean/std.
-    // This ONNX export bakes the normalization into the graph, so feeding
-    // pre-normalized inputs makes the activations collapse and the model
-    // returns the "blank dark image" cluster of tags. config.json's
-    // mean/std fields apply to the original PyTorch pipeline, not the ONNX
-    // surface - for this model family they're informational only.
+    // Raw [0, 255] BGR float - DO NOT normalize. This ONNX family bakes
+    // mean/std into the graph; pre-normalizing collapses activations.
     cv::Mat floatImg;
     resized.convertTo(floatImg, CV_32F);
 
     const int H2 = m_height, W2 = m_width;
     std::vector<float> out;
     if (m_layout == Layout::NHWC) {
-        // floatImg is H x W x 3 interleaved - direct memory copy works.
+        // H x W x 3 interleaved - direct memcpy.
         out.assign((float*)floatImg.datastart, (float*)floatImg.dataend);
     }
     else {
-        // NCHW: (3, H, W). Split + pack channel-major.
         out.resize(size_t(3) * H2 * W2);
         std::vector<cv::Mat> ch(3);
         cv::split(floatImg, ch);
@@ -280,9 +266,7 @@ TagResult AutoTaggerModel::interpretOutput(const float* out, int64_t outSize, fl
     const int64_t N = std::min<int64_t>(m_tagInfo.size(), outSize);
     constexpr int kNearMissCount = 50;
 
-    // Rating: argmax over the rating subset. Rating tags are still scored
-    // by sigmoid by these models, but only one rating ever applies, so the
-    // top one wins.
+    // Rating: argmax over the rating subset (only one ever applies).
     int bestRatingIdx = -1;
     float bestRatingScore = -1.0f;
     for (int idx : m_ratingIndices) {
@@ -297,8 +281,6 @@ TagResult AutoTaggerModel::interpretOutput(const float* out, int64_t outSize, fl
         result.ratingScore = bestRatingScore;
     }
 
-    // Split tags into above/below threshold in one pass; both lists need
-    // sorting afterwards.
     QList<TagPrediction> below;
     for (int64_t i = 0; i < N; ++i) {
         const TagInfo& ti = m_tagInfo[int(i)];
@@ -314,8 +296,6 @@ TagResult AutoTaggerModel::interpretOutput(const float* out, int64_t outSize, fl
     };
     std::sort(result.tags.begin(), result.tags.end(), byScoreDesc);
 
-    // Top-N near misses - partial sort is enough since we only show the
-    // first kNearMissCount.
     if (below.size() > kNearMissCount) {
         std::partial_sort(below.begin(), below.begin() + kNearMissCount, below.end(), byScoreDesc);
         below.resize(kNearMissCount);

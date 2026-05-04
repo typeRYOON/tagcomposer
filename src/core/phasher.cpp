@@ -7,10 +7,7 @@ namespace core {
 
 namespace {
 
-// Computes a 64-bit pHash from an in-memory cv::Mat. Direct port of the
-// reference phash.cc - kept identical to the implementation we already
-// validated, so a hash from this app is byte-equivalent to one from the
-// standalone tool.
+// Direct port of phash.cc - hashes are byte-equivalent to the reference tool.
 uint64_t phashOf(const cv::Mat& input)
 {
     if (input.empty()) return 0;
@@ -36,8 +33,7 @@ uint64_t phashOf(const cv::Mat& input)
 
     const cv::Mat dct_low = dct_img(cv::Rect(0, 0, 8, 8)).clone();
 
-    // Median over the 8x8 block, skipping the DC coefficient at [0,0]
-    // (its huge magnitude would skew the median otherwise).
+    // Skip [0,0] (DC) - its magnitude would skew the median.
     std::vector<float> vals;
     vals.reserve(63);
     for (int i = 0; i < 8; ++i)
@@ -67,7 +63,6 @@ uint64_t phashFile(const QString& imagePath)
     const QByteArray buffer = f.readAll();
     if (buffer.isEmpty()) return 0;
 
-    // imdecode handles every format OpenCV was built with - png/jpg/webp/bmp/gif.
     cv::Mat data(1, int(buffer.size()), CV_8UC1, (void*)buffer.data());
     cv::Mat img = cv::imdecode(data, cv::IMREAD_UNCHANGED);
     if (img.empty()) return 0;

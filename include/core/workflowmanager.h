@@ -17,18 +17,15 @@ struct LatentSizeEntry {
 };
 
 // Non-destructive edits applied to an image-typed workflow var at upload time.
-// The source PNG in WorkflowInputCache is never mutated; instead, resolveEdited()
-// renders a derived PNG (cached on disk) when these edits are non-trivial.
-//
-// The mask is the canonical alpha source post-Phase 2. cropRect is kept around
-// for two purposes: (a) backward-compat read of older "rect only" edits, and
-// (b) trim-mode bounds when the user wants to ship a smaller cropped image.
+// resolveEdited() renders a derived PNG (cached) rather than mutating source.
+// The mask is the canonical alpha source; cropRect serves both legacy
+// rect-as-mask reads and trim-mode bounds.
 struct ImageEdits {
-    bool enabled = false;    // master switch - unedited images skip the resolve path
-    QRect cropRect;          // bounds for trim mode + legacy "rect-as-mask" form
-    QString maskId;          // uuid into WorkflowInputCache's _masks/; empty = no painted mask
-    bool trimToCrop = false; // false → source-sized output with mask shaping alpha
-                             // true  → output canvas is the cropRect at full alpha (no mask)
+    bool enabled = false;
+    QRect cropRect;
+    QString maskId;          // uuid in WorkflowInputCache's _masks/, empty = no mask
+    bool trimToCrop = false; // true: output canvas is cropRect at full alpha
+                             // false: source-sized output with mask shaping alpha
 
     bool operator==(const ImageEdits& other) const
     {
@@ -40,9 +37,8 @@ struct ImageEdits {
         return !(*this == other);
     }
 
-    // Stable short hex digest of the active edit fields. Used as the upload-
-    // tracking key (so editing an already-uploaded image triggers re-upload)
-    // and as the on-disk cache directory for the rendered variant.
+    // Stable short hex digest of the active edit fields, used as the upload
+    // key and the cache directory for the rendered variant.
     QString hash() const;
 };
 
@@ -55,19 +51,18 @@ struct WorkflowVar {
     int intValue = 0;
     double floatValue = 0.0;
     QString searchDir;
-    QString selectedFile; // absolute path
+    QString selectedFile;
     QString extensionFilter;
-    QString imageUuid;     // for Image type - references WorkflowInputCache
-    ImageEdits imageEdits; // for Image type - applied at upload time
-    QStringList
-        wildcardTags; // for Wildcard type - one line per slot; commas split into multiple tags at pick time
+    QString imageUuid;          // Image: references WorkflowInputCache
+    ImageEdits imageEdits;      // Image: applied at upload
+    QStringList wildcardTags;   // Wildcard: one line per slot, comma-split at pick
 };
 
 struct WorkflowFile {
-    QString id; // stable timestamp-based identifier
+    QString id; // stable timestamp-based id
     QString name;
     QString path;
-    QList<WorkflowVar> vars; // variables belonging to this workflow
+    QList<WorkflowVar> vars;
 };
 
 class WorkflowManager {
@@ -84,8 +79,7 @@ public:
         return m_files;
     }
 
-    // Returns the variable list for the currently selected workflow.
-    // Returns a reference to an empty list if no workflow is selected.
+    // Variables of the selected workflow; empty list if no selection.
     QList<WorkflowVar>& variables();
     const QList<WorkflowVar>& variables() const;
 
@@ -99,58 +93,43 @@ public:
     }
 
     const WorkflowFile* selectedFile() const;
-
-    // Returns index of the workflow with the given id, or -1 if not found.
     int workflowIndexById(const QString& id) const;
 
-    // Returns jsonContent with __PLACEHOLDER__ tokens replaced by current values.
-    // Advances increment-mode seeds as a side effect.
+    // Replaces __PLACEHOLDER__ tokens; advances Increment seeds as a side effect.
     QString applyToJson(const QString& jsonContent);
 
-    // Picks one random entry from each Wildcard variable, splitting comma-separated
-    // bundles into individual tags. Call once per prompt run; the returned tags
-    // are intended to be unioned into the composer's positive prompt so the rule
-    // engine and replacement vars apply to them. Pure: doesn't mutate state.
+    // One random pick per Wildcard var, comma-bundles split into tags.
+    // Caller unions the result into the positive prompt before pipeline runs.
     QStringList pickWildcardTags() const;
 
-    // Single-WorkflowVar (de)serialization. Public so saved-state code shares
-    // the same JSON format as workflows.json - keeps the formats from drifting
-    // (and silently dropping fields like wildcardTags or imageEdits).
-    // varFromJson accepts legacy CamelCase type names ("Seed", "String", ...)
-    // and integer seedBehavior values that the saved-state code wrote before
-    // unification.
+    // Public so saved-state shares one var JSON format with workflows.json,
+    // preventing silent drift on fields like wildcardTags or imageEdits.
+    // varFromJson tolerates legacy CamelCase type names and integer seedBehavior.
     static QJsonObject varToJson(const WorkflowVar& var);
     static WorkflowVar varFromJson(const QJsonObject& obj);
 
-    // String <-> enum for WorkflowVarType. Canonical form is lowercase
-    // ("seed", "string", ...); fromStr also accepts CamelCase legacy names.
+    // typeFromStr also accepts legacy CamelCase forms.
     static QString typeToStr(WorkflowVarType t);
     static WorkflowVarType typeFromStr(const QString& s);
 
-    // Substitutes the __positive__ token in a workflow JSON with the prompt,
-    // adding the surrounding JSON quotes itself. Accepts both the legacy form
-    // ("__positive__" already wrapped in quotes inside the template) and the
-    // bare form (__positive__) - workflow authors can write whichever they
-    // find more natural. promptForJson must already be JSON-escape-safe;
-    // PromptPipeline::buildPromptString(forJson=true) returns a string fit
-    // for direct embedding.
+    // Replaces __positive__ with a JSON-quoted prompt. Accepts both
+    // "__positive__" (template already quoted) and bare __positive__.
+    // promptForJson must be pre-escaped; see PromptPipeline::buildPromptString.
     static void applyPositive(QString& json, const QString& promptForJson);
 
-    // Fills __lora_count__, __lora_name_N__, __lora_wt_N__, __lora_model_str_N__,
-    // __lora_clip_str_N__ for N in 1..maxSlots. Empty slots get "None" / defaults.
-    // Each LoraConfig::file is already a path relative to its named root;
-    // ComfyUI's extra_model_paths.yaml resolves the relative name against
-    // whichever root holds it. Caller is responsible for healing across roots
-    // before invoking, see LoraConfig::healAcrossRoots.
+    // Fills __lora_count__ / __lora_name_N__ / __lora_wt_N__ /
+    // __lora_model_str_N__ / __lora_clip_str_N__. Empty slots get "None".
+    // Each LoraConfig::file is a path relative to its named root; ComfyUI's
+    // extra_model_paths.yaml resolves it. Caller heals across roots first.
     static void applyLoraStack(QString& json, const QList<LoraConfig>& loras,
                                int maxSlots = 10);
 
-    // Parses a latent_sizes.txt file (format: "width height" per line, # comments).
+    // Parses latent_sizes.txt (format: "width height" per line, # comments).
     static QList<LatentSizeEntry> loadLatentSizes(const QString& path);
 
 private:
     QList<WorkflowFile> m_files;
-    QList<WorkflowVar> m_fallbackVars; // returned when no workflow is selected
+    QList<WorkflowVar> m_fallbackVars;
     int m_selectedIndex = -1;
 };
 

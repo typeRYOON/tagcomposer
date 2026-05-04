@@ -12,16 +12,13 @@ public:
     explicit PromptPipeline(FacetIndex* facets, RuleEngine* rules, VariableIndex* vars = nullptr,
                             QObject* parent = nullptr);
 
-    // Push the active image's tags through the full pipeline.
-    // Emits pipelineReady when done.
+    // Async: emits pipelineReady on completion.
     void push(const QList<QString>& tags);
 
-    // Same logic as push() but synchronous - returns the resulting groups
-    // directly without emitting. Used by the batch runner to compute prompts
-    // for arbitrary entry tag sets without disturbing composer state.
+    // Synchronous variant; used by the batch runner.
     QList<CategoryGroup> evaluate(const QList<QString>& tags) const;
 
-    // Formats the groups into a prompt string (only Include + Injected tags).
+    // Joins Include + Injected tags into a comma-separated prompt string.
     static QString buildPromptString(const QList<CategoryGroup>& groups, bool forJson);
 
 signals:

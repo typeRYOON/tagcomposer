@@ -32,8 +32,8 @@ ChromedDialog::ChromedDialog(QWidget* parent) : QDialog(parent)
     outer->addWidget(m_chrome->frame());
 
     // Fade in/out on show/close - matches AppMainWindow & PreviewPopoutWindow.
-    // The first showEvent transitions opacity from 0 → 1; done() (covering
-    // accept/reject and the default closeEvent) fades 1 → 0 then defers to
+    // The first showEvent transitions opacity from 0 -> 1; done() (covering
+    // accept/reject and the default closeEvent) fades 1 -> 0 then defers to
     // QDialog::done() so exec() returns only after the animation finishes.
     setWindowOpacity(0.0);
 }

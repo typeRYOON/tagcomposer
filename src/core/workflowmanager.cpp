@@ -38,8 +38,7 @@ QString WorkflowManager::typeToStr(WorkflowVarType t)
 
 WorkflowVarType WorkflowManager::typeFromStr(const QString& s)
 {
-    // Lowercase canonical first; CamelCase aliases recognise legacy saved
-    // states written before workflowmanager.cpp's serializer was reused.
+    // CamelCase forms are the legacy saved-state shape; accept both.
     if (s == "seed" || s == "Seed") return WorkflowVarType::Seed;
     if (s == "integer" || s == "Integer") return WorkflowVarType::Integer;
     if (s == "float" || s == "Float") return WorkflowVarType::Float;
@@ -70,7 +69,6 @@ static SeedBehavior seedBehFromStr(const QString& s)
     return SeedBehavior::Randomize;
 }
 
-// Only serialize fields relevant to each var type.
 QJsonObject WorkflowManager::varToJson(const WorkflowVar& var)
 {
     QJsonObject o;
@@ -100,8 +98,6 @@ QJsonObject WorkflowManager::varToJson(const WorkflowVar& var)
         break;
     case WorkflowVarType::Image:
         o["imageUuid"] = var.imageUuid;
-        // Only persist edits when actually engaged - keeps unedited workflow
-        // files visually clean and avoids touching old workflow files on save.
         if (var.imageEdits.enabled) {
             QJsonObject e;
             e["enabled"] = true;
@@ -132,8 +128,7 @@ WorkflowVar WorkflowManager::varFromJson(const QJsonObject& o)
     var.type = typeFromStr(o["type"].toString());
     switch (var.type) {
     case WorkflowVarType::Seed: {
-        // Legacy saved-state JSON encoded seedBehavior as the enum's int
-        // value rather than the canonical string - accept either.
+        // Legacy saved-state shape: seedBehavior as raw int rather than string.
         const QJsonValue sb = o["seedBehavior"];
         var.seedBehavior = sb.isString() ? seedBehFromStr(sb.toString())
                                          : SeedBehavior(sb.toInt(int(SeedBehavior::Randomize)));
@@ -190,10 +185,7 @@ QString ImageEdits::hash() const
     h.addData(",");
     h.addData(trimToCrop ? "1" : "0");
     h.addData(",");
-    // maskId is content-addressed by the cache (new uuid per saved mask), so
-    // including it captures any change to the painted mask.
     h.addData(maskId.toUtf8());
-    // First 12 hex chars is plenty for collision-avoidance at our scale.
     return QString::fromLatin1(h.result().toHex().left(12));
 }
 
@@ -222,8 +214,7 @@ WorkflowManager WorkflowManager::loadFromFile(const QString& path)
     const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
     wm.m_selectedIndex = root["selectedIndex"].toInt(-1);
 
-    // Backward compat: old format stored a top-level "variables" array.
-    // If present and no file has its own vars, load them into the selected file.
+    // Legacy shape: top-level "variables" array instead of per-file lists.
     const QJsonArray legacyVars = root["variables"].toArray();
 
     const qint64 loadBase = QDateTime::currentMSecsSinceEpoch();
@@ -240,7 +231,6 @@ WorkflowManager WorkflowManager::loadFromFile(const QString& path)
         wm.m_files << wf;
     }
 
-    // Apply legacy top-level vars to the selected file if it has none.
     if (!legacyVars.isEmpty() && wm.m_selectedIndex >= 0 &&
         wm.m_selectedIndex < wm.m_files.size() && wm.m_files[wm.m_selectedIndex].vars.isEmpty()) {
         for (const QJsonValue& v : legacyVars)
@@ -292,8 +282,7 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
     QString result = jsonContent;
 
     for (WorkflowVar& var : variables()) {
-        // Wildcards have no JSON placeholder substitution - they're injected
-        // into the positive prompt by the run path via pickWildcardTags().
+        // Wildcards bypass placeholder substitution; they enter via pickWildcardTags.
         if (var.type == WorkflowVarType::Wildcard) continue;
         if (var.placeholder.isEmpty()) continue;
 
@@ -306,11 +295,11 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
                 seed = var.seedValue;
                 break;
             case SeedBehavior::Increment:
-                seed = ++var.seedValue; // pre-increment: stored value == used value
+                seed = ++var.seedValue;
                 break;
             case SeedBehavior::Randomize:
                 seed = QRandomGenerator::global()->generate64() & 0x7FFFFFFFFFFFFFFF;
-                var.seedValue = qint64(seed); // store so editor/state reflect actual seed used
+                var.seedValue = qint64(seed); // mirror back so the editor reflects the used seed
                 break;
             }
             replacement = QString::number(seed);
@@ -337,8 +326,6 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
             replacement = "\"" + var.stringValue + "\"";
             break;
         case WorkflowVarType::Image:
-            // Empty when unset - produces an empty JSON string, which ComfyUI
-            // will reject downstream with a clearer error than a parse failure.
             replacement = "\"" +
                           (var.imageUuid.isEmpty() ? QString()
                                                    : WorkflowInputCache::serverSubfolder() + "/" +
@@ -346,8 +333,7 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
                           "\"";
             break;
         case WorkflowVarType::Wildcard:
-            // Unreachable: wildcards are filtered out before this switch.
-            break;
+            break; // unreachable, filtered above
         }
 
         result.replace(var.placeholder, replacement);
@@ -374,9 +360,7 @@ QStringList WorkflowManager::pickWildcardTags() const
 
 void WorkflowManager::applyPositive(QString& json, const QString& promptForJson)
 {
-    // Wrap the prompt in JSON quotes here so authors can write either
-    // "__positive__" (legacy: token already inside literal quotes) or just
-    // __positive__ (bare) and get the same valid JSON either way.
+    // Quote here so authors can write either "__positive__" or bare __positive__.
     const QString quoted = '"' + promptForJson + '"';
     json.replace("\"__positive__\"", quoted);
     json.replace("__positive__", quoted);

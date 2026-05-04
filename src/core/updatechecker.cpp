@@ -36,13 +36,11 @@ void UpdateChecker::checkNow()
         return;
     }
 
+    // Anonymous GitHub Releases is 60/hr/IP; AppMainWindow throttles to 1/day.
     QNetworkRequest req(
         QUrl(QString("https://api.github.com/repos/%1/releases/latest").arg(m_repo)));
     req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer-UpdateChecker");
     req.setRawHeader("Accept", "application/vnd.github+json");
-    // GitHub Releases API; anonymous requests are rate-limited (60/hr/IP),
-    // which is plenty since AppMainWindow throttles to once/24h via the
-    // lastUpdateCheckTime setting.
 
     auto* reply = m_nam->get(req);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -70,9 +68,7 @@ void UpdateChecker::checkNow()
             obj.value("html_url")
                 .toString(QString("https://github.com/%1/releases/latest").arg(m_repo));
 
-        // Normalize the tag for the user-facing version string (strip a
-        // leading 'v' so "v0.2.0" displays as "0.2.0"). The numeric compare
-        // tolerates either form.
+        // Strip leading "v" for the user-facing string.
         QString latest = tag;
         if (latest.startsWith('v', Qt::CaseInsensitive)) latest = latest.mid(1);
 
@@ -87,7 +83,7 @@ int UpdateChecker::compareVersions(const QString& a, const QString& b)
 {
     auto split = [](QString s) -> QList<int> {
         if (s.startsWith('v', Qt::CaseInsensitive)) s = s.mid(1);
-        // Drop prerelease / build suffixes - "0.1.0-beta1" → "0.1.0".
+        // Drop prerelease/build suffixes: "0.1.0-beta1" -> "0.1.0".
         const int cut = s.indexOf(QRegularExpression(QStringLiteral("[-+]")));
         if (cut >= 0) s = s.left(cut);
 

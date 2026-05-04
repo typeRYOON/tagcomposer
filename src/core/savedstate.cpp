@@ -64,10 +64,7 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
         s.ruleArguments[it.key()] = args;
     }
 
-    // varValues: array form is current ([{name, value}, ...]) and preserves
-    // user-visible ordering. Object form is the legacy shape; JSON objects
-    // have no defined order so we just take whatever Qt's iteration gives,
-    // which means legacy saves can re-order on first re-save (but only once).
+    // Array form preserves user order; object form is legacy and reorders once.
     {
         const QJsonValue vv = obj["varValues"];
         if (vv.isArray()) {
@@ -85,8 +82,7 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
 
     s.selectedWorkflowId = obj["selectedWorkflowId"].toString();
     {
-        // Accept both new array form and legacy object form. Object → array
-        // conversion picks up the placeholder from the object key.
+        // Legacy object form: placeholder is the key, payload is the value.
         const QJsonValue wfv = obj["workflowVarValues"];
         if (wfv.isArray()) {
             s.workflowVarValues = wfv.toArray();
@@ -148,7 +144,6 @@ QJsonObject SavedState::toJson() const
     }
     obj["ruleArguments"] = ruleArgsObj;
 
-    // Write as an array so on-disk order matches the user's variable order.
     QJsonArray varsArr;
     for (const auto& v : varValues) {
         QJsonObject one;
@@ -177,13 +172,12 @@ StateManager StateManager::loadFromDir(const QString& dir)
     QDir d(dir);
     if (!d.exists()) return sm;
 
-    // Each subdirectory is one state; sort by name (timestamp IDs → chronological)
+    // One state per subdir; sort by name = chronological since IDs are timestamps.
     const QStringList subs = d.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
     for (const QString& sub : subs) {
         QFile f(dir + "/" + sub + "/state.json");
         if (!f.open(QIODevice::ReadOnly)) continue;
         SavedState s = SavedState::fromJson(QJsonDocument::fromJson(f.readAll()).object());
-        // Resolve the preview filename to a full path
         if (!s.previewImagePath.isEmpty()) {
             const QString full = dir + "/" + sub + "/" + s.previewImagePath;
             s.previewImagePath = QFile::exists(full) ? full : QString();
