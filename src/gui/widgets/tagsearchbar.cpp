@@ -294,8 +294,14 @@ bool TagSearchBar::eventFilter(QObject* obj, QEvent* event)
                 return true;
             }
             case Qt::Key_Escape:
-                hidePopup();
-                return true;
+                // Only consume Escape if the autocomplete popup is actually
+                // visible; otherwise let it bubble up so the parent window
+                // can handle it (e.g. exit fullscreen via AppMainWindow).
+                if (m_popup->isVisible()) {
+                    hidePopup();
+                    return true;
+                }
+                return false;
             }
         }
         if (event->type() == QEvent::FocusOut) {
