@@ -269,6 +269,28 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     loraRow->addWidget(m_loraBaseDir, 1);
     loraRow->addWidget(loraBrowseBtn);
 
+    m_loraTestDir = new QLineEdit;
+    m_loraTestDir->setObjectName("SettingsInput");
+    m_loraTestDir->setPlaceholderText(
+        "Optional - secondary lora folder for testing (e.g. C:/Users/.../Downloads)");
+    m_loraTestDir->setText(settings->loraTestDir);
+
+    auto* loraTestBrowseBtn = new QPushButton("Browse");
+    loraTestBrowseBtn->setObjectName("SettingsBrowseBtn");
+    loraTestBrowseBtn->setCursor(Qt::PointingHandCursor);
+    loraTestBrowseBtn->setFixedWidth(70);
+
+    auto* loraTestRow = new QHBoxLayout;
+    loraTestRow->setSpacing(6);
+    loraTestRow->addWidget(m_loraTestDir, 1);
+    loraTestRow->addWidget(loraTestBrowseBtn);
+
+    auto* loraTestHint =
+        new QLabel("Files dropped from this folder are recognised as already-placed and skip "
+                   "the import dialog. Match this to ComfyUI's extra_model_paths.yaml entry.");
+    loraTestHint->setObjectName("SettingsHintLabel");
+    loraTestHint->setWordWrap(true);
+
     m_inputFolder = new QLineEdit;
     m_inputFolder->setObjectName("SettingsInput");
     m_inputFolder->setPlaceholderText(
@@ -311,14 +333,17 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     detailLayout->addLayout(tempRow, 5, 1);
     detailLayout->addWidget(makeLabel("LoRA folder"), 6, 0);
     detailLayout->addLayout(loraRow, 6, 1);
-    detailLayout->addWidget(makeLabel("Input folder"), 7, 0);
-    detailLayout->addLayout(inputRow, 7, 1);
-    detailLayout->addWidget(inputHint, 8, 1);
+    detailLayout->addWidget(makeLabel("LoRA test folder"), 7, 0);
+    detailLayout->addLayout(loraTestRow, 7, 1);
+    detailLayout->addWidget(loraTestHint, 8, 1);
+    detailLayout->addWidget(makeLabel("Input folder"), 9, 0);
+    detailLayout->addLayout(inputRow, 9, 1);
+    detailLayout->addWidget(inputHint, 10, 1);
     auto* btnRow = new QHBoxLayout;
     btnRow->setSpacing(8);
     btnRow->addWidget(connectBtn);
     btnRow->addStretch();
-    detailLayout->addLayout(btnRow, 9, 1);
+    detailLayout->addLayout(btnRow, 11, 1);
 
     comfyLayout->addWidget(m_comfyDetails);
     bodyLayout->addWidget(comfyGroup);
@@ -561,6 +586,20 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
         if (dir.isEmpty()) return;
         m_loraBaseDir->setText(dir);
         m_settings->loraBaseDir = dir;
+        emit settingsChanged();
+    });
+
+    connect(m_loraTestDir, &QLineEdit::editingFinished, this, [this]() {
+        m_settings->loraTestDir = m_loraTestDir->text().trimmed();
+        emit settingsChanged();
+    });
+
+    connect(loraTestBrowseBtn, &QPushButton::clicked, this, [this]() {
+        const QString dir = QFileDialog::getExistingDirectory(this, "Select LoRA Test Folder",
+                                                              m_loraTestDir->text().trimmed());
+        if (dir.isEmpty()) return;
+        m_loraTestDir->setText(dir);
+        m_settings->loraTestDir = dir;
         emit settingsChanged();
     });
 

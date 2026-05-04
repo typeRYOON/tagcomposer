@@ -138,9 +138,12 @@ public:
 
     // Fills __lora_count__, __lora_name_N__, __lora_wt_N__, __lora_model_str_N__,
     // __lora_clip_str_N__ for N in 1..maxSlots. Empty slots get "None" / defaults.
-    // baseDir is the absolute path LoRA filenames are made relative to.
+    // Each LoraConfig::file is already a path relative to its named root;
+    // ComfyUI's extra_model_paths.yaml resolves the relative name against
+    // whichever root holds it. Caller is responsible for healing across roots
+    // before invoking, see LoraConfig::healAcrossRoots.
     static void applyLoraStack(QString& json, const QList<LoraConfig>& loras,
-                               const QString& baseDir, int maxSlots = 10);
+                               int maxSlots = 10);
 
     // Parses a latent_sizes.txt file (format: "width height" per line, # comments).
     static QList<LatentSizeEntry> loadLatentSizes(const QString& path);

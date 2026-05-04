@@ -641,29 +641,47 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                         }
                     }
 
-                    // Determine where the LoRA file should live. If the dropped
-                    // file is outside the configured lora folder, prompt the user
-                    // for a relative path and move it in. Reject the drop entirely
-                    // if no lora folder is configured - silently using a path
-                    // outside the canonical folder breaks workflow JSON paths.
-                    QString finalPath = path;
+                    // Classify the dropped file against the two configured roots.
+                    // Inside primary or test = already placed where ComfyUI can
+                    // see it, no move needed. Outside both = prompt the user
+                    // and move into primary. Primary must be configured at all
+                    // times - silently using paths outside the canonical roots
+                    // breaks workflow JSON paths.
+                    QString finalRootKey;
+                    QString finalRel;
                     {
-                        if (m_loraBaseDir.isEmpty()) {
+                        if (m_loraPrimaryDir.isEmpty()) {
                             emit statusMessageRequested(
                                 "LoRA folder not set in Settings - drop rejected");
                             return;
                         }
                         const QString absPath = QDir::cleanPath(QDir(path).absolutePath());
-                        const QString absBase = QDir::cleanPath(QDir(m_loraBaseDir).absolutePath());
-                        const bool insideLoraDir =
-                            absPath.startsWith(absBase + "/", Qt::CaseInsensitive) ||
-                            absPath.startsWith(absBase + "\\", Qt::CaseInsensitive);
+                        const auto detectInside = [&](const QString& dir) -> QString {
+                            if (dir.isEmpty()) return {};
+                            const QString d = QDir::cleanPath(QDir(dir).absolutePath());
+                            if (absPath.startsWith(d + "/", Qt::CaseInsensitive) ||
+                                absPath.startsWith(d + "\\", Qt::CaseInsensitive)) {
+                                return QDir(d).relativeFilePath(absPath);
+                            }
+                            return {};
+                        };
+                        const QString relInPrimary = detectInside(m_loraPrimaryDir);
+                        const QString relInTest = detectInside(m_loraTestDir);
 
-                        if (!insideLoraDir) {
-                            LoraImportDialog dlg(path, m_loraBaseDir, this);
+                        if (!relInPrimary.isEmpty()) {
+                            finalRootKey = "primary";
+                            finalRel = relInPrimary;
+                        }
+                        else if (!relInTest.isEmpty()) {
+                            finalRootKey = "test";
+                            finalRel = relInTest;
+                        }
+                        else {
+                            // Outside both - prompt for a path under primary.
+                            LoraImportDialog dlg(path, m_loraPrimaryDir, this);
                             if (dlg.exec() != QDialog::Accepted) return;
                             const QString rel = dlg.relativePath();
-                            const QString dest = m_loraBaseDir + "/" + rel;
+                            const QString dest = m_loraPrimaryDir + "/" + rel;
 
                             QDir().mkpath(QFileInfo(dest).absolutePath());
 
@@ -677,7 +695,8 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                                 }
                                 QFile::remove(path);
                             }
-                            finalPath = dest;
+                            finalRootKey = "primary";
+                            finalRel = rel;
                             emit statusMessageRequested(QString("LoRA moved to: %1").arg(rel));
                         }
                     }
@@ -690,13 +709,14 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                     if (!targetEntry) return;
 
                     if (!targetEntry->lora.has_value()) targetEntry->lora = core::LoraConfig{};
-                    targetEntry->lora->file = finalPath;
+                    targetEntry->lora->rootKey = finalRootKey;
+                    targetEntry->lora->file = finalRel;
                     targetEntry->lora->sha256 = hash;
                     m_model->saveEntry(entryId);
 
                     if (m_entry == targetEntry) refreshLoraSection();
                     emit statusMessageRequested(
-                        QString("LoRA assigned: %1").arg(QFileInfo(finalPath).fileName()));
+                        QString("LoRA assigned: %1").arg(QFileInfo(finalRel).fileName()));
                 });
         watcher->setFuture(QtConcurrent::run([path]() -> QString {
             QFile f(path);
@@ -709,7 +729,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
 
     loraDropZone->onContextMenuRequested = [this](const QPoint& globalPos) {
         if (!m_entry || !m_entry->lora.has_value()) return;
-        const QString path = m_entry->lora->file;
+        const QString path = m_entry->lora->absolutePath(m_loraPrimaryDir, m_loraTestDir);
         const QFileInfo fi(path);
 
         QMenu menu;
@@ -1001,9 +1021,10 @@ void EntryPanel::setActiveGroups(const QMap<int, QList<int>>& groups)
     updateExtraBtnState();
 }
 
-void EntryPanel::setLoraBaseDir(const QString& dir)
+void EntryPanel::setLoraDirs(const QString& primaryDir, const QString& testDir)
 {
-    m_loraBaseDir = dir;
+    m_loraPrimaryDir = primaryDir;
+    m_loraTestDir = testDir;
 }
 
 void EntryPanel::setComfyClient(core::ComfyUiClient* client)

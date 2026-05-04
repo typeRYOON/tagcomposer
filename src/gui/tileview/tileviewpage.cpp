@@ -166,9 +166,9 @@ QList<QString> TileViewPage::activeLoraUuids() const
     return m_entryView->activeLoraUuids();
 }
 
-void TileViewPage::setLoraBaseDir(const QString& dir)
+void TileViewPage::setLoraDirs(const QString& primaryDir, const QString& testDir)
 {
-    m_entryPanel->setLoraBaseDir(dir);
+    m_entryPanel->setLoraDirs(primaryDir, testDir);
 }
 
 void TileViewPage::setComfyClient(core::ComfyUiClient* client)

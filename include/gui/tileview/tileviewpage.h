@@ -26,7 +26,7 @@ public:
     void setDanbooruIndex(core::DanbooruIndex* index);
     void setActiveGroups(const QMap<int, QList<int>>& groups);
     void setLoraActiveByUuids(const QList<QString>& uuids);
-    void setLoraBaseDir(const QString& dir);
+    void setLoraDirs(const QString& primaryDir, const QString& testDir);
     void setComfyClient(core::ComfyUiClient* client);
     void setQuickFacets(const QString& characterFacet, const QString& copyrightFacet,
                         const QString& triggerWordFacet, const QString& styleFacet);

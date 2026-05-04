@@ -632,25 +632,29 @@ void TagWikiPage::onAnchorClicked(const QUrl& url)
 {
     if (url.scheme() == "wiki") {
         startFadeOutThenLookup(url.path());
+        return;
     }
-    else if (url.scheme() == "post") {
+    if (url.scheme() == "post") {
         QDesktopServices::openUrl(
             QUrl(QString("https://danbooru.donmai.us/posts/%1").arg(url.path())));
+        return;
     }
-    else if (url.scheme() == "asset") {
+    if (url.scheme() == "asset") {
         QDesktopServices::openUrl(
             QUrl(QString("https://danbooru.donmai.us/media_assets/%1").arg(url.path())));
+        return;
     }
-    else if (url.scheme().isEmpty() && !url.fragment().isEmpty()) {
-        // Same-page anchor link (e.g. table-of-contents jumps). The href
-        // is `#dtext-intro`, parsed by QUrl into an empty scheme and a
-        // fragment - hand it to scrollToAnchor instead of openUrl, which
-        // would try to launch an external handler for a bare fragment.
+
+    // Same-page anchor link (e.g. table-of-contents jumps). The href starts
+    // with `#`, but Qt may resolve it against the (empty) document source and
+    // leave a non-empty scheme on the URL. Don't gate on scheme - if there's
+    // a fragment and no special scheme matched above, treat it as an anchor.
+    if (!url.fragment().isEmpty()) {
         m_browser->scrollToAnchor(url.fragment());
+        return;
     }
-    else {
-        QDesktopServices::openUrl(url);
-    }
+
+    QDesktopServices::openUrl(url);
 }
 
 // ── DText → HTML ─────────────────────────────────────────────────────────────
@@ -792,18 +796,52 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
         QRegularExpression(R"(\[color=[^\]]*\])", QRegularExpression::CaseInsensitiveOption));
     text.remove(QRegularExpression(R"(\[/color\])", QRegularExpression::CaseInsensitiveOption));
 
-    // 7. Headers (h1. - h6. at start of line). Two passes per level: the
-    // anchored form `h5#name. Title` runs first (more specific) so the simple
-    // regex doesn't grab it. Anchored headings emit a paired <a name='...'>
-    // marker so QTextBrowser::scrollToAnchor lands on them when a same-page
-    // link like `"Intro":#dtext-intro` is clicked.
+    // 7. Headers (h1. - h6. at start of line). Two passes per level:
+    //   a) explicit form `h%n#name. Title` - rare; uses the named anchor.
+    //   b) bare form    `h%n. Title`       - common; auto-anchor from title.
+    // Bare-form headings on Danbooru get a slug-based id (dtext-<slug>) baked
+    // by their renderer, and TOCs reference that. We mirror the algorithm so
+    // same-page jumps land on the right heading.
+    auto slugify = [](const QString& title) -> QString {
+        QString s = title;
+        // Strip HTML tags (step 6 already turned [b]/[i]/etc into <b>/<i>/etc)
+        // and any leftover DText brackets before slugging.
+        s.remove(QRegularExpression("<[^>]*>"));
+        s.remove(QRegularExpression("\\[/?[a-zA-Z]+(?:=[^\\]]*)?\\]"));
+        s = s.toLower();
+        s.replace(QRegularExpression("[^a-z0-9]+"), "-");
+        while (s.startsWith('-')) s = s.mid(1);
+        while (s.endsWith('-')) s.chop(1);
+        return "dtext-" + s;
+    };
+
     for (int n = 6; n >= 1; --n) {
+        // Explicit form: heading author writes `h5#intro.` but Danbooru's
+        // renderer (and TOCs targeting `#dtext-intro`) prefixes the slug with
+        // "dtext-". Mirror that here so the named-anchor case lands too.
         text.replace(QRegularExpression(QString("^h%1#([\\w-]+)\\.[ \\t]*(.+)$").arg(n),
                                         QRegularExpression::MultilineOption),
-                     QString("<h%1><a name='\\1'></a>\\2</h%1>").arg(n));
-        text.replace(QRegularExpression(QString("^h%1\\.[ \\t]*(.+)$").arg(n),
-                                        QRegularExpression::MultilineOption),
-                     QString("<h%1>\\1</h%1>").arg(n));
+                     QString("<h%1><a name='dtext-\\1'></a>\\2</h%1>").arg(n));
+
+        // Bare form: rebuild the string with per-match slug substitution.
+        // QString::replace can't run a callback, so iterate matches manually.
+        const QRegularExpression bareRe(QString("^h%1\\.[ \\t]*(.+)$").arg(n),
+                                        QRegularExpression::MultilineOption);
+        QString rebuilt;
+        int last = 0;
+        auto it = bareRe.globalMatch(text);
+        while (it.hasNext()) {
+            const auto m = it.next();
+            rebuilt += text.mid(last, m.capturedStart() - last);
+            const QString title = m.captured(1);
+            rebuilt += QString("<h%1><a name='%2'></a>%3</h%1>")
+                           .arg(QString::number(n), slugify(title), title);
+            last = m.capturedEnd();
+        }
+        if (last > 0) {
+            rebuilt += text.mid(last);
+            text = rebuilt;
+        }
     }
 
     // 8. Wiki links  [[tag|display]] then [[tag|]] (empty alias) then [[tag]]

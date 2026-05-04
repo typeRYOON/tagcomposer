@@ -95,7 +95,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     // ── Pages ─────────────────────────────────────────────────────────────────
     m_tileViewPage = new TileViewPage(m_entryModel, this);
-    m_tileViewPage->setLoraBaseDir(m_settings.loraBaseDir);
+    m_tileViewPage->setLoraDirs(m_settings.loraBaseDir, m_settings.loraTestDir);
     m_tileViewPage->setComfyClient(m_comfyClient);
     // Tile gradient + title colour are read once at startup; mid-session
     // edits in Settings are persisted but require a restart to take effect.
@@ -267,6 +267,11 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         const QString tmpl = QString::fromUtf8(f.readAll());
 
         ensureImageInputsUploaded([this, tmpl, count]() {
+            // Heal once per run, not per prompt: cross-root file moves and
+            // settings-changed reroots are stable across the batch.
+            QList<core::LoraConfig> healed = m_activeLoraStack;
+            healLoraStackInPlace(healed);
+
             for (int i = 0; i < count; ++i) {
                 const QStringList wildTags = m_workflowManager.pickWildcardTags();
                 const QString positivePrompt =
@@ -275,8 +280,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
                 QString json = m_workflowManager.applyToJson(tmpl);
                 core::WorkflowManager::applyPositive(json, positivePrompt);
-                core::WorkflowManager::applyLoraStack(json, m_activeLoraStack,
-                                                      m_settings.loraBaseDir);
+                core::WorkflowManager::applyLoraStack(json, healed);
                 m_comfyClient->queuePrompt(json);
             }
             m_workflowManager.saveToFile(BASE_PATH + "/" + WORKFLOWS_PATH);
@@ -308,7 +312,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             tcp->setQuickFacets(m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet,
                                 m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);
         }
-        m_tileViewPage->setLoraBaseDir(m_settings.loraBaseDir);
+        m_tileViewPage->setLoraDirs(m_settings.loraBaseDir, m_settings.loraTestDir);
     });
     connect(m_settingsPage, &SettingsPage::reconnectRequested, this,
             [this]() { m_comfyClient->connectToServer(); });
@@ -674,8 +678,10 @@ void AppMainWindow::runBatch(const QString& query)
             }
 
             // Stack: current LoRAs + entry's own LoRA if it has one.
+            // Heal once per entry, before the inner prompt loop.
             QList<core::LoraConfig> stackForEntry = m_activeLoraStack;
             if (entry->lora.has_value()) stackForEntry << entry->lora.value();
+            healLoraStackInPlace(stackForEntry);
 
             for (int i = 0; i < count; ++i) {
                 // Per-run wildcard pick gets unioned with composer state +
@@ -688,7 +694,7 @@ void AppMainWindow::runBatch(const QString& query)
 
                 QString json = m_workflowManager.applyToJson(tmpl);
                 core::WorkflowManager::applyPositive(json, positivePrompt);
-                core::WorkflowManager::applyLoraStack(json, stackForEntry, m_settings.loraBaseDir);
+                core::WorkflowManager::applyLoraStack(json, stackForEntry);
                 m_comfyClient->queuePrompt(json);
                 ++dispatched;
             }
@@ -785,6 +791,23 @@ void AppMainWindow::ensureImageInputsUploaded(std::function<void()> done)
                     if (done) done();
                 }
             });
+    }
+}
+
+void AppMainWindow::healLoraStackInPlace(QList<core::LoraConfig>& stack)
+{
+    for (core::LoraConfig& lc : stack) {
+        if (!lc.healAcrossRoots(m_settings.loraBaseDir, m_settings.loraTestDir)) continue;
+        // Patch the source entry so future runs (and future launches) see
+        // the healed shape immediately rather than re-doing the work.
+        if (lc.sha256.isEmpty()) continue;
+        if (core::Entry* e = m_entryModel->entryByLoraSha256(lc.sha256)) {
+            if (e->lora.has_value()) {
+                e->lora->rootKey = lc.rootKey;
+                e->lora->file = lc.file;
+                m_entryModel->saveEntry(e->id);
+            }
+        }
     }
 }
 

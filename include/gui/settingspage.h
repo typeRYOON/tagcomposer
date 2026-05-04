@@ -47,6 +47,7 @@ private:
     QLineEdit* m_outputFolder;
     QLineEdit* m_tempFolder;
     QLineEdit* m_loraBaseDir;
+    QLineEdit* m_loraTestDir;
     QLineEdit* m_inputFolder;
     QWidget* m_comfyDetails; // shown/hidden by toggle
     QLabel* m_statusDot;

@@ -32,6 +32,7 @@ AppSettings AppSettings::load(const QString& path)
     s.comfyUiTempFolder = cui["tempFolder"].toString();
     s.comfyUiInputFolder = cui["inputFolder"].toString();
     s.loraBaseDir = cui["loraBaseDir"].toString();
+    s.loraTestDir = cui["loraTestDir"].toString();
 
     const QJsonObject facets = root["facets"].toObject();
     s.quickCharacterFacet = facets["quickCharacter"].toString();
@@ -80,6 +81,7 @@ void AppSettings::save(const QString& path) const
     cui["tempFolder"] = comfyUiTempFolder;
     cui["inputFolder"] = comfyUiInputFolder;
     cui["loraBaseDir"] = loraBaseDir;
+    cui["loraTestDir"] = loraTestDir;
 
     QJsonObject facets;
     facets["quickCharacter"] = quickCharacterFacet;

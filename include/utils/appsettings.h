@@ -25,7 +25,12 @@ struct AppSettings {
     QString comfyUiTempFolder;   // flat folder watched for in-progress decode images
     QString
         comfyUiInputFolder; // optional path to ComfyUI's input/ - enables direct file copy for image vars (HTTP upload is the fallback when unset)
-    QString loraBaseDir;    // base dir for LoRA relative-path computation (ComfyUI models/loras)
+    QString loraBaseDir;    // primary lora root - ComfyUI's models/loras
+    // Optional secondary root, mirrors ComfyUI's extra_model_paths.yaml entry
+    // for a "test" lora directory (e.g. ~/Downloads). Files dropped from this
+    // folder are recognised as already-placed and skip the import dialog;
+    // workflow JSON paths resolve against whichever root contains the file.
+    QString loraTestDir;
 
     // ── Facets ────────────────────────────────────────────────────────────────
     // Names of facets used by the composer's quick-add context menu. All four

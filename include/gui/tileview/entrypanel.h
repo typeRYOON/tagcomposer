@@ -36,10 +36,11 @@ public:
     void setQuickFacets(const QString& characterFacet, const QString& copyrightFacet,
                         const QString& triggerWordFacet, const QString& styleFacet);
     void applyOrientation(bool portrait);
-    // Required so dropped LoRAs from outside the lora folder can be moved
-    // into a user-named relative path under it. Empty disables the prompt
-    // and falls back to using the dropped file's original path.
-    void setLoraBaseDir(const QString& dir);
+    // Two configured roots: primary is the move-target for dropped files
+    // outside both folders; test is read-only here (we never move files
+    // into it, but recognise files already inside as already-placed).
+    // Either may be empty.
+    void setLoraDirs(const QString& primaryDir, const QString& testDir);
 
 signals:
     void entryListChanged();
@@ -71,7 +72,8 @@ private:
     int m_imageIdx = 0;
     QSet<QString> m_activeTags;
     QMap<int, QList<int>> m_activeGroups;
-    QString m_loraBaseDir;
+    QString m_loraPrimaryDir;
+    QString m_loraTestDir;
     QString m_quickCharFacet;
     QString m_quickCopyFacet;
     QString m_quickTriggerFacet;

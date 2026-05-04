@@ -382,8 +382,7 @@ void WorkflowManager::applyPositive(QString& json, const QString& promptForJson)
     json.replace("__positive__", quoted);
 }
 
-void WorkflowManager::applyLoraStack(QString& json, const QList<LoraConfig>& loras,
-                                     const QString& baseDir, int maxSlots)
+void WorkflowManager::applyLoraStack(QString& json, const QList<LoraConfig>& loras, int maxSlots)
 {
     json.replace("__lora_count__", QString::number(loras.size()));
 
@@ -396,8 +395,7 @@ void WorkflowManager::applyLoraStack(QString& json, const QList<LoraConfig>& lor
 
         if (idx < loras.size()) {
             const LoraConfig& lc = loras[idx];
-            QString rel =
-                lc.file.isEmpty() ? QString("None") : QDir(baseDir).relativeFilePath(lc.file);
+            QString rel = lc.file.isEmpty() ? QStringLiteral("None") : lc.file;
             rel.replace(QLatin1Char('/'), QLatin1String("\\\\"));
             json.replace(namePh, "\"" + rel + "\"");
             json.replace(wtPh, "1.000000");

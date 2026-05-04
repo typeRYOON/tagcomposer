@@ -76,6 +76,11 @@ private:
     // entries that point at removed files.
     void clearUnusedInputs();
 
+    // Heals each LoRA's (rootKey, relPath) against the current primary/test
+    // dirs. Mutates `stack` in place; for any item that changed, also patches
+    // and persists the source entry (matched by sha256) so the heal sticks.
+    void healLoraStackInPlace(QList<core::LoraConfig>& stack);
+
     // After the last comfy job in a queue completes, load the newest image
     // from the temp folder and pin it as the inline preview (so the preview
     // shows the actual decoded output, not the last latent step).

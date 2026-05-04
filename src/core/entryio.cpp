@@ -33,6 +33,7 @@ std::optional<Entry> EntryIO::loadOne(const QString& entryFolder, TagIndex& tagI
     if (obj.contains("lora") && obj["lora"].isObject()) {
         const QJsonObject lo = obj["lora"].toObject();
         LoraConfig lc;
+        lc.rootKey = lo["rootKey"].toString();
         lc.file = lo["file"].toString();
         lc.modelStr = lo["modelStr"].toDouble(0.9);
         lc.clipStr = lo["clipStr"].toDouble(2.0);
@@ -105,6 +106,7 @@ void EntryIO::save(const Entry& e, const TagIndex& tagIndex)
 
     if (e.lora.has_value()) {
         QJsonObject lo;
+        lo["rootKey"] = e.lora->rootKey;
         lo["file"] = e.lora->file;
         lo["modelStr"] = e.lora->modelStr;
         lo["clipStr"] = e.lora->clipStr;
