@@ -2,6 +2,9 @@
 /build/
 /out/
 /cmake-build-*/
+data/
+third_party/
+
 
 # CMake artifacts
 CMakeUserPresets.json
@@ -20,12 +23,3 @@ CMakeFiles/
 
 # VS
 .vs/
-
-# Resource heavy
-*.ico
-*.otf
-resources/img/
-resources/icons/
-resources/affinity/
-data/
-third_party/
