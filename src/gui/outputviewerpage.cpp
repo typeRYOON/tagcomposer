@@ -1,5 +1,6 @@
 #include <gui/outputviewerpage.h>
 #include <gui/widgets/appscrollbar.h>
+#include <gui/widgets/composericons.h>
 #include <QFileIconProvider>
 #include <QFileSystemModel>
 #include <QTreeView>
@@ -23,6 +24,7 @@
 #include <QtConcurrent>
 #include <QPointer>
 #include <QLabel>
+#include <QPushButton>
 #include <QSet>
 #include <QDateTime>
 #include <atomic>
@@ -448,7 +450,7 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
     // shift the title row. Returns (header, subtitle) so the page can update
     // the subtitle as the user navigates.
     constexpr int kHeaderHeight = 50;
-    auto buildHeader = [&](const QString& title) -> QPair<QWidget*, QLabel*> {
+    auto buildHeader = [&](const QString& title) -> std::tuple<QWidget*, QLabel*, QHBoxLayout*> {
         auto* header = new QWidget;
         header->setObjectName("OvHeader");
         header->setAttribute(Qt::WA_StyledBackground, true);
@@ -466,13 +468,29 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
 
         lay->addWidget(titleLabel);
         lay->addWidget(subtitle, 1);
-        return {header, subtitle};
+        return {header, subtitle, lay};
     };
 
-    auto [leftHeader, leftSubtitle] = buildHeader(QStringLiteral("OUTPUT FOLDERS"));
-    auto [rightHeader, rightSubtitle] = buildHeader(QStringLiteral("PREVIEW"));
+    auto [leftHeader, leftSubtitle, leftHeaderLay] = buildHeader(QStringLiteral("OUTPUT FOLDERS"));
+    auto [rightHeader, rightSubtitle, rightHeaderLay] = buildHeader(QStringLiteral("PREVIEW"));
     m_treeSubtitle = leftSubtitle;
     m_thumbSubtitle = rightSubtitle;
+
+    // Open the folder currently shown in the thumb pane in the OS file explorer.
+    // Mirrors the SidebarBtn used on WorkflowEditPage's headers.
+    m_openFolderBtn = new QPushButton;
+    m_openFolderBtn->setObjectName("SidebarBtn");
+    m_openFolderBtn->setFixedSize(24, 24);
+    m_openFolderBtn->setIcon(gui::icons::openExternal());
+    m_openFolderBtn->setIconSize(QSize(14, 14));
+    m_openFolderBtn->setCursor(Qt::PointingHandCursor);
+    m_openFolderBtn->setToolTip("Open this folder in the file explorer");
+    m_openFolderBtn->setEnabled(false);
+    rightHeaderLay->addWidget(m_openFolderBtn);
+    connect(m_openFolderBtn, &QPushButton::clicked, this, [this]() {
+        if (m_currentThumbDir.isEmpty()) return;
+        QDesktopServices::openUrl(QUrl::fromLocalFile(m_currentThumbDir));
+    });
     // setOutputFolder early-returns when pattern is unchanged, so on the
     // first call with an empty configured path the subtitle would never be
     // initialised - seed it here so the header reads sensibly out of the box.
@@ -555,6 +573,7 @@ void OutputViewerPage::setOutputFolder(const QString& folderPattern)
         m_tree->setRootIndex(QModelIndex());
         m_thumbs->setEntries({});
         m_currentThumbDir.clear();
+        m_openFolderBtn->setEnabled(false);
         m_treeSubtitle->setText(m_root.isEmpty() ? QStringLiteral("(not configured)")
                                                  : QStringLiteral("(missing)"));
         m_thumbSubtitle->clear();
@@ -666,8 +685,10 @@ void OutputViewerPage::populateThumbsForDir(const QString& dirPath)
     if (!d.exists()) {
         m_thumbs->setEntries(entries);
         m_thumbSubtitle->clear();
+        m_openFolderBtn->setEnabled(false);
         return;
     }
+    m_openFolderBtn->setEnabled(true);
 
     int dirCount = 0;
     int imgCount = 0;

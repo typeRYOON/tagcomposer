@@ -114,6 +114,12 @@
     border-color: #3a3a3a;
 }
 
+#FacetPillBtn:focus {
+    background: #262626;
+    color: #dddddd;
+    border-color: #6a6a6a;
+}
+
 #FacetPillBtn:checked {
     background: #1a3a1a;
     color: #99cc99;
@@ -124,6 +130,12 @@
     background: #1f4a1f;
     color: #aaddaa;
     border-color: #3a7a3a;
+}
+
+#FacetPillBtn:checked:focus {
+    background: #2a5a2a;
+    color: #bbeebb;
+    border-color: #88cc88;
 }
 
 /* Green-action button base in app.qss. */

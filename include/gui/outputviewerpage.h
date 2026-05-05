@@ -7,6 +7,7 @@ class QListWidgetItem;
 class QSplitter;
 class QModelIndex;
 class QLabel;
+class QPushButton;
 
 namespace gui {
 
@@ -61,6 +62,7 @@ private:
     QLabel* m_status = nullptr;
     QLabel* m_treeSubtitle = nullptr;  // shows current root path
     QLabel* m_thumbSubtitle = nullptr; // shows current dir + image count
+    QPushButton* m_openFolderBtn = nullptr;
 };
 
 } // namespace gui

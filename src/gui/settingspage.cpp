@@ -469,9 +469,15 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     openGroupsBtn->setObjectName("SettingsLaunchBtn");
     openGroupsBtn->setCursor(Qt::PointingHandCursor);
 
+    auto* openDefinitionsBtn = new QPushButton("Open tag_definitions.fct");
+    openDefinitionsBtn->setObjectName("SettingsLaunchBtn");
+    openDefinitionsBtn->setCursor(Qt::PointingHandCursor);
+
     auto* systemFilesHint =
-        new QLabel("Edit the Danbooru tag CSV or the tag-group categories file in your default "
-                   "editor. Restart to apply changes.");
+        new QLabel("Edit the Danbooru tag CSV, tag-group categories, or tag definitions file in "
+                   "your default editor. Restart to apply changes. Note: tag_definitions.fct is "
+                   "rewritten on shutdown - edit it only while the app is closed, or your changes "
+                   "will be overwritten.");
     systemFilesHint->setObjectName("SettingsHintLabel");
     systemFilesHint->setWordWrap(true);
 
@@ -480,6 +486,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     systemFilesRow->setSpacing(8);
     systemFilesRow->addWidget(openDanbooruBtn);
     systemFilesRow->addWidget(openGroupsBtn);
+    systemFilesRow->addWidget(openDefinitionsBtn);
     systemFilesRow->addStretch();
 
     facetsLayout->addWidget(systemFilesHint, 7, 1);
@@ -492,6 +499,9 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     });
     connect(openGroupsBtn, &QPushButton::clicked, this, []() {
         utils::openSystemFile(utils::BASE_PATH + "/" + utils::GROUPS_PATH);
+    });
+    connect(openDefinitionsBtn, &QPushButton::clicked, this, []() {
+        utils::openSystemFile(utils::BASE_PATH + "/" + utils::DEFINITIONS_PATH);
     });
 
     bodyLayout->addWidget(facetsGroup);

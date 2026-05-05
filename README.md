@@ -37,28 +37,24 @@
   <a href="#contact">Contact</a>
 </p>
 
-<!-- ABOUT THE PROJECT -->
+---
+
 ## About The Project
-<table><tr><td>
 
 **TagComposer** is a Qt6 / C++23 desktop app for managing a tagged image dataset and turning that dataset into prompts for ComfyUI. You build a library of entries (a character, a style, a scene), tag each image, then toggle entries into a composer that runs their tags through a configurable rule and variable pipeline before queueing the resulting prompt.
 
 It is a personal tool first. The pipeline, the workflow editor, and the batch runner are all built around the way I generate images, but the underlying pieces (entries, rules, facets, workflows) are general enough to fit other setups.
 
-<h1></h1>
 <p align="center">
   <!-- TODO: drop the showcase GIF here once recorded. resources/github/ is the right place. -->
   <i>(showcase coming soon)</i>
 </p>
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
 
-</table></tr></td>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-<!-- FEATURES -->
+---
+
 ## Features
-<table><tr><td>
 
 - **Tile view** for browsing the entry library, with one-click toggling to push an entry's tags into the composer.
 - **Tag pipeline** with rule actions (skip, add, replace, flag, delete), facet-based categorization, `$VAR$` substitution, and per-tag weights.
@@ -71,26 +67,26 @@ It is a personal tool first. The pipeline, the workflow editor, and the batch ru
 - **Output viewer** that browses ComfyUI's generated images by entry.
 - **Auto-tagger** for batch tagging entries via ONNX models you drop into `data/models/`.
 - **Collector** for scraping reference images into named collections, with pHash-based dedupe.
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
 
-</table></tr></td>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-<!-- PREREQUISITES -->
+---
+
 ## Prerequisites
-<table><tr><td>
 
-* `Windows 10 / 11` : primary supported platform, MSVC toolchain.
-* `Linux / macOS` : not tested yet, check the Building from source section.
-* `ComfyUI` : a running instance, local or remote, reachable over HTTP.
-* `Danbooru tag CSV` : optional, used by the search-bar autocomplete.
+- `Windows 10 / 11` — primary supported platform, MSVC toolchain.
+- `Linux / macOS` — not tested yet, check the Building from source section.
+- `ComfyUI` — a running instance, local or remote, reachable over HTTP.
+- `Danbooru tag CSV` — optional, used by the search-bar autocomplete.
 
-</table></tr></td>
+> [!NOTE]
+> **Network LoRA folders:** model hashing reads every byte to compute a SHA256, so a LoRA folder served from a remote machine (UNC share, NFS, mapped drive) can stall first-run hashing while the file streams across the wire. If your setup looks like this — or you have other network-specific requirements — please [message me](#contact) with the details (mount type, approximate file sizes, anything you've already tried). I'm collecting real-world setups to scope a remote-hashing helper.
 
-<!-- COMFYUI PREVIEW PATCH -->
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
+
+---
+
 ## ComfyUI Preview Patch
-<table><tr><td>
 
 > [!IMPORTANT]
 > Optional but recommended. Without this, TagComposer's live preview pane stays empty during generation. The patch makes ComfyUI broadcast each diffusion step's preview image over the WebSocket as a JSON message; the standard ComfyUI web client ignores the extra message, so nothing else changes for you.
@@ -144,15 +140,11 @@ from server import PromptServer
 >
 > Re-apply this patch whenever you update ComfyUI; a `git pull` over the install will overwrite `latent_preview.py`.
 
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-</table></tr></td>
+---
 
-<!-- BUILDING -->
 ## Building from source
-<table><tr><td>
 
 > [!NOTE]
 > Windows is the primary supported platform and the only one currently tested. Linux and macOS builds are wired up in CMake but you'll be the first one through; if something doesn't work, [open an issue](#issues--feature-requests).
@@ -166,16 +158,14 @@ Common to every platform:
    ```
 2. Install **Qt 6.11 or newer**. Required modules: Core, Gui, Widgets, Network, Concurrent, WebSockets.
 
-<h1></h1>
-
 ### Windows
 
 OpenCV and ONNX Runtime aren't checked into the repo (their prebuilt trees come out to roughly 1.24 GB combined). Grab the matching Windows prebuilts and drop them under `third_party/`:
 
-- **OpenCV 4.12.0** → `third_party/opencv/`  
+- **OpenCV 4.12.0** → `third_party/opencv/`
   Download [`opencv-4.12.0-windows.exe`](https://github.com/opencv/opencv/releases/download/4.12.0/opencv-4.12.0-windows.exe). It's a 7-zip self-extractor: when it prompts for an extract path, point it at `third_party/`. The result should be `third_party/opencv/build/x64/vc16/bin/opencv_world4120.dll` (and friends).
 
-- **ONNX Runtime 1.25.1** → `third_party/onnxruntime/`  
+- **ONNX Runtime 1.25.1** → `third_party/onnxruntime/`
   Download [`onnxruntime-win-x64-1.25.1.zip`](https://github.com/microsoft/onnxruntime/releases/download/v1.25.1/onnxruntime-win-x64-1.25.1.zip). Extract it, rename the inner `onnxruntime-win-x64-1.25.1/` folder to `onnxruntime/`, and move it into `third_party/`. The expected layout is:
   ```
   third_party/onnxruntime/
@@ -199,10 +189,7 @@ windeployqt6 --release --no-translations --no-quick-import --no-system-d3d-compi
 ```
 
 > [!NOTE]
-> If launch fails with `VCRUNTIME140.dll was not found` (or `MSVCP140.dll`, etc.), install Microsoft's Visual C++ Redistributable:  
-> [`vc_redist.x64.exe`](https://aka.ms/vs/17/release/vc_redist.x64.exe)
-
-<h1></h1>
+> If launch fails with `VCRUNTIME140.dll was not found` (or `MSVCP140.dll`, etc.), install Microsoft's Visual C++ Redistributable: [`vc_redist.x64.exe`](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 
 ### Linux
 
@@ -234,8 +221,6 @@ cmake --build build
 ```
 
 The post-build hook copies the `libonnxruntime*` files next to the executable, and `INSTALL_RPATH=$ORIGIN` is set so the runtime linker finds them without `LD_LIBRARY_PATH`. For redistribution beyond running out of the build tree, [`linuxdeployqt`](https://github.com/probonopd/linuxdeployqt) or AppImage / flatpak / `.deb` are the usual paths.
-
-<h1></h1>
 
 ### macOS
 
@@ -270,21 +255,15 @@ macdeployqt build/tagcomposer.app -dmg
 > [!NOTE]
 > Codesigning and notarization need an Apple Developer account. Without them, first-time launch on someone else's Mac requires right-click → Open. Out of scope for this README.
 
-<h1></h1>
-
 ### Cross-platform caveats
 
 - The frameless titlebar uses `Qt::FramelessWindowHint` plus a manual edge-resize implementation. It works on Windows, X11, and macOS. Linux **Wayland** sessions are likely to misbehave because the compositor controls window decorations there. Use an X11 session if you hit issues.
 
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-</table></tr></td>
+---
 
-<!-- LAYOUT -->
 ## Layout
-<table><tr><td>
 
 > [!NOTE]
 > All user data lives under `data/` next to the executable. Entries are folders, the rest of the config is plain text and JSON so you can edit it by hand when the GUI is in your way.
@@ -301,62 +280,53 @@ data/
     ├── cluster_filters.fct       facet rule sets for dataset-helper tag clustering
     ├── danbooru.csv              danbooru tag list (search-bar autocomplete)
     ├── danmaku.txt               lines for the optional danmaku overlay
-    ├── facets.fct                tag to facet definitions
+    ├── facets.fct                @category schema: facet names grouped into categories
     ├── global_tag_cache.json     cached wiki / category data from the danbooru API
-    ├── groups.fct                @category blocks defining facets and the groups they roll up into
+    ├── groups.fct                @category blocks defining tag groups (composer category nav)
     ├── latent_sizes.txt          preset list for the LatentSize variable type
     ├── rules.fct                 rule engine: match expressions + actions
     ├── session.json              last-session restore: composer + LoRA state on app close
     ├── settings.json             user preferences, ComfyUI host, paths
-    ├── tag_definitions.fct       per-tag wiki / definition cache
+    ├── tag_definitions.fct       per-tag facet assignments (rewritten on shutdown)
     ├── vars.fct                  $NAME$ to value variable definitions
     └── workflows.json            workflow file list + per-workflow variables
 ```
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
 
-</table></tr></td>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-<!-- STARTER FILES -->
+---
+
 ## Starter Files
-<table><tr><td>
 
 A first-run `data/` folder is a lot of empty files. To skip that, grab one of the starter packs below and drop its contents into `data/` next to the executable.
 
-- **Tag defs only** : populated `system/` (rules, facets, groups, vars, danbooru CSV, tag definitions) with everything else empty. Use this if you want to bring your own entries from the start.
-- **Tag defs + sample entries** : the same `system/` plus a small `entry/` library so you have something to tag-toggle against while you learn the workflow.
+- **Tag defs only** — populated `system/` (rules, facets, groups, vars, danbooru CSV, tag definitions) with everything else empty. Use this if you want to bring your own entries from the start.
+- **Tag defs + sample entries** — the same `system/` plus a small `entry/` library so you have something to tag-toggle against while you learn the workflow.
 
-> 📦 **Downloads**: <!-- TODO: paste the link to the starter-files folder/release here -->_(coming soon)_
+> **Downloads**: <!-- TODO: paste the link to the starter-files folder/release here -->_(coming soon)_
 
 > [!NOTE]
 > Both packs ship the same `system/` files. The only difference is whether `entry/` is pre-populated. Drop the unzipped folder over `data/` and overwrite when prompted.
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
 
-</table></tr></td>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-<!-- GETTING STARTED -->
+---
+
 ## Getting Started
-<table><tr><td>
 
 > [!IMPORTANT]
 > Watch the walkthrough video before trying to use TagComposer end-to-end. The Usage section below is a quick reference, but the video covers the bigger picture and a lot of the small "why" decisions behind the workflow.
 >
-> 📺 **YouTube walkthrough**: <!-- TODO: paste the YouTube URL here once recorded -->_(coming soon)_
+> **YouTube walkthrough**: <!-- TODO: paste the YouTube URL here once recorded -->_(coming soon)_
 
 > [!NOTE]
 > A GitHub wiki with longer-form docs (rule syntax reference, workflow JSON conventions, a recipe collection) is planned. Until it exists, this README and the in-app tooltips are the documentation.
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
 
-</table></tr></td>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-<!-- USAGE -->
+---
+
 ## Usage
-<table><tr><td>
 
 > [!IMPORTANT]
 > TagComposer needs a running ComfyUI instance to actually generate anything. The rest of the app (tagging, rule editing, state management) works fully offline.
@@ -370,30 +340,24 @@ A typical session:
 5. **Hit Run.** The active workflow's JSON gets its tokens filled in, `__positive__` is replaced with the rule-processed prompt, and the request is queued to ComfyUI.
 6. **Save the state** (composer + workflow vars + LoRA stack) once you have a setup worth coming back to. States survive restarts and load with one click.
 7. **Run a batch** from the Workflow Editor's Batch panel. Enter a tile-view query and TagComposer queues one prompt per matched entry, merging that entry's tags into the composer prompt and stacking that entry's LoRA on top.
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
 
-</table></tr></td>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-<!-- ISSUES / FEATURE REQUESTS -->
+---
+
 ## Issues / Feature Requests
-<table><tr><td>
 
 If you hit a bug, please open a [GitHub issue](https://github.com/typeRYOON/tagcomposer/issues/new) with a short repro and, where relevant, the rule / workflow JSON involved.
 
 For feature requests, open the issue with the **`enhancement`** label so it sorts into the right bucket.
 
 If GitHub isn't a fit, the [Contact](#contact) section below has direct ways to reach me.
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
 
-</table></tr></td>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-<!-- OTHER BACKENDS -->
+---
+
 ## Other Backends
-<table><tr><td>
 
 ComfyUI is what I use personally, so it's the only backend wired up out of the box. I'm open to implementing prompt queueing and live previews for other backends (Forge, Auto1111, InvokeAI, SwarmUI, etc.). If you'd like to see one supported, open an issue with the **`enhancement`** label and include both of the following before tagging me:
 
@@ -401,49 +365,35 @@ ComfyUI is what I use personally, so it's the only backend wired up out of the b
 2. **A starting pointer.** A link to the API docs, an example endpoint, a sample request body, anything that gets me past the "where do I even begin" stage. Since I don't use any of these myself, the more concrete pointers you can hand off the faster it gets done.
 
 No promises on timeline, but a backend with a clear API and a willing requester goes on the realistic short list.
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
 
-</table></tr></td>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-<!-- DEPENDENCIES -->
+---
+
 ## Dependencies
-<table><tr><td>
 
-- [`Qt 6`](https://www.qt.io/product/qt6) (Core, Gui, Widgets, Network, Concurrent)
-- [`OpenCV 4`](https://opencv.org/) (clip editor: flood-fill and mask ops)
-- [`ONNX Runtime`](https://onnxruntime.ai/) (auto-tagger: ONNX session for the tagging model)
-- [`ComfyUI`](https://github.com/comfyanonymous/ComfyUI) (runtime: TagComposer connects to a running instance over HTTP)
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
+- [`Qt 6`](https://www.qt.io/product/qt6) — Core, Gui, Widgets, Network, Concurrent
+- [`OpenCV 4`](https://opencv.org/) — clip editor: flood-fill and mask ops
+- [`ONNX Runtime`](https://onnxruntime.ai/) — auto-tagger: ONNX session for the tagging model
+- [`ComfyUI`](https://github.com/comfyanonymous/ComfyUI) — runtime: TagComposer connects to a running instance over HTTP
 
-</table></tr></td>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-<!-- LICENSE -->
+---
+
 ## License
-<table><tr><td>
 
 Distributed under the GNU General Public License v3.0. See [`LICENSE`](LICENSE) for more information.
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
 
-</table></tr></td>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
-<!-- CONTACT -->
+---
+
 ## Contact
-<table><tr><td>
 
 If something needs my direct attention, message me through one of the following.
 
-<h1></h1>
+- `Discord` — [typeRYOON](https://discord.com/)
+- `Email` — 4ryoon@gmail.com
 
-* `Discord` [typeRYOON](https://discord.com/)
-* `Email` 4ryoon@gmail.com
-<p align="right">
-  <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
-</p>
-
-</table></tr></td>
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>

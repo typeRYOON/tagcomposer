@@ -18,6 +18,8 @@
 
 namespace gui {
 
+class FlowLayout;
+
 class FacetEditorPage : public QWidget {
     Q_OBJECT
 public:
@@ -62,6 +64,9 @@ private:
     void clearEditor();
     void applyListFilter(const QString& query);
     void applyFacetFilter(const QString& query);
+    void refreshActivePills();
+    void focusFirstPill();
+    QPushButton* neighborPill(QPushButton* current, int key) const;
 
     // Right-rail Danbooru preview. Tries the wiki page's first !post #N first
     // (matches what the in-app wiki page surfaces), falls back to the top hit
@@ -91,6 +96,9 @@ private:
     // Right panel
     QLabel* m_selectedLabel;
     QLineEdit* m_facetSearchEdit;
+    QWidget* m_activePillsHost = nullptr;
+    FlowLayout* m_activePillsFlow = nullptr;
+    QScrollArea* m_facetsScroll = nullptr;
     QWidget* m_facetsContainer;
     QVBoxLayout* m_facetsLayout;
     QPushButton* m_saveBtn;

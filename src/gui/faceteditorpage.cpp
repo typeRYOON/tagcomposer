@@ -4,6 +4,7 @@
 #include <gui/widgets/flowlayout.h>
 #include <utils/appconfig.h>
 #include <utils/qutils.h>
+#include <QApplication>
 #include <QCursor>
 #include <QDesktopServices>
 #include <QEvent>
@@ -13,17 +14,22 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMenu>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QNetworkReply>
 #include <QPainter>
 #include <QPainterPath>
 #include <QNetworkRequest>
+#include <QPointer>
 #include <QRegularExpression>
 #include <QScrollArea>
+#include <QSet>
 #include <QStackedWidget>
 #include <QUrl>
 #include <QUrlQuery>
 #include <algorithm>
+#include <climits>
+#include <cstdlib>
 
 namespace gui {
 
@@ -104,6 +110,9 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
 
     connect(m_searchEdit, &QLineEdit::textChanged, this, &FacetEditorPage::applyListFilter);
 
+    m_tagList->installEventFilter(this);
+    m_undefinedList->installEventFilter(this);
+
     // Right-click -> "Go to Wiki" on either list
     auto installWikiMenu = [this](QListWidget* list) {
         list->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -136,6 +145,13 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     // ── Right panel - facet assignment editor ─────────────────────────────────
     m_selectedLabel = new QLabel;
     m_selectedLabel->setObjectName("FacetSelectedTag");
+    m_selectedLabel->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_selectedLabel, &QWidget::customContextMenuRequested, this, [this](const QPoint&) {
+        if (m_selectedTag.isEmpty()) return;
+        QMenu menu;
+        QAction* wikiAct = menu.addAction("Go to Wiki");
+        if (menu.exec(QCursor::pos()) == wikiAct) emit wikiRequested(m_selectedTag);
+    });
 
     auto* schemaOpenBtn = new QPushButton;
     schemaOpenBtn->setObjectName("SidebarBtn");
@@ -173,21 +189,29 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     m_facetSearchEdit->setObjectName("FacetSearchBar");
     m_facetSearchEdit->setPlaceholderText("filter facets...");
     m_facetSearchEdit->setClearButtonEnabled(true);
+    m_facetSearchEdit->installEventFilter(this);
     connect(m_facetSearchEdit, &QLineEdit::textChanged, this, &FacetEditorPage::applyFacetFilter);
 
+    // Active-facet strip; click a pill here to remove that facet.
+    m_activePillsHost = new QWidget;
+    m_activePillsHost->setObjectName("FacetActivePillsHost");
+    m_activePillsFlow = new FlowLayout(m_activePillsHost, /*margin*/ 4, /*hSpace*/ 6, /*vSpace*/ 6);
+    m_activePillsHost->hide();
+
     m_facetsContainer = new QWidget;
+    m_facetsContainer->installEventFilter(this);
     m_facetsLayout = new QVBoxLayout(m_facetsContainer);
     m_facetsLayout->setContentsMargins(8, 8, 8, 8);
     m_facetsLayout->setSpacing(6);
     m_facetsLayout->addStretch();
 
-    auto* facetsScroll = new QScrollArea;
-    facetsScroll->setObjectName("FacetCheckScroll");
-    facetsScroll->setWidget(m_facetsContainer);
-    facetsScroll->setWidgetResizable(true);
-    facetsScroll->setFrameShape(QFrame::NoFrame);
-    facetsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    facetsScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_facetsScroll = new QScrollArea;
+    m_facetsScroll->setObjectName("FacetCheckScroll");
+    m_facetsScroll->setWidget(m_facetsContainer);
+    m_facetsScroll->setWidgetResizable(true);
+    m_facetsScroll->setFrameShape(QFrame::NoFrame);
+    m_facetsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_facetsScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     m_saveBtn = new QPushButton("Save definition");
     m_saveBtn->setObjectName("FacetSaveBtn");
@@ -200,7 +224,8 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     editorLayout->setSpacing(8);
     editorLayout->addWidget(selectedRow);
     editorLayout->addWidget(m_facetSearchEdit);
-    editorLayout->addWidget(facetsScroll, 1);
+    editorLayout->addWidget(m_activePillsHost);
+    editorLayout->addWidget(m_facetsScroll, 1);
     editorLayout->addWidget(m_saveBtn);
 
     // ── Danbooru preview rail (placed inline with the editor below) ───────────
@@ -275,7 +300,14 @@ void FacetEditorPage::reload()
 
     m_tagList->clear(); // triggers selectTag("") -> clearEditor()
 
-    QList<QString> all = m_model->tagIndex().allTags();
+    // Union of entry tags + tags defined in tag_definitions.fct - so tags
+    // with definitions but no entry usage still appear in the list.
+    QSet<QString> seen;
+    QList<QString> all;
+    for (const QString& tag : m_model->tagIndex().allTags())
+        if (!seen.contains(tag)) { seen.insert(tag); all << tag; }
+    for (const QString& tag : m_facets->allDefinedTags())
+        if (!seen.contains(tag)) { seen.insert(tag); all << tag; }
     std::sort(all.begin(), all.end());
 
     int definedCount = 0;
@@ -317,21 +349,27 @@ void FacetEditorPage::refreshUndefinedList()
 
     const QList<QString> active = m_activeTagsProvider();
 
-    // Mirror PromptPipeline::evaluate's facet lookup so this list reflects
-    // exactly which tags will show up uncategorised in the composer.
-    //   1. Expand vars and try the expanded form ("somedescriptor thighhighs").
-    //   2. If that has no facets, fall back to the stripped base ("thighhighs").
-    // Display the raw tag the user typed regardless of which step matched.
+    // Mirror PromptPipeline lookup (try expanded, then stripped). Display the
+    // stripped form so var-prefixed tags collapse onto the bare tag they'd
+    // actually define facets for.
     QList<QString> undefined;
+    QSet<QString> seen;
     for (const QString& tag : active) {
         const QString expanded = m_varIndex ? m_varIndex->expand(tag) : tag;
         if (m_facets->hasFacets(expanded)) continue;
 
+        QString canonical = tag;
         if (core::VariableIndex::hasVariable(tag)) {
             const QString base = core::VariableIndex::stripVariables(tag);
-            if (!base.isEmpty() && m_facets->hasFacets(base)) continue;
+            if (!base.isEmpty()) {
+                if (m_facets->hasFacets(base)) continue;
+                canonical = base;
+            }
         }
-        undefined << tag;
+        if (!seen.contains(canonical)) {
+            seen.insert(canonical);
+            undefined << canonical;
+        }
     }
 
     if (undefined.isEmpty()) {
@@ -500,9 +538,56 @@ void FacetEditorPage::selectTag(const QString& tag)
     }
 
     m_facetsLayout->addStretch();
+
+    for (auto* pill : m_facetsContainer->findChildren<QPushButton*>("FacetPillBtn")) {
+        pill->setFocusPolicy(Qt::StrongFocus);
+        pill->installEventFilter(this);
+        connect(pill, &QPushButton::toggled, this, [this](bool) { refreshActivePills(); });
+    }
+    // Catch clicks on non-pill regions (block frame, label, gaps) so the
+    // first pill takes focus and arrow-nav works without clicking a pill.
+    for (auto* w : m_facetsContainer->findChildren<QWidget*>())
+        if (w->objectName() != "FacetPillBtn") w->installEventFilter(this);
+    refreshActivePills();
+
     m_rightStack->setCurrentIndex(1);
 
     m_facetSearchEdit->clear();
+}
+
+void FacetEditorPage::refreshActivePills()
+{
+    if (!m_activePillsFlow || !m_activePillsHost) return;
+
+    while (QLayoutItem* item = m_activePillsFlow->takeAt(0)) {
+        if (QWidget* w = item->widget()) w->deleteLater();
+        delete item;
+    }
+
+    QList<QPushButton*> active;
+    for (auto* pill : m_facetsContainer->findChildren<QPushButton*>("FacetPillBtn"))
+        if (pill->isChecked()) active << pill;
+
+    if (active.isEmpty()) {
+        m_activePillsHost->hide();
+        return;
+    }
+
+    m_activePillsHost->show();
+    for (QPushButton* main : active) {
+        auto* mini = new QPushButton(main->text());
+        mini->setObjectName("FacetPillBtn");
+        mini->setCheckable(true);
+        mini->setChecked(true);
+        mini->setCursor(Qt::PointingHandCursor);
+        mini->setFocusPolicy(Qt::NoFocus);
+        // Click removes the facet by unchecking the matching pill below;
+        // the toggled signal there triggers another refresh of this strip.
+        QPointer<QPushButton> mainPtr(main);
+        connect(mini, &QPushButton::clicked, this,
+                [mainPtr]() { if (mainPtr) mainPtr->setChecked(false); });
+        m_activePillsFlow->addWidget(mini);
+    }
 }
 
 void FacetEditorPage::saveSelected()
@@ -541,10 +626,34 @@ void FacetEditorPage::saveSelected()
     emit facetsDefined();
 
     if (wasFromUndefined) {
-        if (m_undefinedList->count() > 0)
+        if (m_undefinedList->count() > 0) {
             m_undefinedList->setCurrentRow(0); // fires currentTextChanged -> selectTag
-        else
+            focusFirstPill();
+        }
+        else {
             clearEditor();
+        }
+    }
+    else if (auto* cur = m_tagList->currentItem()) {
+        int next = m_tagList->row(cur) + 1;
+        while (next < m_tagList->count() && m_tagList->item(next)->isHidden())
+            ++next;
+        if (next < m_tagList->count()) {
+            m_tagList->setCurrentRow(next);
+            m_tagList->scrollToItem(m_tagList->item(next));
+            focusFirstPill();
+        }
+    }
+}
+
+void FacetEditorPage::focusFirstPill()
+{
+    for (auto* p : m_facetsContainer->findChildren<QPushButton*>("FacetPillBtn")) {
+        if (p->isVisible()) {
+            p->setFocus(Qt::TabFocusReason);
+            if (m_facetsScroll) m_facetsScroll->ensureWidgetVisible(p, 24, 24);
+            return;
+        }
     }
 }
 
@@ -613,7 +722,156 @@ bool FacetEditorPage::eventFilter(QObject* obj, QEvent* ev)
             return true;
         }
     }
+
+    if (ev->type() == QEvent::KeyPress &&
+        (obj == m_tagList || obj == m_undefinedList)) {
+        auto* ke = static_cast<QKeyEvent*>(ev);
+        const int key = ke->key();
+
+        if (key == Qt::Key_Right && ke->modifiers() == Qt::NoModifier) {
+            focusFirstPill();
+            return true;
+        }
+
+        switch (key) {
+        case Qt::Key_Left:
+        case Qt::Key_Up:
+        case Qt::Key_Down:
+        case Qt::Key_PageUp:
+        case Qt::Key_PageDown:
+        case Qt::Key_Home:
+        case Qt::Key_End:
+        case Qt::Key_Return:
+        case Qt::Key_Enter:
+        case Qt::Key_Tab:
+        case Qt::Key_Backtab:
+        case Qt::Key_Escape:
+        case Qt::Key_Shift:
+        case Qt::Key_Control:
+        case Qt::Key_Alt:
+        case Qt::Key_Meta:
+        case Qt::Key_AltGr:
+            return false;
+        }
+
+        QKeyEvent fwd(QEvent::KeyPress, key, ke->modifiers(), ke->text());
+        m_searchEdit->setFocus();
+        QApplication::sendEvent(m_searchEdit, &fwd);
+        return true;
+    }
+
+    if (ev->type() == QEvent::KeyPress && obj == m_facetSearchEdit) {
+        auto* ke = static_cast<QKeyEvent*>(ev);
+        const int key = ke->key();
+        const bool plainArrow = (key == Qt::Key_Left || key == Qt::Key_Right ||
+                                 key == Qt::Key_Up || key == Qt::Key_Down) &&
+                                ke->modifiers() == Qt::NoModifier;
+        if (plainArrow) {
+            focusFirstPill();
+            return true;
+        }
+        if ((key == Qt::Key_Return || key == Qt::Key_Enter) &&
+            ke->modifiers().testFlag(Qt::ShiftModifier)) {
+            m_saveBtn->click();
+            return true;
+        }
+    }
+
+    if (ev->type() == QEvent::KeyPress) {
+        auto* btn = qobject_cast<QPushButton*>(obj);
+        if (btn && btn->objectName() == "FacetPillBtn") {
+            auto* ke = static_cast<QKeyEvent*>(ev);
+            const int key = ke->key();
+
+            if (key == Qt::Key_Left || key == Qt::Key_Right ||
+                key == Qt::Key_Up || key == Qt::Key_Down) {
+                if (QPushButton* next = neighborPill(btn, key)) {
+                    next->setFocus(Qt::TabFocusReason);
+                    if (m_facetsScroll) m_facetsScroll->ensureWidgetVisible(next, 24, 24);
+                    return true;
+                }
+            }
+
+            if (key == Qt::Key_Return || key == Qt::Key_Enter) {
+                if (ke->modifiers().testFlag(Qt::ShiftModifier))
+                    m_saveBtn->click();
+                else
+                    btn->toggle();
+                return true;
+            }
+
+            if (key == Qt::Key_Escape) {
+                QListWidget* src = (m_undefinedList->isVisible() &&
+                                    m_undefinedList->currentItem())
+                                       ? m_undefinedList
+                                       : m_tagList;
+                src->setFocus();
+                return true;
+            }
+
+            // Pill-handled keys; let default processing run.
+            if (key == Qt::Key_Space || key == Qt::Key_Tab || key == Qt::Key_Backtab)
+                return false;
+
+            // Bare modifier presses must not steal focus.
+            if (key == Qt::Key_Shift || key == Qt::Key_Control ||
+                key == Qt::Key_Alt || key == Qt::Key_Meta || key == Qt::Key_AltGr)
+                return false;
+
+            // Everything else (typing, Backspace, Ctrl+A/C/V, Home/End, etc.)
+            // routes to the filter so the search box stays usable from the pills.
+            QKeyEvent fwd(QEvent::KeyPress, key, ke->modifiers(), ke->text());
+            m_facetSearchEdit->setFocus();
+            QApplication::sendEvent(m_facetSearchEdit, &fwd);
+            return true;
+        }
+    }
+
+    if (ev->type() == QEvent::MouseButtonPress) {
+        auto* w = qobject_cast<QWidget*>(obj);
+        if (w && w->objectName() != "FacetPillBtn" &&
+            (w == m_facetsContainer || m_facetsContainer->isAncestorOf(w))) {
+            for (auto* p : m_facetsContainer->findChildren<QPushButton*>("FacetPillBtn")) {
+                if (p->isVisible()) {
+                    p->setFocus(Qt::MouseFocusReason);
+                    break;
+                }
+            }
+        }
+    }
+
     return QWidget::eventFilter(obj, ev);
+}
+
+QPushButton* FacetEditorPage::neighborPill(QPushButton* current, int key) const
+{
+    QList<QPushButton*> all;
+    for (auto* p : m_facetsContainer->findChildren<QPushButton*>("FacetPillBtn"))
+        if (p->isVisible()) all << p;
+    if (all.isEmpty()) return nullptr;
+
+    const int idx = all.indexOf(current);
+    if (idx < 0) return nullptr;
+
+    if (key == Qt::Key_Right) return idx + 1 < all.size() ? all[idx + 1] : all.first();
+    if (key == Qt::Key_Left)  return idx > 0 ? all[idx - 1] : all.last();
+
+    // Up/Down: nearest pill on a different row, weighted toward same X.
+    const QPoint cur = current->mapToGlobal(current->rect().center());
+    const int rowGap = current->height() / 2;
+    QPushButton* best = nullptr;
+    int bestScore = INT_MAX;
+    for (auto* p : all) {
+        if (p == current) continue;
+        const QPoint pt = p->mapToGlobal(p->rect().center());
+        const int dy = pt.y() - cur.y();
+        if (key == Qt::Key_Down && dy <= rowGap) continue;
+        if (key == Qt::Key_Up   && dy >= -rowGap) continue;
+        const int score = std::abs(dy) * 4 + std::abs(pt.x() - cur.x());
+        if (score < bestScore) { bestScore = score; best = p; }
+    }
+    if (!best) best = (key == Qt::Key_Down) ? all.first() : all.last();
+    return best;
 }
 
 void FacetEditorPage::fetchPreview(const QString& tag)

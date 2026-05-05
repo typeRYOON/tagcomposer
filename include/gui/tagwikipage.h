@@ -13,6 +13,7 @@
 
 class QGraphicsOpacityEffect;
 class QPropertyAnimation;
+class QTimer;
 
 namespace gui {
 
@@ -47,6 +48,13 @@ private:
 
     // Animates the resource at `resourceUrl` from transparent to `finalPix`.
     void startThumbFade(const QString& resourceUrl, const QPixmap& finalPix);
+    void onThumbFadeTick();
+
+    // Paced dispatch of thumb metadata fetches; one job per tick keeps us
+    // under Danbooru's per-IP rate limit on image-heavy pages.
+    enum class ThumbKind { Post, Asset };
+    void enqueueThumbFetch(ThumbKind kind, int id);
+    void processThumbFetchQueue();
 
     void smoothScrollTo(int target);
     void smoothScrollToAnchor(const QString& anchor);
@@ -71,6 +79,23 @@ private:
     QHash<int, QPixmap> m_assetThumbs;
     bool m_fontApplied = false;
     bool m_screenChangedConnected = false;
+
+    // Coalesced thumb-fade state: a single shared timer drives every in-flight
+    // fade so a 100-thumb gallery only triggers one document re-layout per tick.
+    struct PendingThumbFade {
+        QString resourceUrl;
+        QPixmap finalPix;
+        int step;
+    };
+    QList<PendingThumbFade> m_pendingFades;
+    QTimer* m_thumbFadeTimer = nullptr;
+
+    struct QueuedThumbFetch {
+        ThumbKind kind;
+        int id;
+    };
+    QList<QueuedThumbFetch> m_thumbFetchQueue;
+    QTimer* m_thumbFetchTimer = nullptr;
 
     QGraphicsOpacityEffect* m_fadeEffect = nullptr;
     QPropertyAnimation* m_fadeAnim = nullptr;

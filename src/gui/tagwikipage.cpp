@@ -89,6 +89,16 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     m_scrollAnim->setDuration(220);
     m_scrollAnim->setEasingCurve(QEasingCurve::OutCubic);
 
+    m_thumbFadeTimer = new QTimer(this);
+    m_thumbFadeTimer->setInterval(25);
+    connect(m_thumbFadeTimer, &QTimer::timeout, this, &TagWikiPage::onThumbFadeTick);
+
+    // 250 ms between metadata fetches (4 req/sec). Danbooru throttles bursts;
+    // pacing keeps us comfortably under the per-IP limit.
+    m_thumbFetchTimer = new QTimer(this);
+    m_thumbFetchTimer->setInterval(250);
+    connect(m_thumbFetchTimer, &QTimer::timeout, this, &TagWikiPage::processThumbFetchQueue);
+
     // ── Content widget ────────────────────────────────────────────────────────
     auto* contentWidget = new QWidget;
     auto* contentLayout = new QVBoxLayout(contentWidget);
@@ -474,6 +484,13 @@ void TagWikiPage::showNotFound(const QString& tag)
 void TagWikiPage::displayContent(const QString& title, const QStringList& otherNames,
                                  const QString& body)
 {
+    // Drop any thumb fades and pending metadata fetches from a prior page;
+    // their resource urls don't exist in the document we're about to install.
+    m_pendingFades.clear();
+    if (m_thumbFadeTimer->isActive()) m_thumbFadeTimer->stop();
+    m_thumbFetchQueue.clear();
+    if (m_thumbFetchTimer->isActive()) m_thumbFetchTimer->stop();
+
     m_titleLabel->setText(title.isEmpty() ? m_currentTag : utils::normalizeTagInput(title));
 
     if (!otherNames.isEmpty()) {
@@ -519,9 +536,9 @@ void TagWikiPage::displayContent(const QString& title, const QStringList& otherN
     finishPendingFadeIn();
 
     for (int id : postIds)
-        if (!m_postThumbs.contains(id)) fetchPostData(id);
+        if (!m_postThumbs.contains(id)) enqueueThumbFetch(ThumbKind::Post, id);
     for (int id : assetIds)
-        if (!m_assetThumbs.contains(id)) fetchAssetData(id);
+        if (!m_assetThumbs.contains(id)) enqueueThumbFetch(ThumbKind::Asset, id);
 }
 
 // ── Resize / screen-change re-layout ─────────────────────────────────────────
@@ -576,35 +593,73 @@ void TagWikiPage::showEvent(QShowEvent* event)
 
 void TagWikiPage::startThumbFade(const QString& resourceUrl, const QPixmap& finalPix)
 {
+    // Enqueue and let the shared ticker handle it. A late re-fetch of an
+    // already-fading url just resets the alpha ramp.
+    for (auto& f : m_pendingFades) {
+        if (f.resourceUrl == resourceUrl) {
+            f.finalPix = finalPix;
+            f.step = 0;
+            if (!m_thumbFadeTimer->isActive()) m_thumbFadeTimer->start();
+            return;
+        }
+    }
+    m_pendingFades.append({resourceUrl, finalPix, 0});
+    if (!m_thumbFadeTimer->isActive()) m_thumbFadeTimer->start();
+}
+
+void TagWikiPage::onThumbFadeTick()
+{
+    // One markContentsDirty + viewport update per tick, regardless of how
+    // many thumbs are fading. The previous per-thumb timer cascaded into
+    // hundreds of full-document re-layouts on image-heavy pages.
     constexpr int totalMs = 220;
     constexpr int stepMs = 25;
     constexpr int totalSteps = totalMs / stepMs;
 
-    auto* timer = new QTimer(this);
-    timer->setInterval(stepMs);
-    int step = 0;
-    connect(timer, &QTimer::timeout, this, [this, timer, step, resourceUrl, finalPix]() mutable {
-        ++step;
-        const float alpha = qMin(1.0f, float(step) / float(totalSteps));
+    bool any = false;
+    for (int i = m_pendingFades.size() - 1; i >= 0; --i) {
+        PendingThumbFade& f = m_pendingFades[i];
+        ++f.step;
+        const float alpha = qMin(1.0f, float(f.step) / float(totalSteps));
 
-        QPixmap faded(finalPix.size());
+        QPixmap faded(f.finalPix.size());
         faded.fill(Qt::transparent);
         QPainter p(&faded);
         p.setOpacity(alpha);
-        p.drawPixmap(0, 0, finalPix);
+        p.drawPixmap(0, 0, f.finalPix);
         p.end();
 
-        m_browser->document()->addResource(QTextDocument::ImageResource, QUrl(resourceUrl),
+        m_browser->document()->addResource(QTextDocument::ImageResource, QUrl(f.resourceUrl),
                                            QVariant(faded));
+        any = true;
+
+        if (f.step >= totalSteps) m_pendingFades.removeAt(i);
+    }
+
+    if (any) {
         m_browser->document()->markContentsDirty(0, m_browser->document()->characterCount());
         m_browser->viewport()->update();
+    }
+    if (m_pendingFades.isEmpty()) m_thumbFadeTimer->stop();
+}
 
-        if (step >= totalSteps) {
-            timer->stop();
-            timer->deleteLater();
-        }
-    });
-    timer->start();
+// ── Paced thumb metadata fetch ───────────────────────────────────────────────
+
+void TagWikiPage::enqueueThumbFetch(ThumbKind kind, int id)
+{
+    m_thumbFetchQueue.append({kind, id});
+    if (!m_thumbFetchTimer->isActive()) m_thumbFetchTimer->start();
+}
+
+void TagWikiPage::processThumbFetchQueue()
+{
+    if (m_thumbFetchQueue.isEmpty()) {
+        m_thumbFetchTimer->stop();
+        return;
+    }
+    const QueuedThumbFetch job = m_thumbFetchQueue.takeFirst();
+    if (job.kind == ThumbKind::Post) fetchPostData(job.id);
+    else fetchAssetData(job.id);
 }
 
 // ── Nav button state ─────────────────────────────────────────────────────────
@@ -700,21 +755,25 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
     text.replace("\r\n", "\n");
     text.replace('\r', '\n');
 
-    // 1. Extract !post / !asset bullet IDs. Capped at 20 each so a runaway
-    //    page can't queue hundreds of network fetches.
+    // 1. Extract !post / !asset bullet IDs. Capped as a safety bound; Qt's
+    //    network manager throttles to ~6 concurrent connections per host so
+    //    the queue drains in order rather than slamming Danbooru.
     {
         static const QRegularExpression mediaBulletExtractRe(R"(^\*+[ \t]+!(post|asset) #(\d+))",
                                                              QRegularExpression::MultilineOption);
+        constexpr int kMaxPerKind = 200;
         auto it = mediaBulletExtractRe.globalMatch(text);
         while (it.hasNext()) {
             const auto m = it.next();
             const QString kind = m.captured(1);
             const int id = m.captured(2).toInt();
             if (kind == "post") {
-                if (!outPostIds.contains(id) && outPostIds.size() < 20) outPostIds << id;
+                if (!outPostIds.contains(id) && outPostIds.size() < kMaxPerKind)
+                    outPostIds << id;
             }
             else { // "asset"
-                if (!outAssetIds.contains(id) && outAssetIds.size() < 20) outAssetIds << id;
+                if (!outAssetIds.contains(id) && outAssetIds.size() < kMaxPerKind)
+                    outAssetIds << id;
             }
         }
     }
