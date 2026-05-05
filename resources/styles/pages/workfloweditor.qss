@@ -4,8 +4,7 @@
     background: transparent;
 }
 
-/* Section-header bar (#0f0f0f bg + 1px bottom border) comes from app.qss. */
-/* Section-label font (10px bold spaced) for #WfEditTitle also from app.qss. */
+/* Section-header bar + label fonts come from app.qss. */
 #WfEditTitle {
     color: #888888;
 }
@@ -15,7 +14,7 @@
     font-size: 12px;
 }
 
-/* Green-action button base in app.qss covers bg/color/border/radius + hover. */
+/* Green-action button base in app.qss. */
 #WfAddBtn {
     padding: 5px 14px;
     font-size: 12px;
@@ -31,7 +30,7 @@
     border-radius: 5px;
 }
 
-/* Dark-input base in app.qss covers bg/border/selection. */
+/* Dark-input base in app.qss. */
 #WfPlaceholderEdit {
     color: #cccccc;
     border-radius: 3px;
@@ -106,13 +105,13 @@
     min-width: 44px;
 }
 
-/* Spinbox base + up/down stub structure come from app.qss. */
+/* Spinbox base in app.qss. */
 #WfSeedSpin, #WfSpinBox {
     padding: 2px 6px;
     font-size: 12px;
 }
 
-/* Dark-input base in app.qss covers bg/border/selection. */
+/* Dark-input base in app.qss. */
 #WfValueEdit {
     color: #aaaaaa;
     border-radius: 3px;
@@ -125,7 +124,7 @@
     color: #cccccc;
 }
 
-/* Subtle-button base in app.qss covers bg/color/border/radius + hover. */
+/* Subtle-button base in app.qss. */
 #WfBrowseBtn {
     padding: 3px 10px;
     font-size: 12px;
@@ -154,7 +153,7 @@
     background: #141414;
 }
 
-/* Empty-state base (font-size) lives in app.qss - only the colour differs. */
+/* Empty-state base in app.qss. */
 #WfEmptyHint {
     color: #252525;
 }

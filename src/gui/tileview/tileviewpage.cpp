@@ -175,6 +175,11 @@ void TileViewPage::setLoraDirs(const QString& primaryDir, const QString& testDir
     m_entryPanel->setLoraDirs(primaryDir, testDir);
 }
 
+void TileViewPage::setLoraDefaults(double modelStr, double clipStr)
+{
+    m_entryPanel->setLoraDefaults(modelStr, clipStr);
+}
+
 void TileViewPage::setComfyClient(core::ComfyUiClient* client)
 {
     m_entryPanel->setComfyClient(client);

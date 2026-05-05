@@ -21,6 +21,8 @@ struct AppSettings {
     QString comfyUiInputFolder;  // optional ComfyUI input/ for direct file copy
     QString loraBaseDir;         // primary lora root (ComfyUI's models/loras)
     QString loraTestDir;         // optional secondary root (e.g. ~/Downloads)
+    double defaultLoraModelStr = 1.0; // applied to freshly-added LoRAs
+    double defaultLoraClipStr = 1.0;
 
     // ── Facets ────────────────────────────────────────────────────────────────
     // Quick-add facet names. Empty = menu item hidden, so users aren't forced

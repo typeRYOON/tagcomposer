@@ -4,22 +4,16 @@
     background: transparent;
 }
 
-/* Update notice - only visible when setUpdateAvailable() is called with a
-   non-empty version string. */
 #HomeUpdateLabel {
     color: #888888;
     font-size: 12px;
 }
 
-/* Author logo in the bottom-right corner - pure image, no button affordance.
-   Pointing-hand cursor and the click handler in HomePage::eventFilter do all
-   the "this is interactive" signaling. */
 #HomeRyoonLogo {
     background: transparent;
 }
 
-/* tc_logo0 (the tag-mark layer). Background transparent so the wordmark
-   shine on top blends through. */
+/* Transparent so the wordmark shine on top blends through. */
 #HomeTagLogo {
     background: transparent;
 }

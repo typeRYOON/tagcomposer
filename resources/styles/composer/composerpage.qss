@@ -4,13 +4,11 @@
     background: transparent;
 }
 
-/* 1px hairline used between sidebar sections (rules / workflow / vars). */
 #ComposerHairlineSep {
     background: #1a1a1a;
 }
 
-/* Floating preview shown next to a hovered saved-state row. Top-level Tool
-   window - we set WA_StyledBackground so the QSS background paints. */
+/* Top-level Tool window - WA_StyledBackground is set so this bg paints. */
 #StatesPreviewPopup {
     background: #0d0d0d;
     border: 1px solid #2a2a2a;
@@ -21,7 +19,7 @@
     background: transparent;
 }
 
-/* Empty-state base (font-size) lives in app.qss - only the colour differs. */
+/* Empty-state base in app.qss. */
 #ComposerEmptyHint {
     color: #2e2e2e;
 }
@@ -111,7 +109,7 @@
 }
 
 
-/* Section-label font (10px bold spaced) comes from app.qss. */
+/* Section-label font in app.qss. */
 #ComposerHeaderLabel {
     color: #888888;
 }
@@ -143,9 +141,7 @@
     color: #909090;
 }
 
-/* Indicator base in app.qss covers border/bg/checked accent. The composer
-   rule toggle is slightly smaller (12px vs 14px) and squarer (radius 2 vs 3)
-   than the others, so override those two. */
+/* Smaller/squarer than the shared indicator base. */
 #ComposerRuleToggle::indicator {
     width: 12px;
     height: 12px;
@@ -197,8 +193,7 @@
     background: transparent;
 }
 
-/* Empty-state base (font-size) lives in app.qss - colour and padding stay
-   per-file because the rules-sidebar hint sits inside its own panel. */
+/* Empty-state base in app.qss. */
 #ComposerRulesHint {
     color: #282828;
     padding: 8px;

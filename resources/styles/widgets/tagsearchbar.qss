@@ -1,7 +1,6 @@
 /* ── TagSearchBar ─────────────────────────────────────────────────────────── */
 
-/* #TagSearchInput base shape (bg/color/border/padding/font/selection) comes
-   from app.qss. Only focus/disabled state customisations live here. */
+/* #TagSearchInput base in app.qss. */
 #TagSearchInput:focus {
     border-color: #444444;
 }

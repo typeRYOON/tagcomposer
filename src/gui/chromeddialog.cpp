@@ -79,12 +79,18 @@ void ChromedDialog::changeEvent(QEvent* event)
 
 void ChromedDialog::keyPressEvent(QKeyEvent* event)
 {
-    // Esc only fires here if no focused child consumed it. While fullscreen,
-    // catch it for "exit fullscreen" instead of letting QDialog close - the
-    // titlebar isn't visible in fullscreen so otherwise the user has no way
-    // out short of F11.
+    // Esc in fullscreen exits fullscreen instead of closing - the titlebar
+    // isn't visible so otherwise the user has no way out. Bracket showNormal
+    // with a fade-out/fade-in (mirrors PreviewPopoutWindow) so the resize
+    // doesn't snap.
     if (event->key() == Qt::Key_Escape && isFullScreen()) {
-        showNormal();
+        auto* anim = utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 0.0, 200,
+                                            QEasingCurve::InOutSine);
+        connect(anim, &QPropertyAnimation::finished, this, [this]() {
+            showNormal();
+            utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 1.0, 200,
+                                   QEasingCurve::InOutSine);
+        });
         event->accept();
         return;
     }

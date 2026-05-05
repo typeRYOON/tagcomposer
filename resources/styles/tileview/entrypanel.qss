@@ -5,7 +5,7 @@
     border-left: 1px solid #1e1e1e;
 }
 
-/* Empty-state base (font-size) lives in app.qss - only the colour differs. */
+/* Empty-state base in app.qss. */
 #EntryEmptyLabel {
     color: #3a3a3a;
 }
@@ -150,9 +150,7 @@
     background: #1a1a1a;
 }
 
-/* Editable tag label inside a TagRow. Color is set per-row inline (varies
-   by danbooru tag category) - everything else lives here so the inline
-   stylesheet stays a one-property override. */
+/* Color is set per-row inline (varies by danbooru tag category). */
 #TagLabel {
     background: transparent;
     border: none;

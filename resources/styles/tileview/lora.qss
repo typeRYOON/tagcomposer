@@ -1,6 +1,6 @@
 /* ── LoRA section (EntryPanel) ────────────────────────────────────────────── */
 
-/* Section-label font (10px bold spaced) comes from app.qss. */
+/* Section-label font in app.qss. */
 #EntrySubLabel {
     color: #333333;
 }

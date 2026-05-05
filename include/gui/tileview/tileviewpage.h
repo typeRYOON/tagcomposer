@@ -30,6 +30,7 @@ public:
     void setActiveGroups(const QMap<int, QList<int>>& groups);
     void setLoraActiveByUuids(const QList<QString>& uuids);
     void setLoraDirs(const QString& primaryDir, const QString& testDir);
+    void setLoraDefaults(double modelStr, double clipStr);
     void setComfyClient(core::ComfyUiClient* client);
     void setQuickFacets(const QString& characterFacet, const QString& copyrightFacet,
                         const QString& triggerWordFacet, const QString& styleFacet);

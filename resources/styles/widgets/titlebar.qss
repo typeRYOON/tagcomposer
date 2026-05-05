@@ -41,14 +41,11 @@
     background: #8a1f15;
 }
 
-/* Wrapper that hosts the resize border around the window contents. */
 #MainFrame {
     background: #0a0a0a;
 }
 
-/* The body widget that WindowChrome creates inside #MainFrame. Matches
-   QDialog's existing fill so chromed dialogs look continuous against the
-   thin #0a0a0a cosmetic border. */
+/* Matches QDialog so chromed dialogs look continuous against the cosmetic border. */
 #ChromedDialogBody {
     background: #0d0d0d;
 }

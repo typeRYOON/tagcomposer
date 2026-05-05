@@ -28,7 +28,7 @@ namespace gui {
 class TagSearchBar;
 
 // Highlighter that paints multiple comma-separated search tokens, each with
-// its own colour from a small palette so the user can tell distinct matches
+// its own color from a small palette so the user can tell distinct matches
 // apart. Set the pattern as a single string ("red, black, hair") and the
 // highlighter splits internally.
 class TagSearchHighlighter : public QSyntaxHighlighter {

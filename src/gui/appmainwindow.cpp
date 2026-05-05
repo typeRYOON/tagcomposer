@@ -92,6 +92,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     // ── Pages ─────────────────────────────────────────────────────────────────
     m_tileViewPage = new TileViewPage(m_entryModel, this);
     m_tileViewPage->setLoraDirs(m_settings.loraBaseDir, m_settings.loraTestDir);
+    m_tileViewPage->setLoraDefaults(m_settings.defaultLoraModelStr, m_settings.defaultLoraClipStr);
     m_tileViewPage->setComfyClient(m_comfyClient);
     m_tileViewPage->setFacetIndex(&m_facetIndex);
     m_tileViewPage->setTileGradient(m_settings.tileGradientStart, m_settings.tileGradientAlpha);
@@ -298,6 +299,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
                                 m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);
         }
         m_tileViewPage->setLoraDirs(m_settings.loraBaseDir, m_settings.loraTestDir);
+        m_tileViewPage->setLoraDefaults(m_settings.defaultLoraModelStr,
+                                        m_settings.defaultLoraClipStr);
     });
     connect(m_settingsPage, &SettingsPage::reconnectRequested, this,
             [this]() { m_comfyClient->connectToServer(); });

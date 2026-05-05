@@ -10,6 +10,9 @@
 #include <QHBoxLayout>
 #include <QFrame>
 #include <QKeyEvent>
+#include <QResizeEvent>
+#include <QShowEvent>
+#include <QScrollBar>
 #include <QFileInfo>
 #include <QDir>
 #include <QImage>
@@ -233,6 +236,18 @@ protected:
         QListWidget::keyPressEvent(event);
     }
 
+    void resizeEvent(QResizeEvent* event) override
+    {
+        QListWidget::resizeEvent(event);
+        centerLayout();
+    }
+
+    void showEvent(QShowEvent* event) override
+    {
+        QListWidget::showEvent(event);
+        centerLayout();
+    }
+
 public:
     // Replace contents with `entries`. Bumps generation, so any thumbnail
     // loads spawned for the previous folder will discard their results.
@@ -265,11 +280,34 @@ public:
                 requestThumbnail(path, gen);
             }
         }
+        // Defer so the scrollbar's visibility settles before we re-centre.
+        QMetaObject::invokeMethod(
+            this, [this]() { centerLayout(); }, Qt::QueuedConnection);
     }
 
 private:
     static constexpr int kThumbW = 192;
     static constexpr int kThumbH = 192;
+
+    // IconMode has no center-align; split the leftover row width between
+    // left and right viewport margins instead.
+    void centerLayout()
+    {
+        const int gridW = gridSize().width();
+        const int sp = spacing();
+        if (gridW <= 0) return;
+
+        const int sbw = (verticalScrollBar() && verticalScrollBar()->isVisible())
+                            ? verticalScrollBar()->width()
+                            : 0;
+        const int inner = width() - sbw;
+        if (inner <= sp) return;
+
+        const int n = qMax(1, (inner - sp) / (gridW + sp));
+        const int used = n * (gridW + sp) + sp;
+        const int side = qMax(0, (inner - used) / 2);
+        setViewportMargins(side, 16, side, 0);
+    }
 
     // Decode at thumb size on a worker; the generation guard skips
     // redundant requeues, and the GUI-side guard drops stale results.
@@ -341,7 +379,7 @@ private:
         QPainterPath fp;
         fp.addRoundedRect(tab, 4, 4);
         fp.addRoundedRect(body, 6, 6);
-        p.fillPath(fp, QColor(204, 204, 204)); // #cccccc, app's primary text colour
+        p.fillPath(fp, QColor(204, 204, 204)); // #cccccc, app's primary text color
 
         // A subtle highlight strip across the top of the body so the folder
         // reads as 3D rather than a flat block.

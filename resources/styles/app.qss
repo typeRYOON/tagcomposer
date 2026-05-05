@@ -1,11 +1,6 @@
 /* ── App-wide ─────────────────────────────────────────────────────────────── */
 
-/* Palette - the de-facto theme tokens used across every QSS file. Qt has no
-   native variables, so these are kept here as a search/replace cheat sheet
-   and a hint that these colours are load-bearing. Treat any new use of an
-   off-palette colour as a smell unless it's an accent (red/green/amber/blue)
-   tied to a specific status.
-
+/* Palette tokens (Qt has no native variables - search/replace cheat sheet):
        Surfaces:   #0d0d0d  page bg          #0f0f0f  panel bg
                    #111111  raised panel     #141414  input bg
                    #181818  input focus bg   #1a1a1a  hover bg
@@ -17,10 +12,8 @@
                    #888888  muted            #555555  hint
                    #3a3a3a  placeholder      #2a2a2a  disabled
        Selection:  #2a2a2a  text bg          #ffffff  text fg
-       Accents:    #336633 / #66aa66 / #5a9a5a  green (action / success)
-                   #cc6666 / #cc3333            red (destructive)
-                   #886622 / #c8a050            amber (flagged / weighted)
-                   #5588bb / #77aadd            blue (run / info)
+       Accents:    green #336633/#66aa66/#5a9a5a   red #cc6666/#cc3333
+                   amber #886622/#c8a050           blue #5588bb/#77aadd
 */
 
 QMainWindow, QWidget {
@@ -35,8 +28,6 @@ QMainWindow, QWidget {
 }
 
 /* ── Dialogs ──────────────────────────────────────────────────────────────── */
-/* Scoped to QDialog so existing widget-specific styles (#SettingsInput, the
-   tag search bar, etc.) keep their look - but dialogs get readable defaults. */
 
 QDialog {
     background: #0d0d0d;
@@ -144,14 +135,9 @@ QDialog QCheckBox::indicator:checked {
 }
 
 /* ── Shared widget patterns ───────────────────────────────────────────────── */
-/* Bases for widget patterns that recur across pages. Each pattern is keyed
-   by objectName, not by class, so per-page rules below this file (loaded
-   later in alphabetical order) can still override individual declarations. */
+/* Keyed by objectName so per-page rules (loaded later) can override. */
 
-/* Dark input - line edits and similar text fields with a #141414 fill and a
-   subtle border. Per-page rules customise color/padding/font-size/radius and
-   keep their own :focus declaration since each diverges (some shift bg, some
-   shift only color, #EntryComment uses a darker base border). */
+/* Dark input base - per-page rules add :focus and tweak padding/font. */
 #SettingsInput,
 #WfValueEdit,
 #WfPlaceholderEdit,
@@ -162,8 +148,7 @@ QDialog QCheckBox::indicator:checked {
     selection-background-color: #2a2a2a;
 }
 
-/* Green action button - primary/affirmative actions (Save, Run, Add, Launch).
-   Per-page rules adjust padding/font-size only. */
+/* Green action button base (Save, Run, Add, Launch). */
 #SettingsLaunchBtn,
 #FacetSaveBtn,
 #WfAddBtn {
@@ -181,8 +166,7 @@ QDialog QCheckBox::indicator:checked {
     border-color: #336633;
 }
 
-/* Subtle secondary button - Browse, Copy, action-row buttons. Per-page
-   rules differ only in padding, font-size, and text-align. */
+/* Subtle secondary button base (Browse, Copy, action rows). */
 #SettingsBrowseBtn,
 #WfBrowseBtn,
 #ComposerCopyBtn {
@@ -200,10 +184,7 @@ QDialog QCheckBox::indicator:checked {
     border-color: #333333;
 }
 
-/* Spinbox container - dark fill with a slim up/down stub stack on the right.
-   #LoraSpinBox is intentionally excluded: it diverges enough (different color,
-   border, padding, stub width) that an override-per-property would cost more
-   than it saves. */
+/* Spinbox base. #LoraSpinBox is intentionally excluded - it diverges too far. */
 #ComposerCountSpin,
 #WfSeedSpin,
 #WfSpinBox {
@@ -249,9 +230,7 @@ QDialog QCheckBox::indicator:checked {
     background: #282828;
 }
 
-/* Green-checked square checkbox indicator - the tri-color status checkbox
-   pattern. Per-page rules can override checked colors when the accent
-   shifts (e.g. #DatasetSoloCheck uses a slightly different green). */
+/* Green-checked square checkbox indicator base. */
 #SettingsCheckBox::indicator,
 #ComposerRuleToggle::indicator,
 #DatasetSoloCheck::indicator {
@@ -268,9 +247,7 @@ QDialog QCheckBox::indicator:checked {
     border-color: #336633;
 }
 
-/* Section header label - small bold uppercase letterspaced caption. The
-   #ComposerGroupHeader on the composer page is intentionally larger and
-   keeps its own rule. */
+/* Section header label base (small bold spaced caption). */
 #ComposerHeaderLabel,
 #FacetPanelHeader,
 #WfEditTitle,
@@ -283,10 +260,7 @@ QDialog QCheckBox::indicator:checked {
     letter-spacing: 1px;
 }
 
-/* Empty-state placeholder - the centered "nothing here yet, do this" hint
-   shown when a panel or list has no content. Per-page rules keep their own
-   color (and padding when needed); only the size is shared so Hiragino's
-   rounded glyphs render cleanly across every page. */
+/* Empty-state placeholder base - per-page rules set the color. */
 #DatasetEmptyState,
 #EntryEmptyLabel,
 #WfEmptyHint,
@@ -296,8 +270,7 @@ QDialog QCheckBox::indicator:checked {
     font-size: 15px;
 }
 
-/* Section header bar - the dark strip above each panel body, with a 1px
-   separator at its bottom. */
+/* Section header bar base. */
 #WfEditHeader,
 #OvHeader,
 #DatasetTabBar,
@@ -307,9 +280,7 @@ QDialog QCheckBox::indicator:checked {
     border-bottom: 1px solid #1a1a1a;
 }
 
-/* Tile-view / composer top-level search field. Same shape, two object names
-   because they live in different widgets and the C++ code looks them up by
-   name. */
+/* Top-level search field base (two object names, same shape). */
 #SearchBar,
 #TagSearchInput {
     background: #1a1a1a;
@@ -321,9 +292,7 @@ QDialog QCheckBox::indicator:checked {
     selection-background-color: #3a3a3a;
 }
 
-/* Inline validation message rendered next to a form field (import dialog,
-   entry-create panel). Keep this rule scoped to QLabel so the colour
-   doesn't bleed into descendants. */
+/* QLabel-scoped so the color doesn't bleed into descendants. */
 QLabel#ValidationLabel {
     color: #cc6666;
 }

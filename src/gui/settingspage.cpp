@@ -1,6 +1,8 @@
 #include <gui/settingspage.h>
 #include <gui/chromeddialog.h>
+#include <utils/appconfig.h>
 #include <utils/logger.h>
+#include <utils/qutils.h>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -12,6 +14,7 @@
 #include <QAbstractSpinBox>
 #include <QColorDialog>
 #include <QDialogButtonBox>
+#include <QPixmap>
 
 namespace gui {
 
@@ -26,7 +29,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     body->setObjectName("SettingsBody");
 
     auto* bodyLayout = new QVBoxLayout(body);
-    bodyLayout->setContentsMargins(32, 24, 32, 24);
+    bodyLayout->setContentsMargins(32, 24, 32, 12);
     bodyLayout->setSpacing(0);
 
     // ── Section: Appearance ───────────────────────────────────────────────────
@@ -93,7 +96,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     m_tileTitleColor->setCursor(Qt::PointingHandCursor);
 
     // Pick a readable foreground (black on light backgrounds, white on dark)
-    // so the hex string stays legible regardless of the chosen colour.
+    // so the hex string stays legible regardless of the chosen color.
     auto applyTitleSwatch = [this]() {
         const QColor c(m_settings->tileTitleColor);
         const bool dark =
@@ -113,7 +116,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
         const QColor initial(m_settings->tileTitleColor);
 
         ChromedDialog wrapper(this);
-        wrapper.setWindowTitle("Tile title colour");
+        wrapper.setWindowTitle("Tile title color");
 
         auto* picker =
             new QColorDialog(initial.isValid() ? initial : Qt::white, wrapper.contentArea());
@@ -129,6 +132,9 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
         // native dialog.
         connect(picker, &QColorDialog::colorSelected, &wrapper,
                 [&wrapper](const QColor&) { wrapper.accept(); });
+        // Esc on the embedded picker calls QDialog::done(Rejected) which
+        // only hides the picker; forward to the wrapper so it closes too.
+        connect(picker, &QDialog::rejected, &wrapper, &QDialog::reject);
 
         auto* layout = new QVBoxLayout(wrapper.contentArea());
         layout->setContentsMargins(0, 0, 0, 0);
@@ -148,7 +154,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     tileGradGrid->addLayout(wrapLeft(m_tileGradStart), 0, 1);
     tileGradGrid->addWidget(makeGradLabel("Tile gradient opacity (0–255)"), 1, 0);
     tileGradGrid->addLayout(wrapLeft(m_tileGradAlpha), 1, 1);
-    tileGradGrid->addWidget(makeGradLabel("Tile title colour"), 2, 0);
+    tileGradGrid->addWidget(makeGradLabel("Tile title color"), 2, 0);
     tileGradGrid->addLayout(wrapLeft(m_tileTitleColor), 2, 1);
 
     auto* tileGradHint =
@@ -290,6 +296,41 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     loraTestHint->setObjectName("SettingsHintLabel");
     loraTestHint->setWordWrap(true);
 
+    auto makeLoraSpin = [](double min, double max, double step, double val) {
+        auto* s = new QDoubleSpinBox;
+        s->setObjectName("LoraSpinBox");
+        s->setButtonSymbols(QAbstractSpinBox::NoButtons);
+        s->setRange(min, max);
+        s->setSingleStep(step);
+        s->setDecimals(2);
+        s->setValue(val);
+        s->setFixedWidth(48);
+        return s;
+    };
+    auto makeLoraSpinLabel = [](const QString& t) {
+        auto* l = new QLabel(t);
+        l->setObjectName("LoraSpinLabel");
+        return l;
+    };
+
+    m_defaultLoraModelStr = makeLoraSpin(0.0, 2.0, 0.05, settings->defaultLoraModelStr);
+    m_defaultLoraClipStr = makeLoraSpin(0.0, 4.0, 0.10, settings->defaultLoraClipStr);
+
+    auto* loraDefaultsRow = new QHBoxLayout;
+    loraDefaultsRow->setContentsMargins(0, 0, 0, 0);
+    loraDefaultsRow->setSpacing(6);
+    loraDefaultsRow->addWidget(makeLoraSpinLabel("Model"));
+    loraDefaultsRow->addWidget(m_defaultLoraModelStr);
+    loraDefaultsRow->addSpacing(8);
+    loraDefaultsRow->addWidget(makeLoraSpinLabel("Clip"));
+    loraDefaultsRow->addWidget(m_defaultLoraClipStr);
+    loraDefaultsRow->addStretch();
+
+    auto* loraDefaultsHint =
+        new QLabel("Applied when adding a new LoRA. Existing entries keep their values.");
+    loraDefaultsHint->setObjectName("SettingsHintLabel");
+    loraDefaultsHint->setWordWrap(true);
+
     m_inputFolder = new QLineEdit;
     m_inputFolder->setObjectName("SettingsInput");
     m_inputFolder->setPlaceholderText(
@@ -335,14 +376,17 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     detailLayout->addWidget(makeLabel("LoRA test folder"), 7, 0);
     detailLayout->addLayout(loraTestRow, 7, 1);
     detailLayout->addWidget(loraTestHint, 8, 1);
-    detailLayout->addWidget(makeLabel("Input folder"), 9, 0);
-    detailLayout->addLayout(inputRow, 9, 1);
-    detailLayout->addWidget(inputHint, 10, 1);
+    detailLayout->addWidget(makeLabel("LoRA defaults"), 9, 0);
+    detailLayout->addLayout(loraDefaultsRow, 9, 1);
+    detailLayout->addWidget(loraDefaultsHint, 10, 1);
+    detailLayout->addWidget(makeLabel("Input folder"), 11, 0);
+    detailLayout->addLayout(inputRow, 11, 1);
+    detailLayout->addWidget(inputHint, 12, 1);
     auto* btnRow = new QHBoxLayout;
     btnRow->setSpacing(8);
     btnRow->addWidget(connectBtn);
     btnRow->addStretch();
-    detailLayout->addLayout(btnRow, 11, 1);
+    detailLayout->addLayout(btnRow, 13, 1);
 
     comfyLayout->addWidget(m_comfyDetails);
     bodyLayout->addWidget(comfyGroup);
@@ -417,7 +461,38 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     facetsLayout->addWidget(purgeHint, 5, 1);
     facetsLayout->addLayout(purgeRow, 6, 1);
 
+    auto* openDanbooruBtn = new QPushButton("Open danbooru.csv");
+    openDanbooruBtn->setObjectName("SettingsLaunchBtn");
+    openDanbooruBtn->setCursor(Qt::PointingHandCursor);
+
+    auto* openGroupsBtn = new QPushButton("Open groups.fct");
+    openGroupsBtn->setObjectName("SettingsLaunchBtn");
+    openGroupsBtn->setCursor(Qt::PointingHandCursor);
+
+    auto* systemFilesHint =
+        new QLabel("Edit the Danbooru tag CSV or the tag-group categories file in your default "
+                   "editor. Restart to apply changes.");
+    systemFilesHint->setObjectName("SettingsHintLabel");
+    systemFilesHint->setWordWrap(true);
+
+    auto* systemFilesRow = new QHBoxLayout;
+    systemFilesRow->setContentsMargins(0, 0, 0, 0);
+    systemFilesRow->setSpacing(8);
+    systemFilesRow->addWidget(openDanbooruBtn);
+    systemFilesRow->addWidget(openGroupsBtn);
+    systemFilesRow->addStretch();
+
+    facetsLayout->addWidget(systemFilesHint, 7, 1);
+    facetsLayout->addLayout(systemFilesRow, 8, 1);
+
     connect(purgeBtn, &QPushButton::clicked, this, &SettingsPage::purgeTagDefinitionsRequested);
+    connect(openDanbooruBtn, &QPushButton::clicked, this, []() {
+        utils::openSystemFile(utils::BASE_PATH + "/" + utils::DANBOORU_CSV_PATH,
+                              QByteArrayLiteral("tag,category,count,wrong\n"));
+    });
+    connect(openGroupsBtn, &QPushButton::clicked, this, []() {
+        utils::openSystemFile(utils::BASE_PATH + "/" + utils::GROUPS_PATH);
+    });
 
     bodyLayout->addWidget(facetsGroup);
     bodyLayout->addSpacing(24);
@@ -512,7 +587,25 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     for (const QString& msg : utils::Logger::instance().history())
         m_log->appendPlainText(msg);
     bodyLayout->addWidget(m_log);
+    bodyLayout->addSpacing(16);
 
+    auto* footerRow = new QHBoxLayout;
+    footerRow->setContentsMargins(0, 0, 0, 0);
+    footerRow->setSpacing(6);
+    footerRow->addStretch();
+
+    auto* footerIcon = new QLabel;
+    footerIcon->setPixmap(QPixmap(":/icons/taskbar.png")
+                              .scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    footerRow->addWidget(footerIcon);
+
+    auto* versionLabel =
+        new QLabel(QString("%1 v%2").arg(utils::APP_NAME, utils::APP_VERSION));
+    versionLabel->setObjectName("SettingsHintLabel");
+    footerRow->addWidget(versionLabel);
+    footerRow->addStretch();
+
+    bodyLayout->addLayout(footerRow);
     bodyLayout->addStretch();
 
     // ── Scroll area ───────────────────────────────────────────────────────────
@@ -622,6 +715,17 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
         m_settings->loraTestDir = dir;
         emit settingsChanged();
     });
+
+    connect(m_defaultLoraModelStr, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            [this](double v) {
+                m_settings->defaultLoraModelStr = v;
+                emit settingsChanged();
+            });
+    connect(m_defaultLoraClipStr, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            [this](double v) {
+                m_settings->defaultLoraClipStr = v;
+                emit settingsChanged();
+            });
 
     connect(m_inputFolder, &QLineEdit::editingFinished, this, [this]() {
         m_settings->comfyUiInputFolder = m_inputFolder->text().trimmed();

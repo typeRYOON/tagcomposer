@@ -33,6 +33,10 @@ AppSettings AppSettings::load(const QString& path)
     s.comfyUiInputFolder = cui["inputFolder"].toString();
     s.loraBaseDir = cui["loraBaseDir"].toString();
     s.loraTestDir = cui["loraTestDir"].toString();
+    if (cui.contains("defaultLoraModelStr"))
+        s.defaultLoraModelStr = cui["defaultLoraModelStr"].toDouble(1.0);
+    if (cui.contains("defaultLoraClipStr"))
+        s.defaultLoraClipStr = cui["defaultLoraClipStr"].toDouble(1.0);
 
     const QJsonObject facets = root["facets"].toObject();
     s.quickCharacterFacet = facets["quickCharacter"].toString();
@@ -82,6 +86,8 @@ void AppSettings::save(const QString& path) const
     cui["inputFolder"] = comfyUiInputFolder;
     cui["loraBaseDir"] = loraBaseDir;
     cui["loraTestDir"] = loraTestDir;
+    cui["defaultLoraModelStr"] = defaultLoraModelStr;
+    cui["defaultLoraClipStr"] = defaultLoraClipStr;
 
     QJsonObject facets;
     facets["quickCharacter"] = quickCharacterFacet;
@@ -104,9 +110,6 @@ void AppSettings::save(const QString& path) const
     collector["pollSeconds"] = collectorPollSeconds;
 
     QJsonObject upd;
-    // QJsonValue stores numbers as double - fine for unix timestamps until
-    // the year 287396 or so. No need for the hex-string trick we use for
-    // 64-bit hashes.
     upd["lastCheckTime"] = double(lastUpdateCheckTime);
     upd["lastKnownLatest"] = lastKnownLatestVersion;
 

@@ -23,14 +23,12 @@
     spacing: 8px;
 }
 
-/* Indicator base + :checked colors come from app.qss. */
-
 #SettingsFieldLabel {
     color: #444444;
     font-size: 12px;
 }
 
-/* Dark-input base in app.qss covers bg/border/selection. */
+/* Dark-input base in app.qss. */
 #SettingsInput {
     color: #cccccc;
     border-radius: 4px;
@@ -43,8 +41,7 @@
     background: #181818;
 }
 
-/* Green-action button base in app.qss covers bg/color/border/radius +
-   hover transform. */
+/* Green-action button base in app.qss. */
 #SettingsLaunchBtn {
     padding: 5px 12px;
     font-size: 14px;
@@ -85,8 +82,7 @@
     font-size: 11px;
 }
 
-/* Subtle-button base in app.qss covers bg/color/border + hover transform.
-   Only the radius (4 here vs the base's 3) and per-button padding/fs differ. */
+/* Subtle-button base in app.qss. */
 #SettingsBrowseBtn {
     border-radius: 4px;
     padding: 5px 8px;

@@ -4,10 +4,6 @@
     background: transparent;
 }
 
-/* Section-header bar comes from app.qss - its border-bottom is #1a1a1a
-   (one shade darker than the previous #1e1e1e here, for consistency with
-   the other section header bars). */
-
 #WikiNavBtn {
     background: transparent;
     border: none;

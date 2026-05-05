@@ -9,7 +9,7 @@
     border-right: 1px solid #1a1a1a;
 }
 
-/* Section-label font (10px bold spaced) comes from app.qss. */
+/* Section-label font in app.qss. */
 #FacetPanelHeader {
     color: #888888;
     padding: 10px 12px 6px 12px;
@@ -62,7 +62,7 @@
     color: #aaaaaa;
 }
 
-/* Empty-state base (font-size) lives in app.qss - only the colour differs. */
+/* Empty-state base in app.qss. */
 #FacetEditorHint {
     color: #252525;
 }
@@ -126,7 +126,7 @@
     border-color: #3a7a3a;
 }
 
-/* Green-action button base in app.qss covers bg/color/border/radius + hover. */
+/* Green-action button base in app.qss. */
 #FacetSaveBtn {
     padding: 6px 12px;
     font-size: 12px;

@@ -42,6 +42,7 @@ public:
     // primary is the move-target for dropped files outside both roots;
     // test is read-only (recognised on drop, never written to). Either empty.
     void setLoraDirs(const QString& primaryDir, const QString& testDir);
+    void setLoraDefaults(double modelStr, double clipStr);
 
 signals:
     void entryListChanged();
@@ -76,6 +77,8 @@ private:
     QMap<int, QList<int>> m_activeGroups;
     QString m_loraPrimaryDir;
     QString m_loraTestDir;
+    double m_defaultLoraModelStr = 1.0;
+    double m_defaultLoraClipStr = 1.0;
     QString m_quickCharFacet;
     QString m_quickCopyFacet;
     QString m_quickTriggerFacet;

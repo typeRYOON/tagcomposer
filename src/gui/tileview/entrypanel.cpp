@@ -691,7 +691,11 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                     targetEntry = m_model->entryById(entryId);
                     if (!targetEntry) return;
 
-                    if (!targetEntry->lora.has_value()) targetEntry->lora = core::LoraConfig{};
+                    if (!targetEntry->lora.has_value()) {
+                        targetEntry->lora = core::LoraConfig{};
+                        targetEntry->lora->modelStr = m_defaultLoraModelStr;
+                        targetEntry->lora->clipStr = m_defaultLoraClipStr;
+                    }
                     targetEntry->lora->rootKey = finalRootKey;
                     targetEntry->lora->file = finalRel;
                     targetEntry->lora->sha256 = hash;
@@ -1008,6 +1012,12 @@ void EntryPanel::setActiveGroups(const QMap<int, QList<int>>& groups)
     updateExtraBtnState();
 }
 
+void EntryPanel::setLoraDefaults(double modelStr, double clipStr)
+{
+    m_defaultLoraModelStr = modelStr;
+    m_defaultLoraClipStr = clipStr;
+}
+
 void EntryPanel::setLoraDirs(const QString& primaryDir, const QString& testDir)
 {
     m_loraPrimaryDir = primaryDir;
@@ -1152,7 +1162,7 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
     rl->addWidget(dot, 0, Qt::AlignVCenter);
 
     // Editable tag name. Static look (font-size, transparent bg, no border/padding)
-    // lives in entrypanel.qss under #TagLabel; only the per-tag colour is
+    // lives in entrypanel.qss under #TagLabel; only the per-tag color is
     // dynamic so it stays as an inline override.
     auto* edit = new QLineEdit(tag, row);
     edit->setObjectName("TagLabel");

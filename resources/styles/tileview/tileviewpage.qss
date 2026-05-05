@@ -1,8 +1,6 @@
 /* ── TileViewPage ─────────────────────────────────────────────────────────── */
 
-/* #SearchBar base shape (bg/color/border/padding/font/selection) comes from
-   app.qss - see the search-field block. Only this page customises the
-   focus state and placeholder colour. */
+/* #SearchBar base in app.qss. */
 #SearchBar:focus {
     border-bottom: 1px solid #444444;
     background: #1e1e1e;

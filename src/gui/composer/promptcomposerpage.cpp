@@ -9,6 +9,7 @@
 #include <gui/widgets/composericons.h>
 #include <core/entrymodel.h>
 #include <utils/appconfig.h>
+#include <utils/qutils.h>
 #include <QFile>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -203,7 +204,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     rulesOpenBtn->setCursor(Qt::PointingHandCursor);
     rulesOpenBtn->setToolTip("Open rules.fct in editor");
     connect(rulesOpenBtn, &QPushButton::clicked, this,
-            []() { QDesktopServices::openUrl(QUrl::fromLocalFile(BASE_PATH + "/" + RULES_PATH)); });
+            []() { utils::openSystemFile(BASE_PATH + "/" + RULES_PATH); });
 
     auto* rulesReloadBtn = new QPushButton;
     rulesReloadBtn->setObjectName("SidebarBtn");
@@ -247,7 +248,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     varsOpenBtn->setCursor(Qt::PointingHandCursor);
     varsOpenBtn->setToolTip("Open vars.fct in editor");
     connect(varsOpenBtn, &QPushButton::clicked, this,
-            []() { QDesktopServices::openUrl(QUrl::fromLocalFile(BASE_PATH + "/" + VARS_PATH)); });
+            []() { utils::openSystemFile(BASE_PATH + "/" + VARS_PATH); });
 
     auto* varsReloadBtn = new QPushButton;
     varsReloadBtn->setObjectName("SidebarBtn");

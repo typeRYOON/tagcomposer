@@ -1,6 +1,6 @@
 /* ── Workflow sidebar (PromptComposerPage) ────────────────────────────────── */
 
-/* Section-label font (10px bold spaced) comes from app.qss. */
+/* Section-label font in app.qss. */
 #WfSidebarHeaderLabel {
     color: #333333;
 }
@@ -119,8 +119,6 @@
     border: 1px solid #3a3a3a;
     background: #0f0f0f;
 }
-/* Step text is painted directly in PreviewClickLabel::paintEvent - no separate widget */
-
 #ComposerControlBar {
     background: #111111;
     border: 1px solid #1e1e1e;
@@ -164,9 +162,7 @@
     background: #2a0f0f;
 }
 
-/* Spinbox base + up/down stub structure come from app.qss. The control bar's
-   slightly raised bg (#1a1a1a) and faintly lighter border (#252525) override
-   the shared base, since this spin sits inside the floating control widget. */
+/* Spinbox base in app.qss; raised bg/border to match the floating control bar. */
 #ComposerCountSpin {
     background: #1a1a1a;
     border-color: #252525;
@@ -183,9 +179,7 @@
     border-left: 1px solid #252525;
 }
 
-/* Subtle-button base in app.qss covers bg/color/border/radius + hover. The
-   border here is faintly darker (#1e1e1e) than the shared #222222 - keep
-   it because the copy button sits on the slightly raised control bar. */
+/* Subtle-button base in app.qss; darker border to match the control bar. */
 #ComposerCopyBtn {
     border-color: #1e1e1e;
     padding: 3px 6px;

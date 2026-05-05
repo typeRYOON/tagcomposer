@@ -43,7 +43,7 @@ constexpr int kPreviewMaxWidth = 720; // upper bound for the centered image
 constexpr int kPreviewMaxHeight = 720;
 
 // Background/foreground pairs the highlighter cycles through so each
-// comma-separated token gets a distinct colour. Tuned for the dark theme.
+// comma-separated token gets a distinct color. Tuned for the dark theme.
 const QList<QPair<QColor, QColor>> kHighlightColors = {
     {QColor("#3a4a2a"), QColor("#e0ffd0")}, // green
     {QColor("#4a2a2a"), QColor("#ffd0d0")}, // red
@@ -357,7 +357,7 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
     m_highlightEdit->setClearButtonEnabled(true);
     m_highlightEdit->setFixedHeight(kFolderRowHeight);
     m_highlightEdit->setToolTip(
-        "Comma-separated list of substrings. Each token gets its own colour\n"
+        "Comma-separated list of substrings. Each token gets its own color\n"
         "in the editor so distinct matches are visually separable. Case-\n"
         "insensitive. Empty = no highlight.");
 

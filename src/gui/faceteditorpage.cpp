@@ -3,6 +3,7 @@
 #include <gui/widgets/composericons.h>
 #include <gui/widgets/flowlayout.h>
 #include <utils/appconfig.h>
+#include <utils/qutils.h>
 #include <QCursor>
 #include <QDesktopServices>
 #include <QEvent>
@@ -144,7 +145,7 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     schemaOpenBtn->setCursor(Qt::PointingHandCursor);
     schemaOpenBtn->setToolTip("Open facets.fct in editor");
     connect(schemaOpenBtn, &QPushButton::clicked, this, []() {
-        QDesktopServices::openUrl(QUrl::fromLocalFile(utils::BASE_PATH + "/" + utils::FACETS_PATH));
+        utils::openSystemFile(utils::BASE_PATH + "/" + utils::FACETS_PATH);
     });
 
     auto* schemaReloadBtn = new QPushButton;

@@ -123,7 +123,7 @@ private:
     QTimer* m_hideTimer = nullptr;
 };
 
-// Glyph-only status badge for rule rows; QSS objectName drives the colour.
+// Glyph-only status badge for rule rows; QSS objectName drives the color.
 QLabel* makeBadge(const QString& glyph, const QString& objectName)
 {
     auto* lbl = new QLabel;
