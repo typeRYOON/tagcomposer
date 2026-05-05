@@ -60,20 +60,10 @@ void PromptComposerPage::rebuildStatesList()
     }
 }
 
-void PromptComposerPage::saveCurrentState()
+void PromptComposerPage::captureCurrentState(core::SavedState& state) const
 {
-    if (m_statesDir.isEmpty()) return;
-
-    bool ok;
-    const QString defaultName = QString("State %1").arg(m_stateManager.states().size() + 1);
-    const QString name =
-        QInputDialog::getText(this, "Save State", "Name:", QLineEdit::Normal, defaultName, &ok);
-    if (!ok || name.trimmed().isEmpty()) return;
-
-    core::SavedState state;
-    state.id = QString::number(QDateTime::currentMSecsSinceEpoch());
-    state.name = name.trimmed();
     state.activeTags = m_activeTags;
+    state.tagWeights.clear();
     for (auto it = m_tagWeights.cbegin(); it != m_tagWeights.cend(); ++it)
         if (qAbs(it.value() - 1.0f) >= 0.001f) state.tagWeights[it.key()] = it.value();
     state.deactivatedTags = m_deactivatedTags;
@@ -81,12 +71,15 @@ void PromptComposerPage::saveCurrentState()
     // Convert runtime (entryId, imageIdx) keys to stable (uuid, imageFileName).
     state.activePushes = dumpActivePushes();
 
+    state.ruleStates.clear();
+    state.ruleArguments.clear();
     for (const auto& rule : m_rules->rules()) {
         state.ruleStates[rule.name] = rule.enabled;
         // Add/Replace args are user-typed in the rules sidebar; part of state.
         state.ruleArguments[rule.name] = rule.action.arguments;
     }
 
+    state.varValues.clear();
     if (m_varIndex)
         for (const auto& var : m_varIndex->variables())
             state.varValues.append({var.name, var.value});
@@ -100,13 +93,57 @@ void PromptComposerPage::saveCurrentState()
             varValues.append(core::WorkflowManager::varToJson(var));
         state.workflowVarValues = varValues;
     }
+    else {
+        state.selectedWorkflowId.clear();
+        state.workflowVarValues = QJsonArray();
+    }
 
     state.activeLoraUuids = m_activeLoraUuids;
+}
+
+void PromptComposerPage::saveCurrentState()
+{
+    if (m_statesDir.isEmpty()) return;
+
+    bool ok;
+    const QString defaultName = QString("State %1").arg(m_stateManager.states().size() + 1);
+    const QString name =
+        QInputDialog::getText(this, "Save State", "Name:", QLineEdit::Normal, defaultName, &ok);
+    if (!ok || name.trimmed().isEmpty()) return;
+
+    core::SavedState state;
+    state.id = QString::number(QDateTime::currentMSecsSinceEpoch());
+    state.name = name.trimmed();
+    captureCurrentState(state);
 
     m_stateManager.states() << state;
     m_stateManager.saveToDir(m_statesDir);
     rebuildStatesList();
     emit statusMessageRequested(QString("Saved: %1").arg(state.name));
+}
+
+void PromptComposerPage::overwriteState(int row)
+{
+    if (m_statesDir.isEmpty()) return;
+    if (row < 0 || row >= m_stateManager.states().size()) return;
+
+    // Preserve identity (id keeps the on-disk dir) and the existing preview;
+    // a new save would have neither, but overwrite is meant to refresh the
+    // payload only.
+    core::SavedState& state = m_stateManager.states()[row];
+    const QString id = state.id;
+    const QString name = state.name;
+    const QString previewImagePath = state.previewImagePath;
+
+    state = core::SavedState();
+    state.id = id;
+    state.name = name;
+    state.previewImagePath = previewImagePath;
+    captureCurrentState(state);
+
+    m_stateManager.saveToDir(m_statesDir);
+    rebuildStatesList();
+    emit statusMessageRequested(QString("Overwrote: %1").arg(state.name));
 }
 
 void PromptComposerPage::restoreState(const core::SavedState& state)

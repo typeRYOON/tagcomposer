@@ -128,6 +128,11 @@ private:
     void reloadRules();
     void reloadVars();
     void saveCurrentState();
+    void overwriteState(int row);
+    // Fills `state` with a snapshot of the current composer/workflow data.
+    // Leaves id, name, and previewImagePath untouched - those are owned by
+    // the caller (new save vs. overwriting an existing slot).
+    void captureCurrentState(core::SavedState& state) const;
     void restoreState(const core::SavedState& state);
     void showStatePreview(int row);
     void hideStatePreview();

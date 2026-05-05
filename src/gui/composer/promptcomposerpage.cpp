@@ -442,6 +442,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
                 QMenu menu;
                 QAction* openAct = menu.addAction("Open state file");
                 menu.addSeparator();
+                QAction* overwriteAct = menu.addAction("Overwrite with current");
                 QAction* renameAct = menu.addAction("Rename");
                 QAction* deleteAct = menu.addAction("Delete");
                 QAction* chosen = menu.exec(m_statesList->mapToGlobal(pos));
@@ -450,6 +451,9 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
                     const QString statePath =
                         m_statesDir + "/" + m_stateManager.states()[row].id + "/state.json";
                     QDesktopServices::openUrl(QUrl::fromLocalFile(statePath));
+                }
+                else if (chosen == overwriteAct) {
+                    overwriteState(row);
                 }
                 else if (chosen == renameAct) {
                     bool ok;

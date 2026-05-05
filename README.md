@@ -128,7 +128,7 @@ def prepare_callback(model, steps, x0_output_dict=None):
     return callback
 ```
 
-Make sure these imports exist near the top of `latent_preview.py` (add them if missing):
+Make sure these imports exist near the top of `ComfyUI/latent_preview.py` (add them if missing):
 
 ```python
 import base64, io
