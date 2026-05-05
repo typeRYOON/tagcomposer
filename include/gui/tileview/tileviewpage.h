@@ -36,8 +36,8 @@ public:
     void setTileGradient(qreal start, int alpha);
     void setTileTitleColor(const QColor& color);
     QList<QString> activeLoraUuids() const;
-    // Re-runs the current search-bar query against the entry model. Used after
-    // an import to surface newly-added entries without losing typed state.
+    // Re-runs the current search-bar query; used post-import to surface
+    // newly-added entries without losing typed state.
     void refreshEntries();
 
 signals:

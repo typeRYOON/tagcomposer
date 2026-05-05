@@ -34,9 +34,8 @@ DatasetHelpersPage::DatasetHelpersPage(core::FacetIndex* facets,
     m_tabLayout->setSpacing(4);
     m_tabLayout->setAlignment(Qt::AlignLeft);
 
-    // Pill indicator that slides between tabs. Lives outside the layout so we
-    // can animate its geometry independently; lower()'d so the active button's
-    // text paints on top of it.
+    // Sliding pill indicator; outside the layout so we can animate it
+    // independently, lowered so the button text paints on top.
     m_indicator = new QWidget(m_tabBar);
     m_indicator->setObjectName("DatasetTabIndicator");
     m_indicator->setAttribute(Qt::WA_StyledBackground, true);
@@ -48,10 +47,8 @@ DatasetHelpersPage::DatasetHelpersPage(core::FacetIndex* facets,
 
     m_stack = new QStackedWidget(this);
 
-    // Tab order: Tag Cluster → Auto-collect → Auto-tagger → Tag Editor →
-    // Batch Edit. Auto-collect leads the dataset-building tabs because the
-    // typical workflow starts there ("watch downloads → build collection")
-    // before tagging, editing, and batch ops downstream.
+    // Tab order matches the typical workflow: build a collection first,
+    // then tag, edit, and batch downstream.
     m_tagClusterPage = new TagClusterPage(m_facets, this);
     addTab("Tag Cluster", m_tagClusterPage);
 
@@ -69,11 +66,9 @@ DatasetHelpersPage::DatasetHelpersPage(core::FacetIndex* facets,
     m_batchEditPage = new BatchEditPage(m_settings, this);
     addTab("Batch Edit", m_batchEditPage);
 
-    // Inter-tab handoff: switch the stack to `target`'s tab and seed it via
-    // `seed`. Mirrors what clicking a tab button does - flips the checked
-    // state, slides the indicator pill. Pulled from the layout (which
-    // preserves addTab order) rather than QButtonGroup::buttons (order
-    // undocumented).
+    // Inter-tab handoff: switch to target's tab and seed its input. Pulled
+    // from the layout (preserves addTab order) since QButtonGroup::buttons
+    // doesn't document any.
     auto switchToPage = [this](QWidget* target) {
         const int idx = m_stack->indexOf(target);
         if (idx < 0) return;
@@ -86,28 +81,28 @@ DatasetHelpersPage::DatasetHelpersPage(core::FacetIndex* facets,
         }
     };
 
-    // Auto-tagger → Tag Editor (input)
+    // Auto-tagger -> Tag Editor (input)
     connect(m_autoTagPage, &AutoTagPage::editFolderRequested, this,
             [this, switchToPage](const QString& folder) {
                 m_tagEditorPage->setInputFolder(folder);
                 switchToPage(m_tagEditorPage);
             });
 
-    // Auto-tagger → Batch Edit (input)
+    // Auto-tagger -> Batch Edit (input)
     connect(m_autoTagPage, &AutoTagPage::sendToBatchEditRequested, this,
             [this, switchToPage](const QString& folder) {
                 m_batchEditPage->setInputFolder(folder);
                 switchToPage(m_batchEditPage);
             });
 
-    // Tag Editor → Batch Edit (input)
+    // Tag Editor -> Batch Edit (input)
     connect(m_tagEditorPage, &TagEditorPage::sendToBatchEditRequested, this,
             [this, switchToPage](const QString& folder) {
                 m_batchEditPage->setInputFolder(folder);
                 switchToPage(m_batchEditPage);
             });
 
-    // Auto-collect → Auto-tagger (input)
+    // Auto-collect -> Auto-tagger (input)
     connect(m_collectorPage, &CollectorPage::sendToAutoTaggerRequested, this,
             [this, switchToPage](const QString& folder) {
                 m_autoTagPage->setInputFolder(folder);
@@ -165,9 +160,8 @@ void DatasetHelpersPage::moveIndicatorTo(QWidget* btn, bool animate)
 void DatasetHelpersPage::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
-    // Place the indicator on the active tab once the layout has measured the
-    // buttons (geometry is zero in the constructor). Subsequent shows don't
-    // need to re-place - the indicator already tracks the active button.
+    // First show: place the indicator now that the buttons have been
+    // sized. Later shows already track the active button.
     if (!m_indicatorPlaced) {
         if (auto* btn = m_tabGroup->checkedButton()) moveIndicatorTo(btn, /*animate=*/false);
     }

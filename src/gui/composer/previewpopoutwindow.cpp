@@ -40,9 +40,8 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
 
     m_imageLabel = new ScaledImageLabel(this);
 
-    // Top-level window: full chrome (min/max/close). Non-modal, so no
-    // explicit mouse-grab is needed during edge-resize (the implicit grab
-    // works fine outside QDialog::exec()'s modal loop).
+    // Non-modal top-level: full chrome with no explicit mouse-grab needed
+    // (the implicit grab works fine outside QDialog::exec()).
     m_chrome = new WindowChrome(this);
 
     auto* contentLayout = new QVBoxLayout(m_chrome->bodyWidget());
@@ -55,7 +54,6 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
     root->setSpacing(0);
     root->addWidget(m_chrome->frame());
 
-    // Floating small label: bottom-left, shows newest temp-folder image
     m_tempLabel = new ClickableLabel(this);
     m_tempLabel->setObjectName("PopoutTempLabel");
     m_tempLabel->hide();
@@ -77,15 +75,13 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
             m_tempLabel->show();
             m_tempLabel->raise();
         }
-        // A directoryChanged that fired while we were loading would have
-        // bailed out of loadNewestTempImage. Kick the debounce so we pick
-        // up whatever's newest now (the dedupe in loadNewestTempImage
-        // makes this a no-op if nothing changed).
+        // Coalescing backstop: a directoryChanged during the load bailed
+        // early; the debounce + dedupe re-checks for anything newer.
         m_debounce->start();
     });
 
-    // Per-window shortcuts. Main window's shortcuts are also WindowShortcut,
-    // so each window owns its own copies of these keys with no ambiguity.
+    // WindowShortcut so each window owns its own copy and there's no
+    // ambiguity with the main window's identical bindings.
     auto addShortcut = [this](const QString& seq, auto handler) {
         auto* a = new QAction(this);
         a->setShortcut(QKeySequence(seq));
@@ -137,8 +133,7 @@ void PreviewPopoutWindow::resizeEvent(QResizeEvent* e)
     constexpr int margin = 12;
     const int side = qBound(120, qMin(width(), height()) / 2, 800);
     m_tempLabel->setFixedSize(side, side);
-    // Bottom-left of the visible content area. Inset by kResizeBorder so the
-    // label doesn't sit on top of the cosmetic frame border.
+    // Inset by kResizeBorder so the label clears the cosmetic frame.
     m_tempLabel->move(margin + kResizeBorder, height() - side - margin - kResizeBorder);
     m_tempLabel->raise();
 }
@@ -187,8 +182,8 @@ void PreviewPopoutWindow::changeEvent(QEvent* e)
 
 void PreviewPopoutWindow::closeEvent(QCloseEvent* e)
 {
-    // First close → swallow event, fade out, then re-close which lets through.
-    // Mirror of AppMainWindow's closeEvent fade pattern.
+    // Two-pass close: first swallow + fade, second pass lets through.
+    // Same pattern as AppMainWindow's closeEvent.
     if (m_isClosing) {
         e->accept();
         return;
@@ -212,9 +207,8 @@ void PreviewPopoutWindow::loadNewestTempImage()
         if (fi.lastModified() > newest->lastModified()) newest = &fi;
 
     const QString newestPath = newest->absoluteFilePath();
-    // Dedupe: nothing to do if we've already loaded this file (matters now
-    // that the load-finished handler re-arms the debounce as a coalescing
-    // backstop - without this, every directoryChanged would re-decode).
+    // Skip a re-decode when the load-finished handler's debounce-backstop
+    // re-fires us against the same path.
     if (newestPath == m_lastTempPath) return;
     if (m_loadWatcher->isRunning()) return;
     m_lastTempPath = newestPath;

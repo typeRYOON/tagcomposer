@@ -107,8 +107,8 @@ signals:
     void workflowVarsChanged();
     void statusMessageRequested(const QString& message);
     void loraUuidsRestored(QList<QString> uuids);
-    // Right-click → "Quick add as character/copyright" - handled by AppMainWindow,
-    // which mutates FacetIndex, persists, and triggers a facet reload.
+    // Right-click "Quick add as character/copyright" - AppMainWindow
+    // mutates FacetIndex, persists, and triggers a facet reload.
     void quickFacetRequested(const QString& tag, const QString& facetName);
 
 protected:
@@ -155,11 +155,10 @@ private:
     static QList<core::CategoryGroup> bucketForOutput(const QList<core::PipelineTag>& flat,
                                                       const core::TagGroupIndex& groups);
 
-    // m_activePushes ↔ portable {uuid, imageFileName, tags} translation.
-    // Pushes referencing a runtime entryId that no longer resolves are
-    // skipped on dump. loadActivePushes replaces the current push set,
-    // emits activeGroupsChanged, and returns the count of incoming pushes
-    // that couldn't be resolved (entry deleted between save and restore).
+    // Round-trip m_activePushes against the portable {uuid, imageFileName,
+    // tags} form. Unresolved-runtime-id pushes are skipped on dump; load
+    // returns how many incoming pushes couldn't be resolved (entry deleted
+    // between save and restore).
     QList<core::EntryPush> dumpActivePushes() const;
     int loadActivePushes(const QList<core::EntryPush>& pushes);
 
@@ -250,7 +249,7 @@ private:
     QWidget* m_categoryNav = nullptr;
     QPushButton* m_clearBtn = nullptr;
     ComposerScrollArea* m_groupsScroll = nullptr;
-    QMap<QString, QWidget*> m_groupHeaders; // display name → header label
+    QMap<QString, QWidget*> m_groupHeaders; // display name -> header label
 };
 
 } // namespace gui

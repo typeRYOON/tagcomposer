@@ -40,10 +40,9 @@ WindowChrome::WindowChrome(QWidget* host, Options opt) : QObject(host), m_host(h
     fLayout->addWidget(m_titleBar);
     fLayout->addWidget(m_body, 1);
 
-    // Resize hit-test overlay: a kResizeHit-wide ring on top of m_frame.
-    // setMask carves out the inner area so events there pass through to the
-    // body widgets - only the ring intercepts. Geometry & mask are kept in
-    // sync with m_frame via the resize handler in eventFilter().
+    // Edge-resize hit ring on top of m_frame; the inner area is masked out
+    // so it passes through to body widgets. Geometry/mask are resynced in
+    // the eventFilter resize handler.
     m_resizeOverlay = new QWidget(m_frame);
     m_resizeOverlay->setObjectName("ResizeOverlay");
     m_resizeOverlay->setAttribute(Qt::WA_NoSystemBackground);
@@ -84,9 +83,8 @@ bool WindowChrome::eventFilter(QObject* obj, QEvent* event)
         }
     }
 
-    // Outline-style edge resize. Disabled while maximized/fullscreen - the
-    // OS owns geometry in those states, so dragging shouldn't reflow the
-    // window.
+    // Outline-style edge resize; off in maximized/fullscreen since the OS
+    // owns geometry there.
     if (obj == m_resizeOverlay && m_host && !m_host->isMaximized() && !m_host->isFullScreen()) {
         if (event->type() == QEvent::MouseMove) {
             auto* me = static_cast<QMouseEvent*>(event);
@@ -139,16 +137,14 @@ void WindowChrome::beginResizeDrag(Qt::Edges edges, const QPoint& globalStart)
     m_resizeOutline->show();
     m_resizeOutline->raise();
 
-    // Pin the resize cursor app-wide for the duration of the drag - the
-    // mouse routinely leaves m_resizeOverlay while the user pulls beyond
-    // the old window edge.
+    // Pin the cursor app-wide; the mouse routinely leaves the overlay
+    // while the user pulls past the old window edge.
     QApplication::setOverrideCursor(QCursor(cursorForEdges(edges)));
 
-    // QDialog::exec()'s application-modal event loop breaks the implicit
-    // mouse grab the press would normally establish on m_resizeOverlay
-    // (showing the ResizeOutline as another top-level widget is what
-    // disrupts it). Without an explicit grab, MouseMove/MouseRelease never
-    // come back through our event filter. Non-modal hosts don't need this.
+    // QDialog::exec()'s modal loop breaks the implicit mouse grab a press
+    // would normally hold on m_resizeOverlay (showing ResizeOutline as a
+    // separate top-level disrupts it), so we grab explicitly. Non-modal
+    // hosts don't need this.
     if (m_opt.modalGrab) m_resizeOverlay->grabMouse();
 }
 
@@ -179,8 +175,8 @@ QRect WindowChrome::computeResizeGeometry(const QPoint& globalNow) const
     if (m_dragEdges & Qt::TopEdge) g.setTop(g.top() + d.y());
     if (m_dragEdges & Qt::BottomEdge) g.setBottom(g.bottom() + d.y());
 
-    // Clamp to the host's minimum size. When dragging from top/left, pin the
-    // moving edge so the opposite edge stays put.
+    // Clamp to the host's minimum size; from top/left, pin against the
+    // opposite edge so it stays put.
     QSize minSz(320, 200);
     if (m_host) {
         minSz =

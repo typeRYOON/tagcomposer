@@ -38,7 +38,7 @@ class BatchEditPage : public QWidget {
 public:
     explicit BatchEditPage(utils::AppSettings* settings = nullptr, QWidget* parent = nullptr);
 
-    // Used by the Auto-tagger / Tag Editor → Batch Edit handoff.
+    // Used by the Auto-tagger -> Batch Edit and Tag Editor -> Batch Edit handoffs.
     void setInputFolder(const QString& folder);
 
 private:

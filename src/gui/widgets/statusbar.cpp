@@ -18,8 +18,7 @@ StatusBar::StatusBar(QWidget* parent) : QWidget(parent)
     m_label->setObjectName("StatusBarLabel");
     m_label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 
-    // Status text auto-clears after 10s. The Logger keeps the full history,
-    // so anything dismissed here is still visible in the settings page log.
+    // Status text auto-clears after 10s; full history lives in the settings log.
     m_clearTimer = new QTimer(this);
     m_clearTimer->setSingleShot(true);
     m_clearTimer->setInterval(10'000);
@@ -27,9 +26,7 @@ StatusBar::StatusBar(QWidget* parent) : QWidget(parent)
 
     m_activeLabel = new QLabel("0 active", this);
     m_activeLabel->setObjectName("StatusBarActiveLabel");
-    // Match the progress-bar height so HBox vertical centering aligns the
-    // label's text with the bar's text instead of letting QLabel's default
-    // sizeHint (taller than the bar) push it a couple of pixels up.
+    // Pinned to the bar's height so HBox centers their text on the same line.
     m_activeLabel->setFixedHeight(14);
     m_activeLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
 
@@ -41,10 +38,8 @@ StatusBar::StatusBar(QWidget* parent) : QWidget(parent)
     m_progress->setTextVisible(true);
     m_progress->setFormat("");
 
-    // Both the active count and the progress bar start hidden. Active label
-    // fades in when count > 0 and fades out alongside the progress bar when
-    // the queue drains. Layout still reserves both slots so the message
-    // label's width stays stable.
+    // Both fade in/out together; the slots stay reserved so the message
+    // label's width doesn't jitter when they appear or disappear.
     m_activeEffect = new QGraphicsOpacityEffect(m_activeLabel);
     m_activeEffect->setOpacity(0.0);
     m_activeLabel->setGraphicsEffect(m_activeEffect);
@@ -104,12 +99,11 @@ void StatusBar::clearProgress()
 
 void StatusBar::setActiveCount(int count)
 {
-    // Text only - fade-in is driven by setProgress so the label appears in
-    // sync with the progress bar (ComfyUI delays its first preview step
-    // message after a prompt is queued, and we want both to fade in at the
-    // same moment instead of the label leading by hundreds of ms).
+    // Text-only update; setProgress drives the fade-in so label and bar
+    // appear together rather than the label leading by ComfyUI's first-
+    // preview delay.
     m_activeLabel->setText(QString("%1 active").arg(count));
-    if (count <= 0) clearProgress(); // also drives the active label fade-out
+    if (count <= 0) clearProgress(); // also fades the active label out
 }
 
 void StatusBar::fadeProgressTo(qreal opacity)

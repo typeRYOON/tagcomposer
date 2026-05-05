@@ -102,7 +102,7 @@ private:
     QLabel* m_previewImage = nullptr;
     QLabel* m_previewStatus = nullptr;
     QHash<QString, QPixmap> m_previewCache;
-    QHash<QString, int> m_previewPostIds; // tag → post id (for click-through)
+    QHash<QString, int> m_previewPostIds; // tag -> post id (for click-through)
     int m_previewPostId = -1;
 };
 

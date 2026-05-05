@@ -16,15 +16,12 @@ public:
 
 public slots:
     void showMessage(const QString& message);
-    // step >= 1 && total >= 1 → updates value + fades the bar in.
-    // Anything else is a no-op so transient (0,0) reports between batched
-    // prompts don't visually reset the bar; call clearProgress() to dismiss.
+    // step >= 1 && total >= 1: update value and fade the bar in. Anything
+    // else is a no-op, so transient (0,0) reports between batched prompts
+    // don't reset the bar - call clearProgress() to dismiss.
     void setProgress(int step, int total);
-    // Empties the bar + fades out. Call when the active queue is drained.
     void clearProgress();
-    // Updates the "<n> active" label sitting to the left of the progress bar.
-    // count > 0 → fades the label in; count == 0 → fades the label and the
-    // progress bar out together.
+    // count > 0 fades the label in; count == 0 fades both label and bar out.
     void setActiveCount(int count);
 
 private:

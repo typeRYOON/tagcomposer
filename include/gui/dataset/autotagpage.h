@@ -41,8 +41,8 @@ public:
     // the user adds/removes model dirs externally.
     void refreshModels();
 
-    // Used by the inter-tab handoff (Collector → Auto-tagger). Sets the
-    // input folder field and persists the value to settings.
+    // Inter-tab handoff target (Collector -> Auto-tagger). Sets the input
+    // folder field and persists the value to settings.
     void setInputFolder(const QString& folder);
 
 protected:
@@ -96,7 +96,7 @@ private:
 
     // Cached results so clicking a list row brings them back without re-running.
     QHash<QString, core::TagResult> m_results;
-    QHash<QString, QString> m_failures; // rel → reason
+    QHash<QString, QString> m_failures; // rel -> reason
 
     void onRun();
     void onCancel();
@@ -111,8 +111,8 @@ private:
 
     void setRunning(bool on);
     void persistSettings();
-    // Toggles between the centered placeholder (with `message`) and the
-    // results list. Empty `message` → results list visible.
+    // Toggles between the centered placeholder (with message) and the
+    // results list. Empty message means results list visible.
     void showEmptyState(const QString& message);
 };
 

@@ -42,9 +42,8 @@ constexpr int kFolderRowHeight = 40;
 constexpr int kPreviewMaxWidth = 720; // upper bound for the centered image
 constexpr int kPreviewMaxHeight = 720;
 
-// Tinted pairs (background, foreground) - one per comma-separated highlight
-// token. The highlighter cycles through these so the user sees each token
-// in a distinct colour. Tuned for the dark theme.
+// Background/foreground pairs the highlighter cycles through so each
+// comma-separated token gets a distinct colour. Tuned for the dark theme.
 const QList<QPair<QColor, QColor>> kHighlightColors = {
     {QColor("#3a4a2a"), QColor("#e0ffd0")}, // green
     {QColor("#4a2a2a"), QColor("#ffd0d0")}, // red
@@ -149,10 +148,9 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
     leftPanel->setObjectName("DatasetParamsPanel");
     leftPanel->setAttribute(Qt::WA_StyledBackground, true);
     leftPanel->setFixedWidth(kLeftPanelWidth);
-    // ClickFocus + WidgetWithChildrenShortcut below = clicking any non-input
-    // area of the panel grabs focus, after which Left/Right arrows step the
-    // navigation cursor. Inside the folder QLineEdit the arrows still move
-    // the text cursor (the line edit consumes the key event first).
+    // Click-to-focus pairs with the WidgetWithChildrenShortcut bindings
+    // below: arrows step the navigation cursor, except inside text fields
+    // where the line-edit consumes the key first.
     leftPanel->setFocusPolicy(Qt::ClickFocus);
 
     auto* ll = new QVBoxLayout(leftPanel);
@@ -231,9 +229,8 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
     m_sendToBatchBtn->setObjectName("EntryActionBtn");
     m_sendToBatchBtn->setToolTip("Open this folder in the Batch Edit tab for whole-folder ops.");
 
-    // Folder label + right-aligned "open in file manager" chip - mirrors the
-    // RULES/VARS header chips on the composer so the whole app shares the
-    // same affordance for jumping to a folder on disk.
+    // Mirrors the composer's RULES/VARS header chip: label + "open in
+    // file manager" affordance.
     {
         auto* row = new QWidget(leftBody);
         auto* l = new QHBoxLayout(row);
@@ -289,10 +286,8 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
     m_focusImage->setCursor(Qt::PointingHandCursor);
     m_focusImage->installEventFilter(this);
     m_focusImage->setToolTip("Click to open the image in the system viewer.");
-    // Expanding/Expanding so the label fills the middle column. We also need
-    // a small minimum width via QSizePolicy::IgnoredHorizontally-style hint -
-    // the natural width of a label tracks its pixmap, which would lock the
-    // column width in place; ignoring that lets the layout shrink/grow it.
+    // Expanding/Expanding fills the middle column. The pixmap-driven
+    // natural width would otherwise lock the column, so let it shrink.
     auto sp = m_focusImage->sizePolicy();
     sp.setHorizontalPolicy(QSizePolicy::Expanding);
     sp.setVerticalPolicy(QSizePolicy::Expanding);
@@ -300,15 +295,10 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
     m_focusImage->setSizePolicy(sp);
     m_focusImage->setMinimumWidth(0);
 
-    // Stretch=1 so the label gobbles all the space. Alignment inside the
-    // label keeps the pixmap centred when its aspect ratio doesn't match
-    // the available area.
     mbl->addWidget(m_focusImage, 1);
 
-    // Custom header for the image section: title on the left, filename of
-    // the currently focused image on the right (subtitle styling). The
-    // generic makeSectionHeader helper doesn't support a subtitle, so we
-    // build this one inline.
+    // Inline header (title left, filename right) since makeSectionHeader
+    // doesn't support a subtitle.
     auto* imageHeader = new QWidget(middlePanel);
     imageHeader->setObjectName("DatasetSectionHeader");
     imageHeader->setAttribute(Qt::WA_StyledBackground, true);
@@ -359,9 +349,8 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
     m_tagEdit->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     m_tagEdit->setEnabled(false);
 
-    // Visually pair the highlight box with the tag-edit text area below it
-    // - both use #DatasetExcludeEdit so their backgrounds, borders, and
-    // font sizes line up.
+    // Both use #DatasetExcludeEdit so backgrounds, borders, and font
+    // sizes line up with the tag-edit area below.
     m_highlightEdit = new QLineEdit(rightBody);
     m_highlightEdit->setObjectName("DatasetExcludeEdit");
     m_highlightEdit->setPlaceholderText("Highlight (comma-separated)…");
@@ -421,10 +410,8 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
         if (m_highlighter) m_highlighter->setPattern(t);
     });
 
-    // Arrow-key navigation. Scoped with WidgetWithChildrenShortcut so the
-    // bindings only fire when the left panel (or one of its non-text
-    // children) has focus - leaves text editing in the folder field, the
-    // tag editor, and the search bar alone.
+    // Arrow-key nav scoped with WidgetWithChildrenShortcut so it doesn't
+    // steal arrows from text fields.
     {
         auto* prevSc = new QShortcut(QKeySequence(Qt::Key_Left), leftPanel);
         prevSc->setContext(Qt::WidgetWithChildrenShortcut);
@@ -559,10 +546,8 @@ void TagEditorPage::jumpTo(int newIndex)
     // without bounds-checking themselves.
     newIndex = std::clamp(newIndex, 0, int(m_images.size()) - 1);
 
-    // External-deletion guard: if the file at newIndex was removed outside
-    // the app between rescan and now, drop the entry and slide to the next
-    // existing one. Recurses (via tail call to jumpTo) once we've pruned;
-    // if the list ends up empty, the early-return at the top fires.
+    // External-deletion guard: drop the entry and recurse to the next
+    // existing index. The early-return at the top handles empty lists.
     if (!QFileInfo::exists(m_images.at(newIndex))) {
         m_images.removeAt(newIndex);
         if (m_images.isEmpty()) {
@@ -663,9 +648,8 @@ void TagEditorPage::onDeleteClicked()
         return;
     }
 
-    // Drop from m_images and adjust the cursor: stay on the same index so
-    // we land on whatever shifted into that position; if we were at the end,
-    // step back one.
+    // Stay on the same index so the cursor lands on the next image; step
+    // back if we were on the last one.
     m_images.removeAt(m_currentIndex);
     if (m_currentIndex >= m_images.size()) --m_currentIndex;
 
@@ -685,7 +669,7 @@ void TagEditorPage::onDeleteClicked()
     m_editStatus->setText(QString("Moved %1 to recycle bin.").arg(QFileInfo(imgPath).fileName()));
 }
 
-// ── Search bar → editor ─────────────────────────────────────────────────────
+// ── Search bar to editor ────────────────────────────────────────────────────
 
 void TagEditorPage::onSearchBarTagAdded(const QString& canonical)
 {
@@ -750,9 +734,8 @@ void TagEditorPage::rescalePreview()
     if (!m_focusImage) return;
     if (m_focusPixmapSrc.isNull()) return;
 
-    // Scale to whatever the label currently has - labels grow/shrink with
-    // the layout, so this is also what we want when the window is resized.
-    // Keep aspect ratio, transform smoothly, and apply the rounded clip.
+    // Scale to the label's current size; aspect ratio kept, smooth
+    // transform, rounded clip.
     const QSize area = m_focusImage->size();
     if (area.width() <= 0 || area.height() <= 0) return;
 
@@ -764,12 +747,10 @@ void TagEditorPage::rescalePreview()
 bool TagEditorPage::eventFilter(QObject* obj, QEvent* ev)
 {
     if (obj == m_focusImage) {
-        // Resize-to-fit. Triggered both on initial show and every time the
-        // window resizes - the label tracks the layout, so its resizeEvent
-        // is the right hook for "available area changed".
+        // resizeEvent on the label tracks "available area changed".
         if (ev->type() == QEvent::Resize) {
             rescalePreview();
-            // Don't consume - let the label run its own resize logic too.
+            // Don't consume; let the label run its own resize logic too.
         }
         if (ev->type() == QEvent::MouseButtonRelease) {
             auto* me = static_cast<QMouseEvent*>(ev);

@@ -23,15 +23,17 @@ static QColor categoryColor(int cat)
 {
     switch (cat) {
     case 0:
-        return {0xb4, 0xc7, 0xd9}; // general   – light blue-gray
+        return {0xb4, 0xc7, 0xd9}; // general
     case 1:
-        return {0xf2, 0xac, 0x08}; // artist    – orange
+        return {0xf2, 0xac, 0x08}; // artist
     case 3:
-        return {0xdd, 0x00, 0xdd}; // copyright – purple
+        return {0xdd, 0x00, 0xdd}; // copyright
     case 4:
-        return {0x00, 0xaa, 0x00}; // character – green
+        return {0x00, 0xaa, 0x00}; // character
     case 5:
-        return {0xaa, 0xaa, 0xaa}; // meta      – gray
+        return {0xaa, 0xaa, 0xaa}; // meta
+    case 10:
+        return {0xff, 0x4d, 0x6d}; // custom (pink/red)
     default:
         return {0xe0, 0xe0, 0xe0};
     }

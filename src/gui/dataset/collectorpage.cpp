@@ -298,9 +298,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     syncCounters();
 
     // ── Far-right panel (recent thumbs) ─────────────────────────────────────
-    // Newest-first grid of images the watcher moved into the collection. Same
-    // column position + width as AutoTagPage's PREVIEW so the dataset tabs
-    // read consistently.
+    // Newest-first grid; column position/width match AutoTagPage's preview.
     auto* recentPanel = new QWidget(this);
     recentPanel->setObjectName("DatasetPreviewPanel");
     recentPanel->setAttribute(Qt::WA_StyledBackground, true);
@@ -627,9 +625,8 @@ void CollectorPage::addRecentThumb(const QString& imagePath)
 {
     if (!m_recentList) return;
 
-    // Decode off the GUI thread so a large image doesn't stutter the watcher
-    // log update sitting next to it. Watcher is per-call so multiple in-flight
-    // loads can interleave without stepping on each other.
+    // Decode off the GUI thread; per-call watcher so multiple in-flight
+    // loads don't step on each other.
     auto* w = new QFutureWatcher<QImage>(this);
     connect(w, &QFutureWatcher<QImage>::finished, this, [this, w, imagePath]() {
         const QImage img = w->result();

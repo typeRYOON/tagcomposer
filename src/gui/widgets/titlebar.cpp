@@ -13,9 +13,6 @@
 #include <QWindow>
 
 namespace {
-// Icon resource paths. App icon is the existing taskbar .png; the three
-// chrome glyphs are PNG files registered in resources.qrc. Sized at draw
-// time via setIconSize on each button.
 constexpr auto kAppIcon = ":/icons/taskbar.png";
 constexpr auto kIconTitleMin = ":/icons/title_min.png";
 constexpr auto kIconTitleMax = ":/icons/title_max.png";
@@ -66,9 +63,8 @@ TitleBar::TitleBar(QWidget* parent) : QWidget(parent)
     h->addWidget(m_closeBtn);
 
     connect(m_minBtn, &QPushButton::clicked, this, [this]() {
-        // Fade out, then minimize. Fade-in on un-minimize is handled by the
-        // host window's changeEvent (animates back to 1.0 when opacity is
-        // low and the window is restored from the taskbar).
+        // Fade out, then minimize; the host's changeEvent handles fade-in
+        // when the window is restored from the taskbar.
         auto* w = window();
         if (!w || (w->windowState() & Qt::WindowMinimized)) return;
         auto* anim = utils::propertyAnimate(w, "windowOpacity", w->windowOpacity(), 0.0, 200,
@@ -102,12 +98,11 @@ bool TitleBar::eventFilter(QObject* obj, QEvent* event)
 
 void TitleBar::mousePressEvent(QMouseEvent* event)
 {
-    // Only initiate a drag with the left button; right/middle clicks fall
-    // through so future context menus can hook in here.
+    // Right/middle fall through so a future context menu can hook in.
     if (event->button() == Qt::LeftButton) {
         if (auto* w = window()) {
-            // Restore-on-drag (Windows-like): if maximized, restore first so
-            // the window doesn't snap back to its old geometry while pinned.
+            // Windows-like restore-on-drag: if maximized, restore first so
+            // the window doesn't snap back to its old geometry mid-drag.
             if (w->isMaximized()) w->showNormal();
             if (auto* h = w->windowHandle()) {
                 h->startSystemMove();
@@ -131,8 +126,7 @@ void TitleBar::mouseDoubleClickEvent(QMouseEvent* event)
 
 void TitleBar::toggleFullScreen()
 {
-    // Fade through black across the state change so the OS-level fullscreen
-    // transition is hidden behind a smooth opacity dip instead of a snap.
+    // Fade through black so the OS-level fullscreen transition is hidden.
     auto* w = window();
     if (!w) return;
     auto* anim = utils::propertyAnimate(w, "windowOpacity", w->windowOpacity(), 0.0, 200,

@@ -60,7 +60,7 @@ public:
                   QWidget* parent = nullptr);
     ~TagEditorPage() override;
 
-    // Public entry point used by the AutoTag → Tag Editor handoff.
+    // Public entry point used by the AutoTag -> Tag Editor handoff.
     void setInputFolder(const QString& folder);
 
     // Late-binding hook for AppMainWindow - DanbooruIndex loads asynchronously

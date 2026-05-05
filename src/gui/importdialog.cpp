@@ -228,9 +228,7 @@ void ImportDialog::validate()
         return;
     }
 
-    // Always allow proceeding when there are no entries to import AND no tag
-    // defs to merge - the user might just be cancelling out, which the
-    // Cancel button handles. So gate Import on having anything to do.
+    // Disable Import when there's nothing to do; Cancel still works.
     if (m_scan.entries.isEmpty() && m_scan.tagDefs.isEmpty()) {
         m_validation->clear();
         m_importBtn->setEnabled(false);

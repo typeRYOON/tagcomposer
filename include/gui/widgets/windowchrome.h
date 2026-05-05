@@ -22,7 +22,7 @@ class TitleBar;
 //   3. Insert m_chrome->frame() into the host's layout
 //      (or setCentralWidget() for QMainWindow).
 //   4. Layout content into m_chrome->bodyWidget().
-//   5. Forward changeEvent → m_chrome->onWindowStateChanged().
+//   5. Forward changeEvent to m_chrome->onWindowStateChanged().
 //
 // The chrome's QObject parent is the host, so it's destroyed automatically.
 class WindowChrome : public QObject {

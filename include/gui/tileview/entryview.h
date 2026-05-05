@@ -15,21 +15,6 @@
 
 namespace gui {
 
-// ── DropLabel ─────────────────────────────────────────────────────────────────
-
-/*class DropLabel : public QLabel {
-        Q_OBJECT
-    public:
-        QString m_droppedPath;
-        DropLabel();
-
-    protected:
-        void dragEnterEvent(QDragEnterEvent* e) override;
-        void dropEvent(QDropEvent* e) override;
-    };*/
-
-// ── EntryView ─────────────────────────────────────────────────────────────────
-
 class EntryView : public QWidget {
     Q_OBJECT
 public:
@@ -40,13 +25,11 @@ public slots:
     void setActiveGroups(const QMap<int, QList<int>>& groups);
     void clearLoraForEntry(int entryId);
     void setLoraActiveByUuids(const QList<QString>& uuids);
-    // Scroll-with-animation to the given entry and emit entryClicked.
-    // No-op if the entry isn't currently in the visible/queried list.
+    // Animated scroll to the entry and emit entryClicked; no-op if it
+    // isn't in the visible/queried list.
     void selectAndScrollToEntry(int32_t entryId);
-    // Set the tile-bottom gradient. Called once at startup from
-    // AppMainWindow before any tiles are baked, so no cache clear is
-    // needed; mid-session edits in Settings persist but don't apply
-    // until the next launch.
+    // Startup-only: applied before tiles are baked. Mid-session edits in
+    // Settings persist but only show after the next launch.
     void setTileGradient(qreal start, int alpha);
     // Same startup-only semantics as setTileGradient.
     void setTileTitleColor(const QColor& color);
@@ -68,7 +51,6 @@ protected:
     void resizeEvent(QResizeEvent* event) override;
 
 private:
-    // Layout helpers
     void recomputeLayout();
     QRect tileRect(int index) const;
     int indexAt(QPoint widgetPos) const;
@@ -76,51 +58,44 @@ private:
     void repositionNav();
     void rebuildNavPanel();
 
-    // Async image loading
     void requestLoad(int entryIndex);
     QImage makeTileImage(const QImage& src, const QString& title);
 
-    // Model
     core::EntryModel* m_model;
     QList<core::Entry*> m_entries;
 
-    // Tile dimensions (constexpr so they're usable in makeTileImage as static)
+    // constexpr so makeTileImage can use them as static.
     static constexpr int TileW = static_cast<int>(180 * 1.3);
     static constexpr int TileH = static_cast<int>(231 * 1.3);
     static constexpr int Spacing = 12;
     static constexpr int Radius = 12;
     static constexpr int PadV = 16;
 
-    // Layout state
     int m_cols = 1;
     int m_offsetX = 0;
     qreal m_scrollYTarget = 0.0;
     qreal m_scrollYActual = 0.0;
     int m_totalH = 0;
 
-    // Hover
     int m_hoverIndex = -1;
 
-    // Pixel cache (key = entry index in m_entries).
-    // Bounded LRU - see ctor for max cost. Each tile is ~274 KB
-    // (TileW * TileH * 4 bytes), so cost is just the entry count.
+    // Bounded LRU keyed by entry index; cost is the entry count, since
+    // each tile is ~274 KB (TileW * TileH * 4 bytes).
     QCache<int, QPixmap> m_pixCache;
     QSet<int> m_pending;
     QMutex m_cacheMutex;
 
-    QPixmap m_placeholder; // transparent - drawn while a tile loads
-    QImage m_emptyTileBg;  // resource-backed; fed into makeTileImage
-                           // when an entry has no (or a missing) image
+    QPixmap m_placeholder; // transparent placeholder while a tile loads
+    QImage m_emptyTileBg;  // resource-backed; used when an entry has no image
 
-    // Bottom-fade gradient + title text colour - defaults match the
-    // original hardcoded look, overridden once at startup from settings.
+    // Defaults match the original hardcoded look; overridden once at
+    // startup from settings.
     qreal m_gradStart = 0.6;
     int m_gradAlpha = 180;
     QColor m_titleColor = Qt::white;
 
-    // Per-tile animation state
     struct TileAnim {
-        qreal fadeOpacity = 1.0; // 0 → 1 on load
+        qreal fadeOpacity = 1.0; // 0 to 1 on load
         qreal hoverT = 0.0;      // 0 = normal, 1 = hovered (eased in paintEvent)
     };
     QHash<int, TileAnim> m_anims;

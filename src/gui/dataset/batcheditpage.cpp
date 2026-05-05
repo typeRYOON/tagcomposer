@@ -114,9 +114,8 @@ BatchEditPage::BatchEditPage(utils::AppSettings* settings, QWidget* parent)
     m_recursiveCheck->setToolTip("Walk every subdirectory under the chosen folder. Off = only the\n"
                                  "top level is scanned.");
 
-    // Operation rows. Each is checkbox + (optional) parameter input. Order
-    // here matches the documented apply order in the header so the UI reads
-    // top-to-bottom in the order things actually happen at run time.
+    // Order here matches the documented apply order in the header so the
+    // UI reads top-to-bottom in run-time order.
     auto mkOpInput = [&]() {
         auto* le = new QLineEdit(leftBody);
         le->setObjectName("DatasetExcludeEdit");
@@ -314,9 +313,8 @@ void BatchEditPage::onRun()
         return;
     }
 
-    // Discover image+sidecar pairs. We only touch .txt files that have a
-    // matching image so this can't accidentally rewrite sidecars in random
-    // text-file folders.
+    // Only touch .txt files that pair with an image, so a folder of
+    // unrelated text files can't accidentally be rewritten.
     QDirIterator::IteratorFlags flags = m_recursiveCheck->isChecked()
                                             ? QDirIterator::Subdirectories
                                             : QDirIterator::NoIteratorFlags;
@@ -410,9 +408,8 @@ void BatchEditPage::onRun()
         m_progressBar->setValue(sidecars.size());
     }
 
-    // Read-only frequency log. Always reads the *post-edit* state - if the
-    // user combined edits with logging, the totals reflect what the files
-    // look like now. Walking the sidecars again is fine; tag-files are tiny.
+    // Frequency log reflects the post-edit state when edits + log are
+    // combined. Re-walking is fine since tag-files are tiny.
     if (doLogFreq) {
         QHash<QString, int> globalFreq;
         for (const QString& path : sidecars) {

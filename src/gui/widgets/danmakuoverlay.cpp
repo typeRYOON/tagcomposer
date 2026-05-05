@@ -61,10 +61,9 @@ int DanmakuOverlay::chooseIndex(int layer)
     const int total = m_texts.size() + m_images.size();
     if (total == 0) return -1;
 
-    // Build the candidate pool from indices not already on-screen in this
-    // layer. If every available line is in use (more items than lines), we
-    // fall back to a random pick - duplicates show up only when the user
-    // genuinely has fewer lines than items per layer.
+    // Pool of indices not already on-screen in this layer. With fewer
+    // distinct lines than items per layer we fall through to a random
+    // pick, which is the only path that allows duplicates.
     QList<int> candidates;
     candidates.reserve(total);
     for (int i = 0; i < total; ++i) {
@@ -89,8 +88,7 @@ void DanmakuOverlay::spawnItem(Item& item, bool scatter)
     else
         item.x = float(width()) + randRange(0, 300);
 
-    // Release whatever line this item was carrying before we pick a new one,
-    // so the slot opens up for any other items in the same layer.
+    // Release the previous slot so other items in the layer can take it.
     if (item.contentIndex >= 0) m_layerInUse[item.layer].remove(item.contentIndex);
 
     const int idx = chooseIndex(item.layer);
@@ -103,9 +101,8 @@ void DanmakuOverlay::spawnItem(Item& item, bool scatter)
         item.text = m_texts[idx];
         item.pixmap = QPixmap{};
 
-        // Cache the rendered text width using the same font we paint with -
-        // the off-screen check in timerEvent reads this so wide strings
-        // don't pop out of view before their tail clears the left edge.
+        // Cache against the paint font so timerEvent's off-screen check
+        // doesn't truncate wide strings before their tail clears x=0.
         QFont font("Hiragino Maru Gothic ProN W4");
         font.setPixelSize(int(item.fontSize));
         item.contentWidth = float(QFontMetrics(font).horizontalAdvance(item.text));
@@ -159,11 +156,8 @@ void DanmakuOverlay::timerEvent(QTimerEvent* event)
     const float dt = float(m_elapsed.restart()) / 1000.0f;
     const float clampedDt = std::min(dt, 0.05f);
 
-    // Move items left; respawn once the *right edge* of the content has
-    // cleared x = 0. Using the cached contentWidth means a 1200-px-wide
-    // string respawns at x ≈ -1200 instead of the old -500 cutoff that was
-    // amputating long lines mid-scroll. Tiny safety margin so we don't
-    // pop on the exact boundary frame.
+    // Respawn once the right edge of the content clears x=0. The 8-px
+    // margin avoids popping on the exact boundary frame.
     for (auto& item : m_items) {
         item.x -= item.speed * clampedDt;
         if (item.x + item.contentWidth < -8.0f) spawnItem(item, false);

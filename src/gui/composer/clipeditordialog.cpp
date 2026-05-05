@@ -21,13 +21,12 @@ namespace gui {
 
 namespace {
 
-// Eraser is no longer a separate tool - it's a modifier on the active tool.
-// Rect+erase wipes a rectangle out of the mask, Brush+erase paints clear,
-// Bucket+erase removes the flood-filled region.
+// Eraser is a modifier, not its own tool - applied as Rect+erase / Brush+
+// erase / Bucket+erase to clear instead of paint.
 enum class Tool { Rect, Brush, Bucket };
 
-// Compute the tight bounding box of non-zero pixels in a Grayscale8 mask.
-// Returns a null QRect if the mask is empty/all-zero.
+// Tight bounding box of non-zero pixels in a Grayscale8 mask; null QRect
+// when the mask is all-zero.
 QRect maskBoundingBox(const QImage& mask)
 {
     if (mask.isNull()) return {};
@@ -64,8 +63,8 @@ public:
         m_overlay.fill(Qt::transparent);
     }
 
-    // Replaces the current mask wholesale (e.g., when initializing from a
-    // saved maskId or synthesizing from a legacy cropRect).
+    // Replaces the current mask wholesale, e.g. on init from a saved
+    // maskId or a synthesized legacy cropRect.
     void setMask(const QImage& mask)
     {
         if (mask.isNull()) {
@@ -91,8 +90,8 @@ public:
 
     void setTool(Tool t)
     {
-        // Cancel any rect drag still in flight - user moved on to a different
-        // tool, the half-painted rectangle preview should disappear with them.
+        // Cancel any in-flight rect drag so the half-painted preview
+        // doesn't linger across a tool change.
         if (m_dragging) {
             m_dragging = false;
             m_currentRect = QRect();
@@ -153,7 +152,7 @@ protected:
         p.drawImage(dst, m_source);
 
         if (m_trimMode) {
-            // In trim mode the rect of interest is the mask bbox - dim outside.
+            // The mask bbox is the rect of interest; dim everything outside.
             const QRect bbox = maskBoundingBox(m_mask);
             if (!bbox.isEmpty()) {
                 const QRect bboxDst = sourceToDisplay(bbox);
@@ -170,11 +169,10 @@ protected:
             }
         }
         else {
-            // Mask mode - draw the painted mask as a red translucent overlay.
             p.drawImage(dst, m_overlay);
         }
 
-        // In-progress rect drag - show as a wireframe before commit.
+        // Wireframe preview while a rect drag is in flight.
         if (m_tool == Tool::Rect && m_dragging && !m_currentRect.isEmpty()) {
             const QRect rDst = sourceToDisplay(m_currentRect);
             QPen pen(QColor(255, 255, 255, 220));
@@ -274,31 +272,26 @@ private:
         if (m_onChanged) m_onChanged();
     }
 
-    // Tolerance flood fill on the source image's color, OR-ed into m_mask.
-    // Uses cv::floodFill with FLOODFILL_MASK_ONLY so the source isn't touched
-    // and the result lands in a workspace mask we then merge into ours.
+    // Tolerance flood fill into a workspace mask via FLOODFILL_MASK_ONLY,
+    // then OR (or saturating-subtract for erase) into m_mask.
     void floodFillAt(QPoint start)
     {
         if (!m_source.rect().contains(start)) return;
 
-        // cv::floodFill rejects 4-channel images, so drop alpha. RGB888 in Qt
-        // is byte-order [R,G,B] per pixel, which CV_8UC3 sees as the same
-        // (channel order is irrelevant here - uniform per-channel tolerance).
+        // floodFill rejects 4-channel images; drop alpha. Channel order
+        // doesn't matter for uniform per-channel tolerance.
         QImage rgb = (m_source.format() == QImage::Format_RGB888)
                          ? m_source
                          : m_source.convertToFormat(QImage::Format_RGB888);
         cv::Mat srcMat(rgb.height(), rgb.width(), CV_8UC3, rgb.bits(), rgb.bytesPerLine());
 
-        // OpenCV requires the workspace mask to be 2px larger than the image
-        // (1px border on each side acts as a sentinel). Non-zero pixels block
-        // the fill, so we start it blank - the existing m_mask is *not*
-        // treated as a barrier (matches prior BFS behavior).
+        // OpenCV requires the workspace mask to be 2px larger (1px border
+        // sentinel). Starts blank so m_mask doesn't act as a fill barrier.
         cv::Mat ffMask = cv::Mat::zeros(srcMat.rows + 2, srcMat.cols + 2, CV_8UC1);
 
         const cv::Scalar lo(m_tolerance, m_tolerance, m_tolerance, m_tolerance);
         const cv::Scalar up = lo;
-        // FLOODFILL_MASK_ONLY: don't touch srcMat. Top byte of `flags` is the
-        // value written into the mask (default would be 1 - we want 255).
+        // Top byte of flags is the value written into the mask (default 1).
         const int flags = 4 | cv::FLOODFILL_MASK_ONLY | (255 << 8);
 
         cv::Rect ffBox;
@@ -306,9 +299,7 @@ private:
                       flags);
         if (ffBox.width <= 0 || ffBox.height <= 0) return;
 
-        // Merge the filled region with m_mask. Add: bitwise OR; erase:
-        // saturating subtract so painted pixels become 0. Both ops are
-        // cropped to the bbox so cost scales with fill area, not image size.
+        // Both ops cropped to the bbox so cost scales with fill area.
         cv::Mat ourMask(m_mask.height(), m_mask.width(), CV_8UC1, m_mask.bits(),
                         m_mask.bytesPerLine());
         cv::Mat innerMask = ffMask(cv::Rect(1, 1, srcMat.cols, srcMat.rows));
@@ -326,10 +317,9 @@ private:
     }
 
     // ── Overlay regen ──
-    //
-    // The overlay is a cached ARGB32 image we drawImage() in paintEvent. It
-    // mirrors m_mask but tinted red. Keeping it cached avoids per-paint
-    // pixel-walking; we only refresh the bbox of the most recent edit.
+    // Cached red-tinted mirror of m_mask, blitted in paintEvent. Refreshed
+    // only over the dirty bbox so we don't pixel-walk the whole image per
+    // edit.
     void rebuildOverlay(const QRect& dirtyIn)
     {
         const QRect dirty = dirtyIn.intersected(m_mask.rect());
@@ -400,15 +390,13 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits&
     : ChromedDialog(parent), m_cache(cache)
 {
     setWindowTitle("Clip Editor");
-    // Floor below which the editor's controls would clip - overrides
-    // ChromedDialog::computeResizeGeometry's 320×200 default.
+    // ChromedDialog's 320x200 default is too small; clip the controls.
     setMinimumSize(640, 480);
     resize(900, 760);
 
     m_canvas = new ClipCanvas(source, this);
 
-    // Initialize mask: prefer a saved maskId; fall back to a synthesized
-    // rect-mask for legacy edits; otherwise blank.
+    // Prefer saved maskId; fall back to a rect-mask for legacy edits.
     if (m_cache && !initial.maskId.isEmpty()) {
         m_canvas->setMask(m_cache->loadMask(initial.maskId));
     }
@@ -484,9 +472,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits&
                              "On: rect-only crop. Output is the rect cropped from source; "
                              "alpha=255 everywhere (no mask).");
     connect(m_trimToCrop, &QCheckBox::toggled, this, [this](bool on) {
-        // User-initiated toggle to trim mode discards any painted mask -
-        // trim mode is conceptually "just a crop, no mask," so retaining
-        // mask data would be misleading.
+        // Trim mode is "just a crop"; retaining mask data would be misleading.
         if (on) m_canvas->clearMask();
         applyTrimModeUI(on);
     });
@@ -528,9 +514,6 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits&
     footRow->addWidget(m_trimToCrop);
     footRow->addWidget(m_rectLabel, 1);
 
-    // Editor content lives inside ChromedDialog's contentArea(); the
-    // titlebar + cosmetic border + edge-resize chrome are owned by the base
-    // class.
     auto* contentLayout = new QVBoxLayout(contentArea());
     contentLayout->setContentsMargins(8, 8, 8, 8);
     contentLayout->setSpacing(8);
@@ -539,17 +522,15 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits&
     contentLayout->addLayout(footRow);
     contentLayout->addWidget(buttons);
 
-    // Initial palette state - applies whatever trim mode the var was saved
-    // with. Doesn't clear the mask on initial setup (only the user toggle
-    // does that, so legacy data with both a mask and trimToCrop=true loads
-    // intact and can be examined).
+    // Apply saved trim mode without clearing - legacy data with both a
+    // mask and trimToCrop=true should load intact.
     applyTrimModeUI(initial.trimToCrop);
 }
 
 void ClipEditorDialog::accept()
 {
-    // Translate canvas state into the result ImageEdits the caller will
-    // adopt. Empty mask → disabled (caller drops the maskId / clears edits).
+    // Translate canvas state into the result ImageEdits the caller adopts;
+    // an empty mask means disabled (caller drops maskId / clears edits).
     const QImage finalMask = m_canvas->mask();
     const QRect bbox = maskBoundingBox(finalMask);
 
@@ -562,9 +543,9 @@ void ClipEditorDialog::accept()
     m_result.enabled = true;
     m_result.cropRect = bbox;
     m_result.trimToCrop = m_trimToCrop->isChecked();
-    // Trim mode discards the mask at render time, so don't persist one - saves
-    // a cache file and keeps the var card label honest ("cropped W×H" rather
-    // than implying a mask is involved).
+    // Trim mode discards the mask at render time; not persisting one
+    // saves a cache file and keeps the var card label as "cropped WxH"
+    // rather than implying a mask is involved.
     m_result.maskId = (!m_result.trimToCrop && m_cache) ? m_cache->saveMask(finalMask) : QString();
     QDialog::accept();
 }
@@ -584,9 +565,8 @@ void ClipEditorDialog::updateRectLabel()
 
 void ClipEditorDialog::updateToolControls()
 {
-    // Visual hint: the size slider only affects brush, the tolerance slider
-    // only affects bucket. Disable irrelevant controls so the active tool's
-    // parameters are obvious.
+    // Disable controls that don't apply to the active tool so its
+    // parameters are visually obvious.
     const int id = m_toolGroup->checkedId();
     const bool isBrush = (id == int(Tool::Brush));
     const bool isBucket = (id == int(Tool::Bucket));
@@ -601,11 +581,10 @@ void ClipEditorDialog::applyTrimModeUI(bool on)
     m_canvas->setTrimMode(on);
 
     if (on) {
-        // Force Rect - Brush/Bucket paint into a mask that trim mode ignores,
-        // so they'd be silently no-ops. Better to lock them out.
+        // Trim mode ignores the mask, so Brush/Bucket/Erase would silently
+        // no-op; force Rect and lock the rest out.
         if (auto* rectBtn = m_toolGroup->button(int(Tool::Rect))) rectBtn->setChecked(true);
         m_canvas->setTool(Tool::Rect);
-        // Erase has nothing meaningful to do in trim mode either.
         m_eraseBtn->setChecked(false);
         m_canvas->setErase(false);
     }

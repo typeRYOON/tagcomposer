@@ -61,12 +61,9 @@ static QString evaluateDatePattern(const QString& pattern)
 }
 
 // ── FsTypeIconProvider ───────────────────────────────────────────────────────
-// QFileSystemModel uses QFileIconProvider to source icons; the default hands
-// back Windows shell icons (or the Linux/macOS equivalents) which clash with
-// the painted-not-system look of the rest of the app. This provider returns
-// two simple painted glyphs - folder for directories, frame-with-mountain
-// for files - both in the muted-grey palette. Painted at 32x32 so the tree's
-// 16x16 display stays sharp on HiDPI screens.
+// Replaces QFileSystemModel's default OS-shell icons with our painted
+// folder/file glyphs. Drawn at 32x32 so the tree's 16x16 display stays
+// sharp on HiDPI.
 class FsTypeIconProvider : public QFileIconProvider {
 public:
     FsTypeIconProvider() : m_folder(makeFolder()), m_image(makeImage()) {}
@@ -132,11 +129,8 @@ private:
 };
 
 // ── OutputTreeView ───────────────────────────────────────────────────────────
-// QTreeView subclass that overrides Enter to:
-//   - Toggle expand/collapse on a folder
-//   - Open an image file with the OS's default viewer
-// All other keys (Up/Down/Left/Right) keep the QTreeView default semantics
-// (Right expands a collapsed folder, Left collapses an expanded one).
+// Overrides Enter to expand/collapse a folder or open an image file with
+// the OS viewer. Other keys keep QTreeView's defaults.
 class OutputTreeView : public QTreeView {
     Q_OBJECT
 public:
@@ -181,22 +175,17 @@ protected:
 };
 
 // ── OutputThumbList ──────────────────────────────────────────────────────────
-// QListWidget in IconMode that asynchronously loads thumbnails for the items
-// currently displayed. A monotonically increasing generation counter cancels
-// in-flight loads when the folder changes - late-arriving results compare
-// their generation against the current one and bail out if stale.
+// IconMode QListWidget that loads thumbnails asynchronously. A monotonic
+// generation counter is bumped on folder change so late-arriving results
+// can detect themselves as stale.
 class OutputThumbList : public QListWidget {
     Q_OBJECT
 signals:
-    // Emitted when the user presses Enter on the focused item. Click does not
-    // emit this - the page treats clicks as selection only and Enter as the
-    // commit action ("open image" / "navigate to folder in tree").
+    // Enter on the focused item; clicks are selection-only.
     void enterActivated(QListWidgetItem* item);
 
-    // Emitted when Escape is pressed while an item is selected. Used by the
-    // page to bounce focus back to the tree. Always consumed (even in
-    // fullscreen) so the user gets a one-step-at-a-time Escape ladder:
-    // right pane -> tree -> exit fullscreen.
+    // Escape with an item selected. Always consumed (even in fullscreen)
+    // so Escape ladders: right pane -> tree -> exit fullscreen.
     void escapePressed();
 
 public:
@@ -226,10 +215,6 @@ public:
     }
 
 protected:
-    // Enter is the only key that triggers the "open image / navigate to folder"
-    // action; mouse clicks fall through to the default selection-only behaviour.
-    // Escape (with a current item) hands focus back to the tree, regardless of
-    // fullscreen - see comment on escapePressed for the rationale.
     void keyPressEvent(QKeyEvent* event) override
     {
         const int key = event->key();
@@ -286,10 +271,8 @@ private:
     static constexpr int kThumbW = 192;
     static constexpr int kThumbH = 192;
 
-    // Concurrently decode `path` at thumb size; on success post the resulting
-    // QPixmap back to the GUI thread and find the corresponding item by path.
-    // The generation check on entry skips redundant queueing for the same
-    // folder; the second check inside the GUI lambda discards stale results.
+    // Decode at thumb size on a worker; the generation guard skips
+    // redundant requeues, and the GUI-side guard drops stale results.
     void requestThumbnail(const QString& path, int generation)
     {
         if (m_pending.contains(path)) return;
@@ -388,17 +371,14 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
     m_fsModel->setIconProvider(&s_typeIcons);
     m_fsModel->setNameFilters(kImageFilters);
     m_fsModel->setNameFilterDisables(false);
-    // `QDir::AllDirs` is what tells QFileSystemModel to bypass the name
-    // filters for directories - without it, *.png/*.jpg/... would also be
-    // applied to folder names and every subfolder would vanish from the tree.
-    // (The model's default filter already includes AllDirs; we restate it
-    // here so the contract is explicit at the call site.)
+    // AllDirs makes the name filters skip directories; otherwise our
+    // *.png/*.jpg filters would hide folders too. Restated explicitly
+    // even though it's part of the model's default.
     m_fsModel->setFilter(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::AllDirs);
     m_fsModel->setReadOnly(true);
 
-    // Re-attempt deferred navigation each time a directory finishes loading
-    // - if today's date subfolder lives under a path that wasn't yet realised
-    // in the model when setOutputFolder ran, this catches up once it is.
+    // Retry deferred navigation on each directoryLoaded; today's subfolder
+    // may not have been realised yet when setOutputFolder ran.
     connect(m_fsModel, &QFileSystemModel::directoryLoaded, this,
             [this](const QString&) { navigateToPendingIfReady(); });
 
@@ -426,12 +406,9 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
     m_status->setWordWrap(true);
 
     // ── Header builder ────────────────────────────────────────────────────────
-    // Mirrors the pattern from WorkflowEditPage: a fixed-height bar with a
-    // bold title on the left and a dimmer subtitle that the page updates as
-    // the user navigates. Returns the (header widget, subtitle label) pair so
-    // the page can write into the subtitle later.
-    // Match WorkflowEditPage's section-header dimensions so flipping between
-    // the two pages doesn't shift the title row vertically.
+    // 50 px bar matching WorkflowEditPage so flipping between pages doesn't
+    // shift the title row. Returns (header, subtitle) so the page can update
+    // the subtitle as the user navigates.
     constexpr int kHeaderHeight = 50;
     auto buildHeader = [&](const QString& title) -> QPair<QWidget*, QLabel*> {
         auto* header = new QWidget;
@@ -592,10 +569,8 @@ void OutputViewerPage::onTreeCurrentChanged(const QModelIndex& current, const QM
 {
     if (!current.isValid()) return;
     const QString path = m_fsModel->filePath(current);
-    // For dirs, the right pane mirrors the dir's contents. For files, it
-    // mirrors the parent dir - that way arrowing between sibling images in
-    // the same folder doesn't change the displayed dir at all (handled by
-    // the equality check below, which keeps the thumb grid stable).
+    // Files use their parent dir so arrowing between siblings keeps the
+    // thumb grid stable (the equality check below short-circuits).
     const QString targetDir = m_fsModel->isDir(current) ? path : QFileInfo(path).absolutePath();
 
     if (targetDir == m_currentThumbDir) return;

@@ -1,6 +1,6 @@
-// PromptComposerPage - saved-state management (named user presets).
-// Distinct from session save/restore: states are explicit, named snapshots
-// with optional preview thumbnails, hover-previewed in the states sidebar.
+// Saved-state management (named user presets) for PromptComposerPage.
+// Distinct from session save/restore: explicit named snapshots with
+// optional preview thumbnails, hover-previewed in the states sidebar.
 
 #include <gui/composer/promptcomposerpage.h>
 #include <gui/composer/stateslistwidget.h>
@@ -83,8 +83,7 @@ void PromptComposerPage::saveCurrentState()
 
     for (const auto& rule : m_rules->rules()) {
         state.ruleStates[rule.name] = rule.enabled;
-        // Capture Add/Replace args too - these are what the user types in the
-        // rules sidebar arg-edit and they're part of the prompt configuration.
+        // Add/Replace args are user-typed in the rules sidebar; part of state.
         state.ruleArguments[rule.name] = rule.action.arguments;
     }
 
@@ -129,14 +128,10 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     m_activeLoraUuids = state.activeLoraUuids;
     emit loraUuidsRestored(m_activeLoraUuids);
 
-    // Restore rule toggle states + arguments and persist to rules.fct.
-    // - Rules that were in the saved state get their enabled flag and (for
-    //   Add/Replace) action arguments restored.
-    // - Rules added after the state was saved are kept in the file (they
-    //   stay defined) but their enabled flag is forced to false, so a
-    //   later reload-from-disk reproduces what the user sees right now.
-    // - Match expressions, force flags, and arguments of rules absent from
-    //   the state are preserved as-is.
+    // Restore enabled flags and Add/Replace args, then persist. Rules
+    // added since the snapshot stay defined but force-disabled so a
+    // reload-from-disk reproduces what the user sees now. Match
+    // expressions and force flags are left alone.
     for (auto& rule : m_rules->rules()) {
         auto it = state.ruleStates.find(rule.name);
         if (it != state.ruleStates.end()) {
@@ -153,9 +148,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     rebuildRulesSidebar();
     m_suppressRuleSave = false;
 
-    // Variables: state is canonical. Fully replace the current var set -
-    // any var only in the state is added, any var only in the current
-    // session is dropped. Persists to vars.fct so it survives restart.
+    // State is canonical; replace the var set wholesale and persist.
     if (m_varIndex) {
         QList<core::Variable> newVars;
         for (const auto& pair : state.varValues) {
@@ -182,14 +175,10 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         }
     }
 
-    // Workflow variables: state is canonical for the selected workflow.
-    // Fully replace the var list - vars only in the state are added, vars
-    // only in the live workflow are dropped. Order from the saved array is
-    // preserved. Skip when the saved workflow id no longer exists (would
-    // blow away the *current* workflow's vars with a different workflow's
-    // snapshot) and when the state was saved with no workflow selected at
-    // all (its empty workflowVarValues would silently clear the currently-
-    // selected workflow's vars).
+    // Workflow vars: replace wholesale, preserving the saved order.
+    // Skipped when the workflow id is missing or empty so we don't blow
+    // away the live workflow's vars with another workflow's snapshot
+    // (or with an empty array from a no-workflow-selected save).
     if (m_wfManager && !workflowMissing && !state.selectedWorkflowId.isEmpty()) {
         // Snapshot existing types for legacy states that didn't include a
         // "type" field (varFromJson defaults those to String otherwise).
@@ -208,9 +197,8 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
             }
             core::WorkflowVar v = core::WorkflowManager::varFromJson(o);
 
-            // State-restore-specific: warn if an Image var references a
-            // cache entry that no longer exists, then clear so the user
-            // re-picks rather than silently sending a broken upload.
+            // Warn and clear when a saved Image var references a missing
+            // cache entry; better to re-pick than send a broken upload.
             if (v.type == core::WorkflowVarType::Image && !v.imageUuid.isEmpty() && m_inputCache &&
                 !m_inputCache->has(v.imageUuid)) {
                 emit statusMessageRequested(

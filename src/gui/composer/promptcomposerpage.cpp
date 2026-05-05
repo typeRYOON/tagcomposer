@@ -72,7 +72,7 @@ static QString dotColorFor(RuleResult r)
     return "#444444";
 }
 
-// Resolve path pattern: {yyyy-MM-dd} → today's date formatted by Qt date spec
+// Substitutes {yyyy-MM-dd} (or any Qt date spec) with today's date.
 static QString resolveOutputPath(const QString& pattern)
 {
     if (pattern.isEmpty()) return {};
@@ -617,22 +617,20 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     connect(m_previewLabel, &PreviewClickLabel::clicked, this, [this]() {
         if (!m_popout) {
             auto* popout =
-                new PreviewPopoutWindow(nullptr); // null parent → real top-level (FancyZones)
+                new PreviewPopoutWindow(nullptr); // null parent for a real top-level (FancyZones)
             popout->setAttribute(Qt::WA_DeleteOnClose);
             m_popout = popout;
             m_popout->installEventFilter(this);
             connect(m_popout, &QObject::destroyed, this, [this]() {
                 m_popout = nullptr;
-                // Only fade back in if the inset was actually visible - if the
-                // popout was opened before any preview arrived, leave the inset
-                // hidden until setPreviewImage shows it for real.
+                // Skip the fade-back if no preview ever showed; setPreviewImage
+                // will reveal the inset when content actually arrives.
                 if (m_previewLabel->isVisible()) fadePreviewInset(1.0);
             });
             if (!m_tempFolder.isEmpty()) popout->setTempFolder(m_tempFolder);
 
-            // Forward popout's keyboard-shortcut intents to composer signals
-            // so they reach AppMainWindow / ComfyUiClient just like the
-            // main-window versions.
+            // Forward keyboard-shortcut intents up so AppMainWindow/ComfyUI
+            // see them the same as from the main window.
             connect(popout, &PreviewPopoutWindow::runRequested, this,
                     [this]() { emit runRequested(m_promptCountSpin->value()); });
             connect(popout, &PreviewPopoutWindow::interruptRequested, this,
@@ -645,7 +643,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         m_popout->show();
         m_popout->raise();
         m_popout->activateWindow();
-        fadePreviewInset(0.0); // popout taking over → hide the inset
+        fadePreviewInset(0.0); // popout takes over; hide the inset
     });
 
     // ── Wire pipeline ─────────────────────────────────────────────────────────
@@ -690,8 +688,8 @@ void PromptComposerPage::setPreviewImage(const QImage& image)
 {
     if (image.isNull()) return;
     m_currentPix = QPixmap::fromImage(image);
-    // Use the known fixed size directly - size() can return 0×0 on first call
-    // when the floating label hasn't been laid out yet.
+    // Hardcode the size; size() can return 0x0 before the floating label
+    // has been laid out for the first time.
     m_previewLabel->setPixmap(
         m_currentPix.scaled(QSize(200, 200), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
@@ -699,7 +697,7 @@ void PromptComposerPage::setPreviewImage(const QImage& image)
     if (!popoutOpen) {
         m_previewLabel->show();
         m_previewLabel->raise();
-        fadePreviewInset(1.0); // first show fades 0→1; subsequent calls no-op
+        fadePreviewInset(1.0); // first show fades 0 to 1; later calls no-op
     }
     repositionFloats();
 
@@ -867,8 +865,8 @@ QString PromptComposerPage::computePromptForTags(const QList<QString>& tags, boo
 QString PromptComposerPage::computePromptWithExtraTags(const QList<QString>& extraTags,
                                                        bool forJson) const
 {
-    // Merge: current effective tags (active − deactivated) ∪ extraTags.
-    // Dedupe to keep a stable order with composer-state first.
+    // Merge active-minus-deactivated with extraTags, deduping while
+    // keeping composer-state ordering first.
     QList<QString> merged;
     QSet<QString> seen;
     for (const QString& t : m_activeTags) {
@@ -914,9 +912,8 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
     const bool wasActive = m_activePushes.contains(key);
 
     if (wasActive) {
-        // Only consider tags this push owns. Tags the user typed in (or that
-        // a different push contributed) aren't in m_activePushes[key], so
-        // they survive the un-push intact.
+        // Iterate only this push's owned tags; manual adds and other-push
+        // contributions aren't in m_activePushes[key], so they survive.
         QSet<QString> otherTags;
         for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
             if (it.key() != key) {
@@ -935,9 +932,8 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
         m_activePushes.remove(key);
     }
     else {
-        // Track only the tags this push actually adds - duplicates shared
-        // with a manual entry or another push aren't claimed, so un-pushing
-        // later doesn't strip the user's work.
+        // Claim only what's newly contributed; sharing with a manual add
+        // or another push leaves the tag intact on un-push.
         QList<QString> claimed;
         for (const QString& tag : tags) {
             if (!m_activeTagSet.contains(tag)) {
@@ -990,9 +986,8 @@ void PromptComposerPage::onEntryTagAdded(int entryId, int imageIdx, const QStrin
     const qint64 key = (qint64(entryId) << 32) | quint32(imageIdx);
     if (!m_activePushes.contains(key)) return;
 
-    // Only claim the tag if this push actually contributes it - i.e. it's
-    // not already present from a manual add or another push. Symmetric with
-    // loadPipeline's else-branch tracking.
+    // Mirrors loadPipeline's claim rule: only track tags this push
+    // actually contributes (skip ones from manual adds / other pushes).
     if (!m_activeTagSet.contains(tag)) {
         m_activeTags << tag;
         m_activeTagSet.insert(tag);
@@ -1080,10 +1075,8 @@ void PromptComposerPage::repush()
 
 void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGroups)
 {
-    // Strip tags the rule engine flagged for deletion. Unlike Skipped (kept
-    // in active set, just removed from output), Deleted means "remove from
-    // the composer entirely" - used for search-only tags that shouldn't
-    // persist in m_activeTags between pushes.
+    // Drop Deleted tags from m_activeTags entirely (vs Skipped, which only
+    // hides them from output). Used for search-only tags.
     QList<QString> deleted;
     for (auto& g : categoryGroups) {
         auto end = std::remove_if(g.tags.begin(), g.tags.end(), [&deleted](const PipelineTag& pt) {
@@ -1237,9 +1230,8 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey, const QString
     }
     else {
         const QString token = "$" + newVarName + "$";
-        // Replace every occurrence of any $name$ with the chosen one.
-        // Matches behaviour of the badge, which collapses all vars into one
-        // pill - swapping every placeholder keeps the displayed pill in sync.
+        // Replace every $name$ with the chosen one so the rendered badge
+        // (which collapses vars into a single pill) stays in sync.
         newKey.replace(varRe, token);
     }
 
@@ -1428,9 +1420,8 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
         auto onRemove = [this, activeKey]() {
             m_activeTags.removeOne(activeKey);
             m_activeTagSet.remove(activeKey);
-            // Weights are keyed via weightKeyOf, which is sourceTag for
-            // $VAR$ tags - that's the same as activeKey. Removing under
-            // the wikiTag (= expanded form) would orphan the entry.
+            // weightKeyOf == sourceTag == activeKey for $VAR$ tags; using
+            // wikiTag (the expanded form) here would orphan the entry.
             m_tagWeights.remove(activeKey);
             m_deactivatedTags.remove(activeKey);
             QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
@@ -1463,9 +1454,9 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                             menu.addAction(isDeactivated ? "Activate" : "Deactivate");
                         QAction* removeAct = menu.addAction("Remove");
 
-                        // Variable swap - only meaningful if the tag carries one
-                        // already. Lets the user retarget every $foo$ in the tag
-                        // to a different declared variable, or strip vars entirely.
+                        // Variable swap; only shown when the tag carries one.
+                        // Retargets every $foo$ to another declared variable
+                        // or strips them.
                         QAction* dropVarAct = nullptr;
                         QHash<QAction*, QString> setVarActs;
                         if (hasVar && m_varIndex) {

@@ -146,7 +146,7 @@ private:
     void saveGlobalCache();
     QString cachePath() const;
 
-    // Preview chain - mirrors FacetEditorPage's pattern (wiki → first post).
+    // Preview chain mirrors FacetEditorPage: wiki page first, falls back to first post.
     void clearPreview();
     void fetchPreview(const QString& tag);
     void fetchPostById(const QString& tag, int postId);

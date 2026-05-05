@@ -8,10 +8,9 @@
 
 namespace gui {
 
-// Page identifiers for the main window's QStackedWidget. Values are the index
-// into the stack - adding a page means appending here AND inserting an
-// addWidget()/addButton() in the matching visual position. Reordering means
-// touching all three. Keeps page references self-documenting at the call site.
+// Indices into the main window's QStackedWidget. Adding or reordering a page
+// means updating this enum, the stack's addWidget() order, and the navbar's
+// addButton() order in lockstep.
 enum class Page : int {
     Home = 0,
     EntryViewer = 1,

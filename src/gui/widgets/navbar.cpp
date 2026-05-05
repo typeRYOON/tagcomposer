@@ -40,7 +40,6 @@ void NavButton::paintEvent(QPaintEvent* e)
 
     if (m_navIcon.isNull()) return;
 
-    // Tint colour based on state
     QColor tint;
     if (isChecked())
         tint = QColor(0xff, 0xff, 0xff);
@@ -49,7 +48,7 @@ void NavButton::paintEvent(QPaintEvent* e)
     else
         tint = QColor(0x66, 0x66, 0x66);
 
-    // Re-colour: keep the icon's alpha channel, replace RGB with tint
+    // SourceIn fill keeps the icon's alpha and replaces RGB with the tint.
     QImage img = m_navIcon.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
     {
         QPainter t(&img);
@@ -108,8 +107,7 @@ NavBar::NavBar(QWidget* tooltipParent, QWidget* parent) : QWidget(parent)
     addButton(Page::TagComposer, "Tag Composer", ":/icons/nav_composer.png");
     addButton(Page::FacetEditor, "Facet Editor", ":/icons/nav_facets.png");
     addButton(Page::WorkflowEditor, "Workflow Editor", ":/icons/nav_workflow.png");
-    // Reuses nav_tiles.png until a dedicated nav_output.png ships - drop one
-    // into resources/icons/, register it in resources.qrc, and update this path.
+    // TODO: reuses nav_tiles.png until a dedicated nav_output.png ships.
     addButton(Page::OutputViewer, "Output Viewer", ":/icons/nav_tiles.png");
     addButton(Page::DatasetHelpers, "Dataset Helpers", ":/icons/nav_dataset.png");
     addButton(Page::DanbooruWiki, "Danbooru Wiki", ":/icons/nav_wiki.png");

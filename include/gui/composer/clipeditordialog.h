@@ -17,11 +17,10 @@ namespace gui {
 
 class ClipCanvas;
 
-// Modal editor for an Image-typed workflow var. Phase 2: rect / brush /
-// bucket-fill / eraser tools, all painting into a single grayscale mask.
-// On accept, the mask is saved to the input cache and a fresh maskId is
-// returned via result(); the caller is responsible for cleaning up any
-// previous maskId the var was pointing at.
+// Modal editor for an Image-typed workflow var: rect/brush/bucket/eraser
+// tools all paint into a single grayscale mask. On accept, the mask is
+// saved to the input cache and the fresh maskId comes back via result();
+// the caller is responsible for cleaning up any previous maskId.
 class ClipEditorDialog : public ChromedDialog {
     Q_OBJECT
 public:
@@ -40,10 +39,9 @@ protected:
 private:
     void updateRectLabel();
     void updateToolControls();
-    // Adjusts the tool palette to match trim/mask mode: trim mode forces
-    // Rect, disables Brush/Bucket/Erase (they have no effect when alpha is
-    // forced to 255 everywhere). Doesn't touch the mask itself - clearing
-    // the mask on user-initiated toggle is handled in the toggled callback.
+    // Trim mode forces Rect and disables the brush/bucket/erase tools
+    // since alpha is 255 everywhere. The mask itself is left alone -
+    // clearing on toggle is the toggled callback's job.
     void applyTrimModeUI(bool on);
 
     core::WorkflowInputCache* m_cache = nullptr;

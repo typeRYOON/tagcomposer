@@ -34,12 +34,12 @@ namespace gui {
 namespace {
 constexpr int kPanelWidth = 380;
 constexpr int kPreviewPanelWidth = 420;
-// Folder rows: line-edit and the "…" button share this height so they
-// align cleanly. The #SearchBar QSS uses font-size 16 + padding 6+6 → the
-// natural height is ~40 px; anything shorter clips descenders ('g', 'y').
+// Folder row line-edit and "..." button share this height for alignment;
+// the #SearchBar QSS at font-size 16 plus 6+6 padding needs about 40 px,
+// and anything shorter clips descenders.
 constexpr int kFolderRowHeight = 40;
 
-// Slider stores integer hundredths of the threshold (0.00 – 1.00).
+// Slider stores integer hundredths of the threshold (0.00 to 1.00).
 constexpr int kThresholdMin = 0;
 constexpr int kThresholdMax = 100;
 
@@ -109,9 +109,8 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* s
         return l;
     };
 
-    // Label + right-aligned "open in file manager" icon button. Mirrors the
-    // composer's RULES / VARS header chips so all the section headers in the
-    // app share the same affordance.
+    // Mirrors the composer's RULES/VARS header chip: label + right-
+    // aligned "open in file manager" icon.
     auto mkFolderLabel = [&](const QString& t, QLineEdit* edit) -> QWidget* {
         auto* row = new QWidget(paramsBody);
         auto* l = new QHBoxLayout(row);
@@ -285,9 +284,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* s
     m_resultsList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     m_resultsList->setFrameShape(QFrame::NoFrame);
 
-    // Empty state widget - same pattern TagClusterPage uses. Stacked with
-    // m_resultsList in the body layout; setRunning + the worker callbacks
-    // toggle which is visible.
+    // Empty state stacked with m_resultsList; same pattern as TagClusterPage.
     m_emptyState = new QWidget(resultsBody);
     m_emptyState->setObjectName("DatasetEmptyContainer");
     auto* ecl = new QVBoxLayout(m_emptyState);
@@ -417,10 +414,9 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* s
         emit sendToBatchEditRequested(out);
     });
 
-    // The two "Send to …" buttons need the output folder; disable them
-    // until the line edit has something. Sync once now, then keep them
-    // tracking textChanged so the button enables as soon as the user
-    // finishes typing or picks via the browse dialog.
+    // The two "Send to..." buttons need the output folder; sync the
+    // enabled state on every textChanged so picking via browse or typing
+    // enables them as soon as the field is non-empty.
     auto syncSendButtons = [this]() {
         const bool ok = !m_outputEdit->text().trimmed().isEmpty();
         m_sendToEditorBtn->setEnabled(ok);
@@ -480,9 +476,8 @@ void AutoTagPage::onRun()
         return;
     }
 
-    // Refresh the registry first - the user may have added or removed model
-    // folders since launch. If the previously-active model has disappeared,
-    // refreshModels keeps the dropdown selection on whatever is still there.
+    // Pick up model folders added/removed since launch; refreshModels
+    // keeps the dropdown on whatever is still present.
     m_library->rescan();
     refreshModels();
 
@@ -568,11 +563,8 @@ void AutoTagPage::onImageTagged(QString relPath, core::TagResult result)
                                      m_resultsList);
     item->setData(Qt::UserRole, relPath);
 
-    // Follow latest: jump the focus + preview to the row we just appended,
-    // so the right pane updates as inference progresses. Earlier behaviour
-    // only selected the very first result; the user explicitly wants this
-    // to track every new image. setCurrentItem fires currentItemChanged →
-    // showFocusedResult, which redraws the preview.
+    // Follow latest: setCurrentItem fires currentItemChanged into
+    // showFocusedResult so the preview tracks each new image.
     m_resultsList->setCurrentItem(item);
     m_resultsList->scrollToItem(item);
 }
@@ -600,16 +592,14 @@ void AutoTagPage::onFinished(bool cancelled)
                                    .arg(m_results.size())
                                    .arg(m_failures.size()));
 
-    // If the run produced literally nothing (no images discovered, or every
-    // image failed), pop the placeholder back so the panel doesn't read as
-    // an empty void.
+    // Restore the placeholder if no rows landed (zero images or all failed).
     if (m_resultsList->count() == 0) {
         showEmptyState(cancelled ? "Cancelled before any images were tagged."
                                  : "No images found in the input folder.");
     }
 }
 
-// ── Result row → preview ────────────────────────────────────────────────────
+// ── Result row to preview ───────────────────────────────────────────────────
 
 void AutoTagPage::onResultRowChanged(QListWidgetItem* current, QListWidgetItem*)
 {
@@ -651,9 +641,8 @@ void AutoTagPage::showFocusedResult()
             new QListWidgetItem(QString("%1   %2").arg(tp.tag, QString::number(tp.score, 'f', 2)),
                                 m_focusTags);
         }
-        // Dimmed near-misses - tags that fell just below the threshold,
-        // top-N first. Gives a sense of what lowering the slider would
-        // bring in without re-running. Painted with disabled-text colour.
+        // Dimmed near-misses (top-N below the threshold) so the user can
+        // see what lowering the slider would bring in without re-running.
         for (const core::TagPrediction& tp : r.nearMisses) {
             auto* item = new QListWidgetItem(
                 QString("%1   %2").arg(tp.tag, QString::number(tp.score, 'f', 2)), m_focusTags);
@@ -702,9 +691,8 @@ bool AutoTagPage::eventFilter(QObject* obj, QEvent* ev)
 void AutoTagPage::showEvent(QShowEvent* ev)
 {
     QWidget::showEvent(ev);
-    // Reflect any model-folder changes the user has made externally between
-    // tab switches. Selection is preserved when the previously active name
-    // still exists in the new list.
+    // Pick up external model-folder changes; the active name survives if
+    // it's still present.
     if (m_library) {
         m_library->rescan();
         refreshModels();

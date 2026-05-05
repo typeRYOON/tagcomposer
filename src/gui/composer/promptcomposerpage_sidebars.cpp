@@ -1,6 +1,6 @@
-// PromptComposerPage - sidebar rebuild logic.
-// The composer has three sidebars (rules, vars, workflow); each rebuild
-// blows away its container's child widgets and repopulates from the model.
+// Sidebar rebuild logic for PromptComposerPage. Each rebuild
+// (rules / vars / workflow) replaces its container's children
+// from the current model.
 
 #include <gui/composer/promptcomposerpage.h>
 #include <gui/composer/workflowdroplist.h>
@@ -57,12 +57,9 @@ private:
     QString m_full;
 };
 
-// Rule container that collapses its args area unless the row is hovered or
-// one of its descendants has focus - keeps the rules sidebar compact.
-//
-// Hide is debounced through a short timer and the final check uses the global
-// cursor position rather than QWidget::underMouse() - the latter only updates
-// on enter/leave, which can lag while the row's geometry shifts on collapse.
+// Rule row that hides its args area unless hovered or focused, to keep
+// the sidebar compact. Hide is debounced and checked against the live
+// QCursor::pos() (underMouse() lags geometry changes during collapse).
 class RuleRow : public QWidget {
 public:
     explicit RuleRow(QWidget* parent = nullptr) : QWidget(parent)
@@ -114,10 +111,9 @@ private:
         const QPoint g = QCursor::pos();
         const QRect rg = QRect(mapToGlobal(QPoint(0, 0)), size());
         if (rg.contains(g)) return;
-        // Only stay open when focus is *inside the args area* (a line edit the
-        // user is typing into). Earlier this checked the whole row, which kept
-        // the args area open after toggling the rule's checkbox - the checkbox
-        // is also a row descendant, so it falsely triggered the keep-open path.
+        // Stay open only when focus is inside the args area (a line edit
+        // the user is typing into). Checking the whole row would falsely
+        // trigger keep-open after toggling the rule's checkbox.
         if (QWidget* fw = QApplication::focusWidget())
             if (m_args->isAncestorOf(fw)) return;
         m_args->setVisible(false);
@@ -127,9 +123,7 @@ private:
     QTimer* m_hideTimer = nullptr;
 };
 
-// Small status badge for rule rows. Glyph-only - the colour comes from the
-// objectName's QSS rule (#ComposerRuleAddBadge / Replace / Force in
-// composerpage.qss).
+// Glyph-only status badge for rule rows; QSS objectName drives the colour.
 QLabel* makeBadge(const QString& glyph, const QString& objectName)
 {
     auto* lbl = new QLabel;
@@ -223,9 +217,9 @@ void PromptComposerPage::rebuildRulesSidebar()
             }
 
             if (hasArgEdit) {
-                // ✚ (U+271A, Heavy Greek Cross) instead of plain "+" - the
+                // Heavy Greek Cross (U+271A) instead of ASCII '+'; the
                 // ASCII plus sits on the math baseline so it renders lower
-                // than the flag / arrow glyphs which use cap-height metrics.
+                // than the flag/arrow glyphs (cap-height metrics).
                 cbRowL->addWidget(
                     makeBadge(isReplace ? "⇄" : "✚",
                               isReplace ? "ComposerRuleReplaceBadge" : "ComposerRuleAddBadge"));
@@ -355,9 +349,8 @@ void PromptComposerPage::rebuildVarsSidebar()
         return;
     }
 
-    // Persist + repush helper. Used by the per-row delete and the trailing
-    // add row; rebuild restores the sidebar (recreates rows, keeps focus
-    // anchored to the "add name" field for easy successive adds).
+    // Save vars.fct and rebuild; rebuild keeps focus anchored to the
+    // "add name" field for easy successive adds.
     auto persistAndRepush = [this]() {
         m_varIndex->saveToFile(BASE_PATH + "/" + VARS_PATH);
         rebuildVarsSidebar();
@@ -386,8 +379,8 @@ void PromptComposerPage::rebuildVarsSidebar()
             QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
         });
 
-        // Reuse the rules-arg delete button styling - same dim ✕ that brightens
-        // on hover. NoFocus so Tab traversal stays on the value edits.
+        // Reuse the rules-arg delete button styling: dim glyph that
+        // brightens on hover. NoFocus so Tab stays on the value edits.
         auto* delBtn = new QPushButton("✕");
         delBtn->setObjectName("ComposerRuleArgDelBtn");
         delBtn->setCursor(Qt::PointingHandCursor);
@@ -406,10 +399,9 @@ void PromptComposerPage::rebuildVarsSidebar()
         m_varsLayout->addWidget(row);
     }
 
-    // Trailing add row - name + value side by side. Pressing Enter on either
-    // field appends a new variable. editingFinished is intentionally NOT used
-    // here: tabbing between the two fields would trigger it with a half-typed
-    // value, so the explicit Enter keeps the commit unambiguous.
+    // Trailing add row: Enter on either field commits. We avoid
+    // editingFinished here since tabbing between the two fields would
+    // fire it with a half-typed value.
     auto* addRow = new QWidget;
     auto* arl = new QHBoxLayout(addRow);
     arl->setContentsMargins(0, 0, 0, 0);

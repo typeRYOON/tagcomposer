@@ -539,8 +539,8 @@ void EntryView::paintEvent(QPaintEvent*)
         TileAnim& a = m_anims[i];
 
         const qreal easedHover = inOutSine(a.hoverT);
-        const qreal scale = 1.0 - 0.03 * easedHover;                     // 1.00 → 0.97
-        const qreal opacity = a.fadeOpacity * (1.0 - 0.25 * easedHover); // full → 0.75
+        const qreal scale = 1.0 - 0.03 * easedHover;                     // 1.00 to 0.97
+        const qreal opacity = a.fadeOpacity * (1.0 - 0.25 * easedHover); // full to 0.75
 
         p.save();
         p.setOpacity(opacity);

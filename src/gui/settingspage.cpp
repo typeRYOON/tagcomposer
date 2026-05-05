@@ -108,9 +108,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     applyTitleSwatch();
 
     connect(m_tileTitleColor, &QPushButton::clicked, this, [this, applyTitleSwatch]() {
-        // Embed Qt's built-in QColorDialog as a widget inside a
-        // ChromedDialog so the picker carries the same custom titlebar
-        // and resize behaviour as the rest of the app's modals.
+        // Embed QColorDialog inside a ChromedDialog so the picker carries
+        // the same custom chrome as the rest of the app's modals.
         const QColor initial(m_settings->tileTitleColor);
 
         ChromedDialog wrapper(this);

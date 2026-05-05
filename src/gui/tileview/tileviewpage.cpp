@@ -86,15 +86,12 @@ TileViewPage::TileViewPage(core::EntryModel* model, QWidget* parent) : QWidget(p
     connect(m_debounce, &QTimer::timeout, this,
             [this]() { m_entryView->query(m_searchBar->text()); });
 
-    // Entry click opens the panel
     connect(m_entryView, &EntryView::entryClicked, m_entryPanel, &EntryPanel::setEntry);
 
-    // Auto-select + scroll-animate to a freshly-created entry. The view's
-    // scrollToEntry already emits entryClicked, which routes to setEntry above.
+    // selectAndScrollToEntry emits entryClicked, which routes back to setEntry above.
     connect(m_entryPanel, &EntryPanel::entrySelectRequested, m_entryView,
             &EntryView::selectAndScrollToEntry);
 
-    // Re-emit export, wiki, and facet-editor signals from panel and tile right-click
     connect(m_entryPanel, &EntryPanel::tagsExported, this, &TileViewPage::tagsExported);
     connect(m_entryView, &EntryView::tagsExported, this, &TileViewPage::tagsExported);
     connect(m_entryPanel, &EntryPanel::wikiRequested, this, &TileViewPage::wikiRequested);
@@ -105,11 +102,9 @@ TileViewPage::TileViewPage(core::EntryModel* model, QWidget* parent) : QWidget(p
     connect(m_entryPanel, &EntryPanel::statusMessageRequested, this,
             &TileViewPage::statusMessageRequested);
 
-    // LoRA: forward stack changes from EntryView; clear from EntryPanel on lora removal
     connect(m_entryView, &EntryView::loraStackChanged, this, &TileViewPage::loraStackChanged);
     connect(m_entryPanel, &EntryPanel::loraCleared, m_entryView, &EntryView::clearLoraForEntry);
 
-    // Model mutations from panel
     connect(m_entryPanel, &EntryPanel::entryTagAdded, this,
             [this, model](int32_t id, int img, const QString& tag) {
                 model->addTagToImage(id, img, tag);
@@ -123,7 +118,6 @@ TileViewPage::TileViewPage(core::EntryModel* model, QWidget* parent) : QWidget(p
                 emit entryTagRemoved(int(id), img, tag);
             });
 
-    // View refresh signals
     connect(m_entryPanel, &EntryPanel::entryListChanged, this,
             [this]() { m_entryView->query(m_searchBar->text()); });
     connect(m_entryPanel, &EntryPanel::entryModified, this,

@@ -5,10 +5,9 @@
 
 namespace gui {
 
-// QLabel that stores a source pixmap (rescales on resize) and a file path.
-// Left-click (no drag) opens the file in the OS viewer. Left-press + drag
-// starts a copy-style file drag (URL mime), so the user can drop the temp/
-// image onto an ImageDropper to seed an entry.
+// QLabel with a source pixmap and file path. Left-click opens the file
+// in the OS viewer; left-press + drag starts a copy-style URL drag so
+// the file can be dropped onto an ImageDropper.
 class ClickableLabel : public QLabel {
 public:
     explicit ClickableLabel(QWidget* parent = nullptr);

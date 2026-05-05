@@ -1,6 +1,5 @@
-// PromptComposerPage - session save/restore.
-// Persisted on app close, loaded on app start; lives next to the main
-// PromptComposerPage TU, no separate class.
+// Session save/restore for PromptComposerPage. Written on close, read on
+// startup. Companion TU - no separate class.
 
 #include <gui/composer/promptcomposerpage.h>
 #include <core/entrymodel.h>

@@ -238,9 +238,9 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent) : QWidget(parent)
     middleLayout->addWidget(middleScroll, 1);
 
     // ── Right: Batch ──────────────────────────────────────────────────────────
-    // Fire-and-forget: query → resolve entries → for each, build a prompt
-    // (composer state ∪ entry tags) → push N prompts to ComfyUI. Doesn't
-    // block the UI; ComfyUI processes the queue serially on its own.
+    // Fire-and-forget: query, resolve entries, build a prompt per entry
+    // (composer state union entry tags), push N prompts to ComfyUI.
+    // Non-blocking; ComfyUI processes the queue serially on its end.
     auto* rightHeader = new QWidget;
     rightHeader->setObjectName("WfEditHeader");
     rightHeader->setAttribute(Qt::WA_StyledBackground, true);
@@ -901,8 +901,8 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
             editBtn->setEnabled(!uuid.isEmpty() && m_inputCache && m_inputCache->has(uuid));
         };
 
-        // Common reset path: image source changed → drop edits. Also remove
-        // the old mask file so unreferenced masks don't accumulate on disk.
+        // Image source changed: drop edits and the old mask so it doesn't
+        // accumulate on disk.
         auto resetEdits = [this, index]() {
             if (!m_wm || index >= m_wm->variables().size()) return;
             const QString oldMaskId = m_wm->variables()[index].imageEdits.maskId;
@@ -962,9 +962,8 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
             if (dlg.exec() != QDialog::Accepted) return;
             m_wm->variables()[index].imageEdits = dlg.result();
 
-            // Drop the previous mask file if it was replaced (or cleared)
-            // - saveMask always mints a fresh uuid, so any change leaves
-            // the old file orphaned.
+            // saveMask always mints a fresh uuid, so any change leaves
+            // the old file orphaned - drop it.
             const QString newMaskId = m_wm->variables()[index].imageEdits.maskId;
             if (!oldMaskId.isEmpty() && oldMaskId != newMaskId) m_inputCache->removeMask(oldMaskId);
 

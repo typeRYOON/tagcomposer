@@ -55,7 +55,7 @@ static QString fmtTag(const QString& tag)
 // ── Layout dimensions kept here so tweaks live in one place ──────────────────
 constexpr int kPanelWidth = 280;
 constexpr int kPreviewPanelWidth = 320;
-constexpr int kPreviewMaxW = 296; // panel width − 12*2 margins
+constexpr int kPreviewMaxW = 296; // panel width minus 12*2 margins
 constexpr int kPreviewMaxH = 420;
 
 // PMI slider stores integer hundredths so it can drive the live recompute
@@ -71,18 +71,14 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
 
     m_nam = new QNetworkAccessManager(this);
 
-    // Coalesces bursts of recompute() requests - slider drags would otherwise
-    // tear down + rebuild every result row 60+ times per second, which causes
-    // visible flicker as widget cleanup races with new rows being inserted.
+    // Coalesces recompute bursts; without it, a slider drag would
+    // rebuild result rows 60+ times per second and visibly flicker.
     m_recomputeTimer = new QTimer(this);
     m_recomputeTimer->setSingleShot(true);
     m_recomputeTimer->setInterval(150);
     connect(m_recomputeTimer, &QTimer::timeout, this, &TagClusterPage::recompute);
 
-    // Section header builder - mirrors WorkflowEditPage's #WfEditHeader so the
-    // dataset page reads consistently with the other styled pages. Returns the
-    // 50 px bar; place it at the top of each panel and put the body widget
-    // beneath. The dataset tab bar above already provides the visual gap.
+    // 50 px panel header that mirrors WorkflowEditPage's #WfEditHeader.
     auto makeSectionHeader = [this](const QString& title) -> QWidget* {
         auto* header = new QWidget(this);
         header->setObjectName("DatasetSectionHeader");
@@ -253,9 +249,8 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     fbl->addWidget(m_saveFilterBtn);
     fbl->addWidget(m_filterStatusLbl);
 
-    // The FACET FILTER section gets its own header objectName so its
-    // border-bottom can be skipped - the filter body draws a single border-top
-    // instead, avoiding two stacked horizontal lines at the seam.
+    // Distinct objectName so QSS skips the header's border-bottom; the
+    // filter body owns the border-top instead, avoiding a doubled seam.
     auto* filterHeader = makeSectionHeader("FACET FILTER");
     filterHeader->setObjectName("DatasetFilterSectionHeader");
 
@@ -275,9 +270,8 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     rbl->setContentsMargins(12, 12, 12, 12);
     rbl->setSpacing(8);
 
-    // Initial text is left empty - the centered emptyState placeholder below
-    // owns the "no fetch yet" copy. The status label only appears once a fetch
-    // is in flight or has produced a result count.
+    // emptyState owns the "no fetch yet" copy; this label only appears
+    // once a fetch is in flight or produced a result count.
     m_statusLabel = new QLabel(resultsBody);
     m_statusLabel->setObjectName("DatasetStatusLabel");
 
@@ -301,9 +295,8 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     scroll->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     m_resultsScroll = scroll;
 
-    // Centered empty-state - shown when there are no rows. Stretches above
-    // and below pin the label vertically; AlignHCenter on the addWidget pins
-    // it horizontally, so the message sits in the middle of the result area.
+    // Centered empty-state when there are no rows; stretch + AlignHCenter
+    // pin it both axes.
     auto* emptyContainer = new QWidget(resultsBody);
     emptyContainer->setObjectName("DatasetEmptyContainer");
     auto* ecl = new QVBoxLayout(emptyContainer);
@@ -587,8 +580,8 @@ void TagClusterPage::recompute()
     const int minCnt = m_minCountSpin->value();
 
     // Each candidate tag carries its own PMI (the value displayed in the
-    // results) and a sort weight (PMI scaled by √freq so common-AND-distinctive
-    // tags rank above rare-but-distinctive ones).
+    // results) and a sort weight (PMI scaled by sqrt(freq) so common-and-
+    // distinctive tags rank above rare-but-distinctive ones).
     struct Scored {
         QString tag;
         double pmi;
@@ -602,12 +595,9 @@ void TagClusterPage::recompute()
 
         if (count < minCnt) continue;
 
-        // Cluster-filter: whitelist/blacklist by the tag's facet definition.
-        // Danbooru returns tags with underscores ("aqua_eyes"); FacetIndex keys
-        // on the in-app space form ("aqua eyes"), so we normalize before the
-        // lookup. Tags with no facet definition fall through to
-        // ClusterFilter::keep, which keeps them in blacklist mode and drops
-        // them in whitelist.
+        // FacetIndex keys on space form, but Danbooru tags use underscores.
+        // Tags without a facet hit ClusterFilter::keep (kept in blacklist
+        // mode, dropped in whitelist).
         const QString lookupTag = utils::normalizeTagInput(tag);
         const QList<QString> facets = m_facets ? m_facets->facetsFor(lookupTag) : QList<QString>{};
         if (!filter.keep(facets)) continue;
@@ -634,10 +624,8 @@ void TagClusterPage::recompute()
         return a.sortKey > b.sortKey;
     });
 
-    // Rebuild result widgets. We use direct delete (not deleteLater) so the
-    // old rows are gone before the new ones get inserted - otherwise quick
-    // recomputes pile up zombie widgets briefly visible during the layout
-    // reflow, which the user perceived as "the list collapses then comes back".
+    // Direct delete (not deleteLater) so a fast recompute doesn't briefly
+    // stack zombie widgets during the layout reflow.
     clearResultRows();
 
     for (int i = 0; i < scored.size(); ++i) {
@@ -718,10 +706,7 @@ QWidget* TagClusterPage::makeResultRow(const QString& tag, double pmi, int idx)
 
 void TagClusterPage::installRowContextMenu(QWidget* w, const QString& tag)
 {
-    // Wiki / facet-editor / quick-add menu - same surface the composer offers,
-    // so the cluster results page reads the same way for the user. The wiki
-    // tag is stored with spaces (in-app convention); FacetIndex and the wiki
-    // page both resolve from that form.
+    // Same wiki / facet-editor / quick-add menu as the composer.
     const QString wikiTag = utils::normalizeTagInput(tag);
     w->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(w, &QWidget::customContextMenuRequested, this, [this, wikiTag](const QPoint&) {
