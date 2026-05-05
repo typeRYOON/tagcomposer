@@ -1,11 +1,11 @@
 #pragma once
 #include <core/entry.h>
-#include <QDialog>
+#include <gui/chromeddialog.h>
 #include <QLineEdit>
 
 namespace gui {
 
-class AddEntryDialog : public QDialog {
+class AddEntryDialog : public ChromedDialog {
     Q_OBJECT
 public:
     explicit AddEntryDialog(QWidget* parent = nullptr);

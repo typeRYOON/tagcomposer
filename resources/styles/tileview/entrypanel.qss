@@ -160,6 +160,14 @@
     font-size: 12px;
 }
 
+#TagNoFacetBadge {
+    background: transparent;
+    color: #334466;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0;
+}
+
 #TagRemoveBtn {
     background: transparent;
     border: none;

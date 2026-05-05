@@ -12,6 +12,7 @@
 
 namespace core {
 class ComfyUiClient;
+class FacetIndex;
 }
 
 namespace gui {
@@ -24,6 +25,8 @@ public:
     explicit TileViewPage(core::EntryModel* model, QWidget* parent = nullptr);
 
     void setDanbooruIndex(core::DanbooruIndex* index);
+    void setFacetIndex(core::FacetIndex* index);
+    void refreshTags();
     void setActiveGroups(const QMap<int, QList<int>>& groups);
     void setLoraActiveByUuids(const QList<QString>& uuids);
     void setLoraDirs(const QString& primaryDir, const QString& testDir);

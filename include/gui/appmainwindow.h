@@ -65,6 +65,10 @@ private:
     // Sweep WorkflowInputCache: drop entries no workflow var references.
     void clearUnusedInputs();
 
+    // Drop tag definitions with no facets, or not in Danbooru and unused
+    // by every entry. In-memory only - persists at next saveDefinitions().
+    void purgeTagDefinitions();
+
     // Heal each LoRA's (rootKey, relPath) against the current dirs and
     // mirror changes back to the source entry (matched by sha256).
     void healLoraStackInPlace(QList<core::LoraConfig>& stack);

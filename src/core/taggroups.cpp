@@ -11,10 +11,7 @@ static QList<QString> splitTrimmed(const QString& s, QChar sep)
     return out;
 }
 
-// Format:
-//   @group Name
-//       f1, f2, f3
-
+// File format: `@group Name` line followed by a comma-separated facet list.
 TagGroupIndex TagGroupIndex::loadFromFile(const QString& path)
 {
     TagGroupIndex idx;

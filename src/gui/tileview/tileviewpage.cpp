@@ -150,6 +150,16 @@ void TileViewPage::setDanbooruIndex(core::DanbooruIndex* index)
     m_entryPanel->setDanbooruIndex(index);
 }
 
+void TileViewPage::setFacetIndex(core::FacetIndex* index)
+{
+    m_entryPanel->setFacetIndex(index);
+}
+
+void TileViewPage::refreshTags()
+{
+    m_entryPanel->refreshTags();
+}
+
 void TileViewPage::setActiveGroups(const QMap<int, QList<int>>& groups)
 {
     m_entryPanel->setActiveGroups(groups);

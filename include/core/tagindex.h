@@ -14,6 +14,9 @@ public:
     // All tag strings currently in the index, in sorted order
     const QList<QString>& allTags() const;
 
+    // True iff at least one entry currently references this tag.
+    bool tagInUse(const QString& tag) const;
+
     void add(int32_t tagId, int32_t entryId);
     void remove(int32_t tagId, int32_t entryId);
 

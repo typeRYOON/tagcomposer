@@ -44,13 +44,11 @@ DanbooruIndex* DanbooruIndex::loadFromFile(const QString& path)
         idx->m_tags << std::move(t);
     }
 
-    // Sort index by canonical name
     idx->m_byName.resize(idx->m_tags.size());
     std::iota(idx->m_byName.begin(), idx->m_byName.end(), 0);
     std::sort(idx->m_byName.begin(), idx->m_byName.end(),
               [&](int a, int b) { return idx->m_tags[a].name < idx->m_tags[b].name; });
 
-    // Build sorted alias index
     for (int i = 0; i < idx->m_tags.size(); ++i) {
         for (const QString& alias : idx->m_tags[i].aliases) {
             AliasEntry ae;
@@ -76,7 +74,6 @@ QList<TagSearchResult> DanbooruIndex::search(const QString& prefix, int maxResul
 
     QList<TagSearchResult> results;
 
-    // Canonical matches
     {
         auto it = std::lower_bound(
             m_byName.cbegin(), m_byName.cend(), p,
@@ -88,7 +85,6 @@ QList<TagSearchResult> DanbooruIndex::search(const QString& prefix, int maxResul
         }
     }
 
-    // Alias matches
     {
         auto it = std::lower_bound(
             m_byAlias.cbegin(), m_byAlias.cend(), p,

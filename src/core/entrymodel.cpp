@@ -31,6 +31,9 @@ QList<Entry*> EntryModel::filter(const QString& query)
     QList<Entry*> ret;
     const QString query_in = query.trimmed();
 
+    QString sortKey;
+    QString sortDir;
+
     if (query_in.isEmpty()) {
         ret.reserve(m_entryByIndex.size());
         for (Entry* e : m_entryByIndex)
@@ -48,6 +51,13 @@ QList<Entry*> EntryModel::filter(const QString& query)
                 titleTerm = t.mid(6).trimmed();
             else if (t.startsWith("lora:", Qt::CaseInsensitive))
                 loraTerm = t.mid(5).trimmed();
+            else if (t.startsWith("sort:", Qt::CaseInsensitive)) {
+                // sort:<key>[:asc|:desc] - last sort: wins.
+                const QString rest = t.mid(5).trimmed().toLower();
+                const int colon = rest.indexOf(':');
+                sortKey = (colon < 0) ? rest : rest.left(colon).trimmed();
+                sortDir = (colon < 0) ? QString() : rest.mid(colon + 1).trimmed();
+            }
             else if (t.startsWith('-') && t.length() > 1)
                 negParts << t.mid(1).trimmed();
             else if (!t.isEmpty())
@@ -97,8 +107,50 @@ QList<Entry*> EntryModel::filter(const QString& query)
         }
     }
 
+    // Sort key dispatch. Each lambda is the "ascending" comparator; we flip
+    // its arguments below if descending is wanted. keyAscDefault picks a
+    // sensible default direction so `sort:title` reads alphabetically and
+    // `sort:created` reads newest-first.
+    using EntryCmp = bool (*)(const Entry*, const Entry*);
+    EntryCmp ascCmp = [](const Entry* a, const Entry* b) {
+        return a->creationTime < b->creationTime;
+    };
+    bool keyAscDefault = false; // created: newest first
+
+    if (sortKey == "title") {
+        ascCmp = [](const Entry* a, const Entry* b) {
+            const int c = a->title.compare(b->title, Qt::CaseInsensitive);
+            if (c != 0) return c < 0;
+            return a->creationTime < b->creationTime;
+        };
+        keyAscDefault = true;
+    }
+    else if (sortKey == "images") {
+        ascCmp = [](const Entry* a, const Entry* b) {
+            if (a->images.size() != b->images.size()) return a->images.size() < b->images.size();
+            return a->creationTime < b->creationTime;
+        };
+        keyAscDefault = false;
+    }
+    else if (sortKey == "tags") {
+        ascCmp = [](const Entry* a, const Entry* b) {
+            auto count = [](const Entry* e) {
+                int n = 0;
+                for (const auto& img : e->images) n += img.tagIds.size();
+                return n;
+            };
+            const int na = count(a), nb = count(b);
+            if (na != nb) return na < nb;
+            return a->creationTime < b->creationTime;
+        };
+        keyAscDefault = false;
+    }
+    // `created`/`date` and unknown keys fall through to the default ascCmp.
+
+    const bool asc =
+        (sortDir == "asc") ? true : (sortDir == "desc") ? false : keyAscDefault;
     std::sort(ret.begin(), ret.end(),
-              [](const Entry* a, const Entry* b) { return a->creationTime > b->creationTime; });
+              [ascCmp, asc](const Entry* a, const Entry* b) { return asc ? ascCmp(a, b) : ascCmp(b, a); });
     return ret;
 }
 

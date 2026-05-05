@@ -399,6 +399,27 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     facetsLayout->addWidget(m_quickStyleFacet, 3, 1);
     facetsLayout->addWidget(facetsHint, 4, 1);
 
+    auto* purgeHint =
+        new QLabel("Drop tag definitions that have zero facets, or that aren't in the Danbooru "
+                   "list and aren't used by any entry. Removed entries won't be written to "
+                   "tag_definitions.fct on shutdown.");
+    purgeHint->setObjectName("SettingsHintLabel");
+    purgeHint->setWordWrap(true);
+
+    auto* purgeBtn = new QPushButton("Purge stale tag definitions");
+    purgeBtn->setObjectName("SettingsLaunchBtn");
+    purgeBtn->setCursor(Qt::PointingHandCursor);
+
+    auto* purgeRow = new QHBoxLayout;
+    purgeRow->setContentsMargins(0, 0, 0, 0);
+    purgeRow->addWidget(purgeBtn);
+    purgeRow->addStretch();
+
+    facetsLayout->addWidget(purgeHint, 5, 1);
+    facetsLayout->addLayout(purgeRow, 6, 1);
+
+    connect(purgeBtn, &QPushButton::clicked, this, &SettingsPage::purgeTagDefinitionsRequested);
+
     bodyLayout->addWidget(facetsGroup);
     bodyLayout->addSpacing(24);
 

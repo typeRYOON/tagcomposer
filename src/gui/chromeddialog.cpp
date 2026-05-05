@@ -1,8 +1,10 @@
 #include <gui/chromeddialog.h>
 #include <gui/widgets/windowchrome.h>
 #include <utils/qutils.h>
+#include <QDialogButtonBox>
 #include <QEvent>
 #include <QKeyEvent>
+#include <QLabel>
 #include <QPropertyAnimation>
 #include <QShowEvent>
 #include <QVBoxLayout>
@@ -41,6 +43,32 @@ ChromedDialog::ChromedDialog(QWidget* parent) : QDialog(parent)
 QWidget* ChromedDialog::contentArea() const
 {
     return m_chrome->bodyWidget();
+}
+
+bool ChromedDialog::confirm(QWidget* parent, const QString& title, const QString& message,
+                            const QString& confirmText, const QString& cancelText)
+{
+    ChromedDialog dlg(parent);
+    dlg.setWindowTitle(title);
+    dlg.setMinimumWidth(380);
+
+    auto* layout = new QVBoxLayout(dlg.contentArea());
+    layout->setContentsMargins(16, 14, 16, 14);
+    layout->setSpacing(12);
+
+    auto* label = new QLabel(message);
+    label->setWordWrap(true);
+    layout->addWidget(label);
+    layout->addStretch();
+
+    auto* btns = new QDialogButtonBox;
+    btns->addButton(confirmText, QDialogButtonBox::AcceptRole);
+    btns->addButton(cancelText, QDialogButtonBox::RejectRole);
+    QObject::connect(btns, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(btns, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    layout->addWidget(btns);
+
+    return dlg.exec() == QDialog::Accepted;
 }
 
 void ChromedDialog::changeEvent(QEvent* event)

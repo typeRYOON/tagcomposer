@@ -28,6 +28,11 @@ public:
     // inside the cosmetic border.
     QWidget* contentArea() const;
 
+    // Modal Yes/No confirmation in a ChromedDialog. Returns true on confirm.
+    static bool confirm(QWidget* parent, const QString& title, const QString& message,
+                        const QString& confirmText = "OK",
+                        const QString& cancelText = "Cancel");
+
 public slots:
     // Routes both Accept and Reject through a fade-out animation, then defers
     // to QDialog::done(). Override of the base virtual; called by accept(),

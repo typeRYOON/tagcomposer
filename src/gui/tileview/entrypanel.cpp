@@ -1,11 +1,11 @@
 #include <gui/tileview/entrypanel.h>
 #include <core/comfyuiclient.h>
+#include <core/facetindex.h>
 #include <utils/appconfig.h>
 #include <gui/widgets/appscrollbar.h>
 #include <gui/chromeddialog.h>
 #include <QDialog>
 #include <QDialogButtonBox>
-#include <QMessageBox>
 #include <QDirIterator>
 #include <QListWidget>
 #include <QListWidgetItem>
@@ -270,6 +270,8 @@ static QColor categoryColor(int cat)
         return {0x00, 0xaa, 0x00}; // character
     case 5:
         return {0xaa, 0xaa, 0xaa}; // meta
+    case 10:
+        return {0xff, 0x4d, 0x6d}; // custom (pink/red)
     default:
         return {0x60, 0x60, 0x60};
     }
@@ -731,11 +733,10 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
             dlg.exec();
         }
         else if (chosen == deleteAct) {
-            const auto reply =
-                QMessageBox::warning(this, "Delete LoRA from disk",
-                                     QString("Permanently delete this file?\n\n%1").arg(path),
-                                     QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
-            if (reply != QMessageBox::Yes) return;
+            const bool confirmed = gui::ChromedDialog::confirm(
+                this, "Delete LoRA from disk",
+                QString("Permanently delete this file?\n\n%1").arg(path), "Delete", "Cancel");
+            if (!confirmed) return;
 
             const int32_t entryId = m_entry->id;
             auto onDeleted = [this, entryId, path]() {
@@ -762,12 +763,12 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                 return;
             }
 
-            const auto retryReply =
-                QMessageBox::question(this, "File is locked",
-                                      "Deletion failed - the file is likely held by ComfyUI from "
-                                      "the last generation.\n\nUnload ComfyUI's models and retry?",
-                                      QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Yes);
-            if (retryReply != QMessageBox::Yes) return;
+            const bool retryConfirmed = gui::ChromedDialog::confirm(
+                this, "File is locked",
+                "Deletion failed - the file is likely held by ComfyUI from "
+                "the last generation.\n\nUnload ComfyUI's models and retry?",
+                "Retry", "Cancel");
+            if (!retryConfirmed) return;
 
             emit statusMessageRequested("Asking ComfyUI to unload models...");
             m_comfyClient->freeMemory([this, path, entryId, onDeleted](bool ok, QString err) {
@@ -991,6 +992,16 @@ void EntryPanel::setDanbooruIndex(core::DanbooruIndex* index)
     m_searchBar->setIndex(index);
 }
 
+void EntryPanel::setFacetIndex(core::FacetIndex* index)
+{
+    m_facetIndex = index;
+}
+
+void EntryPanel::refreshTags()
+{
+    rebuildTagList();
+}
+
 void EntryPanel::setActiveGroups(const QMap<int, QList<int>>& groups)
 {
     m_activeGroups = groups;
@@ -1149,8 +1160,15 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
     edit->setStyleSheet(QString("color:%1;").arg(col.name()));
     rl->addWidget(edit, 1);
 
+    // "?" badge for tags that have no facets defined - mirrors the
+    // ComposerNoBadge in the prompt composer's tag list.
+    auto* noFacetBadge = new QLabel("?", row);
+    noFacetBadge->setObjectName("TagNoFacetBadge");
+    noFacetBadge->setVisible(m_facetIndex && !m_facetIndex->hasFacets(tag));
+    rl->addWidget(noFacetBadge);
+
     // returnPressed: commit the rename
-    connect(edit, &QLineEdit::returnPressed, this, [this, edit, dot, row]() {
+    connect(edit, &QLineEdit::returnPressed, this, [this, edit, dot, noFacetBadge, row]() {
         const QString oldTag = row->property("_tag").toString();
         const QString newTag = edit->text().trimmed();
         if (newTag.isEmpty()) {
@@ -1168,6 +1186,7 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
         const QColor newCol = categoryColor(newCat);
         dot->setStyleSheet(QString("background:%1;border-radius:4px;").arg(newCol.name()));
         edit->setStyleSheet(QString("color:%1;").arg(newCol.name()));
+        noFacetBadge->setVisible(m_facetIndex && !m_facetIndex->hasFacets(newTag));
 
         row->setProperty("_tag", newTag);
         m_activeTags.remove(oldTag);

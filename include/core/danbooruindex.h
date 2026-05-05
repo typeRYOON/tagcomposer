@@ -10,9 +10,9 @@ struct TagSearchResult {
     QString canonicalTag; // tag to commit (always canonical)
     int category;
     int64_t count;
-    bool isAlias;   // if true, show canonicalTag as chip
-    int matchStart; // index in displayName where bold begins (1 if display starts with "/")
-    int matchLen;   // length of matched prefix in displayName
+    bool isAlias;   // matched on an alias; canonicalTag differs from displayName
+    int matchStart; // bold-range start in displayName (1 if leading '/')
+    int matchLen;
 };
 
 class DanbooruIndex {
@@ -32,14 +32,14 @@ private:
     };
 
     struct AliasEntry {
-        QString normalized; // alias with leading "/" stripped (for matching)
-        QString original;   // original alias (for display)
+        QString normalized; // leading '/' stripped, for sorted lookup
+        QString original;   // shown as-is in the search list
         int tagIdx{0};
     };
 
     QList<Tag> m_tags;
     QList<int> m_byName;         // indices into m_tags, sorted by tag name
-    QList<AliasEntry> m_byAlias; // sorted by normalized alias name
+    QList<AliasEntry> m_byAlias; // sorted by normalized
 };
 
 } // namespace core

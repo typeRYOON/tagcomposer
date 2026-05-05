@@ -8,6 +8,7 @@
 
 namespace core {
 class ComfyUiClient;
+class FacetIndex;
 }
 #include <QWidget>
 #include <QLabel>
@@ -31,10 +32,12 @@ public:
 
     void setEntry(core::Entry* entry);
     void setDanbooruIndex(core::DanbooruIndex* index);
+    void setFacetIndex(core::FacetIndex* index);
     void setActiveGroups(const QMap<int, QList<int>>& groups);
     void setComfyClient(core::ComfyUiClient* client);
     void setQuickFacets(const QString& characterFacet, const QString& copyrightFacet,
                         const QString& triggerWordFacet, const QString& styleFacet);
+    void refreshTags();
     void applyOrientation(bool portrait);
     // primary is the move-target for dropped files outside both roots;
     // test is read-only (recognised on drop, never written to). Either empty.
@@ -65,6 +68,7 @@ private:
 
     core::EntryModel* m_model;
     core::DanbooruIndex* m_danbooruIndex = nullptr;
+    core::FacetIndex* m_facetIndex = nullptr;
     core::ComfyUiClient* m_comfyClient = nullptr;
     core::Entry* m_entry = nullptr;
     int m_imageIdx = 0;

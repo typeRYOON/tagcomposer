@@ -18,6 +18,7 @@
 #include <core/updatechecker.h>
 #include <QDateTime>
 #include <gui/widgets/danmakuoverlay.h>
+#include <gui/chromeddialog.h>
 #include <gui/exportdialog.h>
 #include <gui/importdialog.h>
 #include <utils/qutils.h>
@@ -92,6 +93,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_tileViewPage = new TileViewPage(m_entryModel, this);
     m_tileViewPage->setLoraDirs(m_settings.loraBaseDir, m_settings.loraTestDir);
     m_tileViewPage->setComfyClient(m_comfyClient);
+    m_tileViewPage->setFacetIndex(&m_facetIndex);
     m_tileViewPage->setTileGradient(m_settings.tileGradientStart, m_settings.tileGradientAlpha);
     m_tileViewPage->setTileTitleColor(QColor(m_settings.tileTitleColor));
     m_composerPage = new PromptComposerPage(m_pipeline, &m_ruleEngine, m_tagGroupIndex, this);
@@ -315,6 +317,9 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     connect(m_settingsPage, &SettingsPage::clearUnusedInputsRequested, this,
             &AppMainWindow::clearUnusedInputs);
+
+    connect(m_settingsPage, &SettingsPage::purgeTagDefinitionsRequested, this,
+            &AppMainWindow::purgeTagDefinitions);
 
     connect(m_comfyClient, &core::ComfyUiClient::connected, this,
             [this]() { m_settingsPage->setComfyStatus(true); });
@@ -582,6 +587,7 @@ void AppMainWindow::reloadFacets()
     m_facetIndex.saveDefinitions(BASE_PATH + "/" + DEFINITIONS_PATH);
     m_facetEditorPage->reload();
     m_composerPage->repush();
+    m_tileViewPage->refreshTags();
 }
 
 void AppMainWindow::applyQuickFacet(const QString& tag, const QString& facetName)
@@ -834,6 +840,40 @@ void AppMainWindow::clearUnusedInputs()
                                      .arg(masksRemoved)
                                      .arg(rendersRemoved));
     }
+}
+
+void AppMainWindow::purgeTagDefinitions()
+{
+    const core::TagIndex& tagIndex = m_entryModel->tagIndex();
+    QList<QString> victims;
+    for (const QString& tag : m_facetIndex.allDefinedTags()) {
+        const bool noFacets = m_facetIndex.facetsFor(tag).isEmpty();
+        // Defer Danbooru pruning until the index is ready - otherwise every
+        // tag would look "not in Danbooru" while it's still loading.
+        const bool inDanbooru = m_danbooruIndex && m_danbooruIndex->tagCategory(tag) >= 0;
+        const bool orphaned = m_danbooruIndex && !inDanbooru && !tagIndex.tagInUse(tag);
+        if (noFacets || orphaned) victims << tag;
+    }
+
+    if (victims.isEmpty()) {
+        if (m_statusBar) m_statusBar->showMessage("No stale tag definitions to purge.");
+        return;
+    }
+
+    const bool confirmed = ChromedDialog::confirm(
+        this, "Purge tag definitions",
+        QString("Drop %1 tag definition(s) that have no facets, or aren't in the "
+                "Danbooru list and aren't used by any entry?\n\nThe change applies "
+                "in memory and persists at the next save.")
+            .arg(victims.size()),
+        "Purge", "Cancel");
+    if (!confirmed) return;
+
+    for (const QString& tag : victims) m_facetIndex.setDefinition(tag, {});
+    reloadFacets();
+
+    if (m_statusBar)
+        m_statusBar->showMessage(QString("Purged %1 tag definition(s).").arg(victims.size()));
 }
 
 void AppMainWindow::keyPressEvent(QKeyEvent* event)

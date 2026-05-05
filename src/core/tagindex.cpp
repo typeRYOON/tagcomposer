@@ -46,6 +46,15 @@ void TagIndex::buildIndex()
 }
 
 
+bool TagIndex::tagInUse(const QString& tag) const
+{
+    const auto it = m_tagToId.find(normalizeTagInput(tag));
+    if (it == m_tagToId.end()) return false;
+    // remove() drops empty buckets, so containment implies non-empty.
+    return m_tagIdToEntryId.contains(it.value());
+}
+
+
 void TagIndex::add(int32_t tagId, int32_t entryId)
 {
     QList<int32_t>& list = m_tagIdToEntryId[tagId];
