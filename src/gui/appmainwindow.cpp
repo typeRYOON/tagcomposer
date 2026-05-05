@@ -58,7 +58,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     resize(1420, 920);
     setMinimumSize(1420, 920);
 
-    // ── Load settings ─────────────────────────────────────────────────────────
+    // ---- Load settings
     m_settings = AppSettings::load(BASE_PATH + "/" + SETTINGS_PATH);
 
     // Seed the change-detection cache so the first settingsChanged emit
@@ -67,12 +67,12 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_lastComfyHost = m_settings.comfyUiServerAddress;
     m_lastComfyApiKey = m_settings.comfyUiApiKey;
 
-    // ── ComfyUI client ────────────────────────────────────────────────────────
+    // ---- ComfyUI client
     m_comfyClient = new core::ComfyUiClient(this);
     m_comfyClient->setServerAddress(m_settings.comfyUiServerAddress);
     m_comfyClient->setApiKey(m_settings.comfyUiApiKey);
 
-    // ── Workflow input cache ──────────────────────────────────────────────────
+    // ---- Workflow input cache
     m_inputCache = new core::WorkflowInputCache(BASE_PATH + "/" + WORKFLOW_INPUTS_DIR, this);
     // Reset upload state on (re)connect so a server restart re-uploads inputs.
     connect(m_comfyClient, &core::ComfyUiClient::connected, this,
@@ -80,7 +80,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_comfyClient, &core::ComfyUiClient::disconnected, this,
             [this]() { m_uploadedThisSession.clear(); });
 
-    // ── Load pipeline data ────────────────────────────────────────────────────
+    // ---- Load pipeline data
     m_facetIndex = core::FacetIndex::loadFromFile(BASE_PATH + "/" + FACETS_PATH);
     m_facetIndex.loadDefinitionsFromFile(BASE_PATH + "/" + DEFINITIONS_PATH);
     m_ruleEngine = core::RuleEngine::loadFromFile(BASE_PATH + "/" + RULES_PATH);
@@ -89,7 +89,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_workflowManager = core::WorkflowManager::loadFromFile(BASE_PATH + "/" + WORKFLOWS_PATH);
     m_pipeline = new core::PromptPipeline(&m_facetIndex, &m_ruleEngine, &m_varIndex, this);
 
-    // ── Pages ─────────────────────────────────────────────────────────────────
+    // ---- Pages
     m_tileViewPage = new TileViewPage(m_entryModel, this);
     m_tileViewPage->setLoraDirs(m_settings.loraBaseDir, m_settings.loraTestDir);
     m_tileViewPage->setLoraDefaults(m_settings.defaultLoraModelStr, m_settings.defaultLoraClipStr);
@@ -147,14 +147,14 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_pages->addWidget(m_wikiPage);           // Page::DanbooruWiki
     m_pages->addWidget(m_settingsPage);       // Page::Settings
 
-    // ── Danmaku overlay (behind all pages) ────────────────────────────────────
+    // ---- Danmaku overlay (behind all pages)
     m_danmakuOverlay = new DanmakuOverlay(m_pages);
 
     NavBar* nav = new NavBar(this, this);
     connect(nav, &NavBar::pageRequested, m_pages, &QStackedWidget::setCurrentIndex);
     connect(m_pages, &QStackedWidget::currentChanged, nav, &NavBar::setCurrentPage);
 
-    // ── LoRA stack: tile view -> main window + composer + workflow editor ────
+    // ---- LoRA stack: tile view -> main window + composer + workflow editor
     connect(m_tileViewPage, &TileViewPage::loraStackChanged, this,
             [this](const QList<core::LoraConfig>& stack) {
                 m_activeLoraStack = stack;
@@ -168,15 +168,15 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_workflowEditPage, &WorkflowEditPage::loraStrengthsChanged, this,
             [this](const QList<core::LoraConfig>& stack) { m_activeLoraStack = stack; });
 
-    // ── Batch ─────────────────────────────────────────────────────────────────
+    // ---- Batch
     connect(m_workflowEditPage, &WorkflowEditPage::batchRunRequested, this,
             &AppMainWindow::runBatch);
 
-    // ── LoRA restore: composer session/state -> tile view ────────────────────
+    // ---- LoRA restore: composer session/state -> tile view
     connect(m_composerPage, &PromptComposerPage::loraUuidsRestored, m_tileViewPage,
             &TileViewPage::setLoraActiveByUuids);
 
-    // ── Wire export: extraBtn -> composer page ───────────────────────────────
+    // ---- Wire export: extraBtn -> composer page
     connect(m_tileViewPage, &TileViewPage::tagsExported, m_composerPage,
             &PromptComposerPage::loadPipeline);
     connect(m_tileViewPage, &TileViewPage::entryTagAdded, m_composerPage,
@@ -184,15 +184,15 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_tileViewPage, &TileViewPage::entryTagRemoved, m_composerPage,
             &PromptComposerPage::onEntryTagRemoved);
 
-    // ── Entry deletion: drop pushes/lora referencing it from composer ──────────
+    // ---- Entry deletion: drop pushes/lora referencing it from composer
     connect(m_entryModel, &core::EntryModel::entryDeleted, m_composerPage,
             &PromptComposerPage::onEntryDeleted);
 
-    // ── Sync push-group state back to tile view ────────────────────────────────
+    // ---- Sync push-group state back to tile view
     connect(m_composerPage, &PromptComposerPage::activeGroupsChanged, m_tileViewPage,
             &TileViewPage::setActiveGroups);
 
-    // ── Wire facet editor reload ───────────────────────────────────────────────
+    // ---- Wire facet editor reload
     connect(m_facetEditorPage, &FacetEditorPage::facetsDefined, this, &AppMainWindow::reloadFacets);
 
     // Re-read facets.fct, keep tag definitions intact.
@@ -202,7 +202,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         m_statusBar->showMessage("Facet schema reloaded.");
     });
 
-    // ── Quick-add facet shortcut ──────────────────────────────────────────────
+    // ---- Quick-add facet shortcut
     // Panels emit (tag, facetName); FacetIndex lives here, so apply + persist.
     connect(m_composerPage, &PromptComposerPage::quickFacetRequested, this,
             &AppMainWindow::applyQuickFacet);
@@ -214,7 +214,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
                             m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);
     }
 
-    // ── Wiki page navigation ───────────────────────────────────────────────────
+    // ---- Wiki page navigation
     auto showWiki = [this](const QString& tag) {
         m_wikiPage->lookupTag(tag);
         m_pages->setCurrentIndex(int(Page::DanbooruWiki));
@@ -226,7 +226,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     if (auto* tcp = m_datasetHelpersPage->tagClusterPage())
         connect(tcp, &TagClusterPage::wikiRequested, this, showWiki);
 
-    // ── Facet editor navigation ───────────────────────────────────────────────
+    // ---- Facet editor navigation
     auto showFacetEditor = [this](const QString& tag) {
         m_pages->setCurrentIndex(3);
         m_facetEditorPage->selectTagByName(tag);
@@ -236,7 +236,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     if (auto* tcp = m_datasetHelpersPage->tagClusterPage())
         connect(tcp, &TagClusterPage::facetEditorRequested, this, showFacetEditor);
 
-    // ── Workflow editor navigation ────────────────────────────────────────────
+    // ---- Workflow editor navigation
     connect(m_composerPage, &PromptComposerPage::workflowEditorRequested, this, [this]() {
         m_workflowEditPage->refresh();
         m_pages->setCurrentIndex(int(Page::WorkflowEditor));
@@ -244,7 +244,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_composerPage, &PromptComposerPage::workflowVarsChanged, m_workflowEditPage,
             &WorkflowEditPage::refresh);
 
-    // ── Run with workflow ─────────────────────────────────────────────────────
+    // ---- Run with workflow
     // Wildcard vars pick fresh tags per run, so the prompt is rebuilt each
     // iteration to flow that pick through the rule/var pipeline.
     connect(m_composerPage, &PromptComposerPage::runRequested, this, [this](int count) {
@@ -274,13 +274,13 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         });
     });
 
-    // ── Shift+cancel = clear pending queue ────────────────────────────────────
+    // ---- Shift+cancel = clear pending queue
     connect(m_composerPage, &PromptComposerPage::clearPendingRequested, this, [this]() {
         m_skipFinalOnPendingClear = true;
         m_comfyClient->clearPending();
     });
 
-    // ── Settings page ─────────────────────────────────────────────────────────
+    // ---- Settings page
     connect(m_settingsPage, &SettingsPage::settingsChanged, this, [this]() {
         applyComfySettings();
         if (m_settings.danmakuEnabled) {
@@ -366,7 +366,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         m_comfyClient->interrupt();
     });
 
-    // ── Layout ────────────────────────────────────────────────────────────────
+    // ---- Layout
     QWidget* content = new QWidget(this);
     auto* hLayout = new QHBoxLayout(content);
     hLayout->setContentsMargins(0, 0, 0, 0);
@@ -391,7 +391,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     setCentralWidget(m_chrome->frame());
 
-    // ── Background: load DanbooruIndex ────────────────────────────────────────
+    // ---- Background: load DanbooruIndex
     const QString csvPath = BASE_PATH + "/" + DANBOORU_CSV_PATH;
     auto* watcher = new QFutureWatcher<core::DanbooruIndex*>(this);
     connect(watcher, &QFutureWatcher<core::DanbooruIndex*>::finished, this, [this, watcher]() {
@@ -421,7 +421,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     }
     qApp->setStyleSheet(combinedQss);
 
-    // ── Global keyboard shortcuts ─────────────────────────────────────────────
+    // ---- Global keyboard shortcuts
     // Guard against firing while typing in a text input.
     auto textInput = []() -> bool {
         const QWidget* fw = qApp->focusWidget();
@@ -495,7 +495,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         if (m_settings.comfyUiEnabled) m_comfyClient->connectToServer();
     });
 
-    // ── Update check ──────────────────────────────────────────────────────────
+    // ---- Update check
     // Once-per-launch GitHub Releases poll, throttled to ~24h via the
     // lastUpdateCheckTime setting. Not blocking - kicked off 2 s after the
     // window appears so it doesn't compete with the rest of boot work.
@@ -607,7 +607,7 @@ void AppMainWindow::applyQuickFacet(const QString& tag, const QString& facetName
     m_statusBar->showMessage(QString("Added facet '%1' to '%2'").arg(facetName, tag));
 }
 
-// ── Batch run ───────────────────────────────────────────────────────────────
+// ---- Batch run
 
 void AppMainWindow::runBatch(const QString& query)
 {

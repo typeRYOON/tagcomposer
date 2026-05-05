@@ -30,14 +30,14 @@ static constexpr int ThumbW = 150;
 static constexpr int ThumbH = 150;
 
 
-// ── ctor ──────────────────────────────────────────────────────────────────────
+// ---- ctor
 
 TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkAccessManager(this))
 {
     setObjectName("TagWikiPage");
     setAttribute(Qt::WA_StyledBackground, true);
 
-    // ── Header ────────────────────────────────────────────────────────────────
+    // ---- Header
     m_titleLabel = new QLabel(this);
     m_titleLabel->setAttribute(Qt::WA_StyledBackground, true);
     m_titleLabel->setObjectName("WikiTitle");
@@ -71,7 +71,7 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     headerLayout->addWidget(headerInner, 0);
     headerLayout->addStretch(1);
 
-    // ── Text browser ──────────────────────────────────────────────────────────
+    // ---- Text browser
     m_browser = new QTextBrowser;
     m_browser->setObjectName("WikiBrowser");
     m_browser->setOpenLinks(false);
@@ -99,7 +99,7 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     m_thumbFetchTimer->setInterval(250);
     connect(m_thumbFetchTimer, &QTimer::timeout, this, &TagWikiPage::processThumbFetchQueue);
 
-    // ── Content widget ────────────────────────────────────────────────────────
+    // ---- Content widget
     auto* contentWidget = new QWidget;
     auto* contentLayout = new QVBoxLayout(contentWidget);
     contentLayout->setContentsMargins(0, 0, 0, 0);
@@ -107,7 +107,7 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     contentLayout->addWidget(header);
     contentLayout->addWidget(m_browser, 1);
 
-    // ── Loading / not-found placeholders ─────────────────────────────────────
+    // ---- Loading / not-found placeholders
     // Loading state is intentionally blank: the search bar is hint enough.
     auto* loadingLabel = new QLabel();
     loadingLabel->setObjectName("WikiStatusLabel");
@@ -203,7 +203,7 @@ TagWikiPage::TagWikiPage(QWidget* parent) : QWidget(parent), m_nam(new QNetworkA
     updateNavButtons();
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ---- Public API
 
 void TagWikiPage::setDanbooruIndex(core::DanbooruIndex* index)
 {
@@ -247,7 +247,7 @@ void TagWikiPage::lookupTag(const QString& tag)
     fetchWikiPage(tag);
 }
 
-// ── History navigation ────────────────────────────────────────────────────────
+// ---- History navigation
 
 void TagWikiPage::goBack()
 {
@@ -279,7 +279,7 @@ void TagWikiPage::cancelPendingFade()
     m_fadeEffect->setOpacity(1.0);
 }
 
-// ── Smooth scroll ────────────────────────────────────────────────────────────
+// ---- Smooth scroll
 
 void TagWikiPage::smoothScrollTo(int target)
 {
@@ -304,7 +304,7 @@ void TagWikiPage::smoothScrollToAnchor(const QString& anchor)
     smoothScrollTo(to);
 }
 
-// ── Network ───────────────────────────────────────────────────────────────────
+// ---- Network
 
 void TagWikiPage::fetchWikiPage(const QString& tag)
 {
@@ -466,7 +466,7 @@ void TagWikiPage::fetchAssetData(int assetId)
     });
 }
 
-// ── Display ───────────────────────────────────────────────────────────────────
+// ---- Display
 
 void TagWikiPage::showLoading()
 {
@@ -541,7 +541,7 @@ void TagWikiPage::displayContent(const QString& title, const QStringList& otherN
         if (!m_assetThumbs.contains(id)) enqueueThumbFetch(ThumbKind::Asset, id);
 }
 
-// ── Resize / screen-change re-layout ─────────────────────────────────────────
+// ---- Resize / screen-change re-layout
 
 bool TagWikiPage::eventFilter(QObject* obj, QEvent* event)
 {
@@ -589,7 +589,7 @@ void TagWikiPage::showEvent(QShowEvent* event)
     }
 }
 
-// ── Thumbnail fade ────────────────────────────────────────────────────────────
+// ---- Thumbnail fade
 
 void TagWikiPage::startThumbFade(const QString& resourceUrl, const QPixmap& finalPix)
 {
@@ -643,7 +643,7 @@ void TagWikiPage::onThumbFadeTick()
     if (m_pendingFades.isEmpty()) m_thumbFadeTimer->stop();
 }
 
-// ── Paced thumb metadata fetch ───────────────────────────────────────────────
+// ---- Paced thumb metadata fetch
 
 void TagWikiPage::enqueueThumbFetch(ThumbKind kind, int id)
 {
@@ -662,7 +662,7 @@ void TagWikiPage::processThumbFetchQueue()
     else fetchAssetData(job.id);
 }
 
-// ── Nav button state ─────────────────────────────────────────────────────────
+// ---- Nav button state
 
 void TagWikiPage::updateNavButtons()
 {
@@ -671,7 +671,7 @@ void TagWikiPage::updateNavButtons()
     if (m_openExternalBtn) m_openExternalBtn->setEnabled(!m_currentTag.isEmpty());
 }
 
-// ── Page transition helpers ──────────────────────────────────────────────────
+// ---- Page transition helpers
 
 void TagWikiPage::startFadeOutThenLookup(const QString& tag)
 {
@@ -703,7 +703,7 @@ void TagWikiPage::finishPendingFadeIn()
     m_fadeAnim->start();
 }
 
-// ── Anchor clicks ─────────────────────────────────────────────────────────────
+// ---- Anchor clicks
 
 void TagWikiPage::onAnchorClicked(const QUrl& url)
 {
@@ -734,7 +734,7 @@ void TagWikiPage::onAnchorClicked(const QUrl& url)
     QDesktopServices::openUrl(url);
 }
 
-// ── DText -> HTML ─────────────────────────────────────────────────────────────
+// ---- DText -> HTML
 
 static QString applyInlineMarkup(const QString& raw)
 {

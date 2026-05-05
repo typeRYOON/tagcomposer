@@ -47,7 +47,7 @@ protected:
 private:
     core::FacetIndex* m_facets = nullptr;
 
-    // ── Params (left panel) ──────────────────────────────────────────────────
+    // ---- Params (left panel)
     QLineEdit* m_tagInput;
     QCheckBox* m_soloCheck;
     QSpinBox* m_charPagesSpin;
@@ -58,18 +58,18 @@ private:
     QPushButton* m_fetchBtn;
     QPushButton* m_clearCacheBtn;
 
-    // ── Filter editor ────────────────────────────────────────────────────────
+    // ---- Filter editor
     QRadioButton* m_blacklistRadio;
     QRadioButton* m_whitelistRadio;
     QPlainTextEdit* m_filterEdit;
     QPushButton* m_saveFilterBtn;
     QLabel* m_filterStatusLbl;
 
-    // ── Status (results panel) ───────────────────────────────────────────────
+    // ---- Status (results panel)
     QLabel* m_statusLabel;
     QProgressBar* m_progressBar;
 
-    // ── Results (results panel) ──────────────────────────────────────────────
+    // ---- Results (results panel)
     QWidget* m_resultsContainer;
     QVBoxLayout* m_resultsLayout;
     QWidget* m_resultsScroll = nullptr; // stacks with m_emptyState - only one visible
@@ -78,16 +78,16 @@ private:
     QPlainTextEdit* m_copyEdit;
     QPushButton* m_copyBtn;
 
-    // ── Preview (right panel) ────────────────────────────────────────────────
+    // ---- Preview (right panel)
     QLabel* m_previewImage;
     QLabel* m_previewStatus;
     int m_previewPostId = -1;
     QString m_previewForTag;
 
-    // ── Network ──────────────────────────────────────────────────────────────
+    // ---- Network
     QNetworkAccessManager* m_nam;
 
-    // ── Fetch state ──────────────────────────────────────────────────────────
+    // ---- Fetch state
     enum class Phase { Idle, GlobalFetch, CharFetch };
     Phase m_phase = Phase::Idle;
     int m_currentPage = 0;
@@ -96,7 +96,7 @@ private:
     QString m_targetTag;
     bool m_fetchedSolo = false;
 
-    // ── Cached counters (live for the session) ───────────────────────────────
+    // ---- Cached counters (live for the session)
     QHash<QString, int> m_globalCounter;
     qint64 m_globalTotal = 0;
 
@@ -105,7 +105,7 @@ private:
     qint64 m_charTotal = 0;
     bool m_charDataReady = false;
 
-    // ── Result rows ──────────────────────────────────────────────────────────
+    // ---- Result rows
     struct ResultRow {
         QWidget* widget;
         QString tag;
@@ -114,16 +114,16 @@ private:
     QList<ResultRow> m_rows;
     QString m_copyright;
 
-    // ── Quick-facet config (set by AppMainWindow) ────────────────────────────
+    // ---- Quick-facet config (set by AppMainWindow)
     QString m_quickCharFacet;
     QString m_quickCopyFacet;
     QString m_quickTriggerFacet;
     QString m_quickStyleFacet;
 
-    // ── Debounced recompute (slider drags trigger many changes per second) ──
+    // ---- Debounced recompute (slider drags trigger many changes per second)
     QTimer* m_recomputeTimer = nullptr;
 
-    // ── Methods ──────────────────────────────────────────────────────────────
+    // ---- Methods
     void onFetchClicked();
     void fetchNextPage();
     void processPage(const QJsonArray& posts);

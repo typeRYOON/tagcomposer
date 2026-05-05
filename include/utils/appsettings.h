@@ -4,7 +4,7 @@
 namespace utils {
 
 struct AppSettings {
-    // ── Appearance ───────────────────────────────────────────────────────────
+    // ---- Appearance
     bool danmakuEnabled = false;
     // Tile bottom gradient. start = fade-begin fraction (0=top, 1=bottom);
     // alpha = bottom-edge darkness. Read at startup only; restart to apply.
@@ -12,7 +12,7 @@ struct AppSettings {
     int tileGradientAlpha = 180;
     QString tileTitleColor = "#ffffff"; // tile title hex; startup-only like gradient
 
-    // ── ComfyUI ───────────────────────────────────────────────────────────────
+    // ---- ComfyUI
     bool comfyUiEnabled = false;
     QString comfyUiServerAddress = "127.0.0.1:8188";
     QString comfyUiApiKey;
@@ -24,7 +24,7 @@ struct AppSettings {
     double defaultLoraModelStr = 1.0; // applied to freshly-added LoRAs
     double defaultLoraClipStr = 1.0;
 
-    // ── Facets ────────────────────────────────────────────────────────────────
+    // ---- Facets
     // Quick-add facet names. Empty = menu item hidden, so users aren't forced
     // into a baked-in schema. Settings page shows the LoRA-training convention
     // names ("rcharacter" / "rcopyright" / "rtrigger_word" / "rstyle") as hints.
@@ -33,7 +33,7 @@ struct AppSettings {
     QString quickTriggerWordFacet;
     QString quickStyleFacet;
 
-    // ── AutoTag ──────────────────────────────────────────────────────────────
+    // ---- AutoTag
     QString activeAutoTagModel;
     float autoTagThreshold = 0.35f;
     int autoTagCooldownMs = 100; // 0 = no cooldown between inferences
@@ -41,17 +41,16 @@ struct AppSettings {
     QString autoTagOutputFolder;
     QString tagEditorFolder;
 
-    // ── Auto-collect (Collector page) ────────────────────────────────────────
+    // ---- Auto-collect (Collector page)
     QString collectorWatchFolder;
     QString collectorActiveCollection;
     int collectorThreshold = 4;   // Hamming bits cutoff (0-16)
     int collectorPollSeconds = 5;
 
-    // ── Update checker ──────────────────────────────────────────────────────
+    // ---- Update checker
     qint64 lastUpdateCheckTime = 0; // unix epoch seconds, throttles checks
     QString lastKnownLatestVersion;
 
-    // ─────────────────────────────────────────────────────────────────────────
     static AppSettings load(const QString& path);
     void save(const QString& path) const;
 };

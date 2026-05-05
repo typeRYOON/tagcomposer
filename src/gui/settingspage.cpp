@@ -24,7 +24,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     setObjectName("SettingsPage");
     setAttribute(Qt::WA_StyledBackground, true);
 
-    // ── Scrollable body ───────────────────────────────────────────────────────
+    // ---- Scrollable body
     auto* body = new QWidget;
     body->setObjectName("SettingsBody");
 
@@ -32,7 +32,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     bodyLayout->setContentsMargins(32, 24, 32, 12);
     bodyLayout->setSpacing(0);
 
-    // ── Section: Appearance ───────────────────────────────────────────────────
+    // ---- Section: Appearance
     auto* appearanceHeader = new QLabel("APPEARANCE");
     appearanceHeader->setObjectName("SettingsSectionHeader");
     bodyLayout->addWidget(appearanceHeader);
@@ -54,7 +54,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     danmakuHint->setObjectName("SettingsHintLabel");
     appearanceLayout->addWidget(danmakuHint);
 
-    // ── Tile gradient ─────────────────────────────────────────────────────
+    // ---- Tile gradient
     auto* tileGradGrid = new QGridLayout;
     tileGradGrid->setContentsMargins(0, 6, 0, 0);
     tileGradGrid->setHorizontalSpacing(12);
@@ -168,13 +168,13 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     bodyLayout->addWidget(appearanceGroup);
     bodyLayout->addSpacing(24);
 
-    // ── Section: Backends ─────────────────────────────────────────────────────
+    // ---- Section: Backends
     auto* backendsHeader = new QLabel("BACKENDS");
     backendsHeader->setObjectName("SettingsSectionHeader");
     bodyLayout->addWidget(backendsHeader);
     bodyLayout->addSpacing(12);
 
-    // ── ComfyUI group ─────────────────────────────────────────────────────────
+    // ---- ComfyUI group
     auto* comfyGroup = new QWidget;
     comfyGroup->setObjectName("SettingsGroup");
     comfyGroup->setAttribute(Qt::WA_StyledBackground, true);
@@ -201,7 +201,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
 
     comfyLayout->addLayout(toggleRow);
 
-    // ── Detail fields (shown when enabled) ────────────────────────────────────
+    // ---- Detail fields (shown when enabled)
     m_comfyDetails = new QWidget;
     auto* detailLayout = new QGridLayout(m_comfyDetails);
     detailLayout->setContentsMargins(0, 4, 0, 0);
@@ -392,7 +392,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     bodyLayout->addWidget(comfyGroup);
     bodyLayout->addSpacing(24);
 
-    // ── Section: Facets ───────────────────────────────────────────────────────
+    // ---- Section: Facets
     auto* facetsHeader = new QLabel("FACETS");
     facetsHeader->setObjectName("SettingsSectionHeader");
     bodyLayout->addWidget(facetsHeader);
@@ -507,7 +507,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     bodyLayout->addWidget(facetsGroup);
     bodyLayout->addSpacing(24);
 
-    // ── Section: Data (import / export) ───────────────────────────────────────
+    // ---- Section: Data (import / export)
     auto* dataHeader = new QLabel("DATA");
     dataHeader->setObjectName("SettingsSectionHeader");
     bodyLayout->addWidget(dataHeader);
@@ -547,7 +547,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     bodyLayout->addWidget(dataGroup);
     bodyLayout->addSpacing(24);
 
-    // ── Section: Workflow input images ────────────────────────────────────────
+    // ---- Section: Workflow input images
     auto* inputsHeader = new QLabel("INPUT IMAGES");
     inputsHeader->setObjectName("SettingsSectionHeader");
     bodyLayout->addWidget(inputsHeader);
@@ -582,7 +582,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     bodyLayout->addWidget(inputsGroup);
     bodyLayout->addSpacing(24);
 
-    // ── Section: Log ──────────────────────────────────────────────────────────
+    // ---- Section: Log
     auto* logHeader = new QLabel("LOG");
     logHeader->setObjectName("SettingsSectionHeader");
     bodyLayout->addWidget(logHeader);
@@ -618,7 +618,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     bodyLayout->addLayout(footerRow);
     bodyLayout->addStretch();
 
-    // ── Scroll area ───────────────────────────────────────────────────────────
+    // ---- Scroll area
     auto* scroll = new QScrollArea(this);
     scroll->setObjectName("SettingsScroll");
     scroll->setWidget(body);
@@ -632,7 +632,7 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     root->setSpacing(0);
     root->addWidget(scroll);
 
-    // ── Connections ───────────────────────────────────────────────────────────
+    // ---- Connections
     connect(m_enableDanmaku, &QCheckBox::toggled, this, [this](bool on) {
         m_settings->danmakuEnabled = on;
         emit settingsChanged();

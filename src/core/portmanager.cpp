@@ -36,7 +36,7 @@ bool copyDirContents(const QDir& src, const QDir& dst)
 
 } // namespace
 
-// ── Export ───────────────────────────────────────────────────────────────────
+// ---- Export
 
 bool PortManager::exportEntries(const QString& query, const QString& destFolder, EntryModel* model,
                                 const FacetIndex& facets, QStringList* errors)
@@ -94,7 +94,7 @@ bool PortManager::exportEntries(const QString& query, const QString& destFolder,
     return true;
 }
 
-// ── Scan ─────────────────────────────────────────────────────────────────────
+// ---- Scan
 
 PortScan PortManager::scanImport(const QString& srcFolder, EntryModel* model,
                                  const FacetIndex& facets)
@@ -157,7 +157,7 @@ PortScan PortManager::scanImport(const QString& srcFolder, EntryModel* model,
     return scan;
 }
 
-// ── Apply ────────────────────────────────────────────────────────────────────
+// ---- Apply
 
 PortResult PortManager::applyImport(const PortScan& scan, const PortConfig& config,
                                     EntryModel* model, FacetIndex& facets,

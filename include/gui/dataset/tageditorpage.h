@@ -44,15 +44,9 @@ private:
     QStringList m_patterns;
 };
 
-// Standalone editor for the .txt sidecars produced by AutoTagPage. No
-// inference, no model loading - just file I/O on `<folder>/<basename>.txt`
-// next to each image.
-//
-// Workflow:
-//   1. Pick a folder (recursive optional) - populates the image list.
-//   2. Click an image - loads the image preview + the .txt contents.
-//   3. Edit text - debounced auto-save back to the .txt file.
-//   4. Search box - substring highlighting in the editor pane.
+// Standalone editor for the .txt sidecars produced by AutoTagPage. Pure
+// file I/O on `<folder>/<basename>.txt`; no inference or model loading.
+// Edits debounced and auto-saved.
 class TagEditorPage : public QWidget {
     Q_OBJECT
 public:
@@ -79,7 +73,7 @@ private:
     core::DanbooruIndex* m_danbooruIndex = nullptr;
     utils::AppSettings* m_settings = nullptr;
 
-    // ── Left column (folder + navigation) ───────────────────────────────────
+    // ---- Left column (folder + navigation)
     QLineEdit* m_folderEdit = nullptr;
     QPushButton* m_browseBtn = nullptr;
     QCheckBox* m_recursiveCheck = nullptr;
@@ -93,7 +87,7 @@ private:
     QPushButton* m_deleteBtn = nullptr;
     QPushButton* m_sendToBatchBtn = nullptr;
 
-    // ── Middle column (large clickable preview) ─────────────────────────────
+    // ---- Middle column (large clickable preview)
     QLabel* m_focusImage = nullptr;
     QLabel* m_imageNameLbl = nullptr; // sits in the IMAGE section header
     // Source pixmap at native resolution. The label's displayed pixmap is
@@ -101,13 +95,13 @@ private:
     // grows/shrinks with the window.
     QPixmap m_focusPixmapSrc;
 
-    // ── Right column (search bar + editor + highlight) ──────────────────────
+    // ---- Right column (search bar + editor + highlight)
     TagSearchBar* m_tagSearchBar = nullptr;
     QPlainTextEdit* m_tagEdit = nullptr;
     QLineEdit* m_highlightEdit = nullptr;
     QLabel* m_editStatus = nullptr;
 
-    // ── State ───────────────────────────────────────────────────────────────
+    // ---- State
     QStringList m_images; // absolute paths, alphabetical
     int m_currentIndex = -1;
     QString m_currentImagePath; // absolute (== m_images[m_currentIndex])

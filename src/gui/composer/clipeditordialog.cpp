@@ -54,7 +54,7 @@ QRect maskBoundingBox(const QImage& mask)
 
 } // namespace
 
-// ── Canvas ──────────────────────────────────────────────────────────────────
+// ---- Canvas
 
 class ClipCanvas : public QWidget {
 public:
@@ -372,7 +372,7 @@ protected:
     }
 
 private:
-    // ── Tool implementations ──
+    // ---- Tool implementations
 
     void paintBrushSegment(QPoint from, QPoint to, bool erase)
     {
@@ -467,7 +467,7 @@ private:
         if (m_onChanged) m_onChanged();
     }
 
-    // ── Overlay regen ──
+    // ---- Overlay regen
     // Cached red-tinted mirror of m_mask, blitted in paintEvent. Refreshed
     // only over the dirty bbox so we don't pixel-walk the whole image per
     // edit.
@@ -487,7 +487,7 @@ private:
         }
     }
 
-    // ── Geometry helpers ──
+    // ---- Geometry helpers
 
     QRect displayRect() const
     {
@@ -586,7 +586,7 @@ private:
     std::function<void()> m_onHistoryChanged;
 };
 
-// ── Dialog ──────────────────────────────────────────────────────────────────
+// ---- Dialog
 
 ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits& initial,
                                    core::WorkflowInputCache* cache, QWidget* parent)
@@ -628,7 +628,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits&
     m_canvas->setTrimMode(initial.trimToCrop);
     m_canvas->onMaskChanged([this]() { updateRectLabel(); });
 
-    // ── Tool palette ──
+    // ---- Tool palette
     m_toolGroup = new QButtonGroup(this);
     auto makeToolBtn = [this](const QString& text, Tool t, bool checked = false) {
         auto* b = new QPushButton(text, this);
@@ -652,7 +652,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits&
                             "or image edge contains it. With Erase, clears a contained mask region.");
     m_canvas->setTool(Tool::Brush);
 
-    // ── Undo / redo ──
+    // ---- Undo / redo
     auto* undoBtn = new QPushButton("Undo", this);
     auto* redoBtn = new QPushButton("Redo", this);
     undoBtn->setEnabled(false);
@@ -671,7 +671,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits&
     connect(undoSc, &QShortcut::activated, this, [this]() { m_canvas->undo(); });
     connect(redoSc, &QShortcut::activated, this, [this]() { m_canvas->redo(); });
 
-    // ── Erase modifier - combines with whichever tool is active ──
+    // ---- Erase modifier - combines with whichever tool is active
     m_eraseBtn = new QPushButton("Erase", this);
     m_eraseBtn->setObjectName("ClipEditorEraseBtn");
     m_eraseBtn->setCheckable(true);
@@ -680,7 +680,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits&
                            "instead of adding to it.");
     connect(m_eraseBtn, &QPushButton::toggled, this, [this](bool on) { m_canvas->setErase(on); });
 
-    // ── Sliders ──
+    // ---- Sliders
     // Fixed label widths so valueChanged doesn't reshuffle the row mid-drag.
     m_brushLabel = new QLabel("Size 30", this);
     m_brushLabel->setFixedWidth(m_brushLabel->fontMetrics().horizontalAdvance("Size 200") + 24);
@@ -702,7 +702,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits&
         m_tolLabel->setText(QStringLiteral("Tolerance %1").arg(v));
     });
 
-    // ── Overlay tint ──
+    // ---- Overlay tint
     auto* colorBtn = new QPushButton(this);
     colorBtn->setFixedSize(24, 24);
     colorBtn->setCursor(Qt::PointingHandCursor);
@@ -756,7 +756,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits&
         opLabel->setText(QStringLiteral("Opacity %1").arg(v));
     });
 
-    // ── Bottom bar ──
+    // ---- Bottom bar
     m_rectLabel = new QLabel(this);
     m_rectLabel->setObjectName("ClipEditorRectLabel");
 
@@ -786,7 +786,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const core::ImageEdits&
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
-    // ── Layout: sidebar of controls + canvas pane ──
+    // ---- Layout: sidebar of controls + canvas pane
     auto* sidebar = new QWidget(this);
     sidebar->setFixedWidth(220);
     auto* sb = new QVBoxLayout(sidebar);

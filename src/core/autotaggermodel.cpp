@@ -12,7 +12,7 @@
 
 namespace core {
 
-// ── Construction ─────────────────────────────────────────────────────────────
+// ---- Construction
 
 std::unique_ptr<AutoTaggerModel> AutoTaggerModel::loadFromDir(Ort::Env& env, const QString& dir,
                                                               QString* err)
@@ -161,7 +161,7 @@ bool AutoTaggerModel::initSession(Ort::Env& env, const QString& modelPath, QStri
     return true;
 }
 
-// ── Preprocessing ────────────────────────────────────────────────────────────
+// ---- Preprocessing
 
 std::vector<float> AutoTaggerModel::preprocessImage(const QString& imagePath) const
 {
@@ -221,7 +221,7 @@ std::vector<float> AutoTaggerModel::preprocessImage(const QString& imagePath) co
     return out;
 }
 
-// ── Inference ────────────────────────────────────────────────────────────────
+// ---- Inference
 
 TagResult AutoTaggerModel::tag(const QString& imagePath, float threshold) const
 {

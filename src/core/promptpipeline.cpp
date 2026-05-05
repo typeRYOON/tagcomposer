@@ -11,7 +11,7 @@ PromptPipeline::PromptPipeline(FacetIndex* facets, RuleEngine* rules, VariableIn
 {
 }
 
-// ── Push ──────────────────────────────────────────────────────────────────────
+// ---- Push
 
 void PromptPipeline::push(const QList<QString>& tags)
 {
@@ -74,7 +74,7 @@ QList<CategoryGroup> PromptPipeline::evaluate(const QList<QString>& tags) const
     return groupByCategory(final);
 }
 
-// ── Grouping ──────────────────────────────────────────────────────────────────
+// ---- Grouping
 
 QList<CategoryGroup> PromptPipeline::groupByCategory(const QList<PipelineTag>& tags) const
 {
@@ -108,7 +108,7 @@ QList<CategoryGroup> PromptPipeline::groupByCategory(const QList<PipelineTag>& t
     return out;
 }
 
-// ── Prompt string ─────────────────────────────────────────────────────────────
+// ---- Prompt string
 
 QString PromptPipeline::buildPromptString(const QList<CategoryGroup>& groups, bool forJson)
 {

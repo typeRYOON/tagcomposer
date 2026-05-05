@@ -32,7 +32,7 @@ ImportDialog::ImportDialog(core::EntryModel* model, core::FacetIndex* facets,
     root->setContentsMargins(20, 16, 20, 16);
     root->setSpacing(8);
 
-    // ── Source picker ───────────────────────────────────────────────────────
+    // ---- Source picker
     auto* srcRow = new QHBoxLayout;
     auto* srcLabel = new QLabel("Source:");
     m_srcInput = new QLineEdit;
@@ -46,12 +46,12 @@ ImportDialog::ImportDialog(core::EntryModel* model, core::FacetIndex* facets,
     srcRow->addWidget(browseBtn);
     root->addLayout(srcRow);
 
-    // ── Summary ─────────────────────────────────────────────────────────────
+    // ---- Summary
     m_summary = new QLabel("No source selected.");
     m_summary->setWordWrap(true);
     root->addWidget(m_summary);
 
-    // ── Conflict mode ───────────────────────────────────────────────────────
+    // ---- Conflict mode
     auto* conflictRow = new QHBoxLayout;
     conflictRow->addWidget(new QLabel("On tag-definition collision:"));
     auto* skipRb = new QRadioButton("Skip");
@@ -68,7 +68,7 @@ ImportDialog::ImportDialog(core::EntryModel* model, core::FacetIndex* facets,
     conflictRow->addStretch();
     root->addLayout(conflictRow);
 
-    // ── Mapping table header ────────────────────────────────────────────────
+    // ---- Mapping table header
     auto* mapHeader = new QHBoxLayout;
     mapHeader->addWidget(new QLabel("Facet mapping:"));
     mapHeader->addStretch();
@@ -78,7 +78,7 @@ ImportDialog::ImportDialog(core::EntryModel* model, core::FacetIndex* facets,
     mapHeader->addWidget(m_dropAllBtn);
     root->addLayout(mapHeader);
 
-    // ── Mapping table body ──────────────────────────────────────────────────
+    // ---- Mapping table body
     m_mappingHost = new QWidget;
     m_mappingLayout = new QVBoxLayout(m_mappingHost);
     m_mappingLayout->setContentsMargins(0, 0, 0, 0);
@@ -93,7 +93,7 @@ ImportDialog::ImportDialog(core::EntryModel* model, core::FacetIndex* facets,
     m_mappingScroll->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     root->addWidget(m_mappingScroll, 1);
 
-    // ── Validation + status ─────────────────────────────────────────────────
+    // ---- Validation + status
     m_validation = new QLabel;
     m_validation->setObjectName("ValidationLabel");
     m_validation->setWordWrap(true);
@@ -103,7 +103,7 @@ ImportDialog::ImportDialog(core::EntryModel* model, core::FacetIndex* facets,
     m_status->setWordWrap(true);
     root->addWidget(m_status);
 
-    // ── Buttons ─────────────────────────────────────────────────────────────
+    // ---- Buttons
     auto* btns = new QDialogButtonBox(QDialogButtonBox::Cancel);
     m_importBtn = btns->addButton("Import", QDialogButtonBox::AcceptRole);
     m_importBtn->setEnabled(false);
@@ -115,7 +115,7 @@ ImportDialog::ImportDialog(core::EntryModel* model, core::FacetIndex* facets,
     connect(btns, &QDialogButtonBox::rejected, this, &QDialog::reject);
 }
 
-// ── Browse + scan ────────────────────────────────────────────────────────────
+// ---- Browse + scan
 
 void ImportDialog::onBrowse()
 {
@@ -152,7 +152,7 @@ void ImportDialog::onBrowse()
     rebuildMappingTable();
 }
 
-// ── Mapping table ────────────────────────────────────────────────────────────
+// ---- Mapping table
 
 void ImportDialog::rebuildMappingTable()
 {
@@ -269,7 +269,7 @@ void ImportDialog::onDropAllUnmatched()
     validate();
 }
 
-// ── Apply ────────────────────────────────────────────────────────────────────
+// ---- Apply
 
 void ImportDialog::onImport()
 {

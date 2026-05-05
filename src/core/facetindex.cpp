@@ -5,7 +5,7 @@
 
 namespace core {
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ---- Helpers
 
 static QList<QString> splitTrimmed(const QString& s, QChar sep)
 {
@@ -15,7 +15,7 @@ static QList<QString> splitTrimmed(const QString& s, QChar sep)
     return out;
 }
 
-// ── Load ──────────────────────────────────────────────────────────────────────
+// ---- Load
 // schema format:
 //   @category Name   - open a new category
 //   f, f, f          - facets in the current category
@@ -88,7 +88,7 @@ void FacetIndex::saveDefinitions(const QString& definitionsPath) const
         ts << tag << '=' << m_tagToFacets[tag].join(',') << "\n";
 }
 
-// ── Lookups ───────────────────────────────────────────────────────────────────
+// ---- Lookups
 
 QList<QString> FacetIndex::facetsFor(const QString& tag) const
 {

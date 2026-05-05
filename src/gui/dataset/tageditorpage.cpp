@@ -90,7 +90,7 @@ QString sidecarPathForImage(const QString& imagePath)
 }
 } // namespace
 
-// ── TagSearchHighlighter ─────────────────────────────────────────────────────
+// ---- TagSearchHighlighter
 
 TagSearchHighlighter::TagSearchHighlighter(QTextDocument* parent) : QSyntaxHighlighter(parent) {}
 
@@ -129,7 +129,7 @@ void TagSearchHighlighter::highlightBlock(const QString& text)
     }
 }
 
-// ── TagEditorPage ────────────────────────────────────────────────────────────
+// ---- TagEditorPage
 
 TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSettings* settings,
                              QWidget* parent)
@@ -143,7 +143,7 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
     m_saveTimer->setInterval(400);
     connect(m_saveTimer, &QTimer::timeout, this, &TagEditorPage::saveNow);
 
-    // ── Left column ─────────────────────────────────────────────────────────
+    // ---- Left column
     auto* leftPanel = new QWidget(this);
     leftPanel->setObjectName("DatasetParamsPanel");
     leftPanel->setAttribute(Qt::WA_StyledBackground, true);
@@ -267,7 +267,7 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
     ll->addWidget(makeSectionHeader(leftPanel, "FOLDER"));
     ll->addWidget(leftBody, 1);
 
-    // ── Middle column (large centered image preview) ────────────────────────
+    // ---- Middle column (large centered image preview)
     auto* middlePanel = new QWidget(this);
     auto* ml = new QVBoxLayout(middlePanel);
     ml->setContentsMargins(0, 0, 0, 0);
@@ -324,7 +324,7 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
     ml->addWidget(imageHeader);
     ml->addWidget(middleBody, 1);
 
-    // ── Right column (search bar + editor + highlight) ──────────────────────
+    // ---- Right column (search bar + editor + highlight)
     auto* rightPanel = new QWidget(this);
     rightPanel->setObjectName("DatasetPreviewPanel");
     rightPanel->setAttribute(Qt::WA_StyledBackground, true);
@@ -376,7 +376,7 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
 
     m_highlighter = new TagSearchHighlighter(m_tagEdit->document());
 
-    // ── Root ────────────────────────────────────────────────────────────────
+    // ---- Root
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
@@ -384,13 +384,13 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
     root->addWidget(middlePanel, 1);
     root->addWidget(rightPanel);
 
-    // ── Hydrate from settings ────────────────────────────────────────────────
+    // ---- Hydrate from settings
     if (m_settings && !m_settings->tagEditorFolder.isEmpty()) {
         m_folderEdit->setText(m_settings->tagEditorFolder);
         rescan();
     }
 
-    // ── Wire ────────────────────────────────────────────────────────────────
+    // ---- Wire
     connect(m_browseBtn, &QPushButton::clicked, this, [this]() {
         const QString d =
             QFileDialog::getExistingDirectory(this, "Choose folder", m_folderEdit->text());
@@ -476,7 +476,7 @@ void TagEditorPage::setDanbooruIndex(core::DanbooruIndex* index)
     if (m_tagSearchBar) m_tagSearchBar->setIndex(index);
 }
 
-// ── Folder rescan ────────────────────────────────────────────────────────────
+// ---- Folder rescan
 
 void TagEditorPage::rescan()
 {
@@ -518,7 +518,7 @@ void TagEditorPage::rescan()
         updateNavigationButtons();
 }
 
-// ── Navigation ───────────────────────────────────────────────────────────────
+// ---- Navigation
 
 void TagEditorPage::jumpTo(int newIndex)
 {
@@ -620,7 +620,7 @@ void TagEditorPage::updateNavigationButtons()
     if (m_deleteBtn) m_deleteBtn->setEnabled(any);
 }
 
-// ── Delete (recycle bin) ─────────────────────────────────────────────────────
+// ---- Delete (recycle bin)
 
 void TagEditorPage::onDeleteClicked()
 {
@@ -669,7 +669,7 @@ void TagEditorPage::onDeleteClicked()
     m_editStatus->setText(QString("Moved %1 to recycle bin.").arg(QFileInfo(imgPath).fileName()));
 }
 
-// ── Search bar to editor ────────────────────────────────────────────────────
+// ---- Search bar to editor
 
 void TagEditorPage::onSearchBarTagAdded(const QString& canonical)
 {
@@ -700,7 +700,7 @@ void TagEditorPage::rebuildActiveTags()
     }
 }
 
-// ── Auto-save ────────────────────────────────────────────────────────────────
+// ---- Auto-save
 
 void TagEditorPage::scheduleSave()
 {
@@ -727,7 +727,7 @@ void TagEditorPage::persistSettings()
     m_settings->tagEditorFolder = m_folderEdit->text().trimmed();
 }
 
-// ── Image preview scale ──────────────────────────────────────────────────────
+// ---- Image preview scale
 
 void TagEditorPage::rescalePreview()
 {
@@ -742,7 +742,7 @@ void TagEditorPage::rescalePreview()
     m_focusImage->setPixmap(roundedScaled(m_focusPixmapSrc, area.width(), area.height(), 8.0));
 }
 
-// ── Click image to open ──────────────────────────────────────────────────────
+// ---- Click image to open
 
 bool TagEditorPage::eventFilter(QObject* obj, QEvent* ev)
 {

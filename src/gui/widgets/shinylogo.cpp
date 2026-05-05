@@ -17,7 +17,7 @@ ShinyLogo::ShinyLogo(QWidget* parent) : QWidget(parent)
     setAutoFillBackground(false);
 }
 
-// ── Configuration ────────────────────────────────────────────────────────────
+// ---- Configuration
 
 void ShinyLogo::setLogo(const QPixmap& logo)
 {
@@ -61,7 +61,7 @@ void ShinyLogo::setShineProgress(qreal p)
     update();
 }
 
-// ── Animation lifecycle ──────────────────────────────────────────────────────
+// ---- Animation lifecycle
 
 void ShinyLogo::rebuildAnimation()
 {
@@ -116,14 +116,14 @@ void ShinyLogo::hideEvent(QHideEvent* event)
     if (m_group && m_group->state() == QAbstractAnimation::Running) m_group->stop();
 }
 
-// ── Sizing ───────────────────────────────────────────────────────────────────
+// ---- Sizing
 
 QSize ShinyLogo::sizeHint() const
 {
     return m_logo.isNull() ? QSize(200, 200) : m_logo.size();
 }
 
-// ── Paint ────────────────────────────────────────────────────────────────────
+// ---- Paint
 
 void ShinyLogo::paintEvent(QPaintEvent*)
 {

@@ -6,7 +6,7 @@ namespace core {
 
 class FacetIndex;
 
-// ── Match ─────────────────────────────────────────────────────────────────────
+// ---- Match
 
 enum class MatchType {
     AnyTagFacets, // tag carries ALL listed facets
@@ -25,7 +25,7 @@ struct RuleMatch {
     QList<QList<MatchClause>> orGroups;
 };
 
-// ── Action ────────────────────────────────────────────────────────────────────
+// ---- Action
 
 enum class ActionType {
     Skip,    // remove matched tag from output
@@ -40,7 +40,7 @@ struct RuleAction {
     QList<QString> arguments; // new tags for Add/Replace, label for Flag
 };
 
-// ── Rule ──────────────────────────────────────────────────────────────────────
+// ---- Rule
 
 struct Rule {
     QString name;
@@ -50,7 +50,7 @@ struct Rule {
     RuleAction action;
 };
 
-// ── Pipeline types ────────────────────────────────────────────────────────────
+// ---- Pipeline types
 
 enum class RuleResult {
     Include,
@@ -78,7 +78,7 @@ struct CategoryGroup {
     QList<PipelineTag> tags;
 };
 
-// ── RuleEngine ────────────────────────────────────────────────────────────────
+// ---- RuleEngine
 
 class RuleEngine {
 public:

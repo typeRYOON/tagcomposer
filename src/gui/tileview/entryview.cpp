@@ -21,7 +21,7 @@
 using namespace core;
 using namespace utils;
 
-// ── EntryNavPanel ─────────────────────────────────────────────────────────────
+// ---- EntryNavPanel
 // Floating top-right widget: handle that expands on hover to show a scrollable
 // list of the current entries. Clicking one smoothly scrolls to it in the view.
 
@@ -120,14 +120,14 @@ private:
 
 namespace gui {
 
-// ── easing ────────────────────────────────────────────────────────────────────
+// ---- easing
 
 static qreal inOutSine(qreal t)
 {
     return -(std::cos(M_PI * t) - 1.0) / 2.0;
 }
 
-// ── ctor ──────────────────────────────────────────────────────────────────────
+// ---- ctor
 
 EntryView::EntryView(EntryModel* model, QWidget* parent) : QWidget(parent), m_model(model)
 {
@@ -215,7 +215,7 @@ EntryView::EntryView(EntryModel* model, QWidget* parent) : QWidget(parent), m_mo
     repositionNav();
 }
 
-// ── public ────────────────────────────────────────────────────────────────────
+// ---- public
 
 void EntryView::setActiveGroups(const QMap<int, QList<int>>& groups)
 {
@@ -265,7 +265,7 @@ void EntryView::query(const QString& q)
     update();
 }
 
-// ── layout ────────────────────────────────────────────────────────────────────
+// ---- layout
 
 void EntryView::recomputeLayout()
 {
@@ -310,7 +310,7 @@ int EntryView::indexAt(QPoint p) const
     return tileRect(idx).contains(p) ? idx : -1;
 }
 
-// ── events ────────────────────────────────────────────────────────────────────
+// ---- events
 
 void EntryView::resizeEvent(QResizeEvent* event)
 {
@@ -501,7 +501,7 @@ void EntryView::setLoraActiveByUuids(const QList<QString>& uuids)
     emitLoraStack();
 }
 
-// ── paint ─────────────────────────────────────────────────────────────────────
+// ---- paint
 
 void EntryView::paintEvent(QPaintEvent*)
 {
@@ -592,7 +592,7 @@ void EntryView::paintEvent(QPaintEvent*)
     }
 }
 
-// ── async load ────────────────────────────────────────────────────────────────
+// ---- async load
 
 void EntryView::requestLoad(int entryIndex)
 {
@@ -669,7 +669,7 @@ void EntryView::requestLoad(int entryIndex)
 }
 
 
-// ── tile compositor ───────────────────────────────────────────────────────────
+// ---- tile compositor
 
 QImage EntryView::makeTileImage(const QImage& img, const QString& title)
 {

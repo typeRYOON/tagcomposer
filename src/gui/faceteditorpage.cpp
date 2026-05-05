@@ -68,7 +68,7 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     setObjectName("FacetEditorPage");
     setAttribute(Qt::WA_StyledBackground, true);
 
-    // ── Left panel ────────────────────────────────────────────────────────────
+    // ---- Left panel
     auto* leftHeader = new QLabel("TAGS");
     leftHeader->setObjectName("FacetPanelHeader");
 
@@ -142,7 +142,7 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     leftLayout->addWidget(m_countLabel);
     leftLayout->addWidget(m_tagList, 1);
 
-    // ── Right panel - facet assignment editor ─────────────────────────────────
+    // ---- Right panel - facet assignment editor
     m_selectedLabel = new QLabel;
     m_selectedLabel->setObjectName("FacetSelectedTag");
     m_selectedLabel->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -228,7 +228,7 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     editorLayout->addWidget(m_facetsScroll, 1);
     editorLayout->addWidget(m_saveBtn);
 
-    // ── Danbooru preview rail (placed inline with the editor below) ───────────
+    // ---- Danbooru preview rail (placed inline with the editor below)
     m_nam = new QNetworkAccessManager(this);
 
     m_previewPanel = new QWidget;
@@ -282,7 +282,7 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     m_rightStack->addWidget(hintLabel);   // 0
     m_rightStack->addWidget(editorOuter); // 1
 
-    // ── Root layout ───────────────────────────────────────────────────────────
+    // ---- Root layout
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
@@ -292,7 +292,7 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     reload();
 }
 
-// ── Public ────────────────────────────────────────────────────────────────────
+// ---- Public
 
 void FacetEditorPage::reload()
 {
@@ -451,7 +451,7 @@ void FacetEditorPage::selectTagByName(const QString& tag)
     }
 }
 
-// ── Private ───────────────────────────────────────────────────────────────────
+// ---- Private
 
 void FacetEditorPage::selectTag(const QString& tag)
 {
@@ -664,7 +664,7 @@ void FacetEditorPage::clearEditor()
     clearPreview();
 }
 
-// ── Danbooru preview ──────────────────────────────────────────────────────────
+// ---- Danbooru preview
 
 void FacetEditorPage::clearPreview()
 {

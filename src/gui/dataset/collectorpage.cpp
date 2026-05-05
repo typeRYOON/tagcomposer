@@ -77,7 +77,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
 
     m_watcher = new core::DownloadWatcher(this);
 
-    // ── Left panel ──────────────────────────────────────────────────────────
+    // ---- Left panel
     auto* leftPanel = new QWidget(this);
     leftPanel->setObjectName("DatasetParamsPanel");
     leftPanel->setAttribute(Qt::WA_StyledBackground, true);
@@ -249,7 +249,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     ll->addWidget(makeSectionHeader(leftPanel, "AUTO-COLLECT"));
     ll->addWidget(leftBody, 1);
 
-    // ── Right panel ─────────────────────────────────────────────────────────
+    // ---- Right panel
     auto* rightPanel = new QWidget(this);
     auto* rl = new QVBoxLayout(rightPanel);
     rl->setContentsMargins(0, 0, 0, 0);
@@ -297,7 +297,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     };
     syncCounters();
 
-    // ── Far-right panel (recent thumbs) ─────────────────────────────────────
+    // ---- Far-right panel (recent thumbs)
     // Newest-first grid; column position/width match AutoTagPage's preview.
     auto* recentPanel = new QWidget(this);
     recentPanel->setObjectName("DatasetPreviewPanel");
@@ -348,7 +348,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     connect(m_recentList, &QListWidget::itemActivated, this, openRecent);
     connect(m_recentList, &QListWidget::itemDoubleClicked, this, openRecent);
 
-    // ── Root ────────────────────────────────────────────────────────────────
+    // ---- Root
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
@@ -356,7 +356,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
     root->addWidget(rightPanel, 1);
     root->addWidget(recentPanel);
 
-    // ── Hydrate from settings ────────────────────────────────────────────────
+    // ---- Hydrate from settings
     if (m_settings) {
         if (!m_settings->collectorWatchFolder.isEmpty())
             m_watchEdit->setText(m_settings->collectorWatchFolder);
@@ -370,7 +370,7 @@ CollectorPage::CollectorPage(utils::AppSettings* settings, QWidget* parent)
         if (idx >= 0) m_collectionBox->setCurrentIndex(idx);
     }
 
-    // ── Wire ────────────────────────────────────────────────────────────────
+    // ---- Wire
     connect(m_watchBrowseBtn, &QPushButton::clicked, this, [this]() {
         const QString d =
             QFileDialog::getExistingDirectory(this, "Choose watch folder", m_watchEdit->text());
@@ -461,7 +461,7 @@ void CollectorPage::stopWatcher()
     if (m_watcher) m_watcher->stop();
 }
 
-// ── Collections ──────────────────────────────────────────────────────────────
+// ---- Collections
 
 void CollectorPage::refreshCollections()
 {
@@ -531,7 +531,7 @@ QString CollectorPage::currentCollectionDir() const
     return BASE_PATH + "/" + COLLECTIONS_DIR + "/" + name;
 }
 
-// ── Start / stop ─────────────────────────────────────────────────────────────
+// ---- Start / stop
 
 void CollectorPage::onStartStop()
 {
@@ -568,7 +568,7 @@ void CollectorPage::setRunningUi(bool running)
     m_rebuildBtn->setEnabled(!running);
 }
 
-// ── Rebuild index ────────────────────────────────────────────────────────────
+// ---- Rebuild index
 
 void CollectorPage::onRebuildIndex()
 {
@@ -619,7 +619,7 @@ void CollectorPage::persistSettings()
     m_settings->collectorPollSeconds = m_pollSpin->value();
 }
 
-// ── Recent thumbs ────────────────────────────────────────────────────────────
+// ---- Recent thumbs
 
 void CollectorPage::addRecentThumb(const QString& imagePath)
 {

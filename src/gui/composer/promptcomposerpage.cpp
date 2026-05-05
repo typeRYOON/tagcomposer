@@ -34,6 +34,7 @@
 #include <QDate>
 #include <QDateTime>
 #include <QFrame>
+#include <QImage>
 #include <QGraphicsOpacityEffect>
 #include <QPropertyAnimation>
 #include <QScreen>
@@ -48,7 +49,7 @@ using namespace utils;
 namespace gui {
 
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ---- Helpers
 
 static QString dotColorFor(RuleResult r)
 {
@@ -94,7 +95,23 @@ static QString resolveOutputPath(const QString& pattern)
     return result;
 }
 
-// ── Ctor ──────────────────────────────────────────────────────────────────────
+// State previews are only ever shown at 220 px max (showStatePreview),
+// so cap stored size to keep the data dir small. Aspect ratio preserved.
+static constexpr int STATE_PREVIEW_MAX_W = 1024;
+static constexpr int STATE_PREVIEW_MAX_H = 1280;
+
+static bool saveStatePreview(const QString& src, const QString& dst)
+{
+    QImage img(src);
+    if (img.isNull()) return QFile::copy(src, dst);
+    if (img.width() > STATE_PREVIEW_MAX_W || img.height() > STATE_PREVIEW_MAX_H) {
+        img = img.scaled(STATE_PREVIEW_MAX_W, STATE_PREVIEW_MAX_H, Qt::KeepAspectRatio,
+                         Qt::SmoothTransformation);
+    }
+    return img.save(dst, "PNG");
+}
+
+// ---- Ctor
 
 PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rules,
                                        const TagGroupIndex& groups, QWidget* parent)
@@ -103,7 +120,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     setObjectName("PromptComposerPage");
     setAttribute(Qt::WA_StyledBackground, true);
 
-    // ── Search bar ────────────────────────────────────────────────────────────
+    // ---- Search bar
     m_searchBar = new TagSearchBar(this);
     m_searchBar->setActiveTags(&m_activeTagSet);
     connect(m_searchBar, &TagSearchBar::queryChanged, this, [this](const QString& text) {
@@ -119,7 +136,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         }
     });
 
-    // ── Main groups area ──────────────────────────────────────────────────────
+    // ---- Main groups area
     m_groupsContainer = new QWidget;
     m_groupsContainer->setObjectName("ComposerGroupsContainer");
     m_groupsLayout = new QVBoxLayout(m_groupsContainer);
@@ -151,7 +168,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_mainStack->addWidget(emptyHint);    // 0
     m_mainStack->addWidget(groupsScroll); // 1
 
-    // ── Center stacked layout (bg layer + content layer) ─────────────────────
+    // ---- Center stacked layout (bg layer + content layer)
     m_centerBg = new QWidget;
     m_centerBg->setObjectName("ComposerCenterBg");
 
@@ -169,7 +186,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     centerStack->addWidget(contentWidget);
     centerStack->setCurrentIndex(1);
 
-    // ── Rule sidebar ──────────────────────────────────────────────────────────
+    // ---- Rule sidebar
     m_rulesContainer = new QWidget;
     m_rulesContainer->setObjectName("ComposerRulesContainer");
     m_rulesLayout = new QVBoxLayout(m_rulesContainer);
@@ -219,7 +236,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     rhrL->addWidget(rulesOpenBtn);
     rhrL->addWidget(rulesReloadBtn);
 
-    // ── Variable editor section ───────────────────────────────────────────────
+    // ---- Variable editor section
     m_varsContainer = new QWidget;
     m_varsContainer->setObjectName("ComposerVarsContainer");
     m_varsLayout = new QVBoxLayout(m_varsContainer);
@@ -263,7 +280,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     vhrL->addWidget(varsOpenBtn);
     vhrL->addWidget(varsReloadBtn);
 
-    // ── Workflow / States sidebar section ─────────────────────────────────────
+    // ---- Workflow / States sidebar section
     auto* wfSep = new QWidget;
     wfSep->setObjectName("ComposerHairlineSep");
     wfSep->setFixedHeight(1);
@@ -380,7 +397,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
 
     rebuildWorkflowList();
 
-    // ── States list ───────────────────────────────────────────────────────────
+    // ---- States list
     m_statesList = new StatesListWidget;
     m_statesList->setObjectName("StatesList");
     m_statesList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -391,14 +408,13 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
             [this](int row, const QString& srcPath) {
                 if (row < 0 || row >= m_stateManager.states().size()) return;
                 core::SavedState& state = m_stateManager.states()[row];
-                const QString ext = QFileInfo(srcPath).suffix().toLower();
                 const QString stateDir = m_statesDir + "/" + state.id;
                 QDir().mkpath(stateDir);
                 // Delete any existing preview regardless of its extension
                 if (!state.previewImagePath.isEmpty() && QFile::exists(state.previewImagePath))
                     QFile::remove(state.previewImagePath);
-                const QString dest = stateDir + "/preview." + ext;
-                if (!QFile::copy(srcPath, dest)) return;
+                const QString dest = stateDir + "/preview.png";
+                if (!saveStatePreview(srcPath, dest)) return;
                 state.previewImagePath = dest;
                 m_stateManager.saveToDir(m_statesDir);
                 rebuildStatesList();
@@ -501,14 +517,14 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     sidebarLayout->addWidget(varsHeaderRow);
     sidebarLayout->addWidget(m_varsContainer);
 
-    // ── Root layout ───────────────────────────────────────────────────────────
+    // ---- Root layout
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
     root->addWidget(mainArea, 1);
     root->addWidget(sidebar);
 
-    // ── Category nav panel (floating, top-right) ─────────────────────────────
+    // ---- Category nav panel (floating, top-right)
     auto* navPanel = new CategoryNavPanel(this);
     m_categoryNav = navPanel;
     navPanel->onCategoryClicked = [this](const QString& displayName) {
@@ -519,7 +535,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         }
     };
 
-    // ── Clear button (floating, just left of nav panel) ───────────────────────
+    // ---- Clear button (floating, just left of nav panel)
     m_clearBtn = new QPushButton("✕  Clear", this);
     m_clearBtn->setObjectName("ComposerClearBtn");
     m_clearBtn->setFixedHeight(26);
@@ -550,7 +566,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         repush();
     });
 
-    // ── Preview image label (floating, bottom-right) ──────────────────────────
+    // ---- Preview image label (floating, bottom-right)
     static constexpr int PreviewSize = 200;
     m_previewLabel = new PreviewClickLabel(this);
     m_previewLabel->setObjectName("ComposerPreviewLabel");
@@ -559,7 +575,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_previewLabel->hide(); // shown when first image arrives
     // Step text is painted directly inside PreviewClickLabel::paintEvent
 
-    // ── Control bar (floating below preview) ──────────────────────────────────
+    // ---- Control bar (floating below preview)
     m_controlBar = new QWidget(this);
     m_controlBar->setObjectName("ComposerControlBar");
     m_controlBar->setAttribute(Qt::WA_StyledBackground, true);
@@ -614,7 +630,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_previewInsetFade->setDuration(350);
     m_previewInsetFade->setEasingCurve(QEasingCurve::InOutSine);
 
-    // ── Open popout on preview click ──────────────────────────────────────────
+    // ---- Open popout on preview click
     connect(m_previewLabel, &PreviewClickLabel::clicked, this, [this]() {
         if (!m_popout) {
             auto* popout =
@@ -647,13 +663,13 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         fadePreviewInset(0.0); // popout takes over; hide the inset
     });
 
-    // ── Wire pipeline ─────────────────────────────────────────────────────────
+    // ---- Wire pipeline
     connect(m_pipeline, &PromptPipeline::pipelineReady, this, &PromptComposerPage::onPipelineReady);
 
     rebuildRulesSidebar();
 }
 
-// ── showEvent / eventFilter ───────────────────────────────────────────────────
+// ---- showEvent / eventFilter
 
 void PromptComposerPage::showEvent(QShowEvent* event)
 {
@@ -683,7 +699,7 @@ bool PromptComposerPage::eventFilter(QObject* obj, QEvent* event)
     return QWidget::eventFilter(obj, event);
 }
 
-// ── Preview & control bar ─────────────────────────────────────────────────────
+// ---- Preview & control bar
 
 void PromptComposerPage::setPreviewImage(const QImage& image)
 {
@@ -767,7 +783,7 @@ void PromptComposerPage::resizeEvent(QResizeEvent* event)
     repositionFloats();
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ---- Public API
 
 QList<core::EntryPush> PromptComposerPage::dumpActivePushes() const
 {
@@ -946,7 +962,7 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
         m_activePushes[key] = claimed;
     }
 
-    // ── LoRA: sync activation with push state ─────────────────────────────
+    // ---- LoRA: sync activation with push state
     core::Entry* entry = m_entryModel ? m_entryModel->entryById(entryId) : nullptr;
     if (entry && entry->lora.has_value()) {
         const QString uuid = entry->uuid;
@@ -980,7 +996,7 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
     repush();
 }
 
-// ── Entry tag sync ────────────────────────────────────────────────────────────
+// ---- Entry tag sync
 
 void PromptComposerPage::onEntryTagAdded(int entryId, int imageIdx, const QString& tag)
 {
@@ -1064,7 +1080,7 @@ void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
     repush();
 }
 
-// ── Pipeline ──────────────────────────────────────────────────────────────────
+// ---- Pipeline
 
 void PromptComposerPage::repush()
 {
@@ -1121,7 +1137,7 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
     applyTagFilter();
 }
 
-// ── Groups display ────────────────────────────────────────────────────────────
+// ---- Groups display
 
 void PromptComposerPage::applyTagFilter()
 {
@@ -1203,7 +1219,7 @@ void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
     if (m_categoryNav) static_cast<CategoryNavPanel*>(m_categoryNav)->updateCategories(navNames);
 }
 
-// ── Tag row ───────────────────────────────────────────────────────────────────
+// ---- Tag row
 
 void PromptComposerPage::renamePushTag(const QString& oldKey, const QString& newKey)
 {
@@ -1516,7 +1532,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
     return row;
 }
 
-// ── Rules reload ─────────────────────────────────────────────────────────────
+// ---- Rules reload
 
 void PromptComposerPage::setEntryModel(core::EntryModel* model)
 {

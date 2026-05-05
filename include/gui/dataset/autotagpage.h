@@ -65,7 +65,7 @@ private:
     utils::AppSettings* m_settings = nullptr;
     core::BatchTagger* m_runner = nullptr;
 
-    // ── Left panel (params) ──────────────────────────────────────────────────
+    // ---- Left panel (params)
     QComboBox* m_modelBox = nullptr;
     QLineEdit* m_inputEdit = nullptr;
     QPushButton* m_inputBrowseBtn = nullptr;
@@ -81,14 +81,14 @@ private:
     QPushButton* m_sendToEditorBtn = nullptr;
     QPushButton* m_sendToBatchBtn = nullptr;
 
-    // ── Middle panel (status + results) ──────────────────────────────────────
+    // ---- Middle panel (status + results)
     QLabel* m_statusLabel = nullptr;
     QProgressBar* m_progressBar = nullptr;
     QListWidget* m_resultsList = nullptr;
     QWidget* m_emptyState = nullptr;
     QLabel* m_emptyStateLbl = nullptr;
 
-    // ── Right panel (focused result) ─────────────────────────────────────────
+    // ---- Right panel (focused result)
     QLabel* m_focusImage = nullptr;
     QLabel* m_focusRating = nullptr;
     QListWidget* m_focusTags = nullptr;

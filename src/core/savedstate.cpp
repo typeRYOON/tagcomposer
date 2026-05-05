@@ -7,7 +7,7 @@
 
 namespace core {
 
-// ── EntryPush ─────────────────────────────────────────────────────────────────
+// ---- EntryPush
 
 QJsonObject EntryPush::toJson() const
 {
@@ -31,7 +31,7 @@ EntryPush EntryPush::fromJson(const QJsonObject& obj)
     return ep;
 }
 
-// ── SavedState ────────────────────────────────────────────────────────────────
+// ---- SavedState
 
 SavedState SavedState::fromJson(const QJsonObject& obj)
 {
@@ -164,7 +164,7 @@ QJsonObject SavedState::toJson() const
     return obj;
 }
 
-// ── StateManager ──────────────────────────────────────────────────────────────
+// ---- StateManager
 
 StateManager StateManager::loadFromDir(const QString& dir)
 {

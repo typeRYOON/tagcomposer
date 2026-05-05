@@ -13,7 +13,7 @@ namespace gui {
 
 namespace {
 
-// ── Logo composition - tune these to position the two layers ────────────────
+// ---- Logo composition - tune these to position the two layers
 //
 // The composite logo is a fixed-size frame with absolutely-positioned
 // children. tc_logo0 is the bottom layer (the tag-mark); tc_logo1 is the
@@ -42,7 +42,7 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent)
     setObjectName("HomePage");
     setAttribute(Qt::WA_StyledBackground, true);
 
-    // ── Composite logo ─────────────────────────────────────────────────────
+    // ---- Composite logo
     auto* logoFrame = new QWidget(this);
     logoFrame->setFixedSize(kLogoFrameSize);
     logoFrame->setAttribute(Qt::WA_TranslucentBackground, true);
@@ -59,14 +59,14 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent)
     m_wordmark->raise(); // keep wordmark on top of the tag-mark
     m_wordmark->startShine();
 
-    // ── Update label (hidden until setUpdateAvailable is called) ───────────
+    // ---- Update label (hidden until setUpdateAvailable is called)
     m_updateLabel = new QLabel(this);
     m_updateLabel->setObjectName("HomeUpdateLabel");
     m_updateLabel->setAlignment(Qt::AlignCenter);
     m_updateLabel->hide();
     m_updateLabel->installEventFilter(this); // click -> release page
 
-    // ── ryoon logo, bottom-right corner, click -> github profile ──────────
+    // ---- ryoon logo, bottom-right corner, click -> github profile
     m_ryoonLogo = new QLabel(this);
     m_ryoonLogo->setObjectName("HomeRyoonLogo");
     {
@@ -94,7 +94,7 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent)
     bottomRow->addStretch();
     bottomRow->addWidget(m_ryoonLogo);
 
-    // ── Root layout ────────────────────────────────────────────────────────
+    // ---- Root layout
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
 

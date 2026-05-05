@@ -11,7 +11,40 @@
 
 namespace core {
 
-// ── Serialization helpers ─────────────────────────────────────────────────────
+namespace {
+
+// Returns s as a JSON string literal (with surrounding quotes), escaping
+// quotes, backslashes, and control characters. Required because user-typed
+// values are spliced directly into workflow JSON before it's sent to ComfyUI.
+QString jsonStringLiteral(const QString& s)
+{
+    QString out;
+    out.reserve(s.size() + 2);
+    out += '"';
+    for (QChar c : s) {
+        const ushort u = c.unicode();
+        switch (u) {
+        case '"':  out += "\\\""; break;
+        case '\\': out += "\\\\"; break;
+        case '\b': out += "\\b"; break;
+        case '\f': out += "\\f"; break;
+        case '\n': out += "\\n"; break;
+        case '\r': out += "\\r"; break;
+        case '\t': out += "\\t"; break;
+        default:
+            if (u < 0x20)
+                out += QString("\\u%1").arg(u, 4, 16, QChar('0'));
+            else
+                out += c;
+        }
+    }
+    out += '"';
+    return out;
+}
+
+} // namespace
+
+// ---- Serialization helpers
 
 QString WorkflowManager::typeToStr(WorkflowVarType t)
 {
@@ -189,7 +222,7 @@ QString ImageEdits::hash() const
     return QString::fromLatin1(h.result().toHex().left(12));
 }
 
-// ── WorkflowManager ───────────────────────────────────────────────────────────
+// ---- WorkflowManager
 
 QList<WorkflowVar>& WorkflowManager::variables()
 {
@@ -306,7 +339,7 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
             break;
         }
         case WorkflowVarType::String:
-            replacement = "\"" + var.stringValue + "\"";
+            replacement = jsonStringLiteral(var.stringValue);
             break;
         case WorkflowVarType::Integer:
             replacement = QString::number(var.intValue);
@@ -318,19 +351,18 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
             QString rel = var.selectedFile.isEmpty()
                               ? QString()
                               : QDir(var.searchDir).relativeFilePath(var.selectedFile);
-            rel.replace(QLatin1Char('/'), QLatin1String("\\\\"));
-            replacement = "\"" + rel + "\"";
+            rel.replace(QLatin1Char('/'), QLatin1Char('\\'));
+            replacement = jsonStringLiteral(rel);
             break;
         }
         case WorkflowVarType::LatentSize:
-            replacement = "\"" + var.stringValue + "\"";
+            replacement = jsonStringLiteral(var.stringValue);
             break;
         case WorkflowVarType::Image:
-            replacement = "\"" +
-                          (var.imageUuid.isEmpty() ? QString()
-                                                   : WorkflowInputCache::serverSubfolder() + "/" +
-                                                         var.imageUuid + ".png") +
-                          "\"";
+            replacement = jsonStringLiteral(
+                var.imageUuid.isEmpty()
+                    ? QString()
+                    : WorkflowInputCache::serverSubfolder() + "/" + var.imageUuid + ".png");
             break;
         case WorkflowVarType::Wildcard:
             break; // unreachable, filtered above

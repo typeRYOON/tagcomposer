@@ -302,7 +302,7 @@ static void saveResized(const QString& src, const QString& dst)
     scaled.save(dst, "PNG");
 }
 
-// ── LoRA import dialog ───────────────────────────────────────────────────────
+// ---- LoRA import dialog
 // Shown for LoRAs dropped from outside the configured roots: user picks a
 // relative path under primary, file moves there.
 
@@ -447,7 +447,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
     setObjectName("EntryPanel");
     setAttribute(Qt::WA_StyledBackground, true);
 
-    // ── Image dropper ─────────────────────────────────────────────────────────
+    // ---- Image dropper
     m_imageDrop = new ImageDropper(this);
     connect(m_imageDrop, &ImageDropper::imageDropped, this, [this](const QString& srcPath) {
         if (!m_entry) return;
@@ -478,7 +478,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
         emit entryModified(m_entry->id);
     });
 
-    // ── Title ─────────────────────────────────────────────────────────────────
+    // ---- Title
     m_titleEdit = new QLineEdit(this);
     m_titleEdit->setObjectName("EntryTitle");
     m_titleEdit->setPlaceholderText("-");
@@ -493,7 +493,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
         m_titleEdit->setText(m_entry->title); // revert on focus-loss without Enter
     });
 
-    // ── Action buttons ────────────────────────────────────────────────────────
+    // ---- Action buttons
     m_composerBtn = new QPushButton("Composer toggle", this);
     m_composerBtn->setCheckable(true);
     m_copyBtn = new QPushButton("Copy entry tags", this);
@@ -511,7 +511,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
         emit entryListChanged();
     });
 
-    // ── Comment field ─────────────────────────────────────────────────────────
+    // ---- Comment field
     m_commentEdit = new QPlainTextEdit(this);
     m_commentEdit->setObjectName("EntryComment");
     m_commentEdit->setPlaceholderText("Notes...");
@@ -531,7 +531,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
         if (m_entry) m_model->saveEntry(m_entry->id);
     });
 
-    // ── Image pager ───────────────────────────────────────────────────────────
+    // ---- Image pager
     m_prevBtn = new QPushButton("◄", this);
     m_nextBtn = new QPushButton("►", this);
     m_addImageBtn = new QPushButton("+", this);
@@ -586,7 +586,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
         emit entryModified(m_entry->id);
     });
 
-    // ── Header layout: [image + pager] | [title + buttons] ───────────────────
+    // ---- Header layout: [image + pager] | [title + buttons]
     auto* pagerRow = new QHBoxLayout;
     pagerRow->addWidget(m_prevBtn);
     pagerRow->addWidget(m_pageLabel, 1);
@@ -599,7 +599,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
     leftCol->addWidget(m_imageDrop, 0, Qt::AlignTop | Qt::AlignHCenter);
     leftCol->addLayout(pagerRow);
 
-    // ── LoRA section ──────────────────────────────────────────────────────────
+    // ---- LoRA section
     auto* loraDropZone = new LoraDropZone(this);
     loraDropZone->setText("Drop .safetensors / .ckpt");
     m_loraFileLabel = loraDropZone;
@@ -894,7 +894,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                                      6); // -----------------------------------------------
     headerLayout->addLayout(headerRow);
 
-    // ── Tag search bar ────────────────────────────────────────────────────────
+    // ---- Tag search bar
     m_searchBar = new TagSearchBar(this);
     m_searchBar->setActiveTags(&m_activeTags);
 
@@ -917,7 +917,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
         }
     });
 
-    // ── Tag list (scrollable) ─────────────────────────────────────────────────
+    // ---- Tag list (scrollable)
     m_tagListContainer = new QWidget;
     m_tagListContainer->setObjectName("EntryTagList");
     m_tagListLayout = new QVBoxLayout(m_tagListContainer);
@@ -941,7 +941,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
     tagsLayout->addWidget(m_searchBar);
     tagsLayout->addWidget(m_tagScroll, 1);
 
-    // ── Root content layout (direction flips on orientation change) ───────────
+    // ---- Root content layout (direction flips on orientation change)
     m_contentWidget = new QWidget;
     m_rootLayout = new QBoxLayout(QBoxLayout::TopToBottom, m_contentWidget);
     m_rootLayout->setContentsMargins(0, 0, 0, 0);
@@ -949,7 +949,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
     m_rootLayout->addWidget(m_headerWidget);
     m_rootLayout->addWidget(m_tagsWidget, 1);
 
-    // ── Empty state ───────────────────────────────────────────────────────────
+    // ---- Empty state
     auto* emptyLabel = new QLabel("Select an entry\nto view details", this);
     emptyLabel->setObjectName("EntryEmptyLabel");
     emptyLabel->setAlignment(Qt::AlignCenter);
@@ -988,7 +988,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
     applyOrientation(false);
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ---- Public API
 
 void EntryPanel::setDanbooruIndex(core::DanbooruIndex* index)
 {
@@ -1087,7 +1087,7 @@ void EntryPanel::applyOrientation(bool portrait)
     }
 }
 
-// ── Private ───────────────────────────────────────────────────────────────────
+// ---- Private
 
 void EntryPanel::loadImagePage(int idx)
 {

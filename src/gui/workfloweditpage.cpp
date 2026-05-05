@@ -31,7 +31,7 @@
 #include <QUrl>
 #include <climits>
 
-// ── RatioPreview ─────────────────────────────────────────────────────────────
+// ---- RatioPreview
 // Paints a centered rectangle scaled to the given w:h aspect ratio.
 
 class RatioPreview : public QWidget {
@@ -75,7 +75,7 @@ private:
     int m_w = 0, m_h = 0;
 };
 
-// ── DropImageLabel ───────────────────────────────────────────────────────────
+// ---- DropImageLabel
 // QLabel that accepts dropped image files and emits the local path of the
 // first one. Used as the thumbnail/drop target on the Image var card.
 
@@ -135,7 +135,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent) : QWidget(parent)
     setObjectName("WorkflowEditPage");
     setAttribute(Qt::WA_StyledBackground, true);
 
-    // ── Left: workflow variables ──────────────────────────────────────────────
+    // ---- Left: workflow variables
     constexpr int kHeaderHeight = 50; // same for all section headers
 
     auto* leftHeader = new QWidget;
@@ -197,7 +197,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent) : QWidget(parent)
     leftLayout->addWidget(leftHeader);
     leftLayout->addWidget(leftScroll, 1);
 
-    // ── Middle: LoRA stack viewer/editor ──────────────────────────────────────
+    // ---- Middle: LoRA stack viewer/editor
     auto* middleHeader = new QWidget;
     middleHeader->setObjectName("WfEditHeader");
     middleHeader->setAttribute(Qt::WA_StyledBackground, true);
@@ -237,7 +237,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent) : QWidget(parent)
     middleLayout->addWidget(middleHeader);
     middleLayout->addWidget(middleScroll, 1);
 
-    // ── Right: Batch ──────────────────────────────────────────────────────────
+    // ---- Right: Batch
     // Fire-and-forget: query, resolve entries, build a prompt per entry
     // (composer state union entry tags), push N prompts to ComfyUI.
     // Non-blocking; ComfyUI processes the queue serially on its end.
@@ -336,7 +336,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent) : QWidget(parent)
     rightLayout->addWidget(rightHeader);
     rightLayout->addWidget(batchBody, 1); // body fills the column
 
-    // ── Root: three equal columns spanning the full page width ───────────────
+    // ---- Root: three equal columns spanning the full page width
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
@@ -344,7 +344,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent) : QWidget(parent)
     root->addWidget(middlePanel, 1);
     root->addWidget(rightPanel, 1);
 
-    // ── Add variable menu ─────────────────────────────────────────────────────
+    // ---- Add variable menu
     connect(m_addBtn, &QPushButton::clicked, this, [this]() {
         QMenu menu(this);
         menu.addAction("Seed", this, [this]() { addVariable(core::WorkflowVarType::Seed); });
@@ -471,7 +471,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     cardLayout->setContentsMargins(12, 10, 12, 12);
     cardLayout->setSpacing(8);
 
-    // ── Header row: placeholder name | type badge | remove ───────────────────
+    // ---- Header row: placeholder name | type badge | remove
     auto* headerRow = new QHBoxLayout;
     headerRow->setSpacing(6);
 
@@ -503,7 +503,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     headerRow->addWidget(removeBtn);
     cardLayout->addLayout(headerRow);
 
-    // ── Type-specific body ────────────────────────────────────────────────────
+    // ---- Type-specific body
     switch (var.type) {
     case core::WorkflowVarType::Seed: {
         // Behavior radio buttons
@@ -1030,7 +1030,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     return card;
 }
 
-// ── LoRA stack panel ─────────────────────────────────────────────────────────
+// ---- LoRA stack panel
 
 void WorkflowEditPage::rebuildLoraList()
 {

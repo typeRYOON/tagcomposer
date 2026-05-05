@@ -52,7 +52,7 @@ static QString fmtTag(const QString& tag)
     return QString(tag).replace('_', ' ').replace('(', "\\(").replace(')', "\\)");
 }
 
-// ── Layout dimensions kept here so tweaks live in one place ──────────────────
+// ---- Layout dimensions kept here so tweaks live in one place
 constexpr int kPanelWidth = 280;
 constexpr int kPreviewPanelWidth = 320;
 constexpr int kPreviewMaxW = 296; // panel width minus 12*2 margins
@@ -97,7 +97,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
         return header;
     };
 
-    // ── Params panel (left) ──────────────────────────────────────────────────
+    // ---- Params panel (left)
     auto* paramsPanel = new QWidget(this);
     paramsPanel->setObjectName("DatasetParamsPanel");
     paramsPanel->setAttribute(Qt::WA_StyledBackground, true);
@@ -259,7 +259,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     pl->addWidget(filterHeader);
     pl->addWidget(filterBody, 1);
 
-    // ── Results panel (middle) ───────────────────────────────────────────────
+    // ---- Results panel (middle)
     auto* resultsPanel = new QWidget(this);
     auto* rl = new QVBoxLayout(resultsPanel);
     rl->setContentsMargins(0, 0, 0, 0);
@@ -334,7 +334,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
 
     setResultsEmpty(true);
 
-    // ── Preview panel (right) ────────────────────────────────────────────────
+    // ---- Preview panel (right)
     auto* previewPanel = new QWidget(this);
     previewPanel->setObjectName("DatasetPreviewPanel");
     previewPanel->setAttribute(Qt::WA_StyledBackground, true);
@@ -372,7 +372,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     prl->addWidget(makeSectionHeader("PREVIEW"));
     prl->addWidget(previewBody, 1);
 
-    // ── Root ─────────────────────────────────────────────────────────────────
+    // ---- Root
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
@@ -380,7 +380,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     root->addWidget(resultsPanel, 1);
     root->addWidget(previewPanel);
 
-    // ── Wire ─────────────────────────────────────────────────────────────────
+    // ---- Wire
     connect(m_fetchBtn, &QPushButton::clicked, this, &TagClusterPage::onFetchClicked);
     connect(m_tagInput, &QLineEdit::returnPressed, this, &TagClusterPage::onFetchClicked);
     connect(m_clearCacheBtn, &QPushButton::clicked, this, [this]() {
@@ -414,7 +414,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     loadFilters();
 }
 
-// ── Fetch ─────────────────────────────────────────────────────────────────────
+// ---- Fetch
 
 void TagClusterPage::onFetchClicked()
 {
@@ -568,7 +568,7 @@ void TagClusterPage::onPhaseDone()
     }
 }
 
-// ── Recompute (runs on every threshold/filter change) ────────────────────────
+// ---- Recompute (runs on every threshold/filter change)
 
 void TagClusterPage::recompute()
 {
@@ -763,7 +763,7 @@ void TagClusterPage::rebuildCopyString()
     m_copyEdit->setPlainText(parts.join(", "));
 }
 
-// ── Filter persistence ───────────────────────────────────────────────────────
+// ---- Filter persistence
 
 core::ClusterFilter TagClusterPage::buildFilterFromEditor() const
 {
@@ -812,7 +812,7 @@ void TagClusterPage::saveFilters()
     m_filterStatusLbl->setText(QString("Saved %1 rules.").arg(f.rules.size()));
 }
 
-// ── Global cache ─────────────────────────────────────────────────────────────
+// ---- Global cache
 
 QString TagClusterPage::cachePath() const
 {
@@ -850,7 +850,7 @@ void TagClusterPage::saveGlobalCache()
     f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
 }
 
-// ── Preview chain (mirrors FacetEditorPage::fetchPreview) ────────────────────
+// ---- Preview chain (mirrors FacetEditorPage::fetchPreview)
 
 void TagClusterPage::clearPreview()
 {
@@ -1044,7 +1044,7 @@ bool TagClusterPage::eventFilter(QObject* obj, QEvent* ev)
     return QWidget::eventFilter(obj, ev);
 }
 
-// ── UI helpers ───────────────────────────────────────────────────────────────
+// ---- UI helpers
 
 void TagClusterPage::setStatus(const QString& msg)
 {

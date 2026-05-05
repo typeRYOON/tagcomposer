@@ -192,7 +192,7 @@ void PromptComposerPage::rebuildRulesSidebar()
             rwl->setContentsMargins(0, 0, 0, 2);
             rwl->setSpacing(2);
 
-            // ── Header row: indicator-only checkbox + elided name + badges ──
+            // ---- Header row: indicator-only checkbox + elided name + badges
             auto* cbRow = new QWidget;
             auto* cbRowL = new QHBoxLayout(cbRow);
             cbRowL->setContentsMargins(0, 0, 0, 0);
@@ -227,7 +227,7 @@ void PromptComposerPage::rebuildRulesSidebar()
 
             rwl->addWidget(cbRow);
 
-            // ── Per-tag rows: one QLineEdit per argument + trailing add row ──
+            // ---- Per-tag rows: one QLineEdit per argument + trailing add row
             if (hasArgEdit) {
                 auto* argsCol = new QWidget;
                 auto* acl = new QVBoxLayout(argsCol);

@@ -69,7 +69,7 @@ BatchEditPage::BatchEditPage(utils::AppSettings* settings, QWidget* parent)
     setObjectName("BatchEditPage");
     setAttribute(Qt::WA_StyledBackground, true);
 
-    // ── Left panel (params + operations) ────────────────────────────────────
+    // ---- Left panel (params + operations)
     auto* leftPanel = new QWidget(this);
     leftPanel->setObjectName("DatasetParamsPanel");
     leftPanel->setAttribute(Qt::WA_StyledBackground, true);
@@ -210,7 +210,7 @@ BatchEditPage::BatchEditPage(utils::AppSettings* settings, QWidget* parent)
     ll->addWidget(makeSectionHeader(leftPanel, "BATCH EDIT"));
     ll->addWidget(leftBody, 1);
 
-    // ── Right panel (status + log) ──────────────────────────────────────────
+    // ---- Right panel (status + log)
     auto* rightPanel = new QWidget(this);
     auto* rl = new QVBoxLayout(rightPanel);
     rl->setContentsMargins(0, 0, 0, 0);
@@ -242,7 +242,7 @@ BatchEditPage::BatchEditPage(utils::AppSettings* settings, QWidget* parent)
     rl->addWidget(makeSectionHeader(rightPanel, "RESULTS"));
     rl->addWidget(rightBody, 1);
 
-    // ── Root ────────────────────────────────────────────────────────────────
+    // ---- Root
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);

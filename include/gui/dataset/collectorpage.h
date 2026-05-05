@@ -41,7 +41,7 @@ private:
     utils::AppSettings* m_settings = nullptr;
     core::DownloadWatcher* m_watcher = nullptr;
 
-    // ── Left panel (controls) ───────────────────────────────────────────────
+    // ---- Left panel (controls)
     QLineEdit* m_watchEdit = nullptr;
     QPushButton* m_watchBrowseBtn = nullptr;
     QComboBox* m_collectionBox = nullptr;
@@ -54,13 +54,13 @@ private:
     QPushButton* m_rebuildBtn = nullptr;
     QPushButton* m_sendToTaggerBtn = nullptr;
 
-    // ── Middle panel (activity) ─────────────────────────────────────────────
+    // ---- Middle panel (activity)
     QLabel* m_activeDot = nullptr; // green when running, grey idle
     QLabel* m_collectedLbl = nullptr;
     QLabel* m_skippedLbl = nullptr;
     QPlainTextEdit* m_log = nullptr;
 
-    // ── Right panel (recent thumbs) ─────────────────────────────────────────
+    // ---- Right panel (recent thumbs)
     // Newest-first thumbnail grid of images the watcher just moved into the
     // collection. Capped at a fixed count; oldest entries fall off the bottom.
     QListWidget* m_recentList = nullptr;

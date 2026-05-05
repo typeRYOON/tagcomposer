@@ -7,7 +7,7 @@
 
 namespace core {
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ---- Helpers
 
 static QList<QString> splitTrimmed(const QString& s, QChar sep)
 {
@@ -147,7 +147,7 @@ static RuleAction parseAction(const QString& expr)
     return a;
 }
 
-// ── Load ──────────────────────────────────────────────────────────────────────
+// ---- Load
 // File format:
 //   @rule Name
 //       enabled = true
@@ -237,7 +237,7 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
     return eng;
 }
 
-// ── Save ──────────────────────────────────────────────────────────────────────
+// ---- Save
 
 void RuleEngine::saveToFile(const QString& path) const
 {
@@ -288,7 +288,7 @@ void RuleEngine::saveToFile(const QString& path) const
     }
 }
 
-// ── Accessors ─────────────────────────────────────────────────────────────────
+// ---- Accessors
 
 QList<Rule>& RuleEngine::rules()
 {
@@ -299,7 +299,7 @@ const QList<Rule>& RuleEngine::rules() const
     return m_rules;
 }
 
-// ── Matching ──────────────────────────────────────────────────────────────────
+// ---- Matching
 
 bool RuleEngine::globMatch(const QString& pattern, const QString& text)
 {
@@ -350,7 +350,7 @@ bool RuleEngine::tagMatchesRule(const PipelineTag& pt, const RuleMatch& match)
     return false;
 }
 
-// ── Evaluate ──────────────────────────────────────────────────────────────────
+// ---- Evaluate
 
 QList<PipelineTag> RuleEngine::evaluate(const QList<PipelineTag>& input,
                                         const FacetIndex& facets) const

@@ -77,7 +77,7 @@ QWidget* makeSectionHeader(QWidget* parent, const QString& title)
 }
 } // namespace
 
-// ── Construction ─────────────────────────────────────────────────────────────
+// ---- Construction
 
 AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* settings,
                          QWidget* parent)
@@ -88,7 +88,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* s
 
     m_runner = new core::BatchTagger(this);
 
-    // ── Left: params ─────────────────────────────────────────────────────────
+    // ---- Left: params
     auto* paramsPanel = new QWidget(this);
     paramsPanel->setObjectName("DatasetParamsPanel");
     paramsPanel->setAttribute(Qt::WA_StyledBackground, true);
@@ -258,7 +258,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* s
     pl->addWidget(makeSectionHeader(paramsPanel, "AUTO-TAGGER"));
     pl->addWidget(paramsBody, 1);
 
-    // ── Middle: results ──────────────────────────────────────────────────────
+    // ---- Middle: results
     auto* resultsPanel = new QWidget(this);
     auto* rl = new QVBoxLayout(resultsPanel);
     rl->setContentsMargins(0, 0, 0, 0);
@@ -308,7 +308,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* s
     rl->addWidget(makeSectionHeader(resultsPanel, "RESULTS"));
     rl->addWidget(resultsBody, 1);
 
-    // ── Right: preview ───────────────────────────────────────────────────────
+    // ---- Right: preview
     auto* previewPanel = new QWidget(this);
     previewPanel->setObjectName("DatasetPreviewPanel");
     previewPanel->setAttribute(Qt::WA_StyledBackground, true);
@@ -348,7 +348,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* s
     prl->addWidget(makeSectionHeader(previewPanel, "PREVIEW"));
     prl->addWidget(previewBody, 1);
 
-    // ── Root ─────────────────────────────────────────────────────────────────
+    // ---- Root
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
@@ -356,7 +356,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* s
     root->addWidget(resultsPanel, 1);
     root->addWidget(previewPanel);
 
-    // ── Hydrate from settings ────────────────────────────────────────────────
+    // ---- Hydrate from settings
     if (m_settings) {
         if (!m_settings->autoTagInputFolder.isEmpty())
             m_inputEdit->setText(m_settings->autoTagInputFolder);
@@ -370,7 +370,7 @@ AutoTagPage::AutoTagPage(core::AutoTaggerLibrary* library, utils::AppSettings* s
     }
     syncThresholdLbl();
 
-    // ── Wire ─────────────────────────────────────────────────────────────────
+    // ---- Wire
     connect(m_inputBrowseBtn, &QPushButton::clicked, this, [this]() {
         const QString d =
             QFileDialog::getExistingDirectory(this, "Choose input folder", m_inputEdit->text());
@@ -459,7 +459,7 @@ void AutoTagPage::refreshModels()
     }
 }
 
-// ── Run / cancel ─────────────────────────────────────────────────────────────
+// ---- Run / cancel
 
 void AutoTagPage::showEmptyState(const QString& message)
 {
@@ -540,7 +540,7 @@ void AutoTagPage::onCancel()
     m_cancelBtn->setEnabled(false);
 }
 
-// ── Worker callbacks ─────────────────────────────────────────────────────────
+// ---- Worker callbacks
 
 void AutoTagPage::onScanned(int total)
 {
@@ -599,7 +599,7 @@ void AutoTagPage::onFinished(bool cancelled)
     }
 }
 
-// ── Result row to preview ───────────────────────────────────────────────────
+// ---- Result row to preview
 
 void AutoTagPage::onResultRowChanged(QListWidgetItem* current, QListWidgetItem*)
 {
@@ -655,7 +655,7 @@ void AutoTagPage::showFocusedResult()
     }
 }
 
-// ── UI state ─────────────────────────────────────────────────────────────────
+// ---- UI state
 
 void AutoTagPage::setRunning(bool on)
 {

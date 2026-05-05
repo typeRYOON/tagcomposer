@@ -6,7 +6,7 @@
 #include <QKeyEvent>
 #include <QShowEvent>
 
-// ── Delegate ──────────────────────────────────────────────────────────────────
+// ---- Delegate
 
 namespace {
 
@@ -128,7 +128,7 @@ public:
 } // anonymous namespace
 
 
-// ── TagSearchBar ──────────────────────────────────────────────────────────────
+// ---- TagSearchBar
 
 namespace gui {
 

@@ -18,7 +18,7 @@
 
 namespace core {
 
-// ── Worker - lives entirely on the worker thread ──────────────────────────────
+// ---- Worker - lives entirely on the worker thread
 
 class WsWorker : public QObject {
     Q_OBJECT
@@ -86,7 +86,7 @@ private:
     QWebSocket* m_ws;
 };
 
-// ── ComfyUiClient ─────────────────────────────────────────────────────────────
+// ---- ComfyUiClient
 
 ComfyUiClient::ComfyUiClient(QObject* parent)
     : QObject(parent), m_wsThread(new QThread(this)), m_nam(new QNetworkAccessManager(this)),

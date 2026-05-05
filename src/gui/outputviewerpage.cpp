@@ -32,7 +32,7 @@
 
 namespace gui {
 
-// ── Image extensions accepted in tree + thumb pane ───────────────────────────
+// ---- Image extensions accepted in tree + thumb pane
 static const QStringList kImageFilters = {"*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"};
 
 // Returns the part of `pattern` before the first `{` - the on-disk root that
@@ -65,7 +65,7 @@ static QString evaluateDatePattern(const QString& pattern)
     return prefix + dated + suffix;
 }
 
-// ── FsTypeIconProvider ───────────────────────────────────────────────────────
+// ---- FsTypeIconProvider
 // Replaces QFileSystemModel's default OS-shell icons with our painted
 // folder/file glyphs. Drawn at 32x32 so the tree's 16x16 display stays
 // sharp on HiDPI.
@@ -133,7 +133,7 @@ private:
     QIcon m_image;
 };
 
-// ── OutputTreeView ───────────────────────────────────────────────────────────
+// ---- OutputTreeView
 // Overrides Enter to expand/collapse a folder or open an image file with
 // the OS viewer. Other keys keep QTreeView's defaults.
 class OutputTreeView : public QTreeView {
@@ -179,7 +179,7 @@ protected:
     }
 };
 
-// ── OutputThumbList ──────────────────────────────────────────────────────────
+// ---- OutputThumbList
 // IconMode QListWidget that loads thumbnails asynchronously. A monotonic
 // generation counter is bumped on folder change so late-arriving results
 // can detect themselves as stale.
@@ -396,7 +396,7 @@ private:
     QIcon m_placeholderIcon;
 };
 
-// ── OutputViewerPage ─────────────────────────────────────────────────────────
+// ---- OutputViewerPage
 
 OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
 {
@@ -445,7 +445,7 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
     m_status->setAlignment(Qt::AlignCenter);
     m_status->setWordWrap(true);
 
-    // ── Header builder ────────────────────────────────────────────────────────
+    // ---- Header builder
     // 50 px bar matching WorkflowEditPage so flipping between pages doesn't
     // shift the title row. Returns (header, subtitle) so the page can update
     // the subtitle as the user navigates.
