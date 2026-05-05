@@ -86,6 +86,9 @@ It is a personal tool first. The pipeline, the workflow editor, and the batch ru
 * `ComfyUI` : a running instance, local or remote, reachable over HTTP.
 * `Danbooru tag CSV` : optional, used by the search-bar autocomplete.
 
+> [!NOTE]
+> **Network LoRA folders:** model hashing reads every byte to compute a SHA256, so a LoRA folder served from a remote machine (UNC share, NFS, mapped drive) can stall first-run hashing while the file streams across the wire. If your setup looks like this — or you have other network-specific requirements — please [message me](#contact) with the details (mount type, approximate file sizes, anything you've already tried). I'm collecting real-world setups to scope a remote-hashing helper.
+
 </table></tr></td>
 
 <!-- COMFYUI PREVIEW PATCH -->
