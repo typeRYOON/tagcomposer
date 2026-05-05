@@ -93,7 +93,6 @@ It is a personal tool first. The pipeline, the workflow editor, and the batch ru
 
 <!-- COMFYUI PREVIEW PATCH -->
 ## ComfyUI Preview Patch
-<table><tr><td>
 
 > [!IMPORTANT]
 > Optional but recommended. Without this, TagComposer's live preview pane stays empty during generation. The patch makes ComfyUI broadcast each diffusion step's preview image over the WebSocket as a JSON message; the standard ComfyUI web client ignores the extra message, so nothing else changes for you.
@@ -151,11 +150,8 @@ from server import PromptServer
   <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
 </p>
 
-</table></tr></td>
-
 <!-- BUILDING -->
 ## Building from source
-<table><tr><td>
 
 > [!NOTE]
 > Windows is the primary supported platform and the only one currently tested. Linux and macOS builds are wired up in CMake but you'll be the first one through; if something doesn't work, [open an issue](#issues--feature-requests).
@@ -283,11 +279,8 @@ macdeployqt build/tagcomposer.app -dmg
   <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
 </p>
 
-</table></tr></td>
-
 <!-- LAYOUT -->
 ## Layout
-<table><tr><td>
 
 > [!NOTE]
 > All user data lives under `data/` next to the executable. Entries are folders, the rest of the config is plain text and JSON so you can edit it by hand when the GUI is in your way.
@@ -304,22 +297,20 @@ data/
     ├── cluster_filters.fct       facet rule sets for dataset-helper tag clustering
     ├── danbooru.csv              danbooru tag list (search-bar autocomplete)
     ├── danmaku.txt               lines for the optional danmaku overlay
-    ├── facets.fct                tag to facet definitions
+    ├── facets.fct                @category schema: facet names grouped into categories
     ├── global_tag_cache.json     cached wiki / category data from the danbooru API
-    ├── groups.fct                @category blocks defining facets and the groups they roll up into
+    ├── groups.fct                @category blocks defining tag groups (composer category nav)
     ├── latent_sizes.txt          preset list for the LatentSize variable type
     ├── rules.fct                 rule engine: match expressions + actions
     ├── session.json              last-session restore: composer + LoRA state on app close
     ├── settings.json             user preferences, ComfyUI host, paths
-    ├── tag_definitions.fct       per-tag wiki / definition cache
+    ├── tag_definitions.fct       per-tag facet assignments (rewritten on shutdown)
     ├── vars.fct                  $NAME$ to value variable definitions
     └── workflows.json            workflow file list + per-workflow variables
 ```
 <p align="right">
   <sub>[ <a href="#readme-top">↑ back to top ↑</a> ]  </sub>
 </p>
-
-</table></tr></td>
 
 <!-- STARTER FILES -->
 ## Starter Files
