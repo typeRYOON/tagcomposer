@@ -16,6 +16,11 @@
 #include <QNetworkAccessManager>
 #include <functional>
 
+QT_BEGIN_NAMESPACE
+class QGraphicsOpacityEffect;
+class QPropertyAnimation;
+QT_END_NAMESPACE
+
 namespace gui {
 
 class FlowLayout;
@@ -51,6 +56,9 @@ signals:
     // User clicked the schema reload button. Handled by AppMainWindow which
     // re-reads facets.fct into the shared FacetIndex and triggers reloadFacets.
     void schemaReloadRequested();
+    // Emitted when the user finishes defining the last "undefined in composer"
+    // tag; AppMainWindow switches back to the composer page.
+    void composerRequested();
 
 protected:
     void showEvent(QShowEvent* event) override;
@@ -109,6 +117,8 @@ private:
     QWidget* m_previewPanel = nullptr;
     QLabel* m_previewImage = nullptr;
     QLabel* m_previewStatus = nullptr;
+    QGraphicsOpacityEffect* m_previewFade = nullptr;
+    QPropertyAnimation* m_previewFadeAnim = nullptr;
     QHash<QString, QPixmap> m_previewCache;
     QHash<QString, int> m_previewPostIds; // tag -> post id (for click-through)
     int m_previewPostId = -1;

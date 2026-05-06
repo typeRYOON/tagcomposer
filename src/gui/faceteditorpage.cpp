@@ -9,6 +9,7 @@
 #include <QDesktopServices>
 #include <QEvent>
 #include <QFrame>
+#include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -21,6 +22,7 @@
 #include <QPainterPath>
 #include <QNetworkRequest>
 #include <QPointer>
+#include <QPropertyAnimation>
 #include <QRegularExpression>
 #include <QScrollArea>
 #include <QSet>
@@ -59,6 +61,18 @@ QString tagToApiSlug(const QString& tag)
     QString s = tag.toLower();
     s.replace(' ', '_');
     return s;
+}
+
+// QPixmap can't decode video/ugoira; fall back to the static preview thumb.
+QString pickPreviewUrl(const QJsonObject& post)
+{
+    const QString ext = post.value("file_ext").toString().toLower();
+    const bool nonImage = (ext == "mp4" || ext == "webm" || ext == "zip" ||
+                           ext == "mov" || ext == "swf");
+    QString url;
+    if (!nonImage) url = post.value("large_file_url").toString();
+    if (url.isEmpty()) url = post.value("preview_file_url").toString();
+    return url;
 }
 } // namespace
 
@@ -252,6 +266,13 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     m_previewImage->setAlignment(Qt::AlignCenter);
     m_previewImage->setMinimumHeight(380);
     m_previewImage->installEventFilter(this); // for click-through to the post page
+
+    m_previewFade = new QGraphicsOpacityEffect(m_previewImage);
+    m_previewFade->setOpacity(1.0);
+    m_previewImage->setGraphicsEffect(m_previewFade);
+    m_previewFadeAnim = new QPropertyAnimation(m_previewFade, "opacity", this);
+    m_previewFadeAnim->setDuration(220);
+    m_previewFadeAnim->setEasingCurve(QEasingCurve::InOutSine);
 
     m_previewStatus = new QLabel;
     m_previewStatus->setObjectName("FacetPreviewStatus");
@@ -651,6 +672,7 @@ void FacetEditorPage::saveSelected()
         }
         else {
             clearEditor();
+            emit composerRequested();
         }
     }
     else if (auto* cur = m_tagList->currentItem()) {
@@ -688,6 +710,8 @@ void FacetEditorPage::clearEditor()
 void FacetEditorPage::clearPreview()
 {
     m_previewPostId = -1;
+    if (m_previewFadeAnim) m_previewFadeAnim->stop();
+    if (m_previewFade) m_previewFade->setOpacity(1.0);
     if (m_previewImage) {
         m_previewImage->clear();
         m_previewImage->hide();
@@ -729,6 +753,14 @@ void FacetEditorPage::setPreviewPixmap(const QPixmap& pix)
     m_previewImage->setPixmap(rounded);
     m_previewImage->show();
     m_previewImage->setCursor(m_previewPostId > 0 ? Qt::PointingHandCursor : Qt::ArrowCursor);
+
+    if (m_previewFadeAnim && m_previewFade) {
+        m_previewFadeAnim->stop();
+        m_previewFade->setOpacity(0.0);
+        m_previewFadeAnim->setStartValue(0.0);
+        m_previewFadeAnim->setEndValue(1.0);
+        m_previewFadeAnim->start();
+    }
 }
 
 bool FacetEditorPage::eventFilter(QObject* obj, QEvent* ev)
@@ -968,8 +1000,7 @@ void FacetEditorPage::fetchPostById(const QString& tag, int postId)
         }
 
         const QJsonObject post = doc.object();
-        QString imgUrl = post.value("large_file_url").toString();
-        if (imgUrl.isEmpty()) imgUrl = post.value("preview_file_url").toString();
+        const QString imgUrl = pickPreviewUrl(post);
         if (imgUrl.isEmpty()) {
             fetchFirstPostByTag(tag);
             return;
@@ -1010,8 +1041,7 @@ void FacetEditorPage::fetchFirstPostByTag(const QString& tag)
             return;
         }
         const QJsonObject post = doc.array().first().toObject();
-        QString imgUrl = post.value("large_file_url").toString();
-        if (imgUrl.isEmpty()) imgUrl = post.value("preview_file_url").toString();
+        const QString imgUrl = pickPreviewUrl(post);
         if (imgUrl.isEmpty()) {
             m_previewStatus->show();
             m_previewStatus->setText("(no preview)");

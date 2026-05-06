@@ -189,6 +189,11 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     // ---- Wire facet editor reload
     connect(m_facetEditorPage, &FacetEditorPage::facetsDefined, this, &AppMainWindow::reloadFacets);
 
+    // Last "undefined in composer" tag was just defined - jump back to composer.
+    connect(m_facetEditorPage, &FacetEditorPage::composerRequested, this, [this]() {
+        m_pages->setCurrentIndex(int(Page::TagComposer));
+    });
+
     // Re-read facets.fct, keep tag definitions intact.
     connect(m_facetEditorPage, &FacetEditorPage::schemaReloadRequested, this, [this]() {
         m_facetIndex.reloadSchemaFromFile(BASE_PATH + "/" + FACETS_PATH);
