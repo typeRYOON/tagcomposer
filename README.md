@@ -3,7 +3,7 @@
   <a href="https://github.com/typeRYOON/tagcomposer/"><img src="resources/github/banner.png" alt="TagComposer"></a>
 </h1>
 
-<h4 align="center">Qt6 desktop app for composing image-generation prompts from a tagged dataset, with ComfyUI integration.</h4>
+<h4 align="center">A concept-cluster database for ComfyUI — keep your characters, styles, and scenes in a tagged library, then turn any combination into a prompt.</h4>
 
 <p align="center">
     <a href="https://github.com/typeRYOON/tagcomposer/commits/main">
@@ -24,8 +24,8 @@
   <a href="#about-the-project">About</a> •
   <a href="#features">Features</a> •
   <a href="#prerequisites">Prerequisites</a> •
-  <a href="#comfyui-preview-patch">ComfyUI Patch</a> •
   <a href="#building-from-source">Building</a> •
+  <a href="#optional-comfyui-live-preview-patch">Live Preview Patch</a> •
   <a href="#layout">Layout</a> •
   <a href="#starter-files">Starter Files</a> •
   <a href="#getting-started">Getting Started</a> •
@@ -34,14 +34,14 @@
   <a href="#other-backends">Other Backends</a> •
   <a href="#dependencies">Dependencies</a> •
   <a href="#license">License</a> •
-  <a href="#contact">Contact</a>
+  <a href="#community--contact">Community</a>
 </p>
 
 ---
 
 ## About The Project
 
-**TagComposer** is a Qt6 / C++23 desktop app for managing a tagged image dataset and turning that dataset into prompts for ComfyUI. You build a library of entries (a character, a style, a scene), tag each image, then toggle entries into a composer that runs their tags through a configurable rule and variable pipeline before queueing the resulting prompt.
+**TagComposer** is for people who keep their own library of character references, style references, and scene setups for AI image generation, and want a way to actually generate from that library — not just stash references and copy-paste prompts from text files. You build a library of entries (a character, a style, a scene), tag each image, then toggle any combination of entries into a composer that runs their tags through a configurable rule and variable pipeline before queueing the resulting prompt to ComfyUI. Built in Qt6 / C++23.
 
 It is a personal tool first. The pipeline, the workflow editor, and the batch runner are all built around the way I generate images, but the underlying pieces (entries, rules, facets, workflows) are general enough to fit other setups.
 
@@ -78,67 +78,6 @@ It is a personal tool first. The pipeline, the workflow editor, and the batch ru
 - `Linux / macOS` — not tested yet, check the Building from source section.
 - `ComfyUI` — a running instance, local or remote, reachable over HTTP.
 - `Danbooru tag CSV` — optional, used by the search-bar autocomplete.
-
-> [!NOTE]
-> **Network LoRA folders:** model hashing reads every byte to compute a SHA256, so a LoRA folder served from a remote machine (UNC share, NFS, mapped drive) can stall first-run hashing while the file streams across the wire. If your setup looks like this — or you have other network-specific requirements — please [message me](#contact) with the details (mount type, approximate file sizes, anything you've already tried). I'm collecting real-world setups to scope a remote-hashing helper.
-
-<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
-
----
-
-## ComfyUI Preview Patch
-
-> [!IMPORTANT]
-> Optional but recommended. Without this, TagComposer's live preview pane stays empty during generation. The patch makes ComfyUI broadcast each diffusion step's preview image over the WebSocket as a JSON message; the standard ComfyUI web client ignores the extra message, so nothing else changes for you.
-
-In your ComfyUI install, open `ComfyUI/latent_preview.py` and replace the `prepare_callback` function with the version below:
-
-```python
-def prepare_callback(model, steps, x0_output_dict=None):
-    preview_format = "JPEG"
-    if preview_format not in ["JPEG", "PNG"]:
-        preview_format = "JPEG"
-
-    previewer = get_previewer(model.load_device, model.model.latent_format)
-
-    pbar = comfy.utils.ProgressBar(steps)
-
-    def callback(step, x0, x, total_steps):
-        if x0_output_dict is not None:
-            x0_output_dict["x0"] = x0
-
-        preview_bytes = None
-        if previewer:
-            preview_bytes = previewer.decode_latent_to_preview_image(preview_format, x0)
-            if preview_bytes:
-                fmt, image, _ = preview_bytes
-
-                buffer = io.BytesIO()
-                image.save(buffer, format=fmt)
-
-                b64 = base64.b64encode(buffer.getvalue()).decode()
-
-                PromptServer.instance.send_sync(
-                    "preview",
-                    {"image": b64, "total_steps": total_steps, "step": step},
-                    None
-                )
-        pbar.update_absolute(step + 1, total_steps, preview_bytes)
-
-    return callback
-```
-
-Make sure these imports exist near the top of `ComfyUI/latent_preview.py` (add them if missing):
-
-```python
-import base64, io
-from server import PromptServer
-```
-
-> [!NOTE]
-> Restart ComfyUI after the edit so the new function is in process. A workflow reload alone won't pick it up.
->
-> Re-apply this patch whenever you update ComfyUI; a `git pull` over the install will overwrite `latent_preview.py`.
 
 <p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
@@ -263,6 +202,64 @@ macdeployqt build/tagcomposer.app -dmg
 
 ---
 
+## Optional: ComfyUI Live Preview Patch
+
+> [!IMPORTANT]
+> Optional but recommended. Without this, TagComposer's live preview pane stays empty during generation. The patch makes ComfyUI broadcast each diffusion step's preview image over the WebSocket as a JSON message; the standard ComfyUI web client ignores the extra message, so nothing else changes for you.
+
+In your ComfyUI install, open `ComfyUI/latent_preview.py` and replace the `prepare_callback` function with the version below:
+
+```python
+def prepare_callback(model, steps, x0_output_dict=None):
+    preview_format = "JPEG"
+    if preview_format not in ["JPEG", "PNG"]:
+        preview_format = "JPEG"
+
+    previewer = get_previewer(model.load_device, model.model.latent_format)
+
+    pbar = comfy.utils.ProgressBar(steps)
+
+    def callback(step, x0, x, total_steps):
+        if x0_output_dict is not None:
+            x0_output_dict["x0"] = x0
+
+        preview_bytes = None
+        if previewer:
+            preview_bytes = previewer.decode_latent_to_preview_image(preview_format, x0)
+            if preview_bytes:
+                fmt, image, _ = preview_bytes
+
+                buffer = io.BytesIO()
+                image.save(buffer, format=fmt)
+
+                b64 = base64.b64encode(buffer.getvalue()).decode()
+
+                PromptServer.instance.send_sync(
+                    "preview",
+                    {"image": b64, "total_steps": total_steps, "step": step},
+                    None
+                )
+        pbar.update_absolute(step + 1, total_steps, preview_bytes)
+
+    return callback
+```
+
+Make sure these imports exist near the top of `ComfyUI/latent_preview.py` (add them if missing):
+
+```python
+import base64, io
+from server import PromptServer
+```
+
+> [!NOTE]
+> Restart ComfyUI after the edit so the new function is in process. A workflow reload alone won't pick it up.
+>
+> Re-apply this patch whenever you update ComfyUI; a `git pull` over the install will overwrite `latent_preview.py`.
+
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
+
+---
+
 ## Layout
 
 > [!NOTE]
@@ -314,13 +311,20 @@ A first-run `data/` folder is a lot of empty files. To skip that, grab one of th
 
 ## Getting Started
 
-> [!IMPORTANT]
-> Watch the walkthrough video before trying to use TagComposer end-to-end. The Usage section below is a quick reference, but the video covers the bigger picture and a lot of the small "why" decisions behind the workflow.
->
-> **YouTube walkthrough**: <!-- TODO: paste the YouTube URL here once recorded -->_(coming soon)_
+### Quick start
+
+1. **Build** TagComposer (see [Building](#building-from-source)) and place the executable somewhere with write access.
+2. **Drop in a [starter pack](#starter-files)** so `data/` next to the executable is populated.
+3. **Configure ComfyUI.** Open the Settings page and enter your ComfyUI host (e.g. `127.0.0.1:8188`). The status dot turns green when the connection is up.
+4. **Toggle an entry into the composer** from Tile View.
+5. **Hit Run.** The active workflow's tokens get filled in and the prompt is queued to ComfyUI.
+
+That's the core loop. The [Usage](#usage) section walks through the rest — saved states, the rule engine, batch runs, the workflow editor.
 
 > [!NOTE]
-> A GitHub wiki with longer-form docs (rule syntax reference, workflow JSON conventions, a recipe collection) is planned. Until it exists, this README and the in-app tooltips are the documentation.
+> A YouTube walkthrough and a GitHub wiki (rule syntax reference, workflow JSON conventions, recipes) are planned. Until they exist, this README and the in-app tooltips are the documentation.
+>
+> **YouTube walkthrough**: <!-- TODO: paste the YouTube URL here once recorded -->_(coming soon)_
 
 <p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
@@ -351,7 +355,10 @@ If you hit a bug, please open a [GitHub issue](https://github.com/typeRYOON/tagc
 
 For feature requests, open the issue with the **`enhancement`** label so it sorts into the right bucket.
 
-If GitHub isn't a fit, the [Contact](#contact) section below has direct ways to reach me.
+If GitHub isn't a fit, the [Community & Contact](#community--contact) section below has direct ways to reach me.
+
+> [!NOTE]
+> **Known: network LoRA folders stall first-run hashing.** Model hashing reads every byte to compute a SHA256, so a LoRA folder served from a remote machine (UNC share, NFS, mapped drive) can take a long time on the first scan. If your setup looks like this — or you have other network-specific requirements — please [message me](#community--contact) with the details (mount type, approximate file sizes, anything you've already tried). I'm collecting real-world setups to scope a remote-hashing helper.
 
 <p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
@@ -359,12 +366,7 @@ If GitHub isn't a fit, the [Contact](#contact) section below has direct ways to 
 
 ## Other Backends
 
-ComfyUI is what I use personally, so it's the only backend wired up out of the box. I'm open to implementing prompt queueing and live previews for other backends (Forge, Auto1111, InvokeAI, SwarmUI, etc.). If you'd like to see one supported, open an issue with the **`enhancement`** label and include both of the following before tagging me:
-
-1. **Confirmation that the backend exposes a controllable API.** HTTP, WebSocket, gRPC, anything. Without one, there is no way for TagComposer to queue prompts or stream previews.
-2. **A starting pointer.** A link to the API docs, an example endpoint, a sample request body, anything that gets me past the "where do I even begin" stage. Since I don't use any of these myself, the more concrete pointers you can hand off the faster it gets done.
-
-No promises on timeline, but a backend with a clear API and a willing requester goes on the realistic short list.
+ComfyUI is the only backend wired up so far. If you'd like to see Forge, Auto1111, InvokeAI, SwarmUI, or another backend supported, open an issue with the **`enhancement`** label and include a link to the backend's API docs and a sample request body. Backends with a clear API and an interested requester move up the list fastest.
 
 <p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
@@ -389,11 +391,10 @@ Distributed under the GNU General Public License v3.0. See [`LICENSE`](LICENSE) 
 
 ---
 
-## Contact
+## Community & Contact
 
-If something needs my direct attention, message me through one of the following.
-
-- `Discord` — [typeRYOON](https://discord.com/)
-- `Email` — 4ryoon@gmail.com
+- **Discord** — [Join the TagComposer server](https://discord.gg/W5jPbAGU2X) for questions, sharing setups, and feature discussion.
+- **GitHub Issues** — [Bug reports and feature requests](https://github.com/typeRYOON/tagcomposer/issues).
+- **Email** — for anything else: `4ryoon@gmail.com`
 
 <p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
