@@ -138,6 +138,7 @@ TagSearchBar::TagSearchBar(QWidget* parent) : QWidget(parent)
     m_input->setObjectName("TagSearchInput");
     m_input->installEventFilter(this);
     m_input->setPlaceholderText("search tags...");
+    setFocusProxy(m_input);
 
     auto* rootLayout = new QVBoxLayout(this);
     rootLayout->setContentsMargins(0, 0, 0, 0);

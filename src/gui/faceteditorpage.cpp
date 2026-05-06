@@ -110,6 +110,14 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
 
     connect(m_searchEdit, &QLineEdit::textChanged, this, &FacetEditorPage::applyListFilter);
 
+    // Enter selects the typed tag, or creates a new entry if it doesn't exist.
+    connect(m_searchEdit, &QLineEdit::returnPressed, this, [this]() {
+        const QString tag = m_searchEdit->text().trimmed();
+        if (tag.isEmpty()) return;
+        selectTagByName(tag);
+        focusFirstPill();
+    });
+
     m_tagList->installEventFilter(this);
     m_undefinedList->installEventFilter(this);
 

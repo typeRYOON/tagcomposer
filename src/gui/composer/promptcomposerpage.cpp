@@ -159,6 +159,13 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     connect(groupsScroll, &ComposerScrollArea::clearPendingRequested, this,
             &PromptComposerPage::clearPendingRequested);
 
+    // Tab from anywhere inside the composer list jumps to the search bar,
+    // overriding the default focus-traversal between tag rows.
+    auto* tabToSearch = new QShortcut(QKeySequence(Qt::Key_Tab), groupsScroll);
+    tabToSearch->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(tabToSearch, &QShortcut::activated, this,
+            [this]() { m_searchBar->setFocus(Qt::TabFocusReason); });
+
     auto* emptyHint =
         new QLabel("Press \"Composer Toggle\" on an entry image\nto push its tags here.");
     emptyHint->setObjectName("ComposerEmptyHint");
