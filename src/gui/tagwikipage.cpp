@@ -590,7 +590,6 @@ void TagWikiPage::showEvent(QShowEvent* event)
 }
 
 // ---- Thumbnail fade
-
 void TagWikiPage::startThumbFade(const QString& resourceUrl, const QPixmap& finalPix)
 {
     // Enqueue and let the shared ticker handle it. A late re-fetch of an
@@ -1071,7 +1070,7 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
 
     const QString css =
         "<style>"
-        "body{background:transparent;color:#c0c0c0;font-size:15px;margin:0;padding:0;" +
+        "body{background:transparent;color:#c0c0c0;font-size:20px;margin:0;padding:0;" +
         fontDecl +
         "}"
         "h1,h2,h3,h4,h5,h6{color:#888;border-bottom:1px solid "
@@ -1083,7 +1082,7 @@ QString TagWikiPage::dtextToHtml(const QString& dtext, QList<int>& outPostIds,
         "ul,ol{padding-left:20px;margin:4px 0;}"
         "li{margin:2px 0;}"
         "table.gallery{margin:6px 0;}"
-        "td.thumb{color:#888;font-size:11px;}"
+        "td.thumb{color:#888;font-size:20px;}"
         ".ws{margin:6px 0;}"
         ".wsh{color:#666;font-weight:bold;font-size:11px;margin:0 0 3px 0;}"
         ".wtn{color:#666;font-size:11px;}"

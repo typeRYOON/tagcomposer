@@ -13,9 +13,6 @@ namespace core {
 
 namespace {
 
-// Returns s as a JSON string literal (with surrounding quotes), escaping
-// quotes, backslashes, and control characters. Required because user-typed
-// values are spliced directly into workflow JSON before it's sent to ComfyUI.
 QString jsonStringLiteral(const QString& s)
 {
     QString out;

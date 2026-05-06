@@ -49,20 +49,14 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 {
     setWindowTitle("Tag Composer");
     setWindowOpacity(0.0);
-
-    // Frameless; titlebar drawn by gui::TitleBar. Min/Max/Close hints stay set
-    // so the OS still treats this as a normal taskbar window.
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowMinimizeButtonHint |
                    Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
-
     resize(1420, 920);
     setMinimumSize(1420, 920);
 
     // ---- Load settings
     m_settings = AppSettings::load(BASE_PATH + "/" + SETTINGS_PATH);
 
-    // Seed the change-detection cache so the first settingsChanged emit
-    // (any settings-page edit) doesn't read as "host went from empty".
     m_lastComfyEnabled = m_settings.comfyUiEnabled;
     m_lastComfyHost = m_settings.comfyUiServerAddress;
     m_lastComfyApiKey = m_settings.comfyUiApiKey;
@@ -496,9 +490,6 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     });
 
     // ---- Update check
-    // Once-per-launch GitHub Releases poll, throttled to ~24h via the
-    // lastUpdateCheckTime setting. Not blocking - kicked off 2 s after the
-    // window appears so it doesn't compete with the rest of boot work.
     m_updateChecker = new core::UpdateChecker(this);
     m_updateChecker->setRepo("typeRYOON/tagcomposer_test");
     m_updateChecker->setCurrentVersion(APP_VERSION);
@@ -514,12 +505,6 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         m_settings.lastKnownLatestVersion = latest;
         if (m_homePage) m_homePage->setUpdateAvailable({});
     });
-    // checkFailed: leave lastUpdateCheckTime alone so we retry next launch
-    // instead of waiting another 24h after a transient network blip.
-
-    // If we've already checked within the last 24h, surface the cached result
-    // (so the "update available" label reappears across restarts without
-    // re-pinging GitHub) and skip the network call this session.
     constexpr qint64 kThrottleSec = 24 * 60 * 60;
     const qint64 nowSec = QDateTime::currentSecsSinceEpoch();
     const bool fresh = (m_settings.lastUpdateCheckTime > 0) &&
@@ -543,9 +528,6 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
 bool AppMainWindow::eventFilter(QObject* obj, QEvent* event)
 {
-    // Danmaku overlay tracks the m_pages widget's size. Chrome events
-    // (resize-overlay sync, edge-drag) are handled internally by m_chrome's
-    // own event filter on m_chrome->frame() and m_chrome->resizeOverlay().
     if (obj == m_pages && event->type() == QEvent::Resize && m_danmakuOverlay) {
         m_danmakuOverlay->setGeometry(m_pages->rect());
         m_danmakuOverlay->lower();
@@ -561,10 +543,6 @@ void AppMainWindow::applyComfySettings()
     m_composerPage->setTempFolder(m_settings.comfyUiTempFolder);
     m_outputViewerPage->setOutputFolder(m_settings.comfyUiOutputFolder);
 
-    // Bouncing the WebSocket on every settingsChanged emit is what causes the
-    // status indicator to flicker through disconnected -> connecting -> connected
-    // when the user edits an unrelated field (tile gradient, danmaku toggle,
-    // etc.). Only re-(dis)connect when a connection-relevant value changed.
     const bool enabledChanged = (m_settings.comfyUiEnabled != m_lastComfyEnabled);
     const bool hostChanged = (m_settings.comfyUiServerAddress != m_lastComfyHost);
     const bool apiKeyChanged = (m_settings.comfyUiApiKey != m_lastComfyApiKey);
@@ -881,9 +859,6 @@ void AppMainWindow::purgeTagDefinitions()
 
 void AppMainWindow::keyPressEvent(QKeyEvent* event)
 {
-    // Esc only fires here if no focused child consumed it first (popups,
-    // dropdowns, dialogs, line-edit IME, etc.) - so this exits fullscreen
-    // without stealing Esc from any of them.
     if (event->key() == Qt::Key_Escape && isFullScreen()) {
         auto* anim = utils::propertyAnimate(this, "windowOpacity", windowOpacity(), 0.0, 200,
                                             QEasingCurve::InOutSine);
@@ -928,17 +903,10 @@ void AppMainWindow::closeEvent(QCloseEvent* event)
     m_facetIndex.saveDefinitions(BASE_PATH + "/" + DEFINITIONS_PATH);
     m_composerPage->saveSession(BASE_PATH + "/" + SESSION_PATH);
 
-    // The collector watcher polls a folder on a QTimer; if we let the app
-    // tear down without stopping it, an extra tick can fire on a half-
-    // destroyed widget. Stop it now while everything's still alive.
     if (m_datasetHelpersPage) {
         if (auto* cp = m_datasetHelpersPage->collectorPage()) cp->stopWatcher();
     }
 
-    // Fade other top-level windows (preview popout, any open dialog) out in
-    // parallel with the main window. Same 500 ms duration so they all reach
-    // opacity 0 at the same moment - without this, the popout sits at full
-    // opacity through the whole main-window fade and snap-hides at the end.
     for (QWidget* w : qApp->topLevelWidgets()) {
         if (w != this && w->isWindow() && w->isVisible()) {
             propertyAnimate(w, "windowOpacity", w->windowOpacity(), 0.0, 500,
@@ -948,9 +916,6 @@ void AppMainWindow::closeEvent(QCloseEvent* event)
 
     connect(propertyAnimate(this, "windowOpacity", 1.0, 0.0, 500, QEasingCurve::InOutSine),
             &QPropertyAnimation::finished, this, [this]() {
-                // Hide main + force-close any other top-level windows (popout)
-                // so they don't linger on the taskbar past the fade. They've
-                // already faded to 0 in parallel above, so hide() is invisible.
                 hide();
                 for (QWidget* w : qApp->topLevelWidgets()) {
                     if (w != this && w->isWindow()) {

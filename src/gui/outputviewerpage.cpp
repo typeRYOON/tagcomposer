@@ -66,9 +66,6 @@ static QString evaluateDatePattern(const QString& pattern)
 }
 
 // ---- FsTypeIconProvider
-// Replaces QFileSystemModel's default OS-shell icons with our painted
-// folder/file glyphs. Drawn at 32x32 so the tree's 16x16 display stays
-// sharp on HiDPI.
 class FsTypeIconProvider : public QFileIconProvider {
 public:
     FsTypeIconProvider() : m_folder(makeFolder()), m_image(makeImage()) {}
@@ -98,8 +95,6 @@ private:
         p.setRenderHint(QPainter::Antialiasing);
         p.setPen(Qt::NoPen);
         p.setBrush(QColor(0x88, 0x88, 0x88));
-        // Tab on the upper-left, then the body - both rounded so the folder
-        // reads as one shape rather than two stacked rectangles.
         p.drawRoundedRect(QRectF(4, 6, 12, 5), 2, 2);
         p.drawRoundedRect(QRectF(2, 9, 28, 18), 3, 3);
         return QIcon(pm);
@@ -111,12 +106,10 @@ private:
         pm.fill(Qt::transparent);
         QPainter p(&pm);
         p.setRenderHint(QPainter::Antialiasing);
-        // Frame outline.
         p.setPen(QPen(QColor(0x88, 0x88, 0x88), 2));
         p.setBrush(Qt::NoBrush);
         p.drawRoundedRect(QRectF(3, 5, 26, 22), 3, 3);
-        // "Mountain range" inside - universal shorthand for an image. Filled
-        // rather than stroked so it stays readable when downscaled to 16x16.
+        // "Mountain range" inside - universal shorthand for an image.
         p.setPen(Qt::NoPen);
         QPainterPath mtn;
         mtn.moveTo(6, 24);
@@ -134,8 +127,6 @@ private:
 };
 
 // ---- OutputTreeView
-// Overrides Enter to expand/collapse a folder or open an image file with
-// the OS viewer. Other keys keep QTreeView's defaults.
 class OutputTreeView : public QTreeView {
     Q_OBJECT
 public:
@@ -144,9 +135,6 @@ public:
 signals:
     void enterOnFile(const QString& path);
     void enterOnDir(const QModelIndex& index);
-    // Right arrow on a file row - request that the page move focus into the
-    // thumb pane and select the matching item there. (Right on a folder
-    // keeps QTreeView's default expand-or-descend behaviour.)
     void crossToThumbsRequested(const QString& path);
 
 protected:
@@ -180,17 +168,11 @@ protected:
 };
 
 // ---- OutputThumbList
-// IconMode QListWidget that loads thumbnails asynchronously. A monotonic
-// generation counter is bumped on folder change so late-arriving results
-// can detect themselves as stale.
 class OutputThumbList : public QListWidget {
     Q_OBJECT
 signals:
     // Enter on the focused item; clicks are selection-only.
     void enterActivated(QListWidgetItem* item);
-
-    // Escape with an item selected. Always consumed (even in fullscreen)
-    // so Escape ladders: right pane -> tree -> exit fullscreen.
     void escapePressed();
 
 public:
@@ -210,10 +192,7 @@ public:
         setFrameShape(QFrame::NoFrame);
         setObjectName("OutputThumbList");
 
-        // Folder-tile fallback (used as initial icon for directory items, and
-        // as the final icon - folders aren't loaded asynchronously).
         m_folderIcon = makeFolderIcon();
-        // Transparent placeholder for image items while real thumbnails load.
         QPixmap ph(kThumbW, kThumbH);
         ph.fill(Qt::transparent);
         m_placeholderIcon = QIcon(ph);
@@ -251,8 +230,6 @@ protected:
     }
 
 public:
-    // Replace contents with `entries`. Bumps generation, so any thumbnail
-    // loads spawned for the previous folder will discard their results.
     void setEntries(const QList<QPair<QString, bool>>& entries) // (path, isDir)
     {
         const int gen = ++m_generation;
