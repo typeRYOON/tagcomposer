@@ -44,9 +44,6 @@
 
 **TagComposer** is for people who keep their own library of character references, style references, and scene setups for AI image generation, and want a way to actually generate from that library, not just stash references and copy-paste prompts from text files.
 
-> [!IMPORTANT]
-> **TagComposer is for tag-based prompting** (e.g. `1girl, red dress, looking at viewer`), not natural-language captions (e.g. `a woman in a red dress`). If your model is trained on Danbooru/e621/Gelbooru-style tags, this is built for you. Caption-trained models will technically work, but the rule engine, autocomplete, and facet system all assume comma-separated tags.
-
 You build a library of entries (a character, a style, a scene), tag each image, and optionally pin a LoRA and its trigger word to the entry. Toggling an entry into the composer pulls its tags through a configurable rule and variable pipeline, drops its LoRA onto the active stack, and adds its trigger word to the prompt, then queues the result to ComfyUI. Adding a character means one click instead of remembering which LoRA goes with it, what strength to set, and what trigger phrase to paste. Built in Qt6 / C++23.
 
 It is a personal tool first. The pipeline, the workflow editor, and the batch runner are all built around the way I generate images, but the underlying pieces (entries, rules, facets, workflows) are general enough to fit other setups.
@@ -55,6 +52,12 @@ It is a personal tool first. The pipeline, the workflow editor, and the batch ru
   <!-- TODO: drop the showcase GIF here once recorded. resources/github/ is the right place. -->
   <i>(showcase coming soon)</i>
 </p>
+
+> [!IMPORTANT]
+> **TagComposer is for tag-based prompting** (e.g. `1girl, red dress, looking at viewer`), not natural-language captions (e.g. `a woman in a red dress`). If your model is trained on Danbooru/e621/Gelbooru-style tags, this is built for you. Caption-trained models will technically work, but the rule engine, autocomplete, and facet system all assume comma-separated tags.
+
+> [!NOTE]
+> **Other backends work for the tag and LoRA side.** Only prompt queueing and live previews are ComfyUI-specific; the entry library, tag and LoRA management, rule pipeline, and composer are all backend-agnostic. The composer has a "copy prompt" button, so you can build prompts in TagComposer and paste into Forge, Auto1111, SwarmUI, or anywhere else.
 
 <p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
