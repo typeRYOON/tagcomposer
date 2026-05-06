@@ -2,6 +2,7 @@
 #include <gui/composer/scaledimagelabel.h>
 #include <gui/composer/clickablelabel.h>
 #include <gui/widgets/framelesschrome.h>
+#include <gui/widgets/titlebar.h>
 #include <gui/widgets/windowchrome.h>
 #include <utils/qutils.h>
 #include <QAction>
@@ -56,6 +57,7 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
 
     m_tempLabel = new ClickableLabel(this);
     m_tempLabel->setObjectName("PopoutTempLabel");
+    m_tempLabel->setMinimumSize(80, 80);
     m_tempLabel->hide();
 
     m_watcher = new QFileSystemWatcher(this);
@@ -131,10 +133,26 @@ void PreviewPopoutWindow::resizeEvent(QResizeEvent* e)
 {
     QWidget::resizeEvent(e);
     constexpr int margin = 12;
-    const int side = qBound(120, qMin(width(), height()) / 2, 800);
-    m_tempLabel->setFixedSize(side, side);
-    // Inset by kResizeBorder so the label clears the cosmetic frame.
-    m_tempLabel->move(margin + kResizeBorder, height() - side - margin - kResizeBorder);
+
+    // Movable bounds: the body area inside the cosmetic frame, below the
+    // titlebar, with a small margin so the label can't kiss the edges.
+    QRect bounds(kResizeBorder + margin, kResizeBorder + margin,
+                 width() - 2 * (kResizeBorder + margin),
+                 height() - 2 * (kResizeBorder + margin));
+    if (m_chrome && m_chrome->titleBar()) {
+        const QPoint tbBR = m_chrome->titleBar()->mapTo(
+            this, QPoint(0, m_chrome->titleBar()->height()));
+        if (tbBR.y() + margin > bounds.top()) bounds.setTop(tbBR.y() + margin);
+    }
+    m_tempLabel->setMovableBounds(bounds);
+
+    if (m_tempLabel->isUserPlaced()) {
+        m_tempLabel->clampToBounds();
+    } else {
+        const int side = qBound(120, qMin(width(), height()) / 2, 600);
+        m_tempLabel->resize(side, side);
+        m_tempLabel->move(margin + kResizeBorder, height() - side - margin - kResizeBorder);
+    }
     m_tempLabel->raise();
 }
 

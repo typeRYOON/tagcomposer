@@ -94,6 +94,22 @@ QDialog QPushButton:pressed {
     background: #141414;
 }
 
+#TitleBarMin, #TitleBarMax, #TitleBarClose {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+}
+
+#TitleBarMin:hover, #TitleBarMax:hover, #TitleBarClose:hover {
+    background: #232323;
+    border-color: #3a3a3a;
+}
+
+#TitleBarMin:pressed, #TitleBarMax:pressed, #TitleBarClose:pressed {
+    background: #141414;
+}
+
 QDialog QPushButton:disabled {
     color: #555555;
     border-color: #1a1a1a;
