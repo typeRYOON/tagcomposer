@@ -125,12 +125,18 @@ OpenCV and ONNX Runtime aren't checked into the repo (their prebuilt trees come 
       └── onnxruntime.lib
   ```
 
-With those in place, install **Qt 6.11+** from the Qt Maintenance Tool if you haven't already, then build with the MSVC kit:
+With those in place, install **Qt 6.11+** from the Qt Maintenance Tool if you haven't already, using the **MSVC 2022 64-bit** kit. (The OpenCV pack only ships `vc16` binaries, so the build needs MSVC, not MinGW.)
+
+You'll also need a Visual Studio C++ toolchain: either **Visual Studio 2022** or the free [**Visual Studio 2022 Build Tools**](https://visualstudio.microsoft.com/downloads/). Install the **"Desktop development with C++"** workload.
+
+Open the **"x64 Native Tools Command Prompt for VS 2022"** from the Start menu (a regular `cmd` won't have `cl.exe` on PATH), `cd` into the project folder, then build with CMake pointed at your Qt install:
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:\Qt\6.11.0\msvc2022_64"
 cmake --build build
 ```
+
+Adjust `CMAKE_PREFIX_PATH` to match your Qt version and kit (e.g. `C:\Qt\6.12.0\msvc2022_64`).
 
 The post-build hook copies `opencv_world4120.dll` and `onnxruntime.dll` next to the executable. Run `windeployqt6` to pull in the Qt runtime:
 
