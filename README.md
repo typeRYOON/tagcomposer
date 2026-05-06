@@ -24,6 +24,7 @@
   <a href="#about-the-project">About</a> •
   <a href="#features">Features</a> •
   <a href="#prerequisites">Prerequisites</a> •
+  <a href="#releases">Releases</a> •
   <a href="#building-from-source">Building</a> •
   <a href="#optional-comfyui-live-preview-patch">Live Preview Patch</a> •
   <a href="#layout">Layout</a> •
@@ -78,6 +79,16 @@ It is a personal tool first. The pipeline, the workflow editor, and the batch ru
 - `Linux / macOS` — not tested yet, check the Building from source section.
 - `ComfyUI` — a running instance, local or remote, reachable over HTTP.
 - `Danbooru tag CSV` — optional, used by the search-bar autocomplete.
+
+<p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
+
+---
+
+## Releases
+
+Pre-built Windows binaries are on the [GitHub Releases page](https://github.com/typeRYOON/tagcomposer/releases). Download the archive, extract it somewhere with write access, and run the executable. Drop in a [starter pack](#starter-files) so `data/` next to the executable is populated, then continue with [Getting Started](#getting-started).
+
+Linux and macOS aren't yet shipped as prebuilt binaries. For those platforms, [build from source](#building-from-source).
 
 <p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
@@ -313,7 +324,7 @@ A first-run `data/` folder is a lot of empty files. To skip that, grab one of th
 
 ### Quick start
 
-1. **Build** TagComposer (see [Building](#building-from-source)) and place the executable somewhere with write access.
+1. **Get TagComposer.** Download a [pre-built release](#releases) on Windows, or [build from source](#building-from-source). Place the executable somewhere with write access.
 2. **Drop in a [starter pack](#starter-files)** so `data/` next to the executable is populated.
 3. **Configure ComfyUI.** Open the Settings page and enter your ComfyUI host (e.g. `127.0.0.1:8188`). The status dot turns green when the connection is up.
 4. **Toggle an entry into the composer** from Tile View.
@@ -385,7 +396,7 @@ ComfyUI is the only backend wired up so far. If you'd like to see Forge, Auto111
 
 ## License
 
-Distributed under the GNU General Public License v3.0. See [`LICENSE`](LICENSE) for more information.
+Distributed under the GNU Affero General Public License v3.0. See [`LICENSE`](LICENSE) for more information.
 
 <p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
