@@ -733,6 +733,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
                     m_model->saveEntry(entryId);
 
                     if (m_entry == targetEntry) refreshLoraSection();
+                    emit entryModified(entryId);
                     emit statusMessageRequested(
                         QString("LoRA assigned: %1").arg(QFileInfo(finalRel).fileName()));
                 });
@@ -752,6 +753,14 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
 
         QMenu menu;
         QAction* infoAct = menu.addAction("Show LoRA info");
+        QAction* moveAct = nullptr;
+        if (m_entry->lora->rootKey == "test") {
+            moveAct = menu.addAction("Move to primary...");
+            moveAct->setEnabled(fi.exists() && !m_loraPrimaryDir.isEmpty());
+            if (!fi.exists()) moveAct->setText("Move to primary  (file missing)");
+            else if (m_loraPrimaryDir.isEmpty())
+                moveAct->setText("Move to primary  (primary folder not set)");
+        }
         QAction* deleteAct = menu.addAction("Delete from disk...");
 
         const bool canParse =
@@ -766,6 +775,35 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
         if (chosen == infoAct) {
             LoraInfoDialog dlg(path, this);
             dlg.exec();
+        }
+        else if (moveAct && chosen == moveAct) {
+            LoraImportDialog dlg(path, m_loraPrimaryDir, this);
+            if (dlg.exec() != QDialog::Accepted) return;
+
+            const int32_t entryId = m_entry->id;
+            const QString rel = dlg.relativePath();
+            const QString dest = m_loraPrimaryDir + "/" + rel;
+            QDir().mkpath(QFileInfo(dest).absolutePath());
+
+            // QFile::rename fails across drives on Windows.
+            if (!QFile::rename(path, dest)) {
+                if (!QFile::copy(path, dest)) {
+                    emit statusMessageRequested(
+                        "Failed to move LoRA into the primary folder");
+                    return;
+                }
+                QFile::remove(path);
+            }
+
+            // Re-resolve: dlg.exec() pumped events.
+            core::Entry* live = m_model->entryById(entryId);
+            if (!live || !live->lora.has_value()) return;
+            live->lora->rootKey = "primary";
+            live->lora->file = rel;
+            m_model->saveEntry(entryId);
+            if (m_entry == live) refreshLoraSection();
+            emit entryModified(entryId);
+            emit statusMessageRequested(QString("LoRA moved to primary: %1").arg(rel));
         }
         else if (chosen == deleteAct) {
             const bool confirmed = gui::ChromedDialog::confirm(

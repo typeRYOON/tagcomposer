@@ -25,6 +25,10 @@ public slots:
     void setActiveGroups(const QMap<int, QList<int>>& groups);
     void clearLoraForEntry(int entryId);
     void setLoraActiveByUuids(const QList<QString>& uuids);
+    // Re-publish the current active stack. Call when an entry's LoraConfig
+    // (path, strength, etc.) was edited outside this widget so downstream
+    // caches don't keep the stale config.
+    void refreshLoraStack() { emitLoraStack(); }
     // Animated scroll to the entry and emit entryClicked; no-op if it
     // isn't in the visible/queried list.
     void selectAndScrollToEntry(int32_t entryId);

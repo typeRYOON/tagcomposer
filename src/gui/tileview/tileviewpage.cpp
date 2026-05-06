@@ -120,8 +120,12 @@ TileViewPage::TileViewPage(core::EntryModel* model, QWidget* parent) : QWidget(p
 
     connect(m_entryPanel, &EntryPanel::entryListChanged, this,
             [this]() { m_entryView->query(m_searchBar->text()); });
-    connect(m_entryPanel, &EntryPanel::entryModified, this,
-            [this](int32_t) { m_entryView->query(m_searchBar->text()); });
+    connect(m_entryPanel, &EntryPanel::entryModified, this, [this](int32_t) {
+        m_entryView->query(m_searchBar->text());
+        // LoRA path/strength edits flow through here too - keep the
+        // active-stack cache in AppMainWindow in sync.
+        m_entryView->refreshLoraStack();
+    });
 
     QVBoxLayout* centerCol = new QVBoxLayout;
     centerCol->setContentsMargins(0, 0, 0, 0);

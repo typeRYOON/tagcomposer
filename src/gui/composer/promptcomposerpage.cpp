@@ -1105,6 +1105,10 @@ void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
 
 void PromptComposerPage::repush()
 {
+    // Every interaction-driven rebuild fades. Search-filter changes go
+    // directly through applyTagFilter() and skip this, so typing in the
+    // search bar still updates instantly without the fade.
+    m_freezeNextRebuild = true;
     QList<QString> active;
     for (const QString& t : m_activeTags)
         if (!m_deactivatedTags.contains(t)) active << t;
