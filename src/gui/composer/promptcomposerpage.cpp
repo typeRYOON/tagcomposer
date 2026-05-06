@@ -175,6 +175,16 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_mainStack->addWidget(emptyHint);    // 0
     m_mainStack->addWidget(groupsScroll); // 1
 
+    // Fade-out/fade-in around big rebuilds (manual tag add via search,
+    // state restore). Replaces the older setUpdatesEnabled(false) freeze
+    // which left input widgets in a half-rendered state mid-rebuild.
+    m_mainStackFx = new QGraphicsOpacityEffect(m_mainStack);
+    m_mainStackFx->setOpacity(1.0);
+    m_mainStack->setGraphicsEffect(m_mainStackFx);
+    m_mainStackFade = new QPropertyAnimation(m_mainStackFx, "opacity", this);
+    m_mainStackFade->setDuration(180);
+    m_mainStackFade->setEasingCurve(QEasingCurve::InOutSine);
+
     // ---- Center stacked layout (bg layer + content layer)
     m_centerBg = new QWidget;
     m_centerBg->setObjectName("ComposerCenterBg");
@@ -1168,30 +1178,35 @@ void PromptComposerPage::applyTagFilter()
 
 void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
 {
-    const bool freeze = m_freezeNextRebuild;
+    const bool fade = m_freezeNextRebuild;
     m_freezeNextRebuild = false;
-    if (freeze) setUpdatesEnabled(false);
 
-    // Freeze will redraw and flicker but should be fine for large redraws
-    if (freeze) {
-        while (m_groupsLayout->count() > 0) {
-            QLayoutItem* item = m_groupsLayout->takeAt(0);
-            delete item->widget();
-            delete item;
-        }
+    if (!fade) {
+        applyGroupsRebuild(flat);
+        return;
     }
-    else { // Do not flicker for small incremental layout changes
-        while (m_groupsLayout->count() > 0) {
-            QLayoutItem* item = m_groupsLayout->takeAt(0);
-            if (QWidget* w = item->widget()) w->deleteLater();
-            delete item;
-        }
+
+    // Snap to invisible, swap content while hidden, then animate back in.
+    if (m_mainStackFade->state() == QAbstractAnimation::Running)
+        m_mainStackFade->stop();
+    m_mainStackFx->setOpacity(0.0);
+    applyGroupsRebuild(flat);
+    m_mainStackFade->setStartValue(0.0);
+    m_mainStackFade->setEndValue(1.0);
+    m_mainStackFade->start();
+}
+
+void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)
+{
+    while (m_groupsLayout->count() > 0) {
+        QLayoutItem* item = m_groupsLayout->takeAt(0);
+        if (QWidget* w = item->widget()) w->deleteLater();
+        delete item;
     }
 
     m_groupHeaders.clear();
 
     if (flat.isEmpty()) {
-        if (freeze) setUpdatesEnabled(true);
         m_mainStack->setCurrentIndex(0);
         if (m_categoryNav) static_cast<CategoryNavPanel*>(m_categoryNav)->updateCategories({});
         return;
@@ -1224,8 +1239,6 @@ void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
     if (!deactivated.isEmpty()) addSection("Deactivated", deactivated, navNames);
 
     m_groupsLayout->addStretch();
-
-    if (freeze) setUpdatesEnabled(true);
 
     if (m_categoryNav) static_cast<CategoryNavPanel*>(m_categoryNav)->updateCategories(navNames);
 }

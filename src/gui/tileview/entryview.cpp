@@ -437,8 +437,21 @@ void EntryView::scrollToEntry(int idx)
     const qreal tileTop = PadV + row * static_cast<qreal>(TileH + Spacing);
     const qreal centered = tileTop - (height() - TileH) / 2.0;
     const int maxScroll = std::max(0, m_totalH - height());
-    m_scrollYTarget = std::clamp(centered, 0.0, static_cast<qreal>(maxScroll));
-    if (!m_animTimer->isActive()) m_animTimer->start();
+    const qreal target = std::clamp(centered, 0.0, static_cast<qreal>(maxScroll));
+
+    // Snap when the target is more than a viewport away. Animating huge jumps
+    // wastes thread-pool decodes on tiles that flash by in one frame and pushes
+    // useful tiles out of m_pixCache; near-jumps still animate smoothly.
+    if (std::abs(target - m_scrollYActual) > height()) {
+        m_scrollYActual = target;
+        m_scrollYTarget = target;
+        update();
+    }
+    else {
+        m_scrollYTarget = target;
+        if (!m_animTimer->isActive()) m_animTimer->start();
+    }
+
     m_selectedEntryId = m_entries[idx]->id;
     emit entryClicked(m_entries[idx]);
 }

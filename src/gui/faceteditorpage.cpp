@@ -441,6 +441,16 @@ void FacetEditorPage::selectTagByName(const QString& tag)
 {
     if (tag.isEmpty()) return;
     m_searchEdit->clear();
+    refreshUndefinedList();
+    if (m_undefinedList->isVisible()) {
+        const auto undefItems = m_undefinedList->findItems(tag, Qt::MatchExactly);
+        if (!undefItems.isEmpty()) {
+            m_undefinedList->setCurrentItem(undefItems.first());
+            m_undefinedList->scrollToItem(undefItems.first());
+            focusFirstPill();
+            return;
+        }
+    }
 
     const auto items = m_tagList->findItems(tag, Qt::MatchExactly);
     if (!items.isEmpty()) {
@@ -457,6 +467,7 @@ void FacetEditorPage::selectTagByName(const QString& tag)
         m_tagList->setCurrentItem(item);
         m_tagList->scrollToItem(item);
     }
+    focusFirstPill();
 }
 
 // ---- Private

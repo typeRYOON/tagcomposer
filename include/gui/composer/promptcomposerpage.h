@@ -118,6 +118,10 @@ protected:
 
 private:
     void rebuildGroupsDisplay(const QList<core::PipelineTag>& flat);
+    // Performs the actual layout swap for a flat tag list. Split from
+    // rebuildGroupsDisplay so it can run synchronously OR from the fade-out
+    // finished handler, with the same end result either way.
+    void applyGroupsRebuild(const QList<core::PipelineTag>& flat);
     void fadePreviewInset(qreal target);
     void applyTagFilter();
     void rebuildRulesSidebar();
@@ -237,7 +241,14 @@ private:
     core::StateManager m_stateManager;
     QString m_statesDir;
     bool m_suppressRuleSave = false;
+    // When set, the next rebuildGroupsDisplay swaps content behind a fade
+    // animation instead of doing it in-place. Cleared by rebuildGroupsDisplay.
     bool m_freezeNextRebuild = false;
+
+    // Fade animation that hides the rebuild flicker. Effect is attached to
+    // m_mainStack so the search bar above it stays interactive throughout.
+    QGraphicsOpacityEffect* m_mainStackFx = nullptr;
+    QPropertyAnimation* m_mainStackFade = nullptr;
 
     // UI - rule sidebar
     QWidget* m_rulesContainer;

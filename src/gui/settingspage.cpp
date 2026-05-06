@@ -409,22 +409,22 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
 
     m_quickCharFacet = new QLineEdit;
     m_quickCharFacet->setObjectName("SettingsInput");
-    m_quickCharFacet->setPlaceholderText("rcharacter");
+    m_quickCharFacet->setPlaceholderText("rCharacter");
     m_quickCharFacet->setText(settings->quickCharacterFacet);
 
     m_quickCopyFacet = new QLineEdit;
     m_quickCopyFacet->setObjectName("SettingsInput");
-    m_quickCopyFacet->setPlaceholderText("rcopyright");
+    m_quickCopyFacet->setPlaceholderText("rCopyright");
     m_quickCopyFacet->setText(settings->quickCopyrightFacet);
 
     m_quickTriggerFacet = new QLineEdit;
     m_quickTriggerFacet->setObjectName("SettingsInput");
-    m_quickTriggerFacet->setPlaceholderText("rtrigger_word");
+    m_quickTriggerFacet->setPlaceholderText("rTriggerWord");
     m_quickTriggerFacet->setText(settings->quickTriggerWordFacet);
 
     m_quickStyleFacet = new QLineEdit;
     m_quickStyleFacet->setObjectName("SettingsInput");
-    m_quickStyleFacet->setPlaceholderText("rstyle");
+    m_quickStyleFacet->setPlaceholderText("rStyle");
     m_quickStyleFacet->setText(settings->quickStyleFacet);
 
     auto* facetsHint =
@@ -444,7 +444,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
 
     auto* purgeHint =
         new QLabel("Drop tag definitions that have zero facets, or that aren't in the Danbooru "
-                   "list and aren't used by any entry. Removed entries won't be written to "
+                   "list and aren't used by any entry. Or strip facet entries whose name isn't "
+                   "in facets.fct (case-sensitive). Removed entries won't be written to "
                    "tag_definitions.fct on shutdown.");
     purgeHint->setObjectName("SettingsHintLabel");
     purgeHint->setWordWrap(true);
@@ -453,9 +454,15 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     purgeBtn->setObjectName("SettingsLaunchBtn");
     purgeBtn->setCursor(Qt::PointingHandCursor);
 
+    auto* purgeUnknownBtn = new QPushButton("Purge unknown facets");
+    purgeUnknownBtn->setObjectName("SettingsLaunchBtn");
+    purgeUnknownBtn->setCursor(Qt::PointingHandCursor);
+
     auto* purgeRow = new QHBoxLayout;
     purgeRow->setContentsMargins(0, 0, 0, 0);
+    purgeRow->setSpacing(8);
     purgeRow->addWidget(purgeBtn);
+    purgeRow->addWidget(purgeUnknownBtn);
     purgeRow->addStretch();
 
     facetsLayout->addWidget(purgeHint, 5, 1);
@@ -493,6 +500,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     facetsLayout->addLayout(systemFilesRow, 8, 1);
 
     connect(purgeBtn, &QPushButton::clicked, this, &SettingsPage::purgeTagDefinitionsRequested);
+    connect(purgeUnknownBtn, &QPushButton::clicked, this,
+            &SettingsPage::purgeUnknownFacetsRequested);
     connect(openDanbooruBtn, &QPushButton::clicked, this, []() {
         utils::openSystemFile(utils::BASE_PATH + "/" + utils::DANBOORU_CSV_PATH,
                               QByteArrayLiteral("tag,category,count,wrong\n"));

@@ -69,6 +69,11 @@ private:
     // by every entry. In-memory only - persists at next saveDefinitions().
     void purgeTagDefinitions();
 
+    // Strip facet entries from tag definitions whose name isn't in the
+    // current facets.fct schema (case-sensitive). Catches leftovers from
+    // hand-edited tag_definitions.fct or renamed quick-facet settings.
+    void purgeUnknownFacets();
+
     // Heal each LoRA's (rootKey, relPath) against the current dirs and
     // mirror changes back to the source entry (matched by sha256).
     void healLoraStackInPlace(QList<core::LoraConfig>& stack);

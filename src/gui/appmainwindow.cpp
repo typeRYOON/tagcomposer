@@ -317,6 +317,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     connect(m_settingsPage, &SettingsPage::purgeTagDefinitionsRequested, this,
             &AppMainWindow::purgeTagDefinitions);
+    connect(m_settingsPage, &SettingsPage::purgeUnknownFacetsRequested, this,
+            &AppMainWindow::purgeUnknownFacets);
 
     connect(m_comfyClient, &core::ComfyUiClient::connected, this,
             [this]() { m_settingsPage->setComfyStatus(true); });
@@ -855,6 +857,68 @@ void AppMainWindow::purgeTagDefinitions()
 
     if (m_statusBar)
         m_statusBar->showMessage(QString("Purged %1 tag definition(s).").arg(victims.size()));
+}
+
+void AppMainWindow::purgeUnknownFacets()
+{
+    const QSet<QString> known(m_facetIndex.allFacets().cbegin(), m_facetIndex.allFacets().cend());
+
+    QHash<QString, QList<QString>> survivors;     // tag -> facet list after stripping
+    QSet<QString> offenders;                      // distinct unknown facet names
+    int strippedFacets = 0;
+    int affectedTags = 0;
+    for (const QString& tag : m_facetIndex.allDefinedTags()) {
+        const QList<QString> current = m_facetIndex.facetsFor(tag);
+        QList<QString> kept;
+        kept.reserve(current.size());
+        for (const QString& f : current) {
+            if (known.contains(f))
+                kept << f;
+            else {
+                offenders.insert(f);
+                ++strippedFacets;
+            }
+        }
+        if (kept.size() != current.size()) {
+            survivors.insert(tag, kept);
+            ++affectedTags;
+        }
+    }
+
+    if (strippedFacets == 0) {
+        if (m_statusBar) m_statusBar->showMessage("No unknown facets to purge.");
+        return;
+    }
+
+    QStringList offenderList(offenders.cbegin(), offenders.cend());
+    std::sort(offenderList.begin(), offenderList.end());
+    // Cap the preview so a flood of typos doesn't blow up the dialog.
+    const int previewCap = 12;
+    QString preview = offenderList.mid(0, previewCap).join(", ");
+    if (offenderList.size() > previewCap)
+        preview += QString(", +%1 more").arg(offenderList.size() - previewCap);
+
+    const bool confirmed = ChromedDialog::confirm(
+        this, "Purge unknown facets",
+        QString("Strip %1 facet entr%2 (%3 distinct name(s): %4) from %5 tag definition(s)?\n\n"
+                "The change applies in memory and persists at the next save.")
+            .arg(strippedFacets)
+            .arg(strippedFacets == 1 ? "y" : "ies")
+            .arg(offenderList.size())
+            .arg(preview)
+            .arg(affectedTags),
+        "Purge", "Cancel");
+    if (!confirmed) return;
+
+    for (auto it = survivors.cbegin(); it != survivors.cend(); ++it)
+        m_facetIndex.setDefinition(it.key(), it.value());
+    reloadFacets();
+
+    if (m_statusBar)
+        m_statusBar->showMessage(QString("Stripped %1 unknown facet entr%2 from %3 tag(s).")
+                                     .arg(strippedFacets)
+                                     .arg(strippedFacets == 1 ? "y" : "ies")
+                                     .arg(affectedTags));
 }
 
 void AppMainWindow::keyPressEvent(QKeyEvent* event)

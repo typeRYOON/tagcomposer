@@ -29,6 +29,7 @@ signals:
     void importEntriesRequested();
     void clearUnusedInputsRequested();
     void purgeTagDefinitionsRequested();
+    void purgeUnknownFacetsRequested();
 
 private:
     void onComfyToggled(bool enabled);
