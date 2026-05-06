@@ -126,8 +126,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_pages->addWidget(m_homePage);         // Page::Home
     m_pages->addWidget(m_tileViewPage);     // Page::EntryViewer
     m_pages->addWidget(m_composerPage);     // Page::TagComposer
-    m_pages->addWidget(m_facetEditorPage);  // Page::FacetEditor
     m_pages->addWidget(m_workflowEditPage); // Page::WorkflowEditor
+    m_pages->addWidget(m_facetEditorPage);  // Page::FacetEditor
     m_pages->addWidget(m_outputViewerPage); // Page::OutputViewer
     m_taggerLibrary = std::make_unique<core::AutoTaggerLibrary>(BASE_PATH + "/" + MODELS_DIR);
     if (m_settings.activeAutoTagModel.isEmpty()) {
@@ -227,7 +227,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     // ---- Facet editor navigation
     auto showFacetEditor = [this](const QString& tag) {
-        m_pages->setCurrentIndex(3);
+        m_pages->setCurrentIndex(int(Page::FacetEditor));
         m_facetEditorPage->selectTagByName(tag);
     };
     connect(m_tileViewPage, &TileViewPage::facetEditorRequested, this, showFacetEditor);

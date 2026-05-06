@@ -987,6 +987,24 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
     m_rootLayout->addWidget(m_headerWidget);
     m_rootLayout->addWidget(m_tagsWidget, 1);
 
+    m_fadeOverlay = new QLabel(m_contentWidget);
+    m_fadeOverlay->setObjectName("EntryPanelFadeOverlay");
+    m_fadeOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_fadeOverlay->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    m_fadeOverlay->hide();
+    m_fadeOverlayFx = new QGraphicsOpacityEffect(m_fadeOverlay);
+    m_fadeOverlayFx->setOpacity(0.0);
+    m_fadeOverlay->setGraphicsEffect(m_fadeOverlayFx);
+    m_fadeOverlayAnim = new QPropertyAnimation(m_fadeOverlayFx, "opacity", this);
+    m_fadeOverlayAnim->setDuration(180);
+    m_fadeOverlayAnim->setEasingCurve(QEasingCurve::InOutSine);
+    connect(m_fadeOverlayAnim, &QPropertyAnimation::finished, this, [this]() {
+        if (m_fadeOverlayAnim->endValue().toReal() < 0.05) {
+            m_fadeOverlay->hide();
+            m_fadeOverlay->clear();
+        }
+    });
+
     // ---- Empty state
     auto* emptyLabel = new QLabel("Select an entry\nto view details", this);
     emptyLabel->setObjectName("EntryEmptyLabel");
@@ -1077,6 +1095,29 @@ void EntryPanel::setQuickFacets(const QString& characterFacet, const QString& co
 }
 
 void EntryPanel::setEntry(core::Entry* entry)
+{
+    // Snapshot the current content so it can be faded out on top of the new one.
+    const bool crossfade = (entry != nullptr && m_entry != nullptr && entry != m_entry &&
+                            m_stack->currentIndex() == 1 && m_fadeOverlay);
+    QPixmap snapshot;
+    if (crossfade) snapshot = m_contentWidget->grab();
+
+    applyEntry(entry);
+
+    if (crossfade && !snapshot.isNull()) {
+        m_fadeOverlay->setPixmap(snapshot);
+        m_fadeOverlay->setGeometry(0, 0, m_contentWidget->width(), m_contentWidget->height());
+        m_fadeOverlay->raise();
+        m_fadeOverlay->show();
+        m_fadeOverlayAnim->stop();
+        m_fadeOverlayFx->setOpacity(1.0);
+        m_fadeOverlayAnim->setStartValue(1.0);
+        m_fadeOverlayAnim->setEndValue(0.0);
+        m_fadeOverlayAnim->start();
+    }
+}
+
+void EntryPanel::applyEntry(core::Entry* entry)
 {
     m_entry = entry;
     if (!entry) {

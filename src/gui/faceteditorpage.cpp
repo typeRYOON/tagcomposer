@@ -421,6 +421,13 @@ void FacetEditorPage::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
     refreshUndefinedList();
+
+    // Auto-select the first undefined-in-composer tag so the user lands on
+    // something editable. Same UX as the right-click "Edit facets" entry.
+    if (m_undefinedList->isVisible() && m_undefinedList->count() > 0) {
+        m_undefinedList->setCurrentRow(0); // fires currentTextChanged -> selectTag
+        focusFirstPill();
+    }
 }
 
 void FacetEditorPage::applyListFilter(const QString& query)

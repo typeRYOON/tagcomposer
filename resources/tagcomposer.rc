@@ -22,7 +22,7 @@ BEGIN
             VALUE "FileDescription",  "TagComposer - prompt builder for ComfyUI"
             VALUE "FileVersion",      "0.1.0.0"
             VALUE "InternalName",     "tagcomposer"
-            VALUE "LegalCopyright",   "Copyright (C) 2026 Ryan Magdaleno. Distributed under GPL v3."
+            VALUE "LegalCopyright",   "Copyright (C) 2026 Ryan Magdaleno. Distributed under AGPL v3."
             VALUE "OriginalFilename", "tagcomposer.exe"
             VALUE "ProductName",      "TagComposer"
             VALUE "ProductVersion",   "0.1.0.0"

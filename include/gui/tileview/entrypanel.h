@@ -68,6 +68,8 @@ private:
     void refreshLoraSection();
     QWidget* createTagRow(const QString& tag);
     void addTagRowToList(const QString& tag);
+    // Synchronous content swap; setEntry wraps this with a fade transition.
+    void applyEntry(core::Entry* entry);
 
     core::EntryModel* m_model;
     core::DanbooruIndex* m_danbooruIndex = nullptr;
@@ -121,6 +123,14 @@ private:
     bool m_fadeNextTagRebuild = false;
     QGraphicsOpacityEffect* m_tagListFx = nullptr;
     QPropertyAnimation* m_tagListFade = nullptr;
+
+    // Whole-panel crossfade between entries: snapshot of the previous entry
+    // sits on top and fades out, revealing the new content underneath. This
+    // avoids stacking a QGraphicsOpacityEffect on a parent of a QScrollArea,
+    // which leaves children mis-laid-out until a hover repaint.
+    QLabel* m_fadeOverlay = nullptr;
+    QGraphicsOpacityEffect* m_fadeOverlayFx = nullptr;
+    QPropertyAnimation* m_fadeOverlayAnim = nullptr;
 
     // LoRA section
     QWidget* m_loraSection = nullptr;

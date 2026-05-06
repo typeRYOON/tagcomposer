@@ -105,8 +105,8 @@ NavBar::NavBar(QWidget* tooltipParent, QWidget* parent) : QWidget(parent)
     addButton(Page::Home, "Home", ":/icons/nav_home.png")->setChecked(true);
     addButton(Page::EntryViewer, "Entry Viewer", ":/icons/nav_tiles.png");
     addButton(Page::TagComposer, "Tag Composer", ":/icons/nav_composer.png");
-    addButton(Page::FacetEditor, "Facet Editor", ":/icons/nav_facets.png");
     addButton(Page::WorkflowEditor, "Workflow Editor", ":/icons/nav_workflow.png");
+    addButton(Page::FacetEditor, "Facet Editor", ":/icons/nav_facets.png");
     addButton(Page::OutputViewer, "Output Viewer", ":/icons/nav_output.png");
     addButton(Page::DatasetHelpers, "Dataset Helpers", ":/icons/nav_dataset.png");
     addButton(Page::DanbooruWiki, "Danbooru Wiki", ":/icons/nav_wiki.png");
