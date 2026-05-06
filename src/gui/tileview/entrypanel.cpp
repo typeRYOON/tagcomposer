@@ -43,6 +43,37 @@ using namespace utils;
 
 namespace {
 
+void slideInRow(QWidget* row)
+{
+    row->setMaximumHeight(0);
+    // Defer one tick so the layout has computed sizeHint by the time we read it.
+    QTimer::singleShot(0, row, [row]() {
+        const int target = std::max(1, row->sizeHint().height());
+        auto* anim = new QPropertyAnimation(row, "maximumHeight", row);
+        anim->setDuration(300);
+        anim->setEasingCurve(QEasingCurve::InOutSine);
+        anim->setStartValue(0);
+        anim->setEndValue(target);
+        // Release the cap when done so later resizes/restyles aren't pinned.
+        QObject::connect(anim, &QPropertyAnimation::finished, row,
+                         [row]() { row->setMaximumHeight(QWIDGETSIZE_MAX); });
+        anim->start(QAbstractAnimation::DeleteWhenStopped);
+    });
+}
+
+// Disable first so a second click on the × can't re-fire entryTagRemoved.
+void slideOutAndDelete(QWidget* row)
+{
+    row->setEnabled(false);
+    auto* anim = new QPropertyAnimation(row, "maximumHeight", row);
+    anim->setDuration(300);
+    anim->setEasingCurve(QEasingCurve::InOutSine);
+    anim->setStartValue(row->height());
+    anim->setEndValue(0);
+    QObject::connect(anim, &QPropertyAnimation::finished, row, &QObject::deleteLater);
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
 class LoraDropZone : public QLabel {
 public:
     std::function<void(const QString&)> onFileDropped;
@@ -925,6 +956,13 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
     m_tagListLayout->setSpacing(1);
     m_tagListLayout->addStretch();
 
+    m_tagListFx = new QGraphicsOpacityEffect(m_tagListContainer);
+    m_tagListFx->setOpacity(1.0);
+    m_tagListContainer->setGraphicsEffect(m_tagListFx);
+    m_tagListFade = new QPropertyAnimation(m_tagListFx, "opacity", this);
+    m_tagListFade->setDuration(500);
+    m_tagListFade->setEasingCurve(QEasingCurve::InOutSine);
+
     m_tagScroll = new QScrollArea;
     m_tagScroll->setObjectName("EntryTagScroll");
     m_tagScroll->setWidget(m_tagListContainer);
@@ -1110,6 +1148,13 @@ void EntryPanel::loadImagePage(int idx)
 
 void EntryPanel::rebuildTagList()
 {
+    const bool fade = m_fadeNextTagRebuild;
+    m_fadeNextTagRebuild = false;
+    if (fade && m_tagListFade) {
+        if (m_tagListFade->state() == QAbstractAnimation::Running) m_tagListFade->stop();
+        m_tagListFx->setOpacity(0.0);
+    }
+
     while (m_tagListLayout->count() > 0) {
         QLayoutItem* item = m_tagListLayout->takeAt(0);
         if (QWidget* w = item->widget()) delete w;
@@ -1120,6 +1165,11 @@ void EntryPanel::rebuildTagList()
     if (!m_entry || m_imageIdx >= m_entry->images.size()) {
         m_tagListLayout->addStretch();
         updateExtraBtnState();
+        if (fade && m_tagListFade) {
+            m_tagListFade->setStartValue(0.0);
+            m_tagListFade->setEndValue(1.0);
+            m_tagListFade->start();
+        }
         return;
     }
 
@@ -1130,6 +1180,12 @@ void EntryPanel::rebuildTagList()
     }
     m_tagListLayout->addStretch();
     updateExtraBtnState();
+
+    if (fade && m_tagListFade) {
+        m_tagListFade->setStartValue(0.0);
+        m_tagListFade->setEndValue(1.0);
+        m_tagListFade->start();
+    }
 }
 
 void EntryPanel::updateExtraBtnState()
@@ -1221,16 +1277,12 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
     connect(del, &QPushButton::clicked, this, [this, row]() {
         const QString t = row->property("_tag").toString();
         m_activeTags.remove(t);
-        row->deleteLater();
+        slideOutAndDelete(row);
         if (m_entry) emit entryTagRemoved(m_entry->id, m_imageIdx, t);
         updateExtraBtnState();
     });
     rl->addWidget(del);
 
-    // Install the context menu on both the row and the inner line edit. The
-    // QLineEdit would otherwise eat the right-click and show its own
-    // cut/copy/paste menu, so the user has to aim at the small dot to get
-    // ours - which is what they reported.
     auto showRowMenu = [this, row]() {
         const QString t = row->property("_tag").toString();
         QMenu menu;
@@ -1267,11 +1319,12 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
         }
         else if (chosen == deleteAct) {
             m_activeTags.remove(t);
-            row->deleteLater();
+            slideOutAndDelete(row);
             if (m_entry) emit entryTagRemoved(m_entry->id, m_imageIdx, t);
             updateExtraBtnState();
         }
         else if (chosen && quickFacetActs.contains(chosen)) {
+            m_fadeNextTagRebuild = true;
             emit quickFacetRequested(t, quickFacetActs.value(chosen));
         }
     };
@@ -1291,7 +1344,9 @@ void EntryPanel::addTagRowToList(const QString& tag)
 {
     // Insert before the trailing stretch
     const int pos = std::max(0, m_tagListLayout->count() - 1);
-    m_tagListLayout->insertWidget(pos, createTagRow(tag));
+    QWidget* row = createTagRow(tag);
+    m_tagListLayout->insertWidget(pos, row);
+    slideInRow(row);
 }
 
 void EntryPanel::refreshLoraSection()

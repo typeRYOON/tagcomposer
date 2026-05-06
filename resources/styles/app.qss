@@ -134,6 +134,37 @@ QDialog QCheckBox::indicator:checked {
     border-color: #5a8a5a;
 }
 
+/* ── Context menus ────────────────────────────────────────────────────────── */
+/* App-wide QMenu styling. ::item:selected covers both mouse-hover and
+   keyboard navigation, so the same lighter shade lights up either way. */
+
+QMenu {
+    background: #0f0f0f;
+    color: #cccccc;
+    border: 1px solid #222222;
+    padding: 4px 0;
+}
+
+QMenu::item {
+    background: transparent;
+    padding: 6px 18px;
+}
+
+QMenu::item:selected {
+    background: #1a1a1a;
+    color: #ffffff;
+}
+
+QMenu::item:disabled {
+    color: #555555;
+}
+
+QMenu::separator {
+    height: 1px;
+    background: #1a1a1a;
+    margin: 4px 8px;
+}
+
 /* ── Shared widget patterns ───────────────────────────────────────────────── */
 /* Keyed by objectName so per-page rules (loaded later) can override. */
 

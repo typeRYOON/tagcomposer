@@ -22,6 +22,8 @@ class FacetIndex;
 #include <QSet>
 #include <QMap>
 #include <QTimer>
+#include <QGraphicsOpacityEffect>
+#include <QPropertyAnimation>
 
 namespace gui {
 
@@ -112,6 +114,13 @@ private:
     QScrollArea* m_tagScroll;
     QWidget* m_tagListContainer;
     QVBoxLayout* m_tagListLayout;
+
+    // Hides the rebuild flicker when the tag list is rebuilt as a side effect
+    // of a quick-add (facet write -> reloadFacets -> refreshTags). One-shot:
+    // rebuildTagList consumes the flag.
+    bool m_fadeNextTagRebuild = false;
+    QGraphicsOpacityEffect* m_tagListFx = nullptr;
+    QPropertyAnimation* m_tagListFade = nullptr;
 
     // LoRA section
     QWidget* m_loraSection = nullptr;
