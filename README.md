@@ -59,6 +59,9 @@ It is a personal tool first. The pipeline, the workflow editor, and the batch ru
 > [!NOTE]
 > **Other backends work for the tag and LoRA side.** Only prompt queueing and live previews are ComfyUI-specific; the entry library, tag and LoRA management, rule pipeline, and composer are all backend-agnostic. The composer has a "copy prompt" button, so you can build prompts in TagComposer and paste into Forge, Auto1111, SwarmUI, or anywhere else.
 
+> [!NOTE]
+> **Not just image generation.** The workflow JSON is whatever you put in it — TagComposer just fills `__PLACEHOLDER__` tokens and queues the result. Upscaling pipelines, ControlNet runs, video / animation workflows, mask-only previews, latent-only experiments, anything ComfyUI itself can run will work. The composer is tag-shaped, but `__positive__` is just one variable among many; wire it (or skip it) however your workflow needs.
+
 <p align="right"><sub>[ <a href="#readme-top">back to top</a> ]</sub></p>
 
 ---
