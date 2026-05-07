@@ -132,6 +132,12 @@ private:
     QGraphicsOpacityEffect* m_fadeOverlayFx = nullptr;
     QPropertyAnimation* m_fadeOverlayAnim = nullptr;
 
+    // Image-only crossfade for prev/next page within an entry. Parented to
+    // m_imageDrop so geometry tracks resizes / orientation flips.
+    QLabel* m_imageFadeOverlay = nullptr;
+    QGraphicsOpacityEffect* m_imageFadeOverlayFx = nullptr;
+    QPropertyAnimation* m_imageFadeOverlayAnim = nullptr;
+
     // LoRA section
     QWidget* m_loraSection = nullptr;
     QLabel* m_loraFileLabel = nullptr;

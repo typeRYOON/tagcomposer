@@ -96,6 +96,10 @@ public slots:
     void setTempFolder(const QString& folder);
     void setActiveLoraUuids(const QList<QString>& uuids);
     void repush();
+    // Posts a single queued repush per event-loop pass. Multiple callers in
+    // the same pass (e.g. pasting a comma-separated tag list that fires
+    // entryTagAdded once per tag) collapse into one pipeline run.
+    void queueRepush();
 
 signals:
     void activeGroupsChanged(QMap<int, QList<int>> activeGroups);
@@ -198,6 +202,7 @@ private:
     QString m_quickStyleFacet;
 
     QString m_filterQuery;
+    bool m_repushPending = false;
     QList<QString> m_activeLoraUuids;
     QList<QString> m_activeTags;
     QSet<QString> m_activeTagSet;

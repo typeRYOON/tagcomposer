@@ -227,14 +227,18 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     m_filterEdit = new QPlainTextEdit(filterBody);
     m_filterEdit->setObjectName("DatasetExcludeEdit");
     m_filterEdit->setPlaceholderText("One rule per line - comma-separated facet names (AND).\n"
-                                     "Multiple lines = OR.\n\n"
+                                     "Multiple lines = OR. Prefix with - to negate.\n\n"
                                      "Example (whitelist):\n"
                                      "  eye, color >> (red eyes, blue eyes, ...)\n"
                                      "  hair, hairstyle >> (twintails, hair between eyes, ...)\n"
-                                     "  hair, accessory >> (hair bow, ...)");
+                                     "  hair, accessory >> (hair bow, ...)\n"
+                                     "  -meta, -nsfw >> (always drop tags with these facets)");
     m_filterEdit->setToolTip("Each line is a rule: every facet name listed (comma-separated)\n"
                              "must be present on the tag. Any rule matching = the tag matched\n"
-                             "the filter. Live-applied - no re-fetch needed.");
+                             "the filter. Live-applied - no re-fetch needed.\n\n"
+                             "Tokens prefixed with '-' are negations. They are evaluated first,\n"
+                             "regardless of mode: a tag carrying any negated facet is dropped\n"
+                             "before the positive rules run.");
     m_filterEdit->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_filterEdit->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
 
@@ -775,10 +779,19 @@ core::ClusterFilter TagClusterPage::buildFilterFromEditor() const
         const QString line = rawLine.trimmed();
         if (line.isEmpty() || line.startsWith('#')) continue;
 
-        QList<QString> facets;
-        for (const QString& tok : line.split(',', Qt::SkipEmptyParts))
-            if (const QString t = tok.trimmed(); !t.isEmpty()) facets << t;
-        if (!facets.isEmpty()) f.rules << facets;
+        QList<QString> positive;
+        for (const QString& tok : line.split(',', Qt::SkipEmptyParts)) {
+            const QString t = tok.trimmed();
+            if (t.isEmpty()) continue;
+            if (t.startsWith('-')) {
+                const QString name = t.mid(1).trimmed();
+                if (!name.isEmpty() && !f.negations.contains(name)) f.negations << name;
+            }
+            else {
+                positive << t;
+            }
+        }
+        if (!positive.isEmpty()) f.rules << positive;
     }
     return f;
 }
@@ -796,10 +809,16 @@ void TagClusterPage::loadFilters()
         m_blacklistRadio->setChecked(true);
 
     QStringList lines;
+    if (!f.negations.isEmpty()) {
+        QStringList prefixed;
+        for (const QString& n : f.negations) prefixed << ("-" + n);
+        lines << prefixed.join(", ");
+    }
     for (const QList<QString>& rule : f.rules)
         lines << rule.join(", ");
     m_filterEdit->setPlainText(lines.join('\n'));
-    m_filterStatusLbl->setText(QString("Loaded %1 rules.").arg(f.rules.size()));
+    m_filterStatusLbl->setText(
+        QString("Loaded %1 rule(s), %2 negation(s).").arg(f.rules.size()).arg(f.negations.size()));
 }
 
 void TagClusterPage::saveFilters()
@@ -809,7 +828,8 @@ void TagClusterPage::saveFilters()
 
     const core::ClusterFilter f = buildFilterFromEditor();
     f.saveToFile(path);
-    m_filterStatusLbl->setText(QString("Saved %1 rules.").arg(f.rules.size()));
+    m_filterStatusLbl->setText(
+        QString("Saved %1 rule(s), %2 negation(s).").arg(f.rules.size()).arg(f.negations.size()));
 }
 
 // ---- Global cache

@@ -10,6 +10,9 @@ namespace core {
 //   mode = blacklist | whitelist
 //   facetA                  (rule: must have facetA)
 //   facetA, facetB          (rule: must have both)
+//   -facetC                 (negation: always drop tags carrying facetC)
+//   -facetC, -facetD        (multiple negations on one line)
+//   facetA, -facetC         (mixed: positive AND-group plus negations)
 // Saving rewrites the whole file - comments don't survive a round-trip.
 
 static QList<QString> splitTrimmed(const QString& s, QChar sep)
@@ -41,8 +44,18 @@ ClusterFilter ClusterFilter::loadFromFile(const QString& path)
             continue;
         }
 
-        const QList<QString> facets = splitTrimmed(line, ',');
-        if (!facets.isEmpty()) f.rules << facets;
+        const QList<QString> tokens = splitTrimmed(line, ',');
+        QList<QString> positive;
+        for (const QString& tok : tokens) {
+            if (tok.startsWith('-')) {
+                const QString name = tok.mid(1).trimmed();
+                if (!name.isEmpty() && !f.negations.contains(name)) f.negations << name;
+            }
+            else {
+                positive << tok;
+            }
+        }
+        if (!positive.isEmpty()) f.rules << positive;
     }
     return f;
 }
@@ -54,6 +67,12 @@ void ClusterFilter::saveToFile(const QString& path) const
 
     QTextStream out(&file);
     out << "mode = " << (mode == Mode::Whitelist ? "whitelist" : "blacklist") << "\n\n";
+
+    if (!negations.isEmpty()) {
+        QStringList prefixed;
+        for (const QString& n : negations) prefixed << ("-" + n);
+        out << prefixed.join(", ") << "\n";
+    }
 
     for (const QList<QString>& rule : rules)
         out << rule.join(", ") << "\n";
@@ -79,6 +98,11 @@ bool ClusterFilter::matches(const QList<QString>& tagFacets) const
 
 bool ClusterFilter::keep(const QList<QString>& tagFacets) const
 {
+    if (!negations.isEmpty() && !tagFacets.isEmpty()) {
+        const QSet<QString> have(tagFacets.cbegin(), tagFacets.cend());
+        for (const QString& n : negations)
+            if (have.contains(n)) return false;
+    }
     const bool m = matches(tagFacets);
     return (mode == Mode::Whitelist) ? m : !m;
 }

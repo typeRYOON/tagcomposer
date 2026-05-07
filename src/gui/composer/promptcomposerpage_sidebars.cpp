@@ -149,7 +149,7 @@ void PromptComposerPage::reloadRules()
     emit statusMessageRequested(
         QString("Rules reloaded - %1 rule(s).").arg(m_rules->rules().size()));
     rebuildRulesSidebar();
-    QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+    queueRepush();
 }
 
 void PromptComposerPage::reloadVars()
@@ -161,7 +161,7 @@ void PromptComposerPage::reloadVars()
     emit statusMessageRequested(
         QString("Variables reloaded - %1 variable(s).").arg(m_varIndex->variables().size()));
     rebuildVarsSidebar();
-    QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+    queueRepush();
 }
 
 void PromptComposerPage::rebuildRulesSidebar()
@@ -204,7 +204,7 @@ void PromptComposerPage::rebuildRulesSidebar()
             connect(cb, &QCheckBox::toggled, this, [this, i](bool on) {
                 m_rules->rules()[i].enabled = on;
                 if (!m_suppressRuleSave) m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
-                QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+                queueRepush();
             });
             cbRowL->addWidget(cb);
 
@@ -255,8 +255,7 @@ void PromptComposerPage::rebuildRulesSidebar()
                             a[k] = t;
                         m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
                         rebuildRulesSidebar();
-                        QMetaObject::invokeMethod(this, &PromptComposerPage::repush,
-                                                  Qt::QueuedConnection);
+                        queueRepush();
                     });
 
                     auto* delBtn = new QPushButton("✕");
@@ -270,8 +269,7 @@ void PromptComposerPage::rebuildRulesSidebar()
                         a.removeAt(k);
                         m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
                         rebuildRulesSidebar();
-                        QMetaObject::invokeMethod(this, &PromptComposerPage::repush,
-                                                  Qt::QueuedConnection);
+                        queueRepush();
                     });
 
                     rl->addWidget(edit, 1);
@@ -289,8 +287,7 @@ void PromptComposerPage::rebuildRulesSidebar()
                     m_rules->rules()[i].action.arguments << t;
                     m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
                     rebuildRulesSidebar();
-                    QMetaObject::invokeMethod(this, &PromptComposerPage::repush,
-                                              Qt::QueuedConnection);
+                    queueRepush();
                 });
                 acl->addWidget(addEdit);
 
@@ -357,7 +354,7 @@ void PromptComposerPage::rebuildVarsSidebar()
     auto persistAndRepush = [this]() {
         m_varIndex->saveToFile(BASE_PATH + "/" + VARS_PATH);
         rebuildVarsSidebar();
-        QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+        queueRepush();
     };
 
     QList<Variable>& vars = m_varIndex->variables();
@@ -379,7 +376,7 @@ void PromptComposerPage::rebuildVarsSidebar()
             if (i >= m_varIndex->variables().size()) return;
             m_varIndex->variables()[i].value = edit->text().trimmed();
             m_varIndex->saveToFile(BASE_PATH + "/" + VARS_PATH);
-            QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+            queueRepush();
         });
 
         // Reuse the rules-arg delete button styling: dim glyph that

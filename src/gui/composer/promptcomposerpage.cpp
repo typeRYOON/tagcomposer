@@ -132,7 +132,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
             m_activeTags << tag;
             m_activeTagSet.insert(tag);
             m_freezeNextRebuild = true;
-            QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+            queueRepush();
         }
     });
 
@@ -1068,7 +1068,7 @@ void PromptComposerPage::onEntryTagAdded(int entryId, int imageIdx, const QStrin
         m_activeTagSet.insert(tag);
         if (!m_activePushes[key].contains(tag)) m_activePushes[key] << tag;
     }
-    QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+    queueRepush();
 }
 
 void PromptComposerPage::onEntryTagRemoved(int entryId, int imageIdx, const QString& tag)
@@ -1092,7 +1092,7 @@ void PromptComposerPage::onEntryTagRemoved(int entryId, int imageIdx, const QStr
         m_tagWeights.remove(tag);
         m_deactivatedTags.remove(tag);
     }
-    QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+    queueRepush();
 }
 
 void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
@@ -1142,11 +1142,19 @@ void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
 
 void PromptComposerPage::repush()
 {
+    m_repushPending = false;
     m_freezeNextRebuild = true;
     QList<QString> active;
     for (const QString& t : m_activeTags)
         if (!m_deactivatedTags.contains(t)) active << t;
     m_pipeline->push(active);
+}
+
+void PromptComposerPage::queueRepush()
+{
+    if (m_repushPending) return;
+    m_repushPending = true;
+    QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
 }
 
 void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGroups)
@@ -1335,7 +1343,7 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey, const QString
     m_deactivatedTags.remove(oldKey);
     renamePushTag(oldKey, collide ? QString() : newKey);
 
-    QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+    queueRepush();
 }
 
 QHash<QAction*, QString> PromptComposerPage::addQuickFacetActions(QMenu& menu) const
@@ -1423,7 +1431,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
             }
             renamePushTag(oldTag, collide ? QString() : newTag);
             tagEdit->setProperty("_tag", newTag);
-            QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+            queueRepush();
         });
     }
 
@@ -1503,7 +1511,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
             // wikiTag (the expanded form) here would orphan the entry.
             m_tagWeights.remove(activeKey);
             m_deactivatedTags.remove(activeKey);
-            QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+            queueRepush();
         };
 
         auto onToggleDeactivate = [this, activeKey]() {
@@ -1511,7 +1519,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                 m_deactivatedTags.remove(activeKey);
             else
                 m_deactivatedTags.insert(activeKey);
-            QMetaObject::invokeMethod(this, &PromptComposerPage::repush, Qt::QueuedConnection);
+            queueRepush();
         };
 
         auto* delBtn = new QPushButton("×", row);

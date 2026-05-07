@@ -122,6 +122,10 @@ private:
     QHash<QString, QPixmap> m_previewCache;
     QHash<QString, int> m_previewPostIds; // tag -> post id (for click-through)
     int m_previewPostId = -1;
+    // Bumped on every fetchPreview call. In-flight network chains capture
+    // this and bail when it changes, so re-clicking the same tag mid-chain
+    // can't end with two setPreviewPixmap calls (double fade).
+    quint64 m_previewGen = 0;
 };
 
 } // namespace gui

@@ -480,6 +480,25 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
 
     // ---- Image dropper
     m_imageDrop = new ImageDropper(this);
+
+    m_imageFadeOverlay = new QLabel(m_imageDrop);
+    m_imageFadeOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_imageFadeOverlay->setAlignment(Qt::AlignCenter);
+    m_imageFadeOverlay->setScaledContents(true);
+    m_imageFadeOverlay->hide();
+    m_imageFadeOverlayFx = new QGraphicsOpacityEffect(m_imageFadeOverlay);
+    m_imageFadeOverlayFx->setOpacity(0.0);
+    m_imageFadeOverlay->setGraphicsEffect(m_imageFadeOverlayFx);
+    m_imageFadeOverlayAnim = new QPropertyAnimation(m_imageFadeOverlayFx, "opacity", this);
+    m_imageFadeOverlayAnim->setDuration(180);
+    m_imageFadeOverlayAnim->setEasingCurve(QEasingCurve::InOutSine);
+    connect(m_imageFadeOverlayAnim, &QPropertyAnimation::finished, this, [this]() {
+        if (m_imageFadeOverlayAnim->endValue().toReal() < 0.05) {
+            m_imageFadeOverlay->hide();
+            m_imageFadeOverlay->clear();
+        }
+    });
+
     connect(m_imageDrop, &ImageDropper::imageDropped, this, [this](const QString& srcPath) {
         if (!m_entry) return;
 
@@ -533,8 +552,16 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
     m_composerBtn->setObjectName("EntryActionBtn");
     m_copyBtn->setObjectName("EntryActionBtn");
     m_deleteBtn->setObjectName("EntryActionBtnDelete");
-    connect(m_copyBtn, &QPushButton::clicked, this,
-            [this]() { QApplication::clipboard()->setText(m_activeTags.values().join(", ")); });
+    connect(m_copyBtn, &QPushButton::clicked, this, [this]() {
+        // Copy in the entry-file order (matches the tag list display); the
+        // m_activeTags set itself is unordered.
+        if (!m_entry || m_imageIdx < 0 || m_imageIdx >= m_entry->images.size()) {
+            QApplication::clipboard()->setText(QString());
+            return;
+        }
+        const QList<QString> ordered = m_model->getTags(m_entry->images[m_imageIdx].tagIds);
+        QApplication::clipboard()->setText(ordered.join(", "));
+    });
     connect(m_deleteBtn, &QPushButton::clicked, this, [this]() {
         if (!m_entry) return;
         m_model->deleteEntry(m_entry->id);
@@ -1208,6 +1235,14 @@ void EntryPanel::applyOrientation(bool portrait)
 
 void EntryPanel::loadImagePage(int idx)
 {
+    // Snapshot the current image so it can fade out over the new one. Skip
+    // when the dropper isn't laid out yet (initial setEntry takes the
+    // whole-panel crossfade instead).
+    QPixmap snapshot;
+    const bool fade = m_imageDrop && m_imageDrop->width() > 0 && m_imageDrop->height() > 0 &&
+                      m_imageFadeOverlay;
+    if (fade) snapshot = m_imageDrop->grab();
+
     m_imageIdx = idx;
     const QString path = resolveImagePath(m_entry, idx);
     if (QFile::exists(path))
@@ -1222,6 +1257,19 @@ void EntryPanel::loadImagePage(int idx)
     m_prevBtn->setEnabled(idx > 0);
     m_nextBtn->setEnabled(idx < total - 1);
 
+    if (fade && !snapshot.isNull()) {
+        m_imageFadeOverlay->setPixmap(snapshot);
+        m_imageFadeOverlay->setGeometry(0, 0, m_imageDrop->width(), m_imageDrop->height());
+        m_imageFadeOverlay->raise();
+        m_imageFadeOverlay->show();
+        m_imageFadeOverlayAnim->stop();
+        m_imageFadeOverlayFx->setOpacity(1.0);
+        m_imageFadeOverlayAnim->setStartValue(1.0);
+        m_imageFadeOverlayAnim->setEndValue(0.0);
+        m_imageFadeOverlayAnim->start();
+    }
+
+    m_fadeNextTagRebuild = fade;
     rebuildTagList();
 }
 

@@ -935,6 +935,7 @@ QPushButton* FacetEditorPage::neighborPill(QPushButton* current, int key) const
 void FacetEditorPage::fetchPreview(const QString& tag)
 {
     clearPreview();
+    const quint64 gen = ++m_previewGen;
 
     if (m_previewCache.contains(tag)) {
         m_previewPostId = m_previewPostIds.value(tag, -1);
@@ -958,8 +959,9 @@ void FacetEditorPage::fetchPreview(const QString& tag)
     req.setRawHeader("Accept", "application/json");
 
     auto* reply = m_nam->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, tag, reply]() {
+    connect(reply, &QNetworkReply::finished, this, [this, tag, reply, gen]() {
         reply->deleteLater();
+        if (gen != m_previewGen) return; // superseded by a newer fetchPreview
         if (tag != m_selectedTag) return; // user moved on
 
         if (reply->error() != QNetworkReply::NoError) {
@@ -991,9 +993,11 @@ void FacetEditorPage::fetchPostById(const QString& tag, int postId)
     req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
     req.setRawHeader("Accept", "application/json");
 
+    const quint64 gen = m_previewGen;
     auto* reply = m_nam->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, tag, postId, reply]() {
+    connect(reply, &QNetworkReply::finished, this, [this, tag, postId, reply, gen]() {
         reply->deleteLater();
+        if (gen != m_previewGen) return;
         if (tag != m_selectedTag) return;
 
         if (reply->error() != QNetworkReply::NoError) {
@@ -1031,9 +1035,11 @@ void FacetEditorPage::fetchFirstPostByTag(const QString& tag)
     req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
     req.setRawHeader("Accept", "application/json");
 
+    const quint64 gen = m_previewGen;
     auto* reply = m_nam->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, tag, reply]() {
+    connect(reply, &QNetworkReply::finished, this, [this, tag, reply, gen]() {
         reply->deleteLater();
+        if (gen != m_previewGen) return;
         if (tag != m_selectedTag) return;
 
         if (reply->error() != QNetworkReply::NoError) {
@@ -1066,9 +1072,11 @@ void FacetEditorPage::fetchPreviewImage(const QString& tag, const QString& image
     QNetworkRequest req((QUrl(imageUrl)));
     req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
 
+    const quint64 gen = m_previewGen;
     auto* reply = m_nam->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, tag, reply]() {
+    connect(reply, &QNetworkReply::finished, this, [this, tag, reply, gen]() {
         reply->deleteLater();
+        if (gen != m_previewGen) return;
         if (tag != m_selectedTag) return;
 
         if (reply->error() != QNetworkReply::NoError) {
