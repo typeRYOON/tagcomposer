@@ -66,8 +66,6 @@ public:
     // items: (display title, index into m_entries for scroll target)
     void updateEntries(const QList<QPair<QString, int>>& items)
     {
-        static qint64 c = 0;
-        qDebug() << c++;
         while (m_listLayout->count()) {
             auto* item = m_listLayout->takeAt(0);
             if (auto* w = item->widget()) w->deleteLater();
@@ -622,9 +620,13 @@ void EntryView::requestLoad(int entryIndex)
 
     if (e->images.isEmpty()) {
         const QImage composed = makeTileImage(m_emptyTileBg, e->title);
-        QMutexLocker lk(&m_cacheMutex);
-        m_pixCache.insert(entryIndex, new QPixmap(QPixmap::fromImage(composed)));
-        m_pending.remove(entryIndex);
+        {
+            QMutexLocker lk(&m_cacheMutex);
+            m_pixCache.insert(entryIndex, new QPixmap(QPixmap::fromImage(composed)));
+            m_pending.remove(entryIndex);
+        }
+        m_anims[entryIndex].fadeOpacity = 0.0;
+        if (!m_animTimer->isActive()) m_animTimer->start();
         update();
         return;
     }
@@ -648,9 +650,13 @@ void EntryView::requestLoad(int entryIndex)
                 [this, entryIndex, title, generation]() {
                     if (m_generation != generation) return;
                     const QImage composed = makeTileImage(m_emptyTileBg, title);
-                    QMutexLocker lk(&m_cacheMutex);
-                    m_pixCache.insert(entryIndex, new QPixmap(QPixmap::fromImage(composed)));
-                    m_pending.remove(entryIndex);
+                    {
+                        QMutexLocker lk(&m_cacheMutex);
+                        m_pixCache.insert(entryIndex, new QPixmap(QPixmap::fromImage(composed)));
+                        m_pending.remove(entryIndex);
+                    }
+                    m_anims[entryIndex].fadeOpacity = 0.0;
+                    if (!m_animTimer->isActive()) m_animTimer->start();
                     update();
                 },
                 Qt::QueuedConnection);
