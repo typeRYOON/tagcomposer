@@ -52,10 +52,15 @@ void PromptComposerPage::rebuildStatesList()
         return;
     }
 
-    for (const auto& state : states) {
+    const QString filter = m_statesFilter ? m_statesFilter->text().trimmed() : QString();
+    for (int i = 0; i < states.size(); ++i) {
+        const auto& state = states[i];
+        if (!filter.isEmpty() && !state.name.contains(filter, Qt::CaseInsensitive)) continue;
         const bool hasImg =
             !state.previewImagePath.isEmpty() && QFile::exists(state.previewImagePath);
         auto* item = new QListWidgetItem((hasImg ? "◆  " : "") + state.name);
+        // UserRole = model index; the visual row may differ when filtered.
+        item->setData(Qt::UserRole, i);
         m_statesList->addItem(item);
     }
 }
@@ -268,8 +273,19 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
             QString("Restored: %1  (%2)").arg(state.name, warnings.join(", ")));
 }
 
-void PromptComposerPage::showStatePreview(int row)
+void PromptComposerPage::showStatePreview(int listRow)
 {
+    QListWidgetItem* item = m_statesList ? m_statesList->item(listRow) : nullptr;
+    if (!item) {
+        hideStatePreview();
+        return;
+    }
+    const QVariant v = item->data(Qt::UserRole);
+    if (!v.isValid()) {
+        hideStatePreview();
+        return;
+    }
+    const int row = v.toInt();
     if (row < 0 || row >= m_stateManager.states().size()) {
         hideStatePreview();
         return;
@@ -289,7 +305,7 @@ void PromptComposerPage::showStatePreview(int row)
     m_statesPreviewPopup->setPixmap(pix);
     m_statesPreviewPopup->adjustSize();
 
-    const QRect itemRect = m_statesList->visualRect(m_statesList->model()->index(row, 0));
+    const QRect itemRect = m_statesList->visualRect(m_statesList->model()->index(listRow, 0));
     const QPoint globalTopLeft = m_statesList->viewport()->mapToGlobal(itemRect.topLeft());
     int x = globalTopLeft.x() - m_statesPreviewPopup->width() - 8;
     int y = globalTopLeft.y();

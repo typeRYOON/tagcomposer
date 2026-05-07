@@ -1,8 +1,10 @@
 #include <gui/exportdialog.h>
+#include <core/danbooruindex.h>
 #include <core/entrymodel.h>
 #include <core/facetindex.h>
 #include <core/portmanager.h>
 #include <gui/widgets/appscrollbar.h>
+#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QHBoxLayout>
@@ -15,8 +17,9 @@
 
 namespace gui {
 
-ExportDialog::ExportDialog(core::EntryModel* model, const core::FacetIndex* facets, QWidget* parent)
-    : ChromedDialog(parent), m_model(model), m_facets(facets)
+ExportDialog::ExportDialog(core::EntryModel* model, const core::FacetIndex* facets,
+                           const core::DanbooruIndex* danbooru, QWidget* parent)
+    : ChromedDialog(parent), m_model(model), m_facets(facets), m_danbooru(danbooru)
 {
     setWindowTitle("Export Entries");
     setMinimumSize(720, 520);
@@ -46,6 +49,20 @@ ExportDialog::ExportDialog(core::EntryModel* model, const core::FacetIndex* face
     m_preview->setSelectionMode(QAbstractItemView::NoSelection);
     m_preview->setFocusPolicy(Qt::NoFocus);
     root->addWidget(m_preview, 1);
+
+    m_includeUnusedDefs = new QCheckBox(
+        "Include tag definitions not used by any entry (danbooru-known only)");
+    m_includeUnusedDefs->setToolTip(
+        "Also export tag definitions from tag_definitions.fct for tags that aren't\n"
+        "used by ANY entry (matched or not), as long as the tag exists in the\n"
+        "danbooru list. Useful for composition tags (e.g. \"cowboy shot\") or other\n"
+        "manually-defined tags that aren't tied to an entry.");
+    m_includeUnusedDefs->setEnabled(m_danbooru != nullptr);
+    if (!m_danbooru) {
+        m_includeUnusedDefs->setToolTip(
+            "Disabled: danbooru list still loading. Reopen the dialog after it finishes.");
+    }
+    root->addWidget(m_includeUnusedDefs);
 
     m_status = new QLabel;
     m_status->setWordWrap(true);
@@ -91,8 +108,10 @@ void ExportDialog::onExport()
     }
 
     QStringList errors;
+    const bool includeUnused = m_includeUnusedDefs && m_includeUnusedDefs->isChecked();
     const bool ok = core::PortManager::exportEntries(m_query->text().trimmed(), folder, m_model,
-                                                     *m_facets, &errors);
+                                                     *m_facets, &errors, includeUnused,
+                                                     m_danbooru);
 
     if (ok) {
         m_status->setText(QString("Exported successfully to: %1").arg(folder));

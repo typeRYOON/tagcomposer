@@ -24,12 +24,14 @@ class ImportDialog : public ChromedDialog {
     Q_OBJECT
 public:
     ImportDialog(core::EntryModel* model, core::FacetIndex* facets, const QString& dataEntryDir,
-                 const QString& tagDefinitionsPath, QWidget* parent = nullptr);
+                 const QString& tagDefinitionsPath, const QString& facetsSchemaPath,
+                 QWidget* parent = nullptr);
 
 private:
     struct MappingRow {
         QString source;
         QComboBox* combo = nullptr;
+        QPushButton* createBtn = nullptr;
         QPushButton* dropBtn = nullptr;
         QWidget* widget = nullptr;
     };
@@ -38,12 +40,14 @@ private:
     void rebuildMappingTable();
     void validate();
     void onDropAllUnmatched();
+    void onCreateAllUnmatched();
     void onImport();
 
     core::EntryModel* m_model = nullptr;
     core::FacetIndex* m_facets = nullptr;
     QString m_dataEntryDir;
     QString m_tagDefinitionsPath;
+    QString m_facetsSchemaPath;
 
     core::PortScan m_scan;
     QList<MappingRow> m_rows;
@@ -55,6 +59,7 @@ private:
     QWidget* m_mappingHost = nullptr;
     QVBoxLayout* m_mappingLayout = nullptr;
     QPushButton* m_dropAllBtn = nullptr;
+    QPushButton* m_createAllBtn = nullptr;
     QPushButton* m_importBtn = nullptr;
     QLabel* m_validation = nullptr;
     QLabel* m_status = nullptr;

@@ -1,5 +1,6 @@
 #include <gui/settingspage.h>
 #include <gui/chromeddialog.h>
+#include <gui/widgets/appscrollbar.h>
 #include <utils/appconfig.h>
 #include <utils/logger.h>
 #include <utils/qutils.h>
@@ -111,8 +112,6 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     applyTitleSwatch();
 
     connect(m_tileTitleColor, &QPushButton::clicked, this, [this, applyTitleSwatch]() {
-        // Embed QColorDialog inside a ChromedDialog so the picker carries
-        // the same custom chrome as the rest of the app's modals.
         const QColor initial(m_settings->tileTitleColor);
 
         ChromedDialog wrapper(this);
@@ -128,12 +127,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
                                           wrapper.contentArea());
         connect(btns, &QDialogButtonBox::accepted, &wrapper, &QDialog::accept);
         connect(btns, &QDialogButtonBox::rejected, &wrapper, &QDialog::reject);
-        // Double-click on a swatch counts as confirmation, just like the
-        // native dialog.
         connect(picker, &QColorDialog::colorSelected, &wrapper,
                 [&wrapper](const QColor&) { wrapper.accept(); });
-        // Esc on the embedded picker calls QDialog::done(Rejected) which
-        // only hides the picker; forward to the wrapper so it closes too.
         connect(picker, &QDialog::rejected, &wrapper, &QDialog::reject);
 
         auto* layout = new QVBoxLayout(wrapper.contentArea());
@@ -603,6 +598,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     m_log->setUndoRedoEnabled(false);
     m_log->setMaximumBlockCount(5000);
     m_log->setMinimumHeight(200);
+    m_log->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_log->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     for (const QString& msg : utils::Logger::instance().history())
         m_log->appendPlainText(msg);
     bodyLayout->addWidget(m_log);

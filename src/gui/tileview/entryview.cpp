@@ -66,6 +66,8 @@ public:
     // items: (display title, index into m_entries for scroll target)
     void updateEntries(const QList<QPair<QString, int>>& items)
     {
+        static qint64 c = 0;
+        qDebug() << c++;
         while (m_listLayout->count()) {
             auto* item = m_listLayout->takeAt(0);
             if (auto* w = item->widget()) w->deleteLater();

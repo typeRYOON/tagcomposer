@@ -38,8 +38,6 @@ StatusBar::StatusBar(QWidget* parent) : QWidget(parent)
     m_progress->setTextVisible(true);
     m_progress->setFormat("");
 
-    // Both fade in/out together; the slots stay reserved so the message
-    // label's width doesn't jitter when they appear or disappear.
     m_activeEffect = new QGraphicsOpacityEffect(m_activeLabel);
     m_activeEffect->setOpacity(0.0);
     m_activeLabel->setGraphicsEffect(m_activeEffect);
@@ -57,11 +55,11 @@ StatusBar::StatusBar(QWidget* parent) : QWidget(parent)
     m_progressFade->setEasingCurve(QEasingCurve::InOutQuad);
 
     auto* layout = new QHBoxLayout(this);
-    layout->setContentsMargins(10, 0, 10, 0);
+    layout->setContentsMargins(10, 2, 10, 0);
     layout->setSpacing(8);
     layout->addWidget(m_label, 1);
-    layout->addWidget(m_activeLabel);
     layout->addWidget(m_progress);
+    layout->addWidget(m_activeLabel);
 
     connect(&utils::Logger::instance(), &utils::Logger::messageLogged, this,
             &StatusBar::showMessage);
@@ -85,7 +83,6 @@ void StatusBar::setProgress(int step, int total)
     m_progress->setValue(qMin(step, total));
     m_progress->setFormat(QString("%1 / %2").arg(step).arg(total));
     fadeProgressTo(1.0);
-    fadeActiveTo(1.0);
 }
 
 void StatusBar::clearProgress()
@@ -94,16 +91,18 @@ void StatusBar::clearProgress()
     m_progress->setValue(0);
     m_progress->setFormat("");
     fadeProgressTo(0.0);
-    fadeActiveTo(0.0);
 }
 
 void StatusBar::setActiveCount(int count)
 {
-    // Text-only update; setProgress drives the fade-in so label and bar
-    // appear together rather than the label leading by ComfyUI's first-
-    // preview delay.
     m_activeLabel->setText(QString("%1 active").arg(count));
-    if (count <= 0) clearProgress(); // also fades the active label out
+    if (count > 0) {
+        fadeActiveTo(1.0);
+    }
+    else {
+        fadeActiveTo(0.0);
+        clearProgress();
+    }
 }
 
 void StatusBar::fadeProgressTo(qreal opacity)

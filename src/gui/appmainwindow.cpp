@@ -249,6 +249,14 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_composerPage, &PromptComposerPage::runRequested, this, [this](int count) {
         const core::WorkflowFile* wf = m_workflowManager.selectedFile();
         if (!wf) return;
+
+        const QStringList missing = unloadedImageInputs();
+        if (!missing.isEmpty()) {
+            m_statusBar->showMessage(
+                QString("Run blocked - image input(s) not loaded: %1").arg(missing.join(", ")));
+            return;
+        }
+
         QFile f(wf->path);
         if (!f.open(QIODevice::ReadOnly)) return;
         const QString tmpl = QString::fromUtf8(f.readAll());
@@ -305,12 +313,12 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             [this]() { m_comfyClient->connectToServer(); });
 
     connect(m_settingsPage, &SettingsPage::exportEntriesRequested, this, [this]() {
-        ExportDialog dlg(m_entryModel, &m_facetIndex, this);
+        ExportDialog dlg(m_entryModel, &m_facetIndex, m_danbooruIndex, this);
         dlg.exec();
     });
     connect(m_settingsPage, &SettingsPage::importEntriesRequested, this, [this]() {
         ImportDialog dlg(m_entryModel, &m_facetIndex, BASE_PATH + "/data/entry",
-                         BASE_PATH + "/" + DEFINITIONS_PATH, this);
+                         BASE_PATH + "/" + DEFINITIONS_PATH, BASE_PATH + "/" + FACETS_PATH, this);
         if (dlg.exec() == QDialog::Accepted) {
             m_tileViewPage->refreshEntries();
             reloadFacets();
@@ -602,6 +610,13 @@ void AppMainWindow::runBatch(const QString& query)
         return;
     }
 
+    const QStringList missing = unloadedImageInputs();
+    if (!missing.isEmpty()) {
+        m_statusBar->showMessage(
+            QString("Batch blocked - image input(s) not loaded: %1").arg(missing.join(", ")));
+        return;
+    }
+
     const QList<core::Entry*> matched = m_entryModel->filter(query);
     if (matched.isEmpty()) {
         m_statusBar->showMessage(QString("Batch: query \"%1\" matched 0 entries").arg(query));
@@ -685,6 +700,17 @@ void AppMainWindow::loadFinalPreview()
 
     QImage img(newest->absoluteFilePath());
     if (!img.isNull()) m_composerPage->setPreviewImage(img);
+}
+
+QStringList AppMainWindow::unloadedImageInputs() const
+{
+    QStringList missing;
+    if (!m_workflowManager.selectedFile()) return missing;
+    for (const auto& var : m_workflowManager.variables()) {
+        if (var.type != core::WorkflowVarType::Image) continue;
+        if (var.imageUuid.isEmpty()) missing << var.placeholder;
+    }
+    return missing;
 }
 
 // Tracking key is (uuid + editsHash) so editing forces a re-upload.

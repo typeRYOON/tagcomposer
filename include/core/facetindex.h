@@ -21,6 +21,12 @@ public:
     bool hasFacets(const QString& tag) const;
     void setDefinition(const QString& tag, const QList<QString>& facets);
 
+    // Appends a new "@category" block to schemaPath listing only facets that
+    // aren't already known. Updates in-memory state. No-op if all already
+    // exist or the file can't be opened.
+    void appendFacets(const QString& schemaPath, const QString& category,
+                      const QStringList& facets);
+
     QString categoryFor(const QString& facet) const;
 
     QList<QString> allCategories() const;

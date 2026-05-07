@@ -27,6 +27,7 @@ class QGraphicsOpacityEffect;
 class QPropertyAnimation;
 class QMenu;
 class QAction;
+class QLineEdit;
 
 namespace core {
 class EntryModel;
@@ -232,6 +233,8 @@ private:
     // UI - workflow/states sidebar
     WorkflowDropList* m_wfList = nullptr;
     StatesListWidget* m_statesList = nullptr;
+    QLineEdit* m_wfFilter = nullptr;
+    QLineEdit* m_statesFilter = nullptr;
     QStackedWidget* m_wfStateStack = nullptr;
     QPushButton* m_wfEditBtnRef = nullptr;
     QPushButton* m_saveStateBtn = nullptr;

@@ -321,11 +321,14 @@ void PromptComposerPage::rebuildWorkflowList()
         return;
     }
 
+    const QString filter = m_wfFilter ? m_wfFilter->text().trimmed() : QString();
     for (int i = 0; i < m_wfManager->files().size(); ++i) {
+        const auto& wf = m_wfManager->files()[i];
+        if (!filter.isEmpty() && !wf.name.contains(filter, Qt::CaseInsensitive)) continue;
         const bool sel = (i == m_wfManager->selectedIndex());
-        auto* item = new QListWidgetItem(m_wfManager->files()[i].name);
+        auto* item = new QListWidgetItem(wf.name);
         item->setData(Qt::UserRole, i);
-        item->setToolTip(m_wfManager->files()[i].path);
+        item->setToolTip(wf.path);
         if (sel) {
             item->setForeground(QColor("#5a9a5a"));
         }

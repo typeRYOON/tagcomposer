@@ -1,4 +1,5 @@
 #include <core/portmanager.h>
+#include <core/danbooruindex.h>
 #include <core/entry.h>
 #include <core/entryio.h>
 #include <utils/appconfig.h>
@@ -39,7 +40,8 @@ bool copyDirContents(const QDir& src, const QDir& dst)
 // ---- Export
 
 bool PortManager::exportEntries(const QString& query, const QString& destFolder, EntryModel* model,
-                                const FacetIndex& facets, QStringList* errors)
+                                const FacetIndex& facets, QStringList* errors,
+                                bool includeUnusedDanbooruDefs, const DanbooruIndex* danbooru)
 {
     auto fail = [&](const QString& msg) -> bool {
         if (errors) *errors << msg;
@@ -76,14 +78,23 @@ bool PortManager::exportEntries(const QString& query, const QString& destFolder,
         }
     }
 
-    // Subset tag_definitions.fct: only tags used by exported entries.
+    QSet<QString> exportTags = usedTags;
+    if (includeUnusedDanbooruDefs && danbooru) {
+        const auto& tagIdx = model->tagIndex();
+        for (const QString& tag : facets.allDefinedTags()) {
+            if (exportTags.contains(tag)) continue;
+            if (tagIdx.tagInUse(tag)) continue;
+            if (danbooru->tagCategory(tag) >= 0) exportTags.insert(tag);
+        }
+    }
+
     const QString defsPath = destDir.absoluteFilePath("tag_definitions.fct");
     QFile defsFile(defsPath);
     if (!defsFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
         return fail("Failed to write tag_definitions.fct");
 
     QTextStream ts(&defsFile);
-    QStringList sortedTags(usedTags.begin(), usedTags.end());
+    QStringList sortedTags(exportTags.begin(), exportTags.end());
     sortedTags.sort();
     for (const QString& tag : sortedTags) {
         if (!facets.hasFacets(tag)) continue;

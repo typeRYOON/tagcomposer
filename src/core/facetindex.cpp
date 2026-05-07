@@ -108,6 +108,35 @@ void FacetIndex::setDefinition(const QString& tag, const QList<QString>& facets)
         m_tagToFacets[tag] = facets;
 }
 
+void FacetIndex::appendFacets(const QString& schemaPath, const QString& category,
+                              const QStringList& facets)
+{
+    if (category.isEmpty()) return;
+
+    QStringList toAdd;
+    for (const QString& f : facets) {
+        const QString trimmed = f.trimmed();
+        if (trimmed.isEmpty()) continue;
+        if (m_facetToCategory.contains(trimmed)) continue;
+        if (toAdd.contains(trimmed)) continue;
+        toAdd << trimmed;
+    }
+    if (toAdd.isEmpty()) return;
+
+    QFile f(schemaPath);
+    if (!f.open(QIODevice::Append | QIODevice::Text)) return;
+    QTextStream ts(&f);
+    ts << "\n@category " << category << "\n";
+    ts << toAdd.join(", ") << "\n";
+    f.close();
+
+    if (!m_categories.contains(category)) m_categories << category;
+    for (const QString& fc : toAdd) {
+        m_facetList << fc;
+        m_facetToCategory[fc] = category;
+    }
+}
+
 QString FacetIndex::categoryFor(const QString& facet) const
 {
     return m_facetToCategory.value(facet);

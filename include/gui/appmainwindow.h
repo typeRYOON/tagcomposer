@@ -62,6 +62,11 @@ private:
     void runBatch(const QString& query);
     void ensureImageInputsUploaded(std::function<void()> done);
 
+    // Placeholders of Image vars in the selected workflow that have no
+    // image picked yet (imageUuid empty). Used to block runs that would
+    // emit an empty filename token into the workflow JSON.
+    QStringList unloadedImageInputs() const;
+
     // Sweep WorkflowInputCache: drop entries no workflow var references.
     void clearUnusedInputs();
 

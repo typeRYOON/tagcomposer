@@ -8,6 +8,8 @@
 
 namespace core {
 
+class DanbooruIndex;
+
 struct PortEntryRef {
     QString uuid;
     QString sourceFolder;
@@ -52,8 +54,13 @@ class PortManager {
 public:
     // Copies matching entry folders into <destFolder>/entries/<uuid> and
     // writes a tag_definitions.fct subset for only the used tags.
+    // If includeUnusedDanbooruDefs is true, also writes definitions for tags
+    // that are defined in `facets` but unused by exported entries, provided
+    // they appear in `danbooru` (filters out typos / orphaned defs).
     static bool exportEntries(const QString& query, const QString& destFolder, EntryModel* model,
-                              const FacetIndex& facets, QStringList* errors = nullptr);
+                              const FacetIndex& facets, QStringList* errors = nullptr,
+                              bool includeUnusedDanbooruDefs = false,
+                              const DanbooruIndex* danbooru = nullptr);
 
     // Pure inspection - no disk mutation. Marks duplicates / collisions.
     static PortScan scanImport(const QString& srcFolder, EntryModel* model,

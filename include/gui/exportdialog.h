@@ -1,12 +1,14 @@
 #pragma once
 #include <gui/chromeddialog.h>
 
+class QCheckBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
 class QPushButton;
 
 namespace core {
+class DanbooruIndex;
 class EntryModel;
 class FacetIndex;
 } // namespace core
@@ -19,7 +21,7 @@ class ExportDialog : public ChromedDialog {
     Q_OBJECT
 public:
     ExportDialog(core::EntryModel* model, const core::FacetIndex* facets,
-                 QWidget* parent = nullptr);
+                 const core::DanbooruIndex* danbooru, QWidget* parent = nullptr);
 
 private:
     void refreshPreview();
@@ -27,10 +29,12 @@ private:
 
     core::EntryModel* m_model = nullptr;
     const core::FacetIndex* m_facets = nullptr;
+    const core::DanbooruIndex* m_danbooru = nullptr;
 
     QLineEdit* m_query = nullptr;
     QLabel* m_count = nullptr;
     QListWidget* m_preview = nullptr;
+    QCheckBox* m_includeUnusedDefs = nullptr;
     QPushButton* m_exportBtn = nullptr;
     QLabel* m_status = nullptr;
 };

@@ -421,8 +421,18 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_statesList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     m_statesList->installEventFilter(this);
 
+    // List rows may be filtered, so visual row != model index. Each item
+    // carries its model index in Qt::UserRole.
+    auto modelIdxOf = [this](QListWidgetItem* item) -> int {
+        if (!item) return -1;
+        const QVariant v = item->data(Qt::UserRole);
+        if (!v.isValid()) return -1;
+        return v.toInt();
+    };
+
     connect(m_statesList, &StatesListWidget::imageDroppedOnRow, this,
-            [this](int row, const QString& srcPath) {
+            [this, modelIdxOf](int listRow, const QString& srcPath) {
+                const int row = modelIdxOf(m_statesList->item(listRow));
                 if (row < 0 || row >= m_stateManager.states().size()) return;
                 core::SavedState& state = m_stateManager.states()[row];
                 const QString stateDir = m_statesDir + "/" + state.id;
@@ -437,23 +447,24 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
                 rebuildStatesList();
             });
 
-    connect(m_statesList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
-        const int row = m_statesList->row(item);
-        if (row >= 0 && row < m_stateManager.states().size()) {
-            m_freezeNextRebuild = true;
-            restoreState(m_stateManager.states()[row]);
-        }
-    });
+    connect(m_statesList, &QListWidget::itemClicked, this,
+            [this, modelIdxOf](QListWidgetItem* item) {
+                const int row = modelIdxOf(item);
+                if (row >= 0 && row < m_stateManager.states().size()) {
+                    m_freezeNextRebuild = true;
+                    restoreState(m_stateManager.states()[row]);
+                }
+            });
 
     connect(m_statesList, &QListWidget::itemEntered, this,
             [this](QListWidgetItem* item) { showStatePreview(m_statesList->row(item)); });
 
     m_statesList->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_statesList, &QListWidget::customContextMenuRequested, this,
-            [this](const QPoint& pos) {
+            [this, modelIdxOf](const QPoint& pos) {
                 QListWidgetItem* item = m_statesList->itemAt(pos);
                 if (!item) return;
-                const int row = m_statesList->row(item);
+                const int row = modelIdxOf(item);
                 if (row < 0 || row >= m_stateManager.states().size()) return;
 
                 QMenu menu;
@@ -509,10 +520,36 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         m_saveStateBtn->setVisible(true);
     });
 
+    auto* wfPage = new QWidget;
+    auto* wfPageL = new QVBoxLayout(wfPage);
+    wfPageL->setContentsMargins(0, 0, 0, 0);
+    wfPageL->setSpacing(2);
+    m_wfFilter = new QLineEdit;
+    m_wfFilter->setObjectName("ComposerVarEdit");
+    m_wfFilter->setPlaceholderText("Filter workflows...");
+    m_wfFilter->setClearButtonEnabled(true);
+    wfPageL->addWidget(m_wfFilter);
+    wfPageL->addWidget(m_wfList, 1);
+    connect(m_wfFilter, &QLineEdit::textChanged, this,
+            [this](const QString&) { rebuildWorkflowList(); });
+
+    auto* statesPage = new QWidget;
+    auto* statesPageL = new QVBoxLayout(statesPage);
+    statesPageL->setContentsMargins(0, 0, 0, 0);
+    statesPageL->setSpacing(2);
+    m_statesFilter = new QLineEdit;
+    m_statesFilter->setObjectName("ComposerVarEdit");
+    m_statesFilter->setPlaceholderText("Filter states...");
+    m_statesFilter->setClearButtonEnabled(true);
+    statesPageL->addWidget(m_statesFilter);
+    statesPageL->addWidget(m_statesList, 1);
+    connect(m_statesFilter, &QLineEdit::textChanged, this,
+            [this](const QString&) { rebuildStatesList(); });
+
     m_wfStateStack = new QStackedWidget;
-    m_wfStateStack->addWidget(m_wfList);     // 0
-    m_wfStateStack->addWidget(m_statesList); // 1
-    m_wfStateStack->setFixedHeight(200);
+    m_wfStateStack->addWidget(wfPage);     // 0
+    m_wfStateStack->addWidget(statesPage); // 1
+    m_wfStateStack->setFixedHeight(220);
 
     // Floating preview popup for state images
     m_statesPreviewPopup =
@@ -1105,9 +1142,6 @@ void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
 
 void PromptComposerPage::repush()
 {
-    // Every interaction-driven rebuild fades. Search-filter changes go
-    // directly through applyTagFilter() and skip this, so typing in the
-    // search bar still updates instantly without the fade.
     m_freezeNextRebuild = true;
     QList<QString> active;
     for (const QString& t : m_activeTags)
