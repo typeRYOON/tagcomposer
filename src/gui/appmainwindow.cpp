@@ -14,7 +14,6 @@
 #include <gui/dataset/tagclusterpage.h>
 #include <gui/dataset/tageditorpage.h>
 #include <gui/dataset/collectorpage.h>
-#include <gui/homepage.h>
 #include <core/updatechecker.h>
 #include <QDateTime>
 #include <QUuid>
@@ -52,7 +51,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     setWindowOpacity(0.0);
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowMinimizeButtonHint |
                    Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
-    resize(1420, 920);
+    resize(1550, 872);
     setMinimumSize(1420, 920);
 
     // ---- Load settings
@@ -182,6 +181,11 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     // ---- Entry deletion: drop pushes/lora referencing it from composer
     connect(m_entryModel, &core::EntryModel::entryDeleted, m_composerPage,
             &PromptComposerPage::onEntryDeleted);
+
+    // ---- Image-slot removal: drop the push for that slot and reindex
+    // higher slots so the composer mirrors the model's reindexing.
+    connect(m_entryModel, &core::EntryModel::imageRemovedFromEntry, m_composerPage,
+            &PromptComposerPage::onImageRemoved);
 
     // ---- Sync push-group state back to tile view
     connect(m_composerPage, &PromptComposerPage::activeGroupsChanged, m_tileViewPage,

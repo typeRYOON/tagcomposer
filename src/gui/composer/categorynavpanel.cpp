@@ -2,6 +2,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QPropertyAnimation>
+#include <QStyle>
 #include <QVBoxLayout>
 #include <QVariant>
 
@@ -39,7 +40,8 @@ CategoryNavPanel::CategoryNavPanel(QWidget* parent) : QWidget(parent)
             [this](const QVariant&) { adjustSize(); });
 }
 
-void CategoryNavPanel::updateCategories(const QStringList& displayNames)
+void CategoryNavPanel::updateCategories(const QStringList& displayNames,
+                                        const QHash<QString, int>& undefinedCounts)
 {
     while (m_listLayout->count()) {
         auto* item = m_listLayout->takeAt(0);
@@ -47,17 +49,30 @@ void CategoryNavPanel::updateCategories(const QStringList& displayNames)
         delete item;
     }
 
+    bool anyWarn = false;
     for (const QString& name : displayNames) {
-        auto* btn = new QPushButton(name, m_listFrame);
+        const int undef = undefinedCounts.value(name, 0);
+        const QString label = undef > 0 ? QString("%1  · %2").arg(name).arg(undef) : name;
+        auto* btn = new QPushButton(label, m_listFrame);
         btn->setObjectName("CategoryNavBtn");
         btn->setFixedHeight(24);
         btn->setCursor(Qt::PointingHandCursor);
         btn->setFlat(true);
+        if (undef > 0) {
+            btn->setProperty("warn", true);
+            anyWarn = true;
+        }
         connect(btn, &QPushButton::clicked, btn, [this, name]() {
             if (onCategoryClicked) onCategoryClicked(name);
         });
         m_listLayout->addWidget(btn);
     }
+
+    // Tint the always-visible handle so the user notices undefined tags
+    // without expanding the panel.
+    m_handle->setProperty("warn", anyWarn);
+    m_handle->style()->unpolish(m_handle);
+    m_handle->style()->polish(m_handle);
 
     m_fullHeight = displayNames.size() * 24 + 4;
     // If already expanded, update live

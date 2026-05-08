@@ -13,6 +13,10 @@
     padding: 0 8px;
 }
 
+#CategoryNavHandle[warn="true"] {
+    color: #6688aa;
+}
+
 #CategoryNavList {
     background: transparent;
 }
@@ -30,4 +34,14 @@
 #CategoryNavBtn:hover {
     background: #1a1a1a;
     color: #aaaaaa;
+}
+
+#CategoryNavBtn[warn="true"] {
+    color: #6688aa;
+    font-weight: bold;
+}
+
+#CategoryNavBtn[warn="true"]:hover {
+    background: #1a1a1a;
+    color: #aaccee;
 }

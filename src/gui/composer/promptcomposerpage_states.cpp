@@ -121,7 +121,7 @@ void PromptComposerPage::saveCurrentState()
     state.name = name.trimmed();
     captureCurrentState(state);
 
-    m_stateManager.states() << state;
+    m_stateManager.states().prepend(state);
     m_stateManager.saveToDir(m_statesDir);
     rebuildStatesList();
     emit statusMessageRequested(QString("Saved: %1").arg(state.name));

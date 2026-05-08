@@ -586,7 +586,8 @@ void EntryView::paintEvent(QPaintEvent*)
                 p.setOpacity(0.85);
                 p.setPen(Qt::NoPen);
                 p.setBrush(QColor(220, 150, 30));
-                p.drawEllipse(QPointF(r.right() - 9.0, r.top() + 9.0), 5.0, 5.0);
+                const QRectF badge(r.right() - 17.0, r.top() + 9.0, 10.0, 10.0);
+                p.drawRoundedRect(badge, 3.0, 3.0);
             }
         }
 

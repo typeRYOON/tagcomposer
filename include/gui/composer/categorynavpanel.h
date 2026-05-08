@@ -1,4 +1,5 @@
 #pragma once
+#include <QHash>
 #include <QWidget>
 #include <functional>
 
@@ -16,7 +17,11 @@ public:
 
     explicit CategoryNavPanel(QWidget* parent = nullptr);
 
-    void updateCategories(const QStringList& displayNames);
+    // `undefinedCounts` maps display name -> count of tags lacking facet defs
+    // in that category. Categories with a positive count get a ` · N` suffix
+    // and the warn dynamic property; the handle warns if any count > 0.
+    void updateCategories(const QStringList& displayNames,
+                          const QHash<QString, int>& undefinedCounts = {});
 
 protected:
     void enterEvent(QEnterEvent*) override;

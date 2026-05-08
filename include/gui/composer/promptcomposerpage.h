@@ -91,6 +91,11 @@ public slots:
     // the entry's LoRA uuid from the active set, so the composer doesn't
     // keep stale state pointing at a now-gone entry.
     void onEntryDeleted(int32_t entryId, const QString& uuid);
+    // Hooked to EntryModel::imageRemovedFromEntry. Drops the push for the
+    // removed slot (and any tags only that push claimed), then shifts any
+    // higher-indexed pushes for the same entry down by one to track the
+    // model's images.removeAt() reindexing.
+    void onImageRemoved(int32_t entryId, int imageIdx);
     void setPreviewImage(const QImage& image);
     void setOutputFolderPattern(const QString& pattern);
     void setTempFolder(const QString& folder);
@@ -202,6 +207,7 @@ private:
     QString m_quickStyleFacet;
 
     QString m_filterQuery;
+    bool m_undefinedOnly = false;
     bool m_repushPending = false;
     QList<QString> m_activeLoraUuids;
     QList<QString> m_activeTags;
@@ -215,6 +221,7 @@ private:
 
     // UI - main area
     TagSearchBar* m_searchBar;
+    QPushButton* m_undefinedToggleBtn = nullptr;
     QStackedWidget* m_mainStack;
     QWidget* m_groupsContainer;
     QVBoxLayout* m_groupsLayout;

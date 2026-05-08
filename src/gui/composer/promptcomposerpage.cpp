@@ -29,6 +29,7 @@
 #include <QInputDialog>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QStyle>
 #include <QTimer>
 #include <QDir>
 #include <QDate>
@@ -666,9 +667,20 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_interruptBtn->setCursor(Qt::PointingHandCursor);
     m_interruptBtn->setToolTip("Interrupt");
 
+    m_undefinedToggleBtn = new QPushButton("?", m_controlBar);
+    m_undefinedToggleBtn->setObjectName("ComposerUndefToggle");
+    m_undefinedToggleBtn->setCheckable(true);
+    m_undefinedToggleBtn->setCursor(Qt::PointingHandCursor);
+    m_undefinedToggleBtn->setToolTip("Show only tags without facet definitions");
+    connect(m_undefinedToggleBtn, &QPushButton::toggled, this, [this](bool on) {
+        m_undefinedOnly = on;
+        applyTagFilter();
+    });
+
     auto* barLayout = new QHBoxLayout(m_controlBar);
     barLayout->setContentsMargins(5, 4, 8, 4);
     barLayout->setSpacing(4);
+    barLayout->addWidget(m_undefinedToggleBtn);
     barLayout->addWidget(m_copyBtn);
     barLayout->addWidget(m_runBtn, 1);
     barLayout->addWidget(m_promptCountSpin);
@@ -1151,6 +1163,57 @@ void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
     repush();
 }
 
+void PromptComposerPage::onImageRemoved(int32_t entryId, int imageIdx)
+{
+    const qint64 removedKey = (qint64(entryId) << 32) | quint32(imageIdx);
+    const bool hadPush = m_activePushes.contains(removedKey);
+
+    // Higher-indexed slots for the same entry need their keys shifted down.
+    QList<qint64> higherKeys;
+    for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
+        if (int(quint32(it.key() >> 32)) != entryId) continue;
+        const int img = int(quint32(it.key() & 0xFFFFFFFFLL));
+        if (img > imageIdx) higherKeys << it.key();
+    }
+
+    if (!hadPush && higherKeys.isEmpty()) return;
+
+    if (hadPush) {
+        // Mirror onEntryDeleted's claim rule: tags still claimed by other
+        // pushes survive; only drop tags whose last claim was this push.
+        QSet<QString> stillClaimed;
+        for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
+            if (it.key() == removedKey) continue;
+            for (const QString& t : it.value()) stillClaimed.insert(t);
+        }
+        for (const QString& t : m_activePushes[removedKey]) {
+            if (!stillClaimed.contains(t)) {
+                m_activeTags.removeOne(t);
+                m_activeTagSet.remove(t);
+                m_tagWeights.remove(t);
+                m_deactivatedTags.remove(t);
+            }
+        }
+        m_activePushes.remove(removedKey);
+    }
+
+    // Shift in ascending order so each move targets a now-vacant slot.
+    std::sort(higherKeys.begin(), higherKeys.end());
+    for (qint64 oldKey : higherKeys) {
+        const int oldImg = int(quint32(oldKey & 0xFFFFFFFFLL));
+        const qint64 newKey = (qint64(entryId) << 32) | quint32(oldImg - 1);
+        m_activePushes.insert(newKey, m_activePushes.take(oldKey));
+    }
+
+    QMap<int, QList<int>> activeGroups;
+    for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
+        activeGroups[int(quint32(it.key() >> 32))].append(int(quint32(it.key() & 0xFFFFFFFFLL)));
+    }
+    emit activeGroupsChanged(activeGroups);
+
+    repush();
+}
+
 // ---- Pipeline
 
 void PromptComposerPage::repush()
@@ -1221,16 +1284,24 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
 
 void PromptComposerPage::applyTagFilter()
 {
-    if (m_filterQuery.isEmpty()) {
+    if (m_filterQuery.isEmpty() && !m_undefinedOnly) {
         rebuildGroupsDisplay(m_lastResult);
         return;
     }
+    auto isUndefined = [](const PipelineTag& pt) {
+        return pt.result == RuleResult::NoFacets ||
+               (pt.result == RuleResult::Injected && pt.facets.isEmpty());
+    };
     QList<PipelineTag> filtered;
     for (const PipelineTag& pt : m_lastResult) {
-        const bool matchTag = pt.tag.startsWith(m_filterQuery, Qt::CaseInsensitive);
-        const bool matchSrc =
-            !pt.sourceTag.isEmpty() && pt.sourceTag.startsWith(m_filterQuery, Qt::CaseInsensitive);
-        if (matchTag || matchSrc) filtered << pt;
+        if (m_undefinedOnly && !isUndefined(pt)) continue;
+        if (!m_filterQuery.isEmpty()) {
+            const bool matchTag = pt.tag.startsWith(m_filterQuery, Qt::CaseInsensitive);
+            const bool matchSrc = !pt.sourceTag.isEmpty() &&
+                                  pt.sourceTag.startsWith(m_filterQuery, Qt::CaseInsensitive);
+            if (!matchTag && !matchSrc) continue;
+        }
+        filtered << pt;
     }
     rebuildGroupsDisplay(filtered);
 }
@@ -1264,6 +1335,33 @@ void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)
     }
 
     m_groupHeaders.clear();
+
+    // Undefined-tag count is computed off the unfiltered pipeline output so
+    // the nav-panel badge and toggle button stay accurate even when a search
+    // query has narrowed the visible flat list.
+    auto isUndefined = [](const PipelineTag& pt) {
+        return pt.result == RuleResult::NoFacets ||
+               (pt.result == RuleResult::Injected && pt.facets.isEmpty());
+    };
+    int undefTotal = 0;
+    for (const PipelineTag& pt : m_lastResult)
+        if (isUndefined(pt)) ++undefTotal;
+
+    // Defining the last undefined tag while the filter is engaged would
+    // strand the user on an empty view; release the filter so they land
+    // back on the full prompt. setChecked re-enters via the toggled slot.
+    if (m_undefinedToggleBtn && undefTotal == 0 && m_undefinedToggleBtn->isChecked()) {
+        m_undefinedToggleBtn->setChecked(false);
+        return;
+    }
+
+    if (m_undefinedToggleBtn) {
+        m_undefinedToggleBtn->setText(undefTotal > 0 ? QString("?  %1").arg(undefTotal) : "?");
+        m_undefinedToggleBtn->setEnabled(undefTotal > 0 || m_undefinedOnly);
+        m_undefinedToggleBtn->setProperty("warn", undefTotal > 0);
+        m_undefinedToggleBtn->style()->unpolish(m_undefinedToggleBtn);
+        m_undefinedToggleBtn->style()->polish(m_undefinedToggleBtn);
+    }
 
     if (flat.isEmpty()) {
         m_mainStack->setCurrentIndex(0);
@@ -1299,7 +1397,13 @@ void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)
 
     m_groupsLayout->addStretch();
 
-    if (m_categoryNav) static_cast<CategoryNavPanel*>(m_categoryNav)->updateCategories(navNames);
+    // Undefined tags always bucket into "Uncategorized" (no facets -> no
+    // category mapping), so the per-category count map is just one entry.
+    QHash<QString, int> undefinedByCategory;
+    if (undefTotal > 0) undefinedByCategory["Uncategorized"] = undefTotal;
+    if (m_categoryNav)
+        static_cast<CategoryNavPanel*>(m_categoryNav)->updateCategories(navNames,
+                                                                       undefinedByCategory);
 }
 
 // ---- Tag row
@@ -1536,12 +1640,12 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
             queueRepush();
         };
 
-        auto* delBtn = new QPushButton("×", row);
+        auto* delBtn = new QPushButton("✕", row);
         delBtn->setObjectName("TagRemoveBtn");
         delBtn->setFixedSize(18, 18);
         delBtn->setCursor(Qt::PointingHandCursor);
         connect(delBtn, &QPushButton::clicked, this, onRemove);
-        rl->addWidget(delBtn);
+        rl->addWidget(delBtn, 0, Qt::AlignVCenter);
 
         auto installMenu = [&](QWidget* w) {
             w->setContextMenuPolicy(Qt::CustomContextMenu);

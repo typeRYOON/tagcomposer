@@ -78,6 +78,42 @@
     font-weight: bold;
 }
 
+#ComposerUndefToggle {
+    background: #141414;
+    color: #555555;
+    border: 1px solid #1e1e1e;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: bold;
+    min-width: 18px;
+}
+
+#ComposerUndefToggle[warn="true"] {
+    color: #6688aa;
+}
+
+#ComposerUndefToggle:hover {
+    background: #1a1a1a;
+    color: #999999;
+}
+
+#ComposerUndefToggle[warn="true"]:hover {
+    color: #aaccee;
+}
+
+#ComposerUndefToggle:checked {
+    background: #334466;
+    color: #ffffff;
+    border-color: #4477aa;
+}
+
+#ComposerUndefToggle:disabled {
+    color: #2a2a2a;
+    background: #0f0f0f;
+    border-color: #1a1a1a;
+}
+
 #ComposerFlagBadge {
     background: transparent;
     color: #886622;
@@ -240,4 +276,18 @@
 
 #ComposerTagRow:hover #ComposerWeightSpin[weighted="true"] {
     color: #d4b060;
+}
+
+#TagRemoveBtn {
+    background: transparent;
+    border: none;
+    color: #3a3a3a;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0;
+    text-align: center;
+}
+
+#TagRemoveBtn:hover {
+    color: #cc3333;
 }

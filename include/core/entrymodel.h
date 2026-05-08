@@ -29,6 +29,9 @@ public slots:
 signals:
     // Fired after deleteEntry; subscribers should drop cached refs to entryId.
     void entryDeleted(int32_t entryId, const QString& uuid);
+    // Fired after removeImageFromEntry. Subscribers holding (entryId, imageIdx)
+    // refs must drop the removed slot and shift higher indices down by one.
+    void imageRemovedFromEntry(int32_t entryId, int imageIdx);
 
 private:
     // ids are forever-monotonic: addEntry appends, deleteEntry nulls the slot

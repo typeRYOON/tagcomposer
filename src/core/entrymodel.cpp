@@ -341,6 +341,7 @@ void EntryModel::removeImageFromEntry(int32_t entryId, int imageIdx)
     QFile::remove(filePath);
     e->modified = true;
     EntryIO::save(*e, m_tagIndex);
+    emit imageRemovedFromEntry(entryId, imageIdx);
 }
 
 void EntryModel::saveEntry(int32_t entryId)
