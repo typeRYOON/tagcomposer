@@ -109,7 +109,9 @@ void ImageDropper::paintEvent(QPaintEvent*)
 
     if (m_dragOver) {
         p.setClipping(false);
-        p.setPen(QPen(QColor(0x40, 0x80, 0xff), 2));
+        // Match the tile-view "active entry" green so all drop/active
+        // affordances share the same accent.
+        p.setPen(QPen(QColor(0x4a, 0xa0, 0x4a), 2));
         p.setBrush(Qt::NoBrush);
         p.drawRoundedRect(r.adjusted(1, 1, -1, -1), radius, radius);
     }

@@ -40,6 +40,9 @@ public:
     // Re-runs the current search-bar query; used post-import to surface
     // newly-added entries without losing typed state.
     void refreshEntries();
+    // Centers the entry in the view and selects it (entry must be in the
+    // current filter result set; call refreshEntries first if just added).
+    void selectEntry(int32_t entryId);
 
 signals:
     void tagsExported(int entryId, int imageIdx, QList<QString> tags);

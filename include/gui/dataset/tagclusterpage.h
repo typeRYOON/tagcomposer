@@ -40,6 +40,10 @@ signals:
     void wikiRequested(const QString& tag);
     void facetEditorRequested(const QString& tag);
     void quickFacetRequested(const QString& tag, const QString& facetName);
+    // Emitted by the "Create entry" button. AppMainWindow owns the
+    // EntryModel, so it does the actual creation, persists, and selects
+    // the new entry in the tile view.
+    void createEntryRequested(const QString& title, const QStringList& tags);
 
 protected:
     bool eventFilter(QObject* obj, QEvent* ev) override;
@@ -77,6 +81,7 @@ private:
     QLabel* m_emptyStateLbl = nullptr;
     QPlainTextEdit* m_copyEdit;
     QPushButton* m_copyBtn;
+    QPushButton* m_createEntryBtn;
 
     // ---- Preview (right panel)
     QLabel* m_previewImage;

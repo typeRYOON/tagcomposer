@@ -326,12 +326,25 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     m_copyBtn->setObjectName("DatasetRunBtn");
     m_copyBtn->setEnabled(false);
 
+    m_createEntryBtn = new QPushButton("Create entry", resultsBody);
+    m_createEntryBtn->setObjectName("DatasetRunBtn");
+    m_createEntryBtn->setToolTip(
+        "Create a new tile-view entry titled with the queried tag, with the\n"
+        "currently visible result tags (plus the copyright tag) already added.");
+    m_createEntryBtn->setEnabled(false);
+
+    auto* btnRow = new QHBoxLayout;
+    btnRow->setContentsMargins(0, 0, 0, 0);
+    btnRow->setSpacing(8);
+    btnRow->addWidget(m_copyBtn, 1);
+    btnRow->addWidget(m_createEntryBtn, 1);
+
     rbl->addWidget(m_statusLabel);
     rbl->addWidget(m_progressBar);
     rbl->addWidget(scroll, 1);
     rbl->addWidget(emptyContainer, 1);
     rbl->addWidget(m_copyEdit);
-    rbl->addWidget(m_copyBtn);
+    rbl->addLayout(btnRow);
 
     rl->addWidget(makeSectionHeader("RESULTS"));
     rl->addWidget(resultsBody, 1);
@@ -396,6 +409,20 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     connect(m_copyBtn, &QPushButton::clicked, this,
             [this]() { QApplication::clipboard()->setText(m_copyEdit->toPlainText()); });
 
+    connect(m_createEntryBtn, &QPushButton::clicked, this, [this]() {
+        const QString title = m_targetTag.trimmed();
+        if (title.isEmpty()) return;
+        // Mirror the copy string's contents: target + copyright + visible
+        // rows. EntryModel::getTagIds normalizes (underscores -> spaces,
+        // lowercase) so we can pass raw Danbooru forms.
+        QStringList tags;
+        tags << m_targetTag;
+        if (!m_copyright.isEmpty() && m_copyright != "No Copyright") tags << m_copyright;
+        for (const auto& row : m_rows)
+            if (row.included) tags << row.tag;
+        emit createEntryRequested(title, tags);
+    });
+
     // +solo flips the Danbooru query - flag the cached data as stale until the
     // user re-fetches, since the underlying post population is now different.
     connect(m_soloCheck, &QCheckBox::toggled, this, [this](bool) { markStaleIfFetched(); });
@@ -436,6 +463,7 @@ void TagClusterPage::onFetchClicked()
     clearResultRows();
     m_copyEdit->clear();
     m_copyBtn->setEnabled(false);
+    m_createEntryBtn->setEnabled(false);
     m_copyright.clear();
     m_charCounter.clear();
     m_copyrightCounter.clear();
@@ -641,6 +669,7 @@ void TagClusterPage::recompute()
 
     setStatus(QString("Showing %1 tags (re-tweak any threshold to refine).").arg(scored.size()));
     m_copyBtn->setEnabled(!scored.isEmpty());
+    m_createEntryBtn->setEnabled(!scored.isEmpty());
     if (scored.isEmpty() && m_emptyStateLbl)
         m_emptyStateLbl->setText("No tags matched the current filters.");
     setResultsEmpty(scored.isEmpty());
@@ -1103,6 +1132,7 @@ void TagClusterPage::markStaleIfFetched()
     clearResultRows();
     m_copyEdit->clear();
     m_copyBtn->setEnabled(false);
+    m_createEntryBtn->setEnabled(false);
     if (m_emptyStateLbl) m_emptyStateLbl->setText("Re-fetch to refresh.");
     setResultsEmpty(true);
 }

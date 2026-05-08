@@ -17,6 +17,7 @@
 #include <gui/homepage.h>
 #include <core/updatechecker.h>
 #include <QDateTime>
+#include <QUuid>
 #include <gui/widgets/danmakuoverlay.h>
 #include <gui/chromeddialog.h>
 #include <gui/exportdialog.h>
@@ -211,6 +212,32 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         connect(tcp, &TagClusterPage::quickFacetRequested, this, &AppMainWindow::applyQuickFacet);
         tcp->setQuickFacets(m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet,
                             m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);
+
+        connect(tcp, &TagClusterPage::createEntryRequested, this,
+                [this](const QString& title, const QStringList& tags) {
+                    if (!m_entryModel) return;
+                    core::Entry entry;
+                    entry.uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+                    entry.title = title.trimmed();
+                    entry.creationTime = QDateTime::currentSecsSinceEpoch();
+                    // Single placeholder image slot; user can drop a real
+                    // file later. Tags are seeded from the cluster results.
+                    core::ImageData img;
+                    img.fileName = "00001.png";
+                    img.tagIds = m_entryModel->getTagIds(tags);
+                    entry.images.append(std::move(img));
+
+                    const QString newUuid = entry.uuid;
+                    m_entryModel->addEntry(std::move(entry));
+                    m_tileViewPage->refreshEntries();
+                    m_pages->setCurrentIndex(int(Page::EntryViewer));
+                    if (core::Entry* fresh = m_entryModel->entryByUuid(newUuid))
+                        m_tileViewPage->selectEntry(fresh->id);
+                    if (m_statusBar)
+                        m_statusBar->showMessage(QString("Created entry \"%1\" with %2 tag(s).")
+                                                     .arg(title)
+                                                     .arg(tags.size()));
+                });
     }
 
     // ---- Wiki page navigation

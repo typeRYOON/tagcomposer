@@ -200,6 +200,11 @@ void TileViewPage::refreshEntries()
     m_entryView->query(m_searchBar->text());
 }
 
+void TileViewPage::selectEntry(int32_t entryId)
+{
+    m_entryView->selectAndScrollToEntry(entryId);
+}
+
 void TileViewPage::setTileGradient(qreal start, int alpha)
 {
     m_entryView->setTileGradient(start, alpha);
