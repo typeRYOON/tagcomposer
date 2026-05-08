@@ -187,7 +187,7 @@ QList<int32_t> TagIndex::multiPrefixSearch(const QString& query) const
 
 template <typename T> QList<T> TagIndex::intersectSorted(const QList<T>& a, const QList<T>& b)
 {
-    QList<int32_t> result;
+    QList<T> result;
     result.reserve(std::min(a.size(), b.size()));
 
     auto itA = a.begin();

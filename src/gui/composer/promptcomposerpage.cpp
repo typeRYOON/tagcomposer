@@ -70,7 +70,7 @@ static QString dotColorFor(RuleResult r)
     case RuleResult::Deactivated:
         return "#2a2a2a";
     case RuleResult::Deleted:
-        return "#2a2a2a"; // never displayed; case present so the switch is exhaustive
+        return "#2a2a2a"; // unreachable; kept for switch exhaustiveness
     }
     return "#444444";
 }
@@ -96,8 +96,7 @@ static QString resolveOutputPath(const QString& pattern)
     return result;
 }
 
-// State previews are only ever shown at 220 px max (showStatePreview),
-// so cap stored size to keep the data dir small. Aspect ratio preserved.
+// Cap stored size: previews are shown at 220 px max (showStatePreview).
 static constexpr int STATE_PREVIEW_MAX_W = 1024;
 static constexpr int STATE_PREVIEW_MAX_H = 1280;
 
@@ -161,8 +160,8 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     connect(groupsScroll, &ComposerScrollArea::clearPendingRequested, this,
             &PromptComposerPage::clearPendingRequested);
 
-    // Tab from anywhere inside the composer list jumps to the search bar,
-    // overriding the default focus-traversal between tag rows.
+    // Tab from inside the list jumps to the search bar, overriding
+    // the default tag-row focus traversal.
     auto* tabToSearch = new QShortcut(QKeySequence(Qt::Key_Tab), groupsScroll);
     tabToSearch->setContext(Qt::WidgetWithChildrenShortcut);
     connect(tabToSearch, &QShortcut::activated, this,
@@ -177,9 +176,8 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_mainStack->addWidget(emptyHint);    // 0
     m_mainStack->addWidget(groupsScroll); // 1
 
-    // Fade-out/fade-in around big rebuilds (manual tag add via search,
-    // state restore). Replaces the older setUpdatesEnabled(false) freeze
-    // which left input widgets in a half-rendered state mid-rebuild.
+    // Fade around big rebuilds (manual add via search, state restore).
+    // Replaces setUpdatesEnabled(false) which left widgets half-rendered.
     m_mainStackFx = new QGraphicsOpacityEffect(m_mainStack);
     m_mainStackFx->setOpacity(1.0);
     m_mainStack->setGraphicsEffect(m_mainStackFx);
@@ -426,8 +424,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_statesList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     m_statesList->installEventFilter(this);
 
-    // List rows may be filtered, so visual row != model index. Each item
-    // carries its model index in Qt::UserRole.
+    // Visual row != model index when filtered; UserRole stores the model index.
     auto modelIdxOf = [this](QListWidgetItem* item) -> int {
         if (!item) return -1;
         const QVariant v = item->data(Qt::UserRole);
@@ -442,7 +439,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
                 core::SavedState& state = m_stateManager.states()[row];
                 const QString stateDir = m_statesDir + "/" + state.id;
                 QDir().mkpath(stateDir);
-                // Delete any existing preview regardless of its extension
+                // Drop any existing preview regardless of extension.
                 if (!state.previewImagePath.isEmpty() && QFile::exists(state.previewImagePath))
                     QFile::remove(state.previewImagePath);
                 const QString dest = stateDir + "/preview.png";
@@ -636,8 +633,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_previewLabel->setObjectName("ComposerPreviewLabel");
     m_previewLabel->setAlignment(Qt::AlignCenter);
     m_previewLabel->setFixedSize(PreviewSize, PreviewSize);
-    m_previewLabel->hide(); // shown when first image arrives
-    // Step text is painted directly inside PreviewClickLabel::paintEvent
+    m_previewLabel->hide(); // shown on first image arrival
 
     // ---- Control bar (floating below preview)
     m_controlBar = new QWidget(this);
@@ -722,8 +718,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
             [this]() { emit runRequested(m_promptCountSpin->value()); });
     connect(m_interruptBtn, &QPushButton::clicked, this, [this]() { emit interruptRequested(); });
 
-    // Inset preview opacity: starts at 0 so it fades in when the first preview
-    // image arrives. Also driven down/up when the popout opens/closes.
+    // Starts at 0 so first preview fades in; popout open/close also drives it.
     m_previewInsetFx = new QGraphicsOpacityEffect(m_previewLabel);
     m_previewInsetFx->setOpacity(0.0);
     m_previewLabel->setGraphicsEffect(m_previewInsetFx);
@@ -735,20 +730,20 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     connect(m_previewLabel, &PreviewClickLabel::clicked, this, [this]() {
         if (!m_popout) {
             auto* popout =
-                new PreviewPopoutWindow(nullptr); // null parent for a real top-level (FancyZones)
+                new PreviewPopoutWindow(nullptr); // null parent: real top-level for FancyZones
             popout->setAttribute(Qt::WA_DeleteOnClose);
             m_popout = popout;
             m_popout->installEventFilter(this);
             connect(m_popout, &QObject::destroyed, this, [this]() {
                 m_popout = nullptr;
-                // Skip the fade-back if no preview ever showed; setPreviewImage
-                // will reveal the inset when content actually arrives.
+                // Skip fade-back if nothing ever showed; setPreviewImage
+                // will reveal the inset when content arrives.
                 if (m_previewLabel->isVisible()) fadePreviewInset(1.0);
             });
             if (!m_tempFolder.isEmpty()) popout->setTempFolder(m_tempFolder);
 
-            // Forward keyboard-shortcut intents up so AppMainWindow/ComfyUI
-            // see them the same as from the main window.
+            // Forward shortcut intents so AppMainWindow/ComfyUI see them
+            // the same as from the main window.
             connect(popout, &PreviewPopoutWindow::runRequested, this,
                     [this]() { emit runRequested(m_promptCountSpin->value()); });
             connect(popout, &PreviewPopoutWindow::interruptRequested, this,
@@ -786,11 +781,9 @@ bool PromptComposerPage::eventFilter(QObject* obj, QEvent* event)
     }
     if (obj == m_popout) {
         if (event->type() == QEvent::Show) {
-            // Popout opened - hide the floating preview label to reduce clutter
             m_previewLabel->hide();
         }
         else if (event->type() == QEvent::Hide) {
-            // Popout closed - restore preview label if we have an image
             if (!m_currentPix.isNull()) {
                 m_previewLabel->show();
                 repositionFloats();
@@ -806,8 +799,7 @@ void PromptComposerPage::setPreviewImage(const QImage& image)
 {
     if (image.isNull()) return;
     m_currentPix = QPixmap::fromImage(image);
-    // Hardcode the size; size() can return 0x0 before the floating label
-    // has been laid out for the first time.
+    // Hardcode size; size() can be 0x0 before first layout.
     m_previewLabel->setPixmap(
         m_currentPix.scaled(QSize(200, 200), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
@@ -815,7 +807,7 @@ void PromptComposerPage::setPreviewImage(const QImage& image)
     if (!popoutOpen) {
         m_previewLabel->show();
         m_previewLabel->raise();
-        fadePreviewInset(1.0); // first show fades 0 to 1; later calls no-op
+        fadePreviewInset(1.0); // first show fades 0->1; later calls no-op
     }
     repositionFloats();
 
@@ -875,7 +867,6 @@ void PromptComposerPage::repositionFloats()
     if (m_previewLabel->isVisible()) {
         m_previewLabel->move(right - m_previewLabel->width(), bottom - m_previewLabel->height());
     }
-    // step text is painted inside m_previewLabel via paintEvent - no separate widget
 }
 
 void PromptComposerPage::resizeEvent(QResizeEvent* event)
@@ -950,7 +941,7 @@ QList<CategoryGroup> PromptComposerPage::bucketForOutput(const QList<PipelineTag
         if (it == buckets.cend() || it.value().isEmpty()) continue;
         ordered << CategoryGroup{g.name, it.value()};
     }
-    // Uncategorized bucket goes last in display order.
+    // Uncategorized goes last.
     const auto unc = buckets.constFind(QString());
     if (unc != buckets.cend() && !unc.value().isEmpty())
         ordered << CategoryGroup{QString(), unc.value()};
@@ -981,8 +972,7 @@ QString PromptComposerPage::computePromptForTags(const QList<QString>& tags, boo
 
     QList<core::CategoryGroup> groups = m_pipeline->evaluate(tags);
 
-    // Apply user weights - only meaningful for tags that happen to overlap
-    // m_tagWeights (typically batch tags differ from the composer's set).
+    // Apply weights only where they overlap (batch tags usually differ from composer's).
     for (auto& g : groups)
         for (auto& pt : g.tags)
             pt.weight = m_tagWeights.value(weightKeyOf(pt), 1.0f);
@@ -996,8 +986,7 @@ QString PromptComposerPage::computePromptForTags(const QList<QString>& tags, boo
 QString PromptComposerPage::computePromptWithExtraTags(const QList<QString>& extraTags,
                                                        bool forJson) const
 {
-    // Merge active-minus-deactivated with extraTags, deduping while
-    // keeping composer-state ordering first.
+    // Composer state first, then extraTags, dedup preserving order.
     QList<QString> merged;
     QSet<QString> seen;
     for (const QString& t : m_activeTags) {
@@ -1043,8 +1032,8 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
     const bool wasActive = m_activePushes.contains(key);
 
     if (wasActive) {
-        // Iterate only this push's owned tags; manual adds and other-push
-        // contributions aren't in m_activePushes[key], so they survive.
+        // Only this push's owned tags; manual adds + other-push tags
+        // aren't in m_activePushes[key], so they survive.
         QSet<QString> otherTags;
         for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
             if (it.key() != key) {
@@ -1063,8 +1052,7 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
         m_activePushes.remove(key);
     }
     else {
-        // Claim only what's newly contributed; sharing with a manual add
-        // or another push leaves the tag intact on un-push.
+        // Claim only newly-contributed tags; shared ones survive un-push.
         QList<QString> claimed;
         for (const QString& tag : tags) {
             if (!m_activeTagSet.contains(tag)) {
@@ -1119,14 +1107,13 @@ void PromptComposerPage::onEntryTagAdded(int entryId, int imageIdx, const QStrin
     if (!m_activePushes.contains(key)) return;
 
     // Mirrors loadPipeline's claim rule: only track tags this push
-    // actually contributes (skip ones from manual adds / other pushes).
+    // contributes (skip manual adds / other-push tags).
     if (!m_activeTagSet.contains(tag)) {
         m_activeTags << tag;
         m_activeTagSet.insert(tag);
         if (!m_activePushes[key].contains(tag)) m_activePushes[key] << tag;
     }
-    // External mutation - don't snapshot, but invalidate redo since the
-    // composer state has now diverged from what redo would restore.
+    // External mutation: don't snapshot, but redo would now diverge.
     clearRedoStack();
     queueRepush();
 }
@@ -1165,8 +1152,7 @@ void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
     const bool loraGone = m_activeLoraUuids.contains(uuid);
     if (keysToRemove.isEmpty() && !loraGone) return;
 
-    // Tags still claimed by *other* pushes survive - only drop tags whose
-    // last claim was the disappearing entry.
+    // Drop only tags whose last claim was the disappearing entry.
     QSet<QString> stillClaimed;
     for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
         if (keysToRemove.contains(it.key())) continue;
@@ -1216,8 +1202,7 @@ void PromptComposerPage::onImageRemoved(int32_t entryId, int imageIdx)
     if (!hadPush && higherKeys.isEmpty()) return;
 
     if (hadPush) {
-        // Mirror onEntryDeleted's claim rule: tags still claimed by other
-        // pushes survive; only drop tags whose last claim was this push.
+        // Same claim rule as onEntryDeleted.
         QSet<QString> stillClaimed;
         for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
             if (it.key() == removedKey) continue;
@@ -1234,7 +1219,7 @@ void PromptComposerPage::onImageRemoved(int32_t entryId, int imageIdx)
         m_activePushes.remove(removedKey);
     }
 
-    // Shift in ascending order so each move targets a now-vacant slot.
+    // Shift ascending so each move lands in a vacated slot.
     std::sort(higherKeys.begin(), higherKeys.end());
     for (qint64 oldKey : higherKeys) {
         const int oldImg = int(quint32(oldKey & 0xFFFFFFFFLL));
@@ -1273,8 +1258,7 @@ void PromptComposerPage::queueRepush()
 
 void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGroups)
 {
-    // Drop Deleted tags from m_activeTags entirely (vs Skipped, which only
-    // hides them from output). Used for search-only tags.
+    // Deleted drops from m_activeTags entirely; Skipped only hides from output.
     QList<QString> deleted;
     for (auto& g : categoryGroups) {
         auto end = std::remove_if(g.tags.begin(), g.tags.end(), [&deleted](const PipelineTag& pt) {
@@ -1295,7 +1279,6 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
         }
     }
 
-    // Apply user-set weights before storing or displaying
     for (auto& g : categoryGroups)
         for (auto& pt : g.tags)
             pt.weight = m_tagWeights.value(weightKeyOf(pt), 1.0f);
@@ -1304,7 +1287,7 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
     for (const auto& g : categoryGroups)
         flat << g.tags;
 
-    // Append deactivated tags as display-only entries (not in pipeline output)
+    // Display-only entries; not in pipeline output.
     for (const QString& tag : m_activeTags) {
         if (m_deactivatedTags.contains(tag)) {
             PipelineTag pt;
@@ -1354,7 +1337,7 @@ void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
         return;
     }
 
-    // Snap to invisible, swap content while hidden, then animate back in.
+    // Snap invisible, swap, fade back in.
     if (m_mainStackFade->state() == QAbstractAnimation::Running)
         m_mainStackFade->stop();
     m_mainStackFx->setOpacity(0.0);
@@ -1374,9 +1357,8 @@ void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)
 
     m_groupHeaders.clear();
 
-    // Undefined-tag count is computed off the unfiltered pipeline output so
-    // the nav-panel badge and toggle button stay accurate even when a search
-    // query has narrowed the visible flat list.
+    // Count off m_lastResult (not flat) so the nav badge stays accurate
+    // when a search query has narrowed the view.
     auto isUndefined = [](const PipelineTag& pt) {
         return pt.result == RuleResult::NoFacets ||
                (pt.result == RuleResult::Injected && pt.facets.isEmpty());
@@ -1385,9 +1367,8 @@ void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)
     for (const PipelineTag& pt : m_lastResult)
         if (isUndefined(pt)) ++undefTotal;
 
-    // Defining the last undefined tag while the filter is engaged would
-    // strand the user on an empty view; release the filter so they land
-    // back on the full prompt. setChecked re-enters via the toggled slot.
+    // Defining the last undefined tag while filtered would strand the user
+    // on an empty view; release the filter (setChecked re-enters via toggled).
     if (m_undefinedToggleBtn && undefTotal == 0 && m_undefinedToggleBtn->isChecked()) {
         m_undefinedToggleBtn->setChecked(false);
         return;
@@ -1435,8 +1416,7 @@ void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)
 
     m_groupsLayout->addStretch();
 
-    // Undefined tags always bucket into "Uncategorized" (no facets -> no
-    // category mapping), so the per-category count map is just one entry.
+    // Undefined tags always bucket into Uncategorized (no facets -> no category).
     QHash<QString, int> undefinedByCategory;
     if (undefTotal > 0) undefinedByCategory["Uncategorized"] = undefTotal;
     if (m_categoryNav)
@@ -1472,8 +1452,7 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey, const QString
     }
     else {
         const QString token = "$" + newVarName + "$";
-        // Replace every $name$ with the chosen one so the rendered badge
-        // (which collapses vars into a single pill) stays in sync.
+        // Replace every $name$ so the badge (which collapses vars to one pill) stays in sync.
         newKey.replace(varRe, token);
     }
 
@@ -1482,7 +1461,7 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey, const QString
 
     const bool collide = m_activeTagSet.contains(newKey);
     if (collide) {
-        // Already present elsewhere - drop the old one rather than dupe.
+        // Already present; drop instead of duping.
         m_activeTags.removeAt(i);
         m_activeTagSet.remove(oldKey);
         m_tagWeights.remove(oldKey);
@@ -1491,8 +1470,7 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey, const QString
         m_activeTags[i] = newKey;
         m_activeTagSet.remove(oldKey);
         m_activeTagSet.insert(newKey);
-        // Migrate any user-set weight under the new source key so the
-        // variable swap doesn't silently drop it.
+        // Migrate weight so the variable swap doesn't silently drop it.
         if (m_tagWeights.contains(oldKey)) m_tagWeights[newKey] = m_tagWeights.take(oldKey);
     }
     m_deactivatedTags.remove(oldKey);
@@ -1573,16 +1551,14 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
             if (collide) {
                 m_activeTags.removeAt(i);
                 m_activeTagSet.remove(oldTag);
-                // Drop the orphan weight: the colliding existing tag keeps
-                // its own value rather than being silently overridden.
+                // Drop the orphan weight; colliding tag keeps its own value.
                 m_tagWeights.remove(oldTag);
             }
             else {
                 m_activeTags[i] = newTag;
                 m_activeTagSet.remove(oldTag);
                 m_activeTagSet.insert(newTag);
-                // Migrate any user-set weight to the new key so the rename
-                // doesn't silently drop it.
+                // Migrate weight so the rename doesn't silently drop it.
                 if (m_tagWeights.contains(oldTag)) m_tagWeights[newTag] = m_tagWeights.take(oldTag);
             }
             renamePushTag(oldTag, collide ? QString() : newTag);
@@ -1667,7 +1643,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
             m_activeTags.removeOne(activeKey);
             m_activeTagSet.remove(activeKey);
             // weightKeyOf == sourceTag == activeKey for $VAR$ tags; using
-            // wikiTag (the expanded form) here would orphan the entry.
+            // wikiTag (expanded form) would orphan the entry.
             m_tagWeights.remove(activeKey);
             m_deactivatedTags.remove(activeKey);
             captureUndoSnapshot();
@@ -1702,9 +1678,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                             menu.addAction(isDeactivated ? "Activate" : "Deactivate");
                         QAction* removeAct = menu.addAction("Remove");
 
-                        // Variable swap; only shown when the tag carries one.
-                        // Retargets every $foo$ to another declared variable
-                        // or strips them.
+                        // Variable swap: retargets every $foo$ or strips them.
                         QAction* dropVarAct = nullptr;
                         QHash<QAction*, QString> setVarActs;
                         if (hasVar && m_varIndex) {

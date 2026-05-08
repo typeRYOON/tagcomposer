@@ -59,7 +59,6 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     m_lastComfyEnabled = m_settings.comfyUiEnabled;
     m_lastComfyHost = m_settings.comfyUiServerAddress;
-    m_lastComfyApiKey = m_settings.comfyUiApiKey;
 
     // ---- ComfyUI client
     m_comfyClient = new core::ComfyUiClient(this);
@@ -589,14 +588,14 @@ void AppMainWindow::applyComfySettings()
     m_composerPage->setTempFolder(m_settings.comfyUiTempFolder);
     m_outputViewerPage->setOutputFolder(m_settings.comfyUiOutputFolder);
 
+    // API key rides on each REST request via extra_data, not the WS handshake,
+    // so a key change doesn't need a reconnect.
     const bool enabledChanged = (m_settings.comfyUiEnabled != m_lastComfyEnabled);
     const bool hostChanged = (m_settings.comfyUiServerAddress != m_lastComfyHost);
-    const bool apiKeyChanged = (m_settings.comfyUiApiKey != m_lastComfyApiKey);
-    const bool needsBounce = enabledChanged || hostChanged || apiKeyChanged;
+    const bool needsBounce = enabledChanged || hostChanged;
 
     m_lastComfyEnabled = m_settings.comfyUiEnabled;
     m_lastComfyHost = m_settings.comfyUiServerAddress;
-    m_lastComfyApiKey = m_settings.comfyUiApiKey;
 
     if (!needsBounce) return;
 

@@ -42,8 +42,9 @@ static QList<QString> splitTopLevel(const QString& expr, const QString& sep)
     return out;
 }
 
-// [NOT] anyTag(facets: ...) | anyTag(name: "...")
-static MatchClause parseClause(const QString& raw)
+// [NOT] anyTag(facets: ...) | anyTag(name: "..."). Sets *ok=false on
+// malformed input; caller skips bad clauses.
+static MatchClause parseClause(const QString& raw, bool* ok)
 {
     MatchClause c;
     QString expr = raw.trimmed();
@@ -53,29 +54,47 @@ static MatchClause parseClause(const QString& raw)
         expr = expr.mid(4).trimmed();
     }
 
-    if (!expr.startsWith("anyTag(")) return c;
+    if (!expr.startsWith("anyTag(") || !expr.endsWith(')')) {
+        *ok = false;
+        return c;
+    }
     const QString inner = expr.mid(7, expr.length() - 8).trimmed();
 
     if (inner.startsWith("facets:")) {
         c.type = MatchType::AnyTagFacets;
         c.facets = splitTrimmed(inner.mid(7), ',');
+        *ok = !c.facets.isEmpty();
     }
     else if (inner.startsWith("name:")) {
         c.type = MatchType::AnyTagName;
         c.nameGlob = inner.mid(5).trimmed().remove('"');
+        *ok = !c.nameGlob.isEmpty();
+    }
+    else {
+        *ok = false;
     }
 
     return c;
 }
 
-// Parses an OR of AND-groups; AND binds tighter (standard precedence).
-static RuleMatch parseMatch(const QString& expr)
+// OR of AND-groups; AND binds tighter (standard precedence). Bad clauses
+// are dropped with an error rather than left to corrupt the rule.
+static RuleMatch parseMatch(const QString& expr, QStringList* errors, const QString& ruleName)
 {
     RuleMatch m;
     for (const QString& orPart : splitTopLevel(expr, " OR ")) {
         QList<MatchClause> group;
-        for (const QString& andPart : splitTopLevel(orPart, " AND "))
-            group << parseClause(andPart);
+        for (const QString& andPart : splitTopLevel(orPart, " AND ")) {
+            bool ok = true;
+            MatchClause c = parseClause(andPart, &ok);
+            if (!ok) {
+                if (errors)
+                    *errors << QString("Rule \"%1\": malformed clause \"%2\"")
+                                   .arg(ruleName, andPart);
+                continue;
+            }
+            group << c;
+        }
         if (!group.isEmpty()) m.orGroups << group;
     }
     return m;
@@ -218,7 +237,7 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
         else if (key == "force")
             current.force = (val == "true");
         else if (key == "match")
-            current.match = parseMatch(val);
+            current.match = parseMatch(val, errors, current.name);
         else if (key == "action") {
             bool known = false;
             for (const QString& kw : knownActions)

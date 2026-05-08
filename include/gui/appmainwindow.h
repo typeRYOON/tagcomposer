@@ -120,7 +120,6 @@ private:
     // on, so unrelated settings edits don't bounce the WebSocket.
     bool m_lastComfyEnabled = false;
     QString m_lastComfyHost;
-    QString m_lastComfyApiKey;
 
     utils::AppSettings m_settings;
 

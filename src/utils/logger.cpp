@@ -11,8 +11,10 @@ Logger& Logger::instance()
 
 void Logger::log(const QString& message)
 {
+    constexpr int kHistoryCap = 5000;
     const QString entry = QDateTime::currentDateTime().toString("[hh:mm:ss]") + ":  " + message;
     m_history << entry;
+    if (m_history.size() > kHistoryCap) m_history.removeFirst();
     emit messageLogged(entry);
 }
 

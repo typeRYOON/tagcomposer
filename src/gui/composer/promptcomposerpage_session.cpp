@@ -1,5 +1,4 @@
-// Session save/restore for PromptComposerPage. Written on close, read on
-// startup. Companion TU - no separate class.
+// Session save/restore. Written on close, read on startup.
 
 #include <gui/composer/promptcomposerpage.h>
 #include <core/entrymodel.h>
@@ -48,23 +47,21 @@ void PromptComposerPage::restoreSession(const QString& path)
 {
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
-        // Even with no session file, seed an empty baseline so the first
-        // user action after startup has somewhere to undo back to.
+        // Seed a baseline even with no file so first user action can undo.
         rebaselineUndo();
         return;
     }
     const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
 
-    // Reflective sync (loraUuidsRestored -> tile view -> setActiveLoraUuids
-    // back here) would otherwise look like a user mutation. Suppress so the
-    // session-load is treated as a clean baseline.
+    // Suppress: loraUuidsRestored bounces through the tile view back to
+    // setActiveLoraUuids and would look like a user mutation.
     m_suppressUndoCapture = true;
 
     m_activeTags.clear();
     m_activeTagSet.clear();
     m_tagWeights.clear();
     m_deactivatedTags.clear();
-    // m_activePushes is replaced wholesale by loadActivePushes below.
+    // m_activePushes is replaced by loadActivePushes below.
 
     for (const QJsonValue& v : root["activeTags"].toArray()) {
         const QString t = v.toString();

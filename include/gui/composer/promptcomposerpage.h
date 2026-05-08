@@ -59,20 +59,15 @@ public:
                         const QString& triggerWordFacet, const QString& styleFacet);
 
     QString currentPromptString(bool forJson) const;
-    // Returns the user-typed active tags plus any rule-injected tag names
-    // from the last pipeline run. Used by the facet editor's "undefined in
-    // composer" list so rule-introduced tags without defs aren't missed.
+    // Active tags plus rule-injected names from the last run, so the facet
+    // editor's "undefined in composer" list catches rule-introduced tags.
     QList<QString> currentActiveTags() const;
 
-    // Synchronously runs the pipeline for an arbitrary tag list and returns
-    // the prompt string. Used by the batch runner to build per-entry prompts
-    // without disturbing composer state. Applies user weights from m_tagWeights
-    // for any tag that appears there; re-orders groups via groups.fct.
+    // Sync pipeline run; batch path uses this without disturbing composer
+    // state. Applies m_tagWeights to overlapping tags.
     QString computePromptForTags(const QList<QString>& tags, bool forJson) const;
 
-    // Same as currentPromptString but with `extraTags` unioned on top of the
-    // composer's current effective tag set (active minus deactivated). Used
-    // by the batch runner to build "composer state + this entry's tags".
+    // currentPromptString with extraTags unioned on top of (active - deactivated).
     QString computePromptWithExtraTags(const QList<QString>& extraTags, bool forJson) const;
 
     int currentPromptCount() const;
@@ -82,32 +77,26 @@ public:
 
 public slots:
     void triggerRun();
-    // Pop one composer-state snapshot off the undo stack and reapply.
-    // Disabled (no-op) when only the session baseline remains.
+    // No-op when only the session baseline remains.
     void undo();
     void redo();
     void loadPipeline(int entryId, int imageIdx, const QList<QString>& tags);
     void onPipelineReady(QList<core::CategoryGroup> groups);
     void onEntryTagAdded(int entryId, int imageIdx, const QString& tag);
     void onEntryTagRemoved(int entryId, int imageIdx, const QString& tag);
-    // Hooked to EntryModel::entryDeleted. Drops every push belonging to
-    // the deleted entry (and any tags only those pushes claimed) plus
-    // the entry's LoRA uuid from the active set, so the composer doesn't
-    // keep stale state pointing at a now-gone entry.
+    // Drop pushes + LoRA uuid for the deleted entry; tags claimed only by
+    // those pushes also drop.
     void onEntryDeleted(int32_t entryId, const QString& uuid);
-    // Hooked to EntryModel::imageRemovedFromEntry. Drops the push for the
-    // removed slot (and any tags only that push claimed), then shifts any
-    // higher-indexed pushes for the same entry down by one to track the
-    // model's images.removeAt() reindexing.
+    // Drop the push for the removed slot, then shift higher-indexed pushes
+    // for the same entry down by one to track images.removeAt() reindexing.
     void onImageRemoved(int32_t entryId, int imageIdx);
     void setPreviewImage(const QImage& image);
     void setOutputFolderPattern(const QString& pattern);
     void setTempFolder(const QString& folder);
     void setActiveLoraUuids(const QList<QString>& uuids);
     void repush();
-    // Posts a single queued repush per event-loop pass. Multiple callers in
-    // the same pass (e.g. pasting a comma-separated tag list that fires
-    // entryTagAdded once per tag) collapse into one pipeline run.
+    // Coalesces multiple same-pass callers (e.g. pasting comma-separated
+    // tags that fire entryTagAdded once per tag) into one pipeline run.
     void queueRepush();
 
 signals:
@@ -132,9 +121,8 @@ protected:
 
 private:
     void rebuildGroupsDisplay(const QList<core::PipelineTag>& flat);
-    // Performs the actual layout swap for a flat tag list. Split from
-    // rebuildGroupsDisplay so it can run synchronously OR from the fade-out
-    // finished handler, with the same end result either way.
+    // Layout swap; split out so rebuildGroupsDisplay can run it sync or
+    // from the fade-out finished handler.
     void applyGroupsRebuild(const QList<core::PipelineTag>& flat);
     void fadePreviewInset(qreal target);
     void applyTagFilter();
@@ -147,9 +135,8 @@ private:
     void reloadVars();
     void saveCurrentState();
     void overwriteState(int row);
-    // Fills `state` with a snapshot of the current composer/workflow data.
-    // Leaves id, name, and previewImagePath untouched - those are owned by
-    // the caller (new save vs. overwriting an existing slot).
+    // Snapshot composer/workflow data into `state`. Leaves id, name,
+    // previewImagePath alone - caller owns those.
     void captureCurrentState(core::SavedState& state) const;
     void restoreState(const core::SavedState& state);
     void showStatePreview(int row);
@@ -157,52 +144,39 @@ private:
 
     QWidget* makeTagRow(const core::PipelineTag& pt);
 
-    // Append the per-tag "Quick add as character/copyright/trigger word/style"
-    // section to `menu` if any quick-facet preference is configured. Returns
-    // a map from each appended QAction* to the facet name it represents, for
-    // dispatch in the menu's exec() handler.
+    // Returns appended QAction* -> facet name for menu.exec() dispatch.
     QHash<QAction*, QString> addQuickFacetActions(QMenu& menu) const;
 
-    // Tags carrying $VAR$ tokens get their weight stored by the *source*
-    // form so the user's weight survives a variable-value change (which
-    // rewrites pt.tag but not pt.sourceTag).
+    // $VAR$ tags key on sourceTag so the user's weight survives a
+    // variable-value change (which rewrites pt.tag but not pt.sourceTag).
     static QString weightKeyOf(const core::PipelineTag& pt)
     {
         return pt.sourceTag.isEmpty() ? pt.tag : pt.sourceTag;
     }
 
-    // Re-bucket a flat tag list into CategoryGroups in the user-defined
-    // display order from `groups`. Tags with result == Deactivated are
-    // dropped - callers that want to surface them separately must filter
-    // first. Used by both the prompt builders and the on-screen layout.
+    // Re-bucket a flat tag list into CategoryGroups in `groups` order.
+    // Drops Deactivated tags - callers that want them must filter first.
     static QList<core::CategoryGroup> bucketForOutput(const QList<core::PipelineTag>& flat,
                                                       const core::TagGroupIndex& groups);
 
-    // Round-trip m_activePushes against the portable {uuid, imageFileName,
-    // tags} form. Unresolved-runtime-id pushes are skipped on dump; load
-    // returns how many incoming pushes couldn't be resolved (entry deleted
-    // between save and restore).
+    // Round-trip m_activePushes against {uuid, imageFileName, tags}.
+    // dump skips unresolved runtime ids; load returns the unresolved count.
     QList<core::EntryPush> dumpActivePushes() const;
     int loadActivePushes(const QList<core::EntryPush>& pushes);
 
     // Rewrites every $foo$ in oldKey to $newVarName$ (or strips them when
-    // newVarName is empty), updates the active set, and triggers a repush.
+    // newVarName is empty), updates the active set, repushes.
     void replaceTagVariable(const QString& oldKey, const QString& newVarName);
 
-    // Rewrites every occurrence of `oldKey` inside m_activePushes to `newKey`.
-    // When `newKey` is empty (rename collided with an existing active tag),
-    // the old entry is dropped so the push doesn't continue to claim a tag
-    // that's already owned elsewhere.
+    // Rewrites oldKey -> newKey inside m_activePushes. Empty newKey (collision)
+    // drops the entry so the push stops claiming a tag owned elsewhere.
     void renamePushTag(const QString& oldKey, const QString& newKey);
 
-    // Undo/redo helpers - see promptcomposerpage_undo.cpp.
-    // captureUndoSnapshot is called *after* a user action commits; if `kind`
-    // matches the top of the stack within kUndoCoalesceMs, the top is
-    // replaced rather than a new entry pushed (keeps slider/typing spam
-    // from filling the stack).
+    // Undo/redo - see promptcomposerpage_undo.cpp.
+    // Called after a user action commits; same `kind` within kUndoCoalesceMs
+    // replaces the top instead of pushing (keeps slider/typing spam out).
     void captureUndoSnapshot(const QString& kind = QString());
-    // Clears both stacks and seeds the undo stack with a fresh baseline
-    // capturing the current composer state.
+    // Clears both stacks; seeds undo with a baseline of the current state.
     void rebaselineUndo();
     void clearRedoStack();
     void updateUndoButtons();
@@ -285,12 +259,11 @@ private:
     core::StateManager m_stateManager;
     QString m_statesDir;
     bool m_suppressRuleSave = false;
-    // When set, the next rebuildGroupsDisplay swaps content behind a fade
-    // animation instead of doing it in-place. Cleared by rebuildGroupsDisplay.
+    // Next rebuildGroupsDisplay fades through 0 instead of swapping in place.
     bool m_freezeNextRebuild = false;
 
-    // Fade animation that hides the rebuild flicker. Effect is attached to
-    // m_mainStack so the search bar above it stays interactive throughout.
+    // Effect on m_mainStack (not contentWidget) so the search bar stays
+    // interactive while the tag list fades.
     QGraphicsOpacityEffect* m_mainStackFx = nullptr;
     QPropertyAnimation* m_mainStackFade = nullptr;
 

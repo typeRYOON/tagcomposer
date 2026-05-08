@@ -1,7 +1,5 @@
-// Undo/redo for PromptComposerPage. Snapshots are reuses of core::SavedState
-// (the same struct that backs named user states), captured *after* each
-// committed user action. The undo stack invariant is "top == current state",
-// so undo pops the top, pushes it onto redo, and reapplies the new top.
+// Undo/redo. Snapshots reuse core::SavedState, captured *after* each
+// committed action. Invariant: m_undoStack.last() == current state.
 
 #include <gui/composer/promptcomposerpage.h>
 #include <QDateTime>
@@ -18,8 +16,8 @@ void PromptComposerPage::captureUndoSnapshot(const QString& kind)
     e.kind = kind;
     e.timestamp = QDateTime::currentMSecsSinceEpoch();
 
-    // Coalesce same-kind events within the window so slider/typing spam
-    // collapses to one undo step. Empty kind never coalesces.
+    // Same-kind within the window replaces the top (slider/typing spam).
+    // Empty kind never coalesces.
     if (!m_undoStack.isEmpty() && !kind.isEmpty() && m_undoStack.last().kind == kind &&
         (e.timestamp - m_undoStack.last().timestamp) < kUndoCoalesceMs) {
         m_undoStack.last() = e;
@@ -52,8 +50,7 @@ void PromptComposerPage::clearRedoStack()
 
 void PromptComposerPage::undo()
 {
-    // Need [baseline, ..., current]; the current-state entry on top is what
-    // gets popped. Bottom (baseline) stays so we can keep undoing back to it.
+    // Stack must be [baseline, ..., current]; pop current, baseline stays.
     if (m_undoStack.size() < 2) return;
     UndoEntry top = m_undoStack.takeLast();
     m_redoStack.append(top);

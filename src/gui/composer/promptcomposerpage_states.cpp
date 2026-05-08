@@ -1,6 +1,5 @@
-// Saved-state management (named user presets) for PromptComposerPage.
-// Distinct from session save/restore: explicit named snapshots with
-// optional preview thumbnails, hover-previewed in the states sidebar.
+// Named saved states (user presets). Distinct from session save/restore:
+// explicit named snapshots with optional preview thumbnails.
 
 #include <gui/composer/promptcomposerpage.h>
 #include <gui/composer/stateslistwidget.h>
@@ -73,14 +72,14 @@ void PromptComposerPage::captureCurrentState(core::SavedState& state) const
         if (qAbs(it.value() - 1.0f) >= 0.001f) state.tagWeights[it.key()] = it.value();
     state.deactivatedTags = m_deactivatedTags;
 
-    // Convert runtime (entryId, imageIdx) keys to stable (uuid, imageFileName).
+    // Convert runtime keys to stable (uuid, imageFileName).
     state.activePushes = dumpActivePushes();
 
     state.ruleStates.clear();
     state.ruleArguments.clear();
     for (const auto& rule : m_rules->rules()) {
         state.ruleStates[rule.name] = rule.enabled;
-        // Add/Replace args are user-typed in the rules sidebar; part of state.
+        // Add/Replace args are user-typed; part of state.
         state.ruleArguments[rule.name] = rule.action.arguments;
     }
 
@@ -132,8 +131,7 @@ void PromptComposerPage::overwriteState(int row)
     if (m_statesDir.isEmpty()) return;
     if (row < 0 || row >= m_stateManager.states().size()) return;
 
-    // Preserve identity (id keeps the on-disk dir) and the existing preview;
-    // a new save would have neither, but overwrite is meant to refresh the
+    // Preserve id (on-disk dir) and existing preview; overwrite refreshes
     // payload only.
     core::SavedState& state = m_stateManager.states()[row];
     const QString id = state.id;
@@ -170,10 +168,9 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     m_activeLoraUuids = state.activeLoraUuids;
     emit loraUuidsRestored(m_activeLoraUuids);
 
-    // Restore enabled flags and Add/Replace args, then persist. Rules
-    // added since the snapshot stay defined but force-disabled so a
-    // reload-from-disk reproduces what the user sees now. Match
-    // expressions and force flags are left alone.
+    // Restore enabled flags + Add/Replace args. Rules added after the
+    // snapshot are force-disabled so reload-from-disk matches the view.
+    // Match expressions and force flags are untouched.
     for (auto& rule : m_rules->rules()) {
         auto it = state.ruleStates.find(rule.name);
         if (it != state.ruleStates.end()) {
@@ -190,7 +187,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     rebuildRulesSidebar();
     m_suppressRuleSave = false;
 
-    // State is canonical; replace the var set wholesale and persist.
+    // State is canonical; replace var set wholesale and persist.
     if (m_varIndex) {
         QList<core::Variable> newVars;
         for (const auto& pair : state.varValues) {
@@ -204,7 +201,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         rebuildVarsSidebar();
     }
 
-    // Restore workflow selection first (so var restore targets the right workflow)
+    // Restore workflow selection first so var restore targets the right one.
     bool workflowMissing = false;
     if (m_wfManager && !state.selectedWorkflowId.isEmpty()) {
         const int wfIdx = m_wfManager->workflowIndexById(state.selectedWorkflowId);
@@ -217,13 +214,12 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         }
     }
 
-    // Workflow vars: replace wholesale, preserving the saved order.
-    // Skipped when the workflow id is missing or empty so we don't blow
-    // away the live workflow's vars with another workflow's snapshot
-    // (or with an empty array from a no-workflow-selected save).
+    // Workflow vars: replace wholesale, preserving saved order. Skipped
+    // when workflow id is missing/empty to avoid clobbering live vars with
+    // another workflow's (or an empty no-selection) snapshot.
     if (m_wfManager && !workflowMissing && !state.selectedWorkflowId.isEmpty()) {
-        // Snapshot existing types for legacy states that didn't include a
-        // "type" field (varFromJson defaults those to String otherwise).
+        // Snapshot live types for legacy states without a "type" field
+        // (varFromJson would default to String).
         QHash<QString, core::WorkflowVarType> liveTypes;
         for (const auto& v : m_wfManager->variables())
             if (!v.placeholder.isEmpty()) liveTypes[v.placeholder] = v.type;
@@ -231,7 +227,6 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         QList<core::WorkflowVar> newVars;
         for (const QJsonValue& entry : state.workflowVarValues) {
             QJsonObject o = entry.toObject();
-            // Backfill missing "type" from the live workflow before parsing.
             if (!o.contains("type")) {
                 const QString ph = o["placeholder"].toString();
                 if (liveTypes.contains(ph))
@@ -239,8 +234,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
             }
             core::WorkflowVar v = core::WorkflowManager::varFromJson(o);
 
-            // Warn and clear when a saved Image var references a missing
-            // cache entry; better to re-pick than send a broken upload.
+            // Clear missing-cache Image vars; better to re-pick than upload broken.
             if (v.type == core::WorkflowVarType::Image && !v.imageUuid.isEmpty() && m_inputCache &&
                 !m_inputCache->has(v.imageUuid)) {
                 emit statusMessageRequested(
@@ -266,9 +260,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         warnings
             << QString("%1 entr%2 no longer exist").arg(missing).arg(missing == 1 ? "y" : "ies");
 
-    // Skip the status banner and the stack reseed when restoreState is
-    // invoked from undo/redo (suppress flag set by the caller). Undo/redo
-    // are silent per the spec, and they manage their stacks externally.
+    // Undo/redo are silent and manage stacks externally.
     if (m_suppressUndoCapture) return;
 
     if (warnings.isEmpty())
