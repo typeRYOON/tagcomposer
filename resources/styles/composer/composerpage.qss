@@ -89,6 +89,26 @@
     min-width: 18px;
 }
 
+#ComposerUndoBtn, #ComposerRedoBtn {
+    background: #141414;
+    color: #777777;
+    border: 1px solid #1e1e1e;
+    border-radius: 3px;
+    font-size: 14px;
+    padding: 0;
+}
+
+#ComposerUndoBtn:hover, #ComposerRedoBtn:hover {
+    background: #1a1a1a;
+    color: #cccccc;
+}
+
+#ComposerUndoBtn:disabled, #ComposerRedoBtn:disabled {
+    color: #2a2a2a;
+    background: #0f0f0f;
+    border-color: #1a1a1a;
+}
+
 #ComposerUndefToggle[warn="true"] {
     color: #6688aa;
 }

@@ -82,6 +82,10 @@ public:
 
 public slots:
     void triggerRun();
+    // Pop one composer-state snapshot off the undo stack and reapply.
+    // Disabled (no-op) when only the session baseline remains.
+    void undo();
+    void redo();
     void loadPipeline(int entryId, int imageIdx, const QList<QString>& tags);
     void onPipelineReady(QList<core::CategoryGroup> groups);
     void onEntryTagAdded(int entryId, int imageIdx, const QString& tag);
@@ -191,6 +195,29 @@ private:
     // that's already owned elsewhere.
     void renamePushTag(const QString& oldKey, const QString& newKey);
 
+    // Undo/redo helpers - see promptcomposerpage_undo.cpp.
+    // captureUndoSnapshot is called *after* a user action commits; if `kind`
+    // matches the top of the stack within kUndoCoalesceMs, the top is
+    // replaced rather than a new entry pushed (keeps slider/typing spam
+    // from filling the stack).
+    void captureUndoSnapshot(const QString& kind = QString());
+    // Clears both stacks and seeds the undo stack with a fresh baseline
+    // capturing the current composer state.
+    void rebaselineUndo();
+    void clearRedoStack();
+    void updateUndoButtons();
+
+    struct UndoEntry {
+        core::SavedState snapshot;
+        QString kind;
+        qint64 timestamp = 0;
+    };
+    QList<UndoEntry> m_undoStack;
+    QList<UndoEntry> m_redoStack;
+    bool m_suppressUndoCapture = false;
+    static constexpr int kUndoStackCap = 50;
+    static constexpr qint64 kUndoCoalesceMs = 800;
+
     core::PromptPipeline* m_pipeline;
     core::RuleEngine* m_rules;
     core::TagGroupIndex m_groups;
@@ -232,6 +259,8 @@ private:
     QGraphicsOpacityEffect* m_previewInsetFx = nullptr; // opacity effect for fade
     QPropertyAnimation* m_previewInsetFade = nullptr;   // animation driving the effect
     QWidget* m_controlBar = nullptr;                    // floating control bar below preview
+    QPushButton* m_undoBtn = nullptr;
+    QPushButton* m_redoBtn = nullptr;
     QPushButton* m_runBtn;
     QSpinBox* m_promptCountSpin;
     QPushButton* m_interruptBtn;

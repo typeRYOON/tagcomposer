@@ -266,11 +266,18 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         warnings
             << QString("%1 entr%2 no longer exist").arg(missing).arg(missing == 1 ? "y" : "ies");
 
+    // Skip the status banner and the stack reseed when restoreState is
+    // invoked from undo/redo (suppress flag set by the caller). Undo/redo
+    // are silent per the spec, and they manage their stacks externally.
+    if (m_suppressUndoCapture) return;
+
     if (warnings.isEmpty())
         emit statusMessageRequested(QString("Restored: %1").arg(state.name));
     else
         emit statusMessageRequested(
             QString("Restored: %1  (%2)").arg(state.name, warnings.join(", ")));
+
+    rebaselineUndo();
 }
 
 void PromptComposerPage::showStatePreview(int listRow)

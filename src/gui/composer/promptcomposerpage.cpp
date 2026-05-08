@@ -133,6 +133,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
             m_activeTags << tag;
             m_activeTagSet.insert(tag);
             m_freezeNextRebuild = true;
+            captureUndoSnapshot();
             queueRepush();
         }
     });
@@ -368,8 +369,11 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
 
     connect(m_wfList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         if (!m_wfManager || item->data(Qt::UserRole).isNull()) return;
-        m_wfManager->setSelectedIndex(item->data(Qt::UserRole).toInt());
+        const int newIdx = item->data(Qt::UserRole).toInt();
+        if (newIdx == m_wfManager->selectedIndex()) return;
+        m_wfManager->setSelectedIndex(newIdx);
         m_wfManager->saveToFile(m_wfSavePath);
+        captureUndoSnapshot();
         rebuildWorkflowList();
         emit workflowVarsChanged();
     });
@@ -622,6 +626,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         m_activeLoraUuids.clear();
         emit loraUuidsRestored({});
 
+        captureUndoSnapshot();
         repush();
     });
 
@@ -645,6 +650,30 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_copyBtn->setCursor(Qt::PointingHandCursor);
     connect(m_copyBtn, &QPushButton::clicked, this,
             [this]() { QGuiApplication::clipboard()->setText(currentPromptString(false)); });
+
+    m_undoBtn = new QPushButton("↶", m_controlBar);
+    m_undoBtn->setObjectName("ComposerUndoBtn");
+    m_undoBtn->setFixedSize(25, 25);
+    m_undoBtn->setCursor(Qt::PointingHandCursor);
+    m_undoBtn->setToolTip("Undo (Ctrl+Z)");
+    m_undoBtn->setEnabled(false);
+    connect(m_undoBtn, &QPushButton::clicked, this, &PromptComposerPage::undo);
+
+    m_redoBtn = new QPushButton("↷", m_controlBar);
+    m_redoBtn->setObjectName("ComposerRedoBtn");
+    m_redoBtn->setFixedSize(25, 25);
+    m_redoBtn->setCursor(Qt::PointingHandCursor);
+    m_redoBtn->setToolTip("Redo (Ctrl+Shift+Z)");
+    m_redoBtn->setEnabled(false);
+    connect(m_redoBtn, &QPushButton::clicked, this, &PromptComposerPage::redo);
+
+    auto* undoSc = new QShortcut(QKeySequence::Undo, this);
+    undoSc->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(undoSc, &QShortcut::activated, this, &PromptComposerPage::undo);
+
+    auto* redoSc = new QShortcut(QKeySequence("Ctrl+Shift+Z"), this);
+    redoSc->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(redoSc, &QShortcut::activated, this, &PromptComposerPage::redo);
 
     m_runBtn = new QPushButton("Run", m_controlBar);
     m_runBtn->setObjectName("ComposerRunBtn");
@@ -682,6 +711,8 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     barLayout->setSpacing(4);
     barLayout->addWidget(m_undefinedToggleBtn);
     barLayout->addWidget(m_copyBtn);
+    barLayout->addWidget(m_undoBtn);
+    barLayout->addWidget(m_redoBtn);
     barLayout->addWidget(m_runBtn, 1);
     barLayout->addWidget(m_promptCountSpin);
     barLayout->addWidget(m_interruptBtn);
@@ -1076,6 +1107,7 @@ void PromptComposerPage::loadPipeline(int entryId, int imageIdx, const QList<QSt
         activeGroups[eid].append(img);
     }
     emit activeGroupsChanged(activeGroups);
+    captureUndoSnapshot();
     repush();
 }
 
@@ -1093,6 +1125,9 @@ void PromptComposerPage::onEntryTagAdded(int entryId, int imageIdx, const QStrin
         m_activeTagSet.insert(tag);
         if (!m_activePushes[key].contains(tag)) m_activePushes[key] << tag;
     }
+    // External mutation - don't snapshot, but invalidate redo since the
+    // composer state has now diverged from what redo would restore.
+    clearRedoStack();
     queueRepush();
 }
 
@@ -1117,6 +1152,7 @@ void PromptComposerPage::onEntryTagRemoved(int entryId, int imageIdx, const QStr
         m_tagWeights.remove(tag);
         m_deactivatedTags.remove(tag);
     }
+    clearRedoStack();
     queueRepush();
 }
 
@@ -1160,6 +1196,7 @@ void PromptComposerPage::onEntryDeleted(int32_t entryId, const QString& uuid)
     }
     emit activeGroupsChanged(activeGroups);
 
+    clearRedoStack();
     repush();
 }
 
@@ -1211,6 +1248,7 @@ void PromptComposerPage::onImageRemoved(int32_t entryId, int imageIdx)
     }
     emit activeGroupsChanged(activeGroups);
 
+    clearRedoStack();
     repush();
 }
 
@@ -1460,6 +1498,7 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey, const QString
     m_deactivatedTags.remove(oldKey);
     renamePushTag(oldKey, collide ? QString() : newKey);
 
+    captureUndoSnapshot();
     queueRepush();
 }
 
@@ -1548,6 +1587,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
             }
             renamePushTag(oldTag, collide ? QString() : newTag);
             tagEdit->setProperty("_tag", newTag);
+            captureUndoSnapshot(QStringLiteral("rename:") + oldTag);
             queueRepush();
         });
     }
@@ -1616,6 +1656,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                     for (auto& p : m_lastResult)
                         if (weightKeyOf(p) == weightKey) p.weight = w;
                     applyWeightColor(val);
+                    captureUndoSnapshot(QStringLiteral("weight:") + weightKey);
                 });
         rl->addWidget(wSpin);
     }
@@ -1629,6 +1670,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
             // wikiTag (the expanded form) here would orphan the entry.
             m_tagWeights.remove(activeKey);
             m_deactivatedTags.remove(activeKey);
+            captureUndoSnapshot();
             queueRepush();
         };
 
@@ -1637,6 +1679,7 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                 m_deactivatedTags.remove(activeKey);
             else
                 m_deactivatedTags.insert(activeKey);
+            captureUndoSnapshot();
             queueRepush();
         };
 

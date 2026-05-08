@@ -47,8 +47,18 @@ void PromptComposerPage::saveSession(const QString& path) const
 void PromptComposerPage::restoreSession(const QString& path)
 {
     QFile f(path);
-    if (!f.open(QIODevice::ReadOnly)) return;
+    if (!f.open(QIODevice::ReadOnly)) {
+        // Even with no session file, seed an empty baseline so the first
+        // user action after startup has somewhere to undo back to.
+        rebaselineUndo();
+        return;
+    }
     const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
+
+    // Reflective sync (loraUuidsRestored -> tile view -> setActiveLoraUuids
+    // back here) would otherwise look like a user mutation. Suppress so the
+    // session-load is treated as a clean baseline.
+    m_suppressUndoCapture = true;
 
     m_activeTags.clear();
     m_activeTagSet.clear();
@@ -82,6 +92,9 @@ void PromptComposerPage::restoreSession(const QString& path)
     emit loraUuidsRestored(m_activeLoraUuids);
 
     repush();
+
+    m_suppressUndoCapture = false;
+    rebaselineUndo();
 }
 
 } // namespace gui

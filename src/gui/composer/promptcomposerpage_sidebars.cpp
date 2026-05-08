@@ -148,6 +148,7 @@ void PromptComposerPage::reloadRules()
     m_rules->rules() = fresh.rules();
     emit statusMessageRequested(
         QString("Rules reloaded - %1 rule(s).").arg(m_rules->rules().size()));
+    captureUndoSnapshot();
     rebuildRulesSidebar();
     queueRepush();
 }
@@ -160,6 +161,7 @@ void PromptComposerPage::reloadVars()
     m_varIndex->variables() = fresh.variables();
     emit statusMessageRequested(
         QString("Variables reloaded - %1 variable(s).").arg(m_varIndex->variables().size()));
+    captureUndoSnapshot();
     rebuildVarsSidebar();
     queueRepush();
 }
@@ -204,6 +206,7 @@ void PromptComposerPage::rebuildRulesSidebar()
             connect(cb, &QCheckBox::toggled, this, [this, i](bool on) {
                 m_rules->rules()[i].enabled = on;
                 if (!m_suppressRuleSave) m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
+                captureUndoSnapshot();
                 queueRepush();
             });
             cbRowL->addWidget(cb);
@@ -254,6 +257,7 @@ void PromptComposerPage::rebuildRulesSidebar()
                         else
                             a[k] = t;
                         m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
+                        captureUndoSnapshot();
                         rebuildRulesSidebar();
                         queueRepush();
                     });
@@ -268,6 +272,7 @@ void PromptComposerPage::rebuildRulesSidebar()
                         if (k >= a.size()) return;
                         a.removeAt(k);
                         m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
+                        captureUndoSnapshot();
                         rebuildRulesSidebar();
                         queueRepush();
                     });
@@ -286,6 +291,7 @@ void PromptComposerPage::rebuildRulesSidebar()
                     if (t.isEmpty()) return;
                     m_rules->rules()[i].action.arguments << t;
                     m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
+                    captureUndoSnapshot();
                     rebuildRulesSidebar();
                     queueRepush();
                 });
@@ -353,6 +359,7 @@ void PromptComposerPage::rebuildVarsSidebar()
     // "add name" field for easy successive adds.
     auto persistAndRepush = [this]() {
         m_varIndex->saveToFile(BASE_PATH + "/" + VARS_PATH);
+        captureUndoSnapshot();
         rebuildVarsSidebar();
         queueRepush();
     };
@@ -374,8 +381,11 @@ void PromptComposerPage::rebuildVarsSidebar()
 
         connect(edit, &QLineEdit::editingFinished, this, [this, i, edit]() {
             if (i >= m_varIndex->variables().size()) return;
-            m_varIndex->variables()[i].value = edit->text().trimmed();
+            const QString next = edit->text().trimmed();
+            if (m_varIndex->variables()[i].value == next) return;
+            m_varIndex->variables()[i].value = next;
             m_varIndex->saveToFile(BASE_PATH + "/" + VARS_PATH);
+            captureUndoSnapshot();
             queueRepush();
         });
 
