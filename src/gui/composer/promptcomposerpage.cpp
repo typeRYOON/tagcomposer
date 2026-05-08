@@ -919,6 +919,19 @@ QString PromptComposerPage::currentPromptString(bool forJson) const
     return PromptPipeline::buildPromptString(bucketForOutput(m_lastResult, m_groups), forJson);
 }
 
+QList<QString> PromptComposerPage::currentActiveTags() const
+{
+    QList<QString> out = m_activeTags;
+    QSet<QString> seen(out.begin(), out.end());
+    for (const core::PipelineTag& pt : m_lastResult) {
+        if (pt.result == core::RuleResult::Injected && !seen.contains(pt.tag)) {
+            seen.insert(pt.tag);
+            out << pt.tag;
+        }
+    }
+    return out;
+}
+
 QString PromptComposerPage::computePromptForTags(const QList<QString>& tags, bool forJson) const
 {
     if (!m_pipeline) return {};
@@ -1448,7 +1461,8 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
         badge->setAttribute(Qt::WA_StyledBackground, true);
         rl->addWidget(badge);
     }
-    if (pt.result == RuleResult::NoFacets) {
+    if (pt.result == RuleResult::NoFacets ||
+        (pt.result == RuleResult::Injected && pt.facets.isEmpty())) {
         auto* badge = new QLabel("?");
         badge->setObjectName("ComposerNoBadge");
         badge->setAttribute(Qt::WA_StyledBackground, true);

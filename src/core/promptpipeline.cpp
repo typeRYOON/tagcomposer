@@ -52,18 +52,29 @@ QList<CategoryGroup> PromptPipeline::evaluate(const QList<QString>& tags) const
         resolved << pt;
     }
 
-    if (!noFacetNames.isEmpty()) {
-        utils::Logger::instance().log(QString("%1 tag(s) without facet definitions: %2")
-                                          .arg(noFacetNames.size())
-                                          .arg(noFacetNames.join(", ")));
-    }
-
     // 2. Run rules over Include tags only.
     QList<PipelineTag> forRules;
     for (const PipelineTag& pt : resolved)
         if (pt.result == RuleResult::Include) forRules << pt;
 
     const QList<PipelineTag> afterRules = m_rules->evaluate(forRules, *m_facets);
+
+    // Rule-injected tags also count as "no facets" when their lookup came
+    // back empty - same status bar treatment as input tags without defs.
+    QSet<QString> noFacetSeen(noFacetNames.begin(), noFacetNames.end());
+    for (const PipelineTag& pt : afterRules) {
+        if (pt.result == RuleResult::Injected && pt.facets.isEmpty() &&
+            !noFacetSeen.contains(pt.tag)) {
+            noFacetSeen.insert(pt.tag);
+            noFacetNames << pt.tag;
+        }
+    }
+
+    if (!noFacetNames.isEmpty()) {
+        utils::Logger::instance().log(QString("%1 tag(s) without facet definitions: %2")
+                                          .arg(noFacetNames.size())
+                                          .arg(noFacetNames.join(", ")));
+    }
 
     // 3. NoFacets first (Uncategorized), then rule-engine output.
     QList<PipelineTag> final;

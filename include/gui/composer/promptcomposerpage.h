@@ -59,10 +59,10 @@ public:
                         const QString& triggerWordFacet, const QString& styleFacet);
 
     QString currentPromptString(bool forJson) const;
-    QList<QString> currentActiveTags() const
-    {
-        return m_activeTags;
-    }
+    // Returns the user-typed active tags plus any rule-injected tag names
+    // from the last pipeline run. Used by the facet editor's "undefined in
+    // composer" list so rule-introduced tags without defs aren't missed.
+    QList<QString> currentActiveTags() const;
 
     // Synchronously runs the pipeline for an arbitrary tag list and returns
     // the prompt string. Used by the batch runner to build per-entry prompts
