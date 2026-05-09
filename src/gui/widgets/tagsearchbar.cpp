@@ -310,14 +310,18 @@ bool TagSearchBar::eventFilter(QObject* obj, QEvent* event)
                 return true;
             }
             case Qt::Key_Escape:
-                // Only consume Escape if the autocomplete popup is actually
-                // visible; otherwise let it bubble up so the parent window
-                // can handle it (e.g. exit fullscreen via AppMainWindow).
+                // Popup visible: hide it and consume.
+                // Otherwise: signal the host so it can move focus elsewhere
+                // and consume so the event doesn't bubble to app-level
+                // handlers (e.g. AppMainWindow's fullscreen exit) - the
+                // user expects Escape from the search bar to be a focus
+                // gesture, not a window action.
                 if (m_popup->isVisible()) {
                     hidePopup();
                     return true;
                 }
-                return false;
+                emit escapePressed();
+                return true;
             }
         }
         if (event->type() == QEvent::FocusOut) {

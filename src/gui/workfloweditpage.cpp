@@ -163,7 +163,7 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent) : QWidget(parent)
         if (!m_wm) return;
         const core::WorkflowFile* wf = m_wm->selectedFile();
         if (!wf || wf->path.isEmpty()) return;
-        QDesktopServices::openUrl(QUrl::fromLocalFile(wf->path));
+        QDesktopServices::openUrl(QUrl::fromLocalFile(wf->absolutePath()));
     });
 
     m_addBtn = new QPushButton("+ Add Variable");
@@ -416,9 +416,35 @@ void WorkflowEditPage::addVariable(core::WorkflowVarType type)
     if (!m_wm) return;
     core::WorkflowVar var;
     var.type = type;
-    // Wildcards don't substitute a __TOKEN__ in the workflow JSON - they
-    // inject into the positive prompt - so they don't need a placeholder.
-    if (type != core::WorkflowVarType::Wildcard) var.placeholder = "__NEW__";
+    // Pre-fill the JSON token slot with a type-specific default. Wildcards
+    // inject via the positive prompt and LatentSize uses two tokens (defaulted
+    // below) so their main placeholder stays empty as a label-only field.
+    switch (type) {
+    case core::WorkflowVarType::Seed:
+        var.placeholder = "__seed__";
+        break;
+    case core::WorkflowVarType::String:
+        var.placeholder = "__string__";
+        break;
+    case core::WorkflowVarType::Integer:
+        var.placeholder = "__int__";
+        break;
+    case core::WorkflowVarType::Float:
+        var.placeholder = "__float__";
+        break;
+    case core::WorkflowVarType::DirSearch:
+        var.placeholder = "__dir__";
+        break;
+    case core::WorkflowVarType::Image:
+        var.placeholder = "__image__";
+        break;
+    case core::WorkflowVarType::LatentSize:
+        var.latentWidthToken = "__latentw__";
+        var.latentHeightToken = "__latenth__";
+        break;
+    case core::WorkflowVarType::Wildcard:
+        break;
+    }
     m_wm->variables() << var;
     save();
     rebuildVarList();
@@ -474,10 +500,11 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
 
     auto* placeholderEdit = new QLineEdit(var.placeholder);
     placeholderEdit->setObjectName("WfPlaceholderEdit");
-    // Wildcards inject into the positive prompt, not into __TOKEN__ slots in
-    // the workflow JSON, so this field is just a label for organization.
-    placeholderEdit->setPlaceholderText(
-        var.type == core::WorkflowVarType::Wildcard ? "Name (label only)" : "__PLACEHOLDER__");
+    // Wildcards inject into the positive prompt and LatentSize uses its own
+    // pair of tokens, so for those the field is just a label for organization.
+    const bool labelOnly = var.type == core::WorkflowVarType::Wildcard ||
+                           var.type == core::WorkflowVarType::LatentSize;
+    placeholderEdit->setPlaceholderText(labelOnly ? "Name (label only)" : "__token__");
     connect(placeholderEdit, &QLineEdit::editingFinished, this, [this, index, placeholderEdit]() {
         if (!m_wm || index >= m_wm->variables().size()) return;
         m_wm->variables()[index].placeholder = placeholderEdit->text().trimmed();
@@ -784,8 +811,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
                 auto* item = new QListWidgetItem(e.label);
                 item->setData(Qt::UserRole, e.w);
                 item->setData(Qt::UserRole + 1, e.h);
-                item->setData(Qt::UserRole + 2, e.label);
-                const bool sel = (e.label == var.stringValue);
+                const bool sel = (e.w == var.latentWidth && e.h == var.latentHeight);
                 if (sel) {
                     QFont f = item->font();
                     f.setBold(true);
@@ -800,16 +826,17 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         connect(sizeList, &QListWidget::itemClicked, this,
                 [this, index, sizeList, ratioPreview](QListWidgetItem* item) {
                     if (!m_wm || index >= m_wm->variables().size()) return;
-                    const QString label = item->data(Qt::UserRole + 2).toString();
-                    if (label.isEmpty()) return;
                     const int w = item->data(Qt::UserRole).toInt();
                     const int h = item->data(Qt::UserRole + 1).toInt();
-                    m_wm->variables()[index].stringValue = label;
+                    if (w <= 0 || h <= 0) return;
+                    m_wm->variables()[index].latentWidth = w;
+                    m_wm->variables()[index].latentHeight = h;
                     save();
                     ratioPreview->setRatio(w, h);
                     for (int i = 0; i < sizeList->count(); ++i) {
                         auto* it = sizeList->item(i);
-                        const bool sel = it->data(Qt::UserRole + 2).toString() == label;
+                        const bool sel = it->data(Qt::UserRole).toInt() == w &&
+                                         it->data(Qt::UserRole + 1).toInt() == h;
                         QFont f = it->font();
                         f.setBold(sel);
                         it->setFont(f);
@@ -820,6 +847,34 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         bodyRow->addWidget(sizeList, 1);
         bodyRow->addWidget(ratioPreview, 0, Qt::AlignTop);
         cardLayout->addLayout(bodyRow);
+
+        // Two configurable JSON tokens: width and height get swapped in as
+        // raw integers (not strings) wherever they appear in the workflow.
+        auto makeTokenRow = [&](const QString& labelText, const QString& current,
+                                std::function<void(const QString&)> onCommit) {
+            auto* row = new QHBoxLayout;
+            auto* lbl = new QLabel(labelText);
+            lbl->setObjectName("WfFieldLabel");
+            auto* edit = new QLineEdit(current);
+            edit->setObjectName("WfValueEdit");
+            edit->setPlaceholderText("__token__");
+            connect(edit, &QLineEdit::editingFinished, this, [edit, onCommit]() {
+                onCommit(edit->text().trimmed());
+            });
+            row->addWidget(lbl);
+            row->addWidget(edit, 1);
+            cardLayout->addLayout(row);
+        };
+        makeTokenRow("Width token:", var.latentWidthToken, [this, index](const QString& v) {
+            if (!m_wm || index >= m_wm->variables().size()) return;
+            m_wm->variables()[index].latentWidthToken = v;
+            save();
+        });
+        makeTokenRow("Height token:", var.latentHeightToken, [this, index](const QString& v) {
+            if (!m_wm || index >= m_wm->variables().size()) return;
+            m_wm->variables()[index].latentHeightToken = v;
+            save();
+        });
         break;
     }
 

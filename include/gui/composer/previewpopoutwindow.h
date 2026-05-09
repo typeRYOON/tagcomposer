@@ -13,6 +13,7 @@ namespace gui {
 
 class ScaledImageLabel;
 class ClickableLabel;
+class StatusBar;
 class WindowChrome;
 
 // Separate top-level window (Qt::Window) parented to PromptComposerPage so Qt
@@ -24,8 +25,11 @@ public:
     explicit PreviewPopoutWindow(QWidget* parent = nullptr);
 
     void setImage(const QPixmap& pix);
-    void setOutputFolder(const QString&) {}
+    void setOutputFolder(const QString& folder);
     void setTempFolder(const QString& folder);
+    // Mirrors AppMainWindow's bottom StatusBar - same widgets, same fades.
+    void setProgress(int step, int total);
+    void setActiveCount(int count);
 
 signals:
     void runRequested();
@@ -52,6 +56,7 @@ private:
     bool m_isClosing{false};
 
     WindowChrome* m_chrome = nullptr;
+    StatusBar* m_statusBar = nullptr;
 };
 
 } // namespace gui

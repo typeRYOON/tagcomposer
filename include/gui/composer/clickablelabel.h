@@ -18,12 +18,19 @@ public:
 
     void setFilePath(const QString& path);
     void setSourcePixmap(const QPixmap& pix);
+    // When non-empty, hovering the label reveals a top-left icon button
+    // that opens this folder in the OS file manager.
+    void setOutputFolder(const QString& path);
 
     // Bounds (in parent coords) the label is constrained to when the user
     // moves or resizes it. Defaults to parentWidget()->rect().
     void setMovableBounds(const QRect& r);
     bool isUserPlaced() const { return m_userPlaced; }
     void clampToBounds();
+    // Auto-place the label in the bottom-left of the current bounds, sized
+    // to match the source pixmap's aspect ratio (square fallback when no
+    // pixmap is set). No-op once the user has manually moved or resized it.
+    void autoFit();
 
 protected:
     void resizeEvent(QResizeEvent* e) override;
@@ -37,11 +44,14 @@ protected:
 private:
     void updateScaled();
     QRect gripRect() const;
+    QRect outputBtnRect() const;
     QRect effectiveBounds() const;
     void updateHoverCursor(const QPoint& pos);
 
     QString m_path;
+    QString m_outputFolder;
     QPixmap m_src;
+    QPixmap m_outputIcon;
     QPoint m_pressPos;
     bool m_dragInFlight = false;
 

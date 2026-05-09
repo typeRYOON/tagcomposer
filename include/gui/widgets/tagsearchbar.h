@@ -21,6 +21,9 @@ signals:
     void tagAdded(const QString& tag);
     void tagAlreadyPresent(const QString& tag);
     void queryChanged(const QString& text);
+    // Fires only when the autocomplete popup is closed. Lets the host return
+    // focus to a logical neighbor (e.g. the composer's tag list).
+    void escapePressed();
 
 protected:
     void showEvent(QShowEvent* event) override;

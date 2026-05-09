@@ -99,6 +99,10 @@ public slots:
     void setOutputFolderPattern(const QString& pattern);
     void setTempFolder(const QString& folder);
     void setActiveLoraUuids(const QList<QString>& uuids);
+    // Forwarded from ComfyUiClient by AppMainWindow so the popout's mirrored
+    // status bar tracks progress / queue depth without a direct dependency.
+    void setComfyProgress(int step, int total);
+    void setComfyActiveCount(int count);
     void repush();
     // Coalesces multiple same-pass callers (e.g. pasting comma-separated
     // tags that fire entryTagAdded once per tag) into one pipeline run.
@@ -271,6 +275,11 @@ private:
     // interactive while the tag list fades.
     QGraphicsOpacityEffect* m_mainStackFx = nullptr;
     QPropertyAnimation* m_mainStackFade = nullptr;
+
+    // Cached so a freshly-opened popout can sync to the in-flight job state.
+    int m_lastComfyStep = 0;
+    int m_lastComfyTotal = 0;
+    int m_lastComfyActive = 0;
 
     // Coalesces rapid search-bar keystrokes into one faded rebuild so the
     // composer doesn't tear from per-char applyTagFilter calls.

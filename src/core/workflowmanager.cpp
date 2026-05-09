@@ -1,5 +1,6 @@
 #include <core/workflowmanager.h>
 #include <core/workflowinputcache.h>
+#include <utils/appconfig.h>
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
@@ -124,7 +125,10 @@ QJsonObject WorkflowManager::varToJson(const WorkflowVar& var)
         o["extensionFilter"] = var.extensionFilter;
         break;
     case WorkflowVarType::LatentSize:
-        o["stringValue"] = var.stringValue;
+        o["latentWidth"] = var.latentWidth;
+        o["latentHeight"] = var.latentHeight;
+        o["latentWidthToken"] = var.latentWidthToken;
+        o["latentHeightToken"] = var.latentHeightToken;
         break;
     case WorkflowVarType::Image:
         o["imageUuid"] = var.imageUuid;
@@ -180,7 +184,10 @@ WorkflowVar WorkflowManager::varFromJson(const QJsonObject& o)
         var.extensionFilter = o["extensionFilter"].toString();
         break;
     case WorkflowVarType::LatentSize:
-        var.stringValue = o["stringValue"].toString();
+        var.latentWidth = o["latentWidth"].toInt();
+        var.latentHeight = o["latentHeight"].toInt();
+        var.latentWidthToken = o["latentWidthToken"].toString();
+        var.latentHeightToken = o["latentHeightToken"].toString();
         break;
     case WorkflowVarType::Image:
         var.imageUuid = o["imageUuid"].toString();
@@ -294,6 +301,11 @@ void WorkflowManager::saveToFile(const QString& path) const
     f.write(QJsonDocument(root).toJson());
 }
 
+QString WorkflowFile::absolutePath() const
+{
+    return path.isEmpty() ? QString() : utils::BASE_PATH + "/" + path;
+}
+
 const WorkflowFile* WorkflowManager::selectedFile() const
 {
     if (m_selectedIndex >= 0 && m_selectedIndex < m_files.size()) return &m_files[m_selectedIndex];
@@ -314,6 +326,17 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
     for (WorkflowVar& var : variables()) {
         // Wildcards bypass placeholder substitution; they enter via pickWildcardTags.
         if (var.type == WorkflowVarType::Wildcard) continue;
+
+        // LatentSize substitutes two raw int tokens, not a single string -
+        // handle it here and skip the generic placeholder replace below.
+        if (var.type == WorkflowVarType::LatentSize) {
+            if (!var.latentWidthToken.isEmpty())
+                result.replace(var.latentWidthToken, QString::number(var.latentWidth));
+            if (!var.latentHeightToken.isEmpty())
+                result.replace(var.latentHeightToken, QString::number(var.latentHeight));
+            continue;
+        }
+
         if (var.placeholder.isEmpty()) continue;
 
         QString replacement;
@@ -353,8 +376,7 @@ QString WorkflowManager::applyToJson(const QString& jsonContent)
             break;
         }
         case WorkflowVarType::LatentSize:
-            replacement = jsonStringLiteral(var.stringValue);
-            break;
+            break; // handled above before the switch
         case WorkflowVarType::Image:
             replacement = jsonStringLiteral(
                 var.imageUuid.isEmpty()
@@ -440,13 +462,10 @@ QList<LatentSizeEntry> WorkflowManager::loadLatentSizes(const QString& path)
         const int h = parts[1].toInt(&okH);
         if (!okW || !okH || w <= 0 || h <= 0) continue;
         const double ratio = double(w) / double(h);
-        QString ratioStr = QString::number(ratio, 'f', 2);
-        while (ratioStr.endsWith('0') && !ratioStr.endsWith(".0"))
-            ratioStr.chop(1);
         LatentSizeEntry e;
         e.w = w;
         e.h = h;
-        e.label = QString("%1x%2 (%3)").arg(w).arg(h).arg(ratioStr);
+        e.label = QString("%1x%2 (%3)").arg(w).arg(h).arg(ratio, 0, 'f', 2);
         result << e;
     }
     return result;

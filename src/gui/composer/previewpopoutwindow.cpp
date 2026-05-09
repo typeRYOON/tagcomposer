@@ -2,6 +2,7 @@
 #include <gui/composer/scaledimagelabel.h>
 #include <gui/composer/clickablelabel.h>
 #include <gui/widgets/framelesschrome.h>
+#include <gui/widgets/statusbar.h>
 #include <gui/widgets/titlebar.h>
 #include <gui/widgets/windowchrome.h>
 #include <utils/qutils.h>
@@ -45,10 +46,13 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
     // (the implicit grab works fine outside QDialog::exec()).
     m_chrome = new WindowChrome(this);
 
+    m_statusBar = new StatusBar(this);
+
     auto* contentLayout = new QVBoxLayout(m_chrome->bodyWidget());
     contentLayout->setContentsMargins(0, 0, 0, 0);
     contentLayout->setSpacing(0);
-    contentLayout->addWidget(m_imageLabel);
+    contentLayout->addWidget(m_imageLabel, 1);
+    contentLayout->addWidget(m_statusBar);
 
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
@@ -121,6 +125,21 @@ void PreviewPopoutWindow::setImage(const QPixmap& pix)
     m_imageLabel->setSourcePixmap(pix);
 }
 
+void PreviewPopoutWindow::setOutputFolder(const QString& folder)
+{
+    if (m_tempLabel) m_tempLabel->setOutputFolder(folder);
+}
+
+void PreviewPopoutWindow::setProgress(int step, int total)
+{
+    if (m_statusBar) m_statusBar->setProgress(step, total);
+}
+
+void PreviewPopoutWindow::setActiveCount(int count)
+{
+    if (m_statusBar) m_statusBar->setActiveCount(count);
+}
+
 void PreviewPopoutWindow::setTempFolder(const QString& folder)
 {
     if (m_tempFolder == folder) return;
@@ -146,12 +165,19 @@ void PreviewPopoutWindow::resizeEvent(QResizeEvent* e)
     }
     m_tempLabel->setMovableBounds(bounds);
 
-    if (m_tempLabel->isUserPlaced()) {
-        m_tempLabel->clampToBounds();
-    } else {
-        const int side = qBound(120, qMin(width(), height()) / 2, 600);
-        m_tempLabel->resize(side, side);
-        m_tempLabel->move(margin + kResizeBorder, height() - side - margin - kResizeBorder);
+    if (!m_tempLabel->isUserPlaced()) {
+        m_tempLabel->autoFit();
+    }
+    else {
+        // Re-anchor to bottom-left of the new bounds while preserving the
+        // user's chosen size. clampToBounds would leave the label stranded
+        // mid-window when the popup grows; this keeps it tracking the
+        // bottom edge regardless of resize direction.
+        QSize s = m_tempLabel->size();
+        s.setWidth(qMin(s.width(), bounds.width()));
+        s.setHeight(qMin(s.height(), bounds.height()));
+        m_tempLabel->resize(s);
+        m_tempLabel->move(bounds.left(), bounds.bottom() - s.height() + 1);
     }
     m_tempLabel->raise();
 }

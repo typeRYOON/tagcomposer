@@ -290,7 +290,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             return;
         }
 
-        QFile f(wf->path);
+        QFile f(wf->absolutePath());
         if (!f.open(QIODevice::ReadOnly)) return;
         const QString tmpl = QString::fromUtf8(f.readAll());
 
@@ -377,6 +377,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_comfyClient, &core::ComfyUiClient::queueCountChanged, this, [this](int count) {
         // Lambda receiver: m_statusBar is constructed below this connect.
         m_statusBar->setActiveCount(count);
+        m_composerPage->setComfyActiveCount(count);
 
         const bool jobFinished = (count < m_lastQueueCount);
         m_lastQueueCount = count;
@@ -401,6 +402,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_comfyClient, &core::ComfyUiClient::previewProgressChanged, this,
             [this](int step, int total) {
                 m_statusBar->setProgress(step, total);
+                m_composerPage->setComfyProgress(step, total);
                 if (step > 0 && total > 0) m_pendingFinalLoad = true;
             });
     connect(m_composerPage, &PromptComposerPage::interruptRequested, this, [this]() {
@@ -655,7 +657,7 @@ void AppMainWindow::runBatch(const QString& query)
         return;
     }
 
-    QFile f(wf->path);
+    QFile f(wf->absolutePath());
     if (!f.open(QIODevice::ReadOnly)) {
         m_statusBar->showMessage("Batch: workflow file unreadable");
         return;

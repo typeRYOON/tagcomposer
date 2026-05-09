@@ -49,6 +49,18 @@ using namespace utils;
 
 namespace gui {
 
+// `path/{yyyy-MM-dd}/...` -> resolved against current date; raw if no braces.
+static QString resolveDatePattern(const QString& pattern)
+{
+    const int open = pattern.indexOf(QLatin1Char('{'));
+    if (open < 0) return pattern;
+    const int close = pattern.indexOf(QLatin1Char('}'), open);
+    if (close < 0) return pattern.left(open);
+    return pattern.left(open) +
+           QDateTime::currentDateTime().toString(pattern.mid(open + 1, close - open - 1)) +
+           pattern.mid(close + 1);
+}
+
 
 // ---- Helpers
 
@@ -119,6 +131,9 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
 {
     setObjectName("PromptComposerPage");
     setAttribute(Qt::WA_StyledBackground, true);
+    // Focusable so an Escape from the search bar can land here when the
+    // groups scroll isn't visible (e.g. empty composer).
+    setFocusPolicy(Qt::StrongFocus);
 
     // ---- Search bar
     m_searchBar = new TagSearchBar(this);
@@ -142,6 +157,15 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
             captureUndoSnapshot();
             queueRepush();
         }
+    });
+    connect(m_searchBar, &TagSearchBar::escapePressed, this, [this]() {
+        // Prefer the groups scroll (so arrow keys / wheel scroll work);
+        // fall back to the page itself when the empty-state hint is up so
+        // Escape still moves focus out of the search bar in that case.
+        QWidget* target = (m_groupsScroll && m_groupsScroll->isVisible())
+                              ? static_cast<QWidget*>(m_groupsScroll)
+                              : static_cast<QWidget*>(this);
+        target->setFocus(Qt::OtherFocusReason);
     });
 
     // ---- Main groups area
@@ -362,11 +386,44 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
 
     connect(m_wfList, &WorkflowDropList::fileDropped, this, [this](const QString& path) {
         if (!m_wfManager) return;
+        const QFileInfo fi(path);
+
+        // Copy into data/workflows/ so the data folder is portable across
+        // machines - the workflow list stores a relative path that resolves
+        // against BASE_PATH instead of the absolute source path.
+        const QString workflowsDir = BASE_PATH + "/data/workflows";
+        QDir().mkpath(workflowsDir);
+
+        const QString srcCanonical = fi.canonicalFilePath();
+        const QString destDirCanonical = QFileInfo(workflowsDir).canonicalFilePath();
+        const bool alreadyInWorkflowsDir =
+            !destDirCanonical.isEmpty() && !srcCanonical.isEmpty() &&
+            srcCanonical.startsWith(destDirCanonical + "/", Qt::CaseInsensitive);
+
+        QString destAbs;
+        if (alreadyInWorkflowsDir) {
+            destAbs = srcCanonical;
+        }
+        else {
+            // Dedupe filename collisions with " (N)" suffix.
+            QString destPath = workflowsDir + "/" + fi.fileName();
+            for (int n = 2; QFile::exists(destPath); ++n) {
+                destPath = QString("%1/%2 (%3).%4")
+                               .arg(workflowsDir, fi.completeBaseName())
+                               .arg(n)
+                               .arg(fi.suffix());
+            }
+            if (!QFile::copy(path, destPath)) return;
+            destAbs = destPath;
+        }
+
+        const QString relPath = QDir(BASE_PATH).relativeFilePath(destAbs);
+
         for (const auto& wf : m_wfManager->files())
-            if (wf.path == path) return;
-        QFileInfo fi(path);
+            if (wf.path == relPath) return;
+
         const QString newId = QString::number(QDateTime::currentMSecsSinceEpoch());
-        m_wfManager->files() << core::WorkflowFile{newId, fi.completeBaseName(), path};
+        m_wfManager->files() << core::WorkflowFile{newId, fi.completeBaseName(), relPath};
         if (m_wfManager->selectedIndex() < 0) m_wfManager->setSelectedIndex(0);
         m_wfManager->saveToFile(m_wfSavePath);
         rebuildWorkflowList();
@@ -749,6 +806,11 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
                 if (m_previewLabel->isVisible()) fadePreviewInset(1.0);
             });
             if (!m_tempFolder.isEmpty()) popout->setTempFolder(m_tempFolder);
+            if (!m_outputFolderPattern.isEmpty())
+                popout->setOutputFolder(resolveDatePattern(m_outputFolderPattern));
+            popout->setActiveCount(m_lastComfyActive);
+            if (m_lastComfyStep > 0 && m_lastComfyTotal > 0)
+                popout->setProgress(m_lastComfyStep, m_lastComfyTotal);
 
             // Forward shortcut intents so AppMainWindow/ComfyUI see them
             // the same as from the main window.
@@ -840,6 +902,21 @@ void PromptComposerPage::triggerRun()
 void PromptComposerPage::setOutputFolderPattern(const QString& pattern)
 {
     m_outputFolderPattern = pattern;
+    if (m_popout)
+        static_cast<PreviewPopoutWindow*>(m_popout)->setOutputFolder(resolveDatePattern(pattern));
+}
+
+void PromptComposerPage::setComfyProgress(int step, int total)
+{
+    m_lastComfyStep = step;
+    m_lastComfyTotal = total;
+    if (m_popout) static_cast<PreviewPopoutWindow*>(m_popout)->setProgress(step, total);
+}
+
+void PromptComposerPage::setComfyActiveCount(int count)
+{
+    m_lastComfyActive = count;
+    if (m_popout) static_cast<PreviewPopoutWindow*>(m_popout)->setActiveCount(count);
 }
 
 void PromptComposerPage::setTempFolder(const QString& folder)
@@ -1313,6 +1390,11 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
 
 void PromptComposerPage::applyTagFilter()
 {
+    // Any rebuild path (repush, undefined toggle, debounce slot itself) lands
+    // here, so cancel a pending search-bar debounce - otherwise typing-then-
+    // Enter fires both the repush fade and the debounce fade in sequence.
+    if (m_filterDebounceTimer) m_filterDebounceTimer->stop();
+
     if (m_filterQuery.isEmpty() && !m_undefinedOnly) {
         rebuildGroupsDisplay(m_lastResult);
         return;
@@ -1321,6 +1403,14 @@ void PromptComposerPage::applyTagFilter()
         return pt.result == RuleResult::NoFacets ||
                (pt.result == RuleResult::Injected && pt.facets.isEmpty());
     };
+    // Display group name a tag will land under in rebuildGroupsDisplay.
+    // Mirrored from applyGroupsRebuild so search and display stay in sync.
+    auto displayGroupOf = [this](const PipelineTag& pt) -> QString {
+        if (pt.result == RuleResult::Deactivated) return QStringLiteral("Deactivated");
+        const QString g = m_groups.groupFor(pt.facets);
+        return g.isEmpty() ? QStringLiteral("Uncategorized") : g;
+    };
+
     QList<PipelineTag> filtered;
     for (const PipelineTag& pt : m_lastResult) {
         if (m_undefinedOnly && !isUndefined(pt)) continue;
@@ -1328,7 +1418,9 @@ void PromptComposerPage::applyTagFilter()
             const bool matchTag = pt.tag.startsWith(m_filterQuery, Qt::CaseInsensitive);
             const bool matchSrc = !pt.sourceTag.isEmpty() &&
                                   pt.sourceTag.startsWith(m_filterQuery, Qt::CaseInsensitive);
-            if (!matchTag && !matchSrc) continue;
+            const bool matchGroup =
+                displayGroupOf(pt).startsWith(m_filterQuery, Qt::CaseInsensitive);
+            if (!matchTag && !matchSrc && !matchGroup) continue;
         }
         filtered << pt;
     }

@@ -56,13 +56,23 @@ struct WorkflowVar {
     QString imageUuid;          // Image: references WorkflowInputCache
     ImageEdits imageEdits;      // Image: applied at upload
     QStringList wildcardTags;   // Wildcard: one line per slot, comma-split at pick
+
+    // LatentSize: a single preset selection drives two raw int substitutions
+    // in the workflow JSON. The user picks a preset (sets latentWidth/Height)
+    // and configures the two tokens that get replaced (e.g. __latent_w__).
+    int latentWidth = 0;
+    int latentHeight = 0;
+    QString latentWidthToken;
+    QString latentHeightToken;
 };
 
 struct WorkflowFile {
     QString id; // stable timestamp-based id
     QString name;
-    QString path;
+    QString path; // relative to BASE_PATH (under data/workflows/)
     QList<WorkflowVar> vars;
+
+    QString absolutePath() const;
 };
 
 class WorkflowManager {
