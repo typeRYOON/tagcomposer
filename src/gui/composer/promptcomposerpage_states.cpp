@@ -105,6 +105,18 @@ void PromptComposerPage::captureCurrentState(core::SavedState& state) const
     state.activeLoraUuids = m_activeLoraUuids;
 }
 
+QList<core::WorkflowVar> PromptComposerPage::imageVarsFromStates() const
+{
+    QList<core::WorkflowVar> out;
+    for (const core::SavedState& s : m_stateManager.states()) {
+        for (const QJsonValue& entry : s.workflowVarValues) {
+            core::WorkflowVar v = core::WorkflowManager::varFromJson(entry.toObject());
+            if (v.type == core::WorkflowVarType::Image) out << v;
+        }
+    }
+    return out;
+}
+
 void PromptComposerPage::saveCurrentState()
 {
     if (m_statesDir.isEmpty()) return;

@@ -591,7 +591,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         auto it = m_groupHeaders.find(displayName);
         if (it != m_groupHeaders.end() && it.value()) {
             const int y = it.value()->mapTo(m_groupsScroll->widget(), QPoint(0, 0)).y();
-            m_groupsScroll->verticalScrollBar()->setValue(y);
+            m_groupsScroll->scrollToY(y);
         }
     };
 
@@ -639,7 +639,8 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_controlBar = new QWidget(this);
     m_controlBar->setObjectName("ComposerControlBar");
     m_controlBar->setAttribute(Qt::WA_StyledBackground, true);
-    m_controlBar->setFixedHeight(36);
+    // 25 px buttons + 4 px top/bottom margin; no slack to avoid uneven centering.
+    m_controlBar->setFixedHeight(33);
 
     m_copyBtn = new QPushButton("Copy prompt", m_controlBar);
     m_copyBtn->setObjectName("ComposerCopyBtn");
@@ -703,7 +704,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     });
 
     auto* barLayout = new QHBoxLayout(m_controlBar);
-    barLayout->setContentsMargins(5, 4, 8, 4);
+    barLayout->setContentsMargins(4, 4, 4, 4);
     barLayout->setSpacing(4);
     barLayout->addWidget(m_undefinedToggleBtn);
     barLayout->addWidget(m_copyBtn);

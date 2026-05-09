@@ -1,6 +1,7 @@
 #include <gui/dataset/tagclusterpage.h>
 #include <gui/widgets/appscrollbar.h>
 #include <core/facetindex.h>
+#include <core/soundplayer.h>
 #include <utils/appconfig.h>
 #include <utils/stringutils.h>
 #include <QHBoxLayout>
@@ -406,12 +407,15 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
         m_globalTotal = 0;
         setStatus("Global cache cleared.");
     });
-    connect(m_copyBtn, &QPushButton::clicked, this,
-            [this]() { QApplication::clipboard()->setText(m_copyEdit->toPlainText()); });
+    connect(m_copyBtn, &QPushButton::clicked, this, [this]() {
+        QApplication::clipboard()->setText(m_copyEdit->toPlainText());
+        if (auto* sp = core::SoundPlayer::instance()) sp->play("ok");
+    });
 
     connect(m_createEntryBtn, &QPushButton::clicked, this, [this]() {
         const QString title = m_targetTag.trimmed();
         if (title.isEmpty()) return;
+        if (auto* sp = core::SoundPlayer::instance()) sp->play("ok");
         // Mirror the copy string's contents: target + copyright + visible
         // rows. EntryModel::getTagIds normalizes (underscores -> spaces,
         // lowercase) so we can pass raw Danbooru forms.

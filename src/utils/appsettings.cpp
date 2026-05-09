@@ -23,6 +23,8 @@ AppSettings AppSettings::load(const QString& path)
         s.tileGradientAlpha = app["tileGradientAlpha"].toInt(180);
     if (app.contains("tileTitleColor"))
         s.tileTitleColor = app["tileTitleColor"].toString("#ffffff");
+    if (app.contains("sfxVolume"))
+        s.sfxVolume = float(app["sfxVolume"].toDouble(0.5));
 
     const QJsonObject cui = root["comfyui"].toObject();
     s.comfyUiEnabled = cui["enabled"].toBool(false);
@@ -76,6 +78,7 @@ void AppSettings::save(const QString& path) const
     app["tileGradientStart"] = tileGradientStart;
     app["tileGradientAlpha"] = tileGradientAlpha;
     app["tileTitleColor"] = tileTitleColor;
+    app["sfxVolume"] = double(sfxVolume);
 
     QJsonObject cui;
     cui["enabled"] = comfyUiEnabled;

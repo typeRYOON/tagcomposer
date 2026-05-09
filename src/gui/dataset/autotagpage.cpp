@@ -3,6 +3,7 @@
 #include <gui/widgets/composericons.h>
 #include <core/autotaggerlibrary.h>
 #include <core/batchtagger.h>
+#include <core/soundplayer.h>
 #include <utils/appsettings.h>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -587,10 +588,12 @@ void AutoTagPage::onFinished(bool cancelled)
     setRunning(false);
     if (cancelled)
         m_statusLabel->setText(QString("Cancelled - %1 done.").arg(m_results.size()));
-    else
+    else {
         m_statusLabel->setText(QString("Done - %1 images tagged, %2 failed.")
                                    .arg(m_results.size())
                                    .arg(m_failures.size()));
+        if (auto* sp = core::SoundPlayer::instance()) sp->play("finish");
+    }
 
     // Restore the placeholder if no rows landed (zero images or all failed).
     if (m_resultsList->count() == 0) {

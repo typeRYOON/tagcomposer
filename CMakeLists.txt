@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_AUTORCC ON)
 
-find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network Concurrent WebSockets)
+find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network Concurrent WebSockets Multimedia)
 
 if (WIN32)
     set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/third_party/opencv/build")
@@ -42,6 +42,7 @@ find_package(Qt${QT_VERSION_MAJOR}
         Concurrent
         Network
         WebSockets
+        Multimedia
 )
 qt_standard_project_setup()
 
@@ -140,6 +141,7 @@ target_link_libraries(${PROJECT_NAME}
         Qt::Concurrent
         Qt::Network
         Qt::WebSockets
+        Qt::Multimedia
         ${OpenCV_LIBS}
         ${ONNXRUNTIME_LIB}
 )

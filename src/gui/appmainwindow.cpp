@@ -47,6 +47,8 @@ namespace gui {
 AppMainWindow::AppMainWindow(QWidget* parent)
     : QMainWindow{parent}, m_entryModel{new core::EntryModel(this)}
 {
+    m_soundPlayer = new core::SoundPlayer(this);
+
     setWindowTitle("Tag Composer");
     setWindowOpacity(0.0);
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowMinimizeButtonHint |
@@ -56,6 +58,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     // ---- Load settings
     m_settings = AppSettings::load(BASE_PATH + "/" + SETTINGS_PATH);
+    m_soundPlayer->setVolume(m_settings.sfxVolume);
 
     m_lastComfyEnabled = m_settings.comfyUiEnabled;
     m_lastComfyHost = m_settings.comfyUiServerAddress;
@@ -817,17 +820,21 @@ void AppMainWindow::clearUnusedInputs()
     if (!m_inputCache) return;
 
     // Collect references that keep cache entries alive; anything else orphans.
+    // Saved states snapshot workflow vars and overwrite live vars on restore,
+    // so their image refs must keep the cache alive too.
     QSet<QString> usedImageUuids;
     QSet<QString> usedMaskIds;
     QSet<QString> usedEditsHashes;
-    for (const core::WorkflowFile& wf : m_workflowManager.files()) {
-        for (const core::WorkflowVar& v : wf.vars) {
-            if (v.type != core::WorkflowVarType::Image) continue;
-            if (!v.imageUuid.isEmpty()) usedImageUuids.insert(v.imageUuid);
-            if (!v.imageEdits.maskId.isEmpty()) usedMaskIds.insert(v.imageEdits.maskId);
-            if (v.imageEdits.enabled) usedEditsHashes.insert(v.imageEdits.hash());
-        }
-    }
+    auto recordRefs = [&](const core::WorkflowVar& v) {
+        if (v.type != core::WorkflowVarType::Image) return;
+        if (!v.imageUuid.isEmpty()) usedImageUuids.insert(v.imageUuid);
+        if (!v.imageEdits.maskId.isEmpty()) usedMaskIds.insert(v.imageEdits.maskId);
+        if (v.imageEdits.enabled) usedEditsHashes.insert(v.imageEdits.hash());
+    };
+    for (const core::WorkflowFile& wf : m_workflowManager.files())
+        for (const core::WorkflowVar& v : wf.vars) recordRefs(v);
+    if (m_composerPage)
+        for (const core::WorkflowVar& v : m_composerPage->imageVarsFromStates()) recordRefs(v);
 
     int imagesRemoved = 0;
     int masksRemoved = 0;
@@ -866,13 +873,16 @@ void AppMainWindow::clearUnusedInputs()
     // - rebuild the keep-set from current var references the same way
     // ensureImageInputsUploaded constructs upload keys.
     QSet<QString> stillUsed;
-    for (const core::WorkflowFile& wf : m_workflowManager.files()) {
-        for (const core::WorkflowVar& v : wf.vars) {
-            if (v.type != core::WorkflowVarType::Image) continue;
-            if (v.imageUuid.isEmpty()) continue;
-            stillUsed.insert(v.imageUuid + ":" + v.imageEdits.hash());
-        }
-    }
+    auto recordUploadKey = [&](const core::WorkflowVar& v) {
+        if (v.type != core::WorkflowVarType::Image) return;
+        if (v.imageUuid.isEmpty()) return;
+        stillUsed.insert(v.imageUuid + ":" + v.imageEdits.hash());
+    };
+    for (const core::WorkflowFile& wf : m_workflowManager.files())
+        for (const core::WorkflowVar& v : wf.vars) recordUploadKey(v);
+    if (m_composerPage)
+        for (const core::WorkflowVar& v : m_composerPage->imageVarsFromStates())
+            recordUploadKey(v);
     QSet<QString> pruned;
     for (const QString& key : m_uploadedThisSession)
         if (stillUsed.contains(key)) pruned.insert(key);

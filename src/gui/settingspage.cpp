@@ -1,6 +1,7 @@
 #include <gui/settingspage.h>
 #include <gui/chromeddialog.h>
 #include <gui/widgets/appscrollbar.h>
+#include <core/soundplayer.h>
 #include <utils/appconfig.h>
 #include <utils/logger.h>
 #include <utils/qutils.h>
@@ -159,6 +160,27 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
 
     appearanceLayout->addLayout(tileGradGrid);
     appearanceLayout->addWidget(tileGradHint);
+
+    // ---- Sound effect volume
+    m_sfxVolume = new QSlider(Qt::Horizontal);
+    m_sfxVolume->setObjectName("DatasetPmiSlider");
+    m_sfxVolume->setRange(0, 100);
+    m_sfxVolume->setValue(int(qBound(0.0f, settings->sfxVolume, 1.0f) * 100.0f));
+
+    m_sfxVolumeValue = new QLabel;
+    m_sfxVolumeValue->setObjectName("SettingsFieldLabel");
+    m_sfxVolumeValue->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    m_sfxVolumeValue->setMinimumWidth(36);
+    m_sfxVolumeValue->setText(QString::number(m_sfxVolume->value()) + "%");
+
+    auto* sfxRow = new QHBoxLayout;
+    sfxRow->setContentsMargins(0, 8, 0, 0);
+    sfxRow->setSpacing(12);
+    sfxRow->addWidget(makeGradLabel("Sound effect volume"));
+    sfxRow->addWidget(m_sfxVolume, 1);
+    sfxRow->addWidget(m_sfxVolumeValue);
+
+    appearanceLayout->addLayout(sfxRow);
 
     bodyLayout->addWidget(appearanceGroup);
     bodyLayout->addSpacing(24);
@@ -653,6 +675,15 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
             });
     connect(m_tileGradAlpha, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
         m_settings->tileGradientAlpha = v;
+        emit settingsChanged();
+    });
+
+    // Live-apply to SoundPlayer so the user hears the new level immediately,
+    // then emit so AppMainWindow persists.
+    connect(m_sfxVolume, &QSlider::valueChanged, this, [this](int v) {
+        m_settings->sfxVolume = v / 100.0f;
+        m_sfxVolumeValue->setText(QString::number(v) + "%");
+        if (auto* sp = core::SoundPlayer::instance()) sp->setVolume(m_settings->sfxVolume);
         emit settingsChanged();
     });
 

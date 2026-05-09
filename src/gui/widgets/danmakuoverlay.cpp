@@ -56,20 +56,23 @@ void DanmakuOverlay::loadContent()
     }
 }
 
-int DanmakuOverlay::chooseIndex(int layer)
+int DanmakuOverlay::chooseIndex(int layer, bool allowImages)
 {
-    const int total = m_texts.size() + m_images.size();
+    const int textCount = int(m_texts.size());
+    const int total = textCount + int(m_images.size());
     if (total == 0) return -1;
+    const int upper = allowImages ? total : textCount;
+    if (upper == 0) return -1;
 
     // Pool of indices not already on-screen in this layer. With fewer
     // distinct lines than items per layer we fall through to a random
     // pick, which is the only path that allows duplicates.
     QList<int> candidates;
-    candidates.reserve(total);
-    for (int i = 0; i < total; ++i) {
+    candidates.reserve(upper);
+    for (int i = 0; i < upper; ++i) {
         if (!m_layerInUse[layer].contains(i)) candidates.append(i);
     }
-    if (candidates.isEmpty()) return QRandomGenerator::global()->bounded(total);
+    if (candidates.isEmpty()) return QRandomGenerator::global()->bounded(upper);
     return candidates[QRandomGenerator::global()->bounded(candidates.size())];
 }
 
@@ -91,12 +94,25 @@ void DanmakuOverlay::spawnItem(Item& item, bool scatter)
     // Release the previous slot so other items in the layer can take it.
     if (item.contentIndex >= 0) m_layerInUse[item.layer].remove(item.contentIndex);
 
-    const int idx = chooseIndex(item.layer);
+    // Images cluster on a single layer at a time. If any other item is still
+    // showing an image, only that item's layer may pick images this spawn.
+    const int textCount = int(m_texts.size());
+    int imageHostLayer = -1;
+    for (const Item& other : m_items) {
+        if (&other == &item) continue;
+        if (other.contentIndex >= textCount) {
+            imageHostLayer = other.layer;
+            break;
+        }
+    }
+    const bool allowImages = (imageHostLayer < 0) || (imageHostLayer == item.layer);
+
+    const int idx = chooseIndex(item.layer, allowImages);
     if (idx < 0) return;
     m_layerInUse[item.layer].insert(idx);
     item.contentIndex = idx;
 
-    if (idx < m_texts.size()) {
+    if (idx < textCount) {
         item.isImage = false;
         item.text = m_texts[idx];
         item.pixmap = QPixmap{};
@@ -109,7 +125,7 @@ void DanmakuOverlay::spawnItem(Item& item, bool scatter)
     }
     else {
         item.isImage = true;
-        item.pixmap = m_images[idx - m_texts.size()];
+        item.pixmap = m_images[idx - textCount];
         item.text = {};
         item.contentWidth = float(item.pixmap.width());
     }

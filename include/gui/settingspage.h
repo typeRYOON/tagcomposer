@@ -8,6 +8,7 @@
 #include <QPlainTextEdit>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
+#include <QSlider>
 
 namespace gui {
 
@@ -41,6 +42,8 @@ private:
     QDoubleSpinBox* m_tileGradStart;
     QSpinBox* m_tileGradAlpha;
     QPushButton* m_tileTitleColor;
+    QSlider* m_sfxVolume;
+    QLabel* m_sfxVolumeValue;
 
     // ComfyUI section
     QCheckBox* m_enableComfyUi;

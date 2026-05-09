@@ -75,6 +75,10 @@ public:
     void saveSession(const QString& path) const;
     void restoreSession(const QString& path);
 
+    // Image-typed workflow vars rebuilt from every saved state. Lets the
+    // input-cache purge keep entries that a state restore would re-reference.
+    QList<core::WorkflowVar> imageVarsFromStates() const;
+
 public slots:
     void triggerRun();
     // No-op when only the session baseline remains.

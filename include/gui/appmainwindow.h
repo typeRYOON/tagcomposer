@@ -10,6 +10,7 @@
 #include <core/workflowmanager.h>
 #include <core/workflowinputcache.h>
 #include <core/autotaggerlibrary.h>
+#include <core/soundplayer.h>
 #include <utils/appsettings.h>
 #include <QMainWindow>
 #include <QCloseEvent>
@@ -136,6 +137,9 @@ private:
 
     // One library per app: shares the Ort::Env and cached sessions.
     std::unique_ptr<core::AutoTaggerLibrary> m_taggerLibrary;
+
+    // Owns the QSoundEffect cache; reachable via core::SoundPlayer::instance().
+    core::SoundPlayer* m_soundPlayer = nullptr;
 };
 
 } // namespace gui

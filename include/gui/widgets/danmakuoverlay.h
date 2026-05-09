@@ -43,7 +43,7 @@ private:
     void loadContent();
     void populate();
     void spawnItem(Item& item, bool scatter);
-    int chooseIndex(int layer);
+    int chooseIndex(int layer, bool allowImages);
 
     QList<Item> m_items;
     QList<QString> m_texts;

@@ -12,6 +12,9 @@ struct AppSettings {
     int tileGradientAlpha = 180;
     QString tileTitleColor = "#ffffff"; // tile title hex; startup-only like gradient
 
+    // ---- Sound effects
+    float sfxVolume = 0.5f; // 0.0 - 1.0, applied to every clip in core::SoundPlayer
+
     // ---- ComfyUI
     bool comfyUiEnabled = false;
     QString comfyUiServerAddress = "127.0.0.1:8188";
