@@ -120,8 +120,13 @@ bool AutoTaggerModel::initSession(Ort::Env& env, const QString& modelPath, QStri
         m_sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
         m_sessionOptions.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
 
-        m_session =
-            std::make_unique<Ort::Session>(env, modelPath.toStdWString().c_str(), m_sessionOptions);
+        // ORTCHAR_T is wchar_t on Windows, char on POSIX - encode accordingly.
+#ifdef _WIN32
+        const auto pathStr = modelPath.toStdWString();
+#else
+        const auto pathStr = modelPath.toStdString();
+#endif
+        m_session = std::make_unique<Ort::Session>(env, pathStr.c_str(), m_sessionOptions);
 
         // Copy out so we can hand stable const char* to Run().
         Ort::AllocatorWithDefaultOptions allocator;

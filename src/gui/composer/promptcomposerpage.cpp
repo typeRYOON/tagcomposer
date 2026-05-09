@@ -123,9 +123,16 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     // ---- Search bar
     m_searchBar = new TagSearchBar(this);
     m_searchBar->setActiveTags(&m_activeTagSet);
+    m_filterDebounceTimer = new QTimer(this);
+    m_filterDebounceTimer->setSingleShot(true);
+    m_filterDebounceTimer->setInterval(180);
+    connect(m_filterDebounceTimer, &QTimer::timeout, this, [this]() {
+        m_freezeNextRebuild = true; // routes rebuildGroupsDisplay through the fade path
+        applyTagFilter();
+    });
     connect(m_searchBar, &TagSearchBar::queryChanged, this, [this](const QString& text) {
         m_filterQuery = text.trimmed();
-        applyTagFilter();
+        m_filterDebounceTimer->start();
     });
     connect(m_searchBar, &TagSearchBar::tagAdded, this, [this](const QString& tag) {
         if (!m_activeTagSet.contains(tag)) {

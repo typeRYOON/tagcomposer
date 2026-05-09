@@ -52,6 +52,8 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void leaveEvent(QEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
 
 private:
@@ -82,6 +84,21 @@ private:
     int m_totalH = 0;
 
     int m_hoverIndex = -1;
+
+    // Click-vs-drag tracking. Left-press records state; mouseMove promotes
+    // to a drag once it crosses startDragDistance, otherwise mouseRelease
+    // fires the click (scrollToEntry / deselect).
+    bool m_pressedLeft = false;
+    bool m_dragging = false;
+    QPoint m_pressPos;
+    qreal m_pressScrollY = 0.0;
+
+    // Fling state. mouseMove samples velocity (px/sec) during a drag;
+    // mouseRelease leaves it set so the anim timer keeps decaying it
+    // and applying it to the scroll position until friction stops it.
+    qreal m_flingVelocity = 0.0;
+    qint64 m_lastMoveTime = 0;
+    QPoint m_lastMovePos;
 
     // Bounded LRU keyed by entry index; cost is the entry count, since
     // each tile is ~274 KB (TileW * TileH * 4 bytes).

@@ -164,14 +164,14 @@ Toolchain + Qt + OpenCV from your package manager:
 
 ```sh
 sudo apt install build-essential cmake ninja-build \
-    qt6-base-dev qt6-websockets-dev libqt6concurrent6 \
+    qt6-base-dev qt6-websockets-dev qt6-multimedia-dev libqt6concurrent6 \
     libopencv-dev
 ```
 
 ONNX Runtime has no convenient apt package. Drop a prebuilt into `third_party/onnxruntime/`:
 
 ```sh
-ONNX_VER=1.18.0
+ONNX_VER=1.24.4
 curl -L -o ort.tgz \
     https://github.com/microsoft/onnxruntime/releases/download/v${ONNX_VER}/onnxruntime-linux-x64-${ONNX_VER}.tgz
 mkdir -p third_party

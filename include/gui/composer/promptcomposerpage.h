@@ -28,6 +28,7 @@ class QPropertyAnimation;
 class QMenu;
 class QAction;
 class QLineEdit;
+class QTimer;
 
 namespace core {
 class EntryModel;
@@ -270,6 +271,10 @@ private:
     // interactive while the tag list fades.
     QGraphicsOpacityEffect* m_mainStackFx = nullptr;
     QPropertyAnimation* m_mainStackFade = nullptr;
+
+    // Coalesces rapid search-bar keystrokes into one faded rebuild so the
+    // composer doesn't tear from per-char applyTagFilter calls.
+    QTimer* m_filterDebounceTimer = nullptr;
 
     // UI - rule sidebar
     QWidget* m_rulesContainer;

@@ -2,6 +2,8 @@
 #include <utils/appconfig.h>
 #include <utils/qutils.h>
 #include <QThreadPool>
+#include <QApplication>
+#include <QDateTime>
 #include <QFontDatabase>
 #include <QMenu>
 #include <QCursor>
@@ -9,6 +11,7 @@
 #include <QPainterPath>
 #include <QWheelEvent>
 #include <QMouseEvent>
+#include <QKeyEvent>
 #include <QTimer>
 #include <QLabel>
 #include <QPushButton>
@@ -132,6 +135,7 @@ static qreal inOutSine(qreal t)
 EntryView::EntryView(EntryModel* model, QWidget* parent) : QWidget(parent), m_model(model)
 {
     setMouseTracking(true);
+    setFocusPolicy(Qt::StrongFocus); // needed for arrow-key navigation
     setAttribute(Qt::WA_OpaquePaintEvent);
 
     // Cap at 200 tiles (~55 MB at 234 * 300 * 4 bytes per tile).
@@ -166,14 +170,39 @@ EntryView::EntryView(EntryModel* model, QWidget* parent) : QWidget(parent), m_mo
     m_animTimer->setInterval(16);
     connect(m_animTimer, &QTimer::timeout, this, [this]() {
         bool anyActive = false;
+        bool scrollChanged = false;
+
+        // Fling: integrate velocity into scroll, then decay.
+        if (m_flingVelocity != 0.0) {
+            const qreal dt = 16.0 / 1000.0;
+            const int maxScroll = std::max(0, m_totalH - height());
+            const qreal next = m_scrollYActual + m_flingVelocity * dt;
+            const qreal clamped = std::clamp(next, 0.0, static_cast<qreal>(maxScroll));
+            if (clamped != next) m_flingVelocity = 0.0; // hit boundary
+            m_scrollYActual = clamped;
+            m_scrollYTarget = clamped;
+            m_flingVelocity *= 0.94; // friction per paint
+            if (std::abs(m_flingVelocity) < 20.0) m_flingVelocity = 0.0;
+            anyActive = true;
+            scrollChanged = true;
+        }
 
         const qreal scrollDiff = m_scrollYTarget - m_scrollYActual;
         if (std::abs(scrollDiff) > 0.5) {
             m_scrollYActual += scrollDiff * 0.12; // 0.12 = scroll smoothing factor
             anyActive = true;
+            scrollChanged = true;
         }
         else {
             m_scrollYActual = m_scrollYTarget; // snap when close enough
+        }
+
+        if (scrollChanged && underMouse()) {
+            const QPoint localPos = mapFromGlobal(QCursor::pos());
+            if (rect().contains(localPos)) {
+                const int newHover = indexAt(localPos);
+                if (newHover != m_hoverIndex) m_hoverIndex = newHover;
+            }
         }
 
         // 500 ms fade-in, 400 ms hover transition
@@ -303,7 +332,6 @@ int EntryView::indexAt(QPoint p) const
     const int idx = row * m_cols + col;
     if (idx < 0 || idx >= (int)m_entries.size()) return -1;
 
-    // Reject clicks/hovers that land in the spacing gap
     return tileRect(idx).contains(p) ? idx : -1;
 }
 
@@ -326,6 +354,7 @@ void EntryView::wheelEvent(QWheelEvent* event)
 
     m_scrollYTarget -= delta / 120.0 * (TileH / 3.0);
     m_scrollYTarget = std::clamp(m_scrollYTarget, 0.0, (qreal)maxScroll);
+    m_flingVelocity = 0.0; // wheel takes direct control, kill any active fling
 
     if (!m_animTimer->isActive()) m_animTimer->start();
     event->accept();
@@ -333,6 +362,43 @@ void EntryView::wheelEvent(QWheelEvent* event)
 
 void EntryView::mouseMoveEvent(QMouseEvent* event)
 {
+    if (m_pressedLeft) {
+        if (!m_dragging) {
+            const int dx = std::abs(event->pos().x() - m_pressPos.x());
+            const int dy = std::abs(event->pos().y() - m_pressPos.y());
+            if (std::max(dx, dy) >= QApplication::startDragDistance()) {
+                m_dragging = true;
+                m_hoverIndex = -1;
+            }
+        }
+        if (m_dragging) {
+            // Sample velocity (px/sec, in scroll-position direction) for fling.
+            // EMA smooths jitter while staying responsive to recent motion.
+            const qint64 now = QDateTime::currentMSecsSinceEpoch();
+            if (m_lastMoveTime != 0) {
+                const qint64 dtMs = now - m_lastMoveTime;
+                if (dtMs > 0) {
+                    const qreal instantVel =
+                        -(event->pos().y() - m_lastMovePos.y()) * 1000.0 / dtMs;
+                    m_flingVelocity = m_flingVelocity * 0.3 + instantVel * 0.7;
+                }
+            }
+            m_lastMoveTime = now;
+            m_lastMovePos = event->pos();
+
+            const int maxScroll = std::max(0, m_totalH - height());
+            const qreal target = std::clamp(
+                m_pressScrollY - (event->pos().y() - m_pressPos.y()),
+                0.0, static_cast<qreal>(maxScroll));
+            // Snap both target and actual so the view tracks the cursor 1:1
+            // instead of easing toward it.
+            m_scrollYTarget = target;
+            m_scrollYActual = target;
+            update();
+            return;
+        }
+    }
+
     const int newHover = indexAt(event->pos());
     if (newHover != m_hoverIndex) {
         m_hoverIndex = newHover;
@@ -350,22 +416,20 @@ void EntryView::leaveEvent(QEvent* event)
 
 void EntryView::mousePressEvent(QMouseEvent* event)
 {
-    const int idx = indexAt(event->pos());
-    if (idx < 0) {
-        if (event->button() == Qt::LeftButton && m_selectedEntryId >= 0) {
-            m_selectedEntryId = -1;
-            emit entryClicked(nullptr);
-        }
+    if (event->button() == Qt::LeftButton) {
+        // Defer the click action to release - mouseMoveEvent may promote
+        // this to a drag, in which case we scroll instead of selecting.
+        m_pressedLeft = true;
+        m_dragging = false;
+        m_pressPos = event->pos();
+        m_pressScrollY = m_scrollYTarget;
+        m_flingVelocity = 0.0; // grab cancels any in-progress fling
+        m_lastMoveTime = 0;
         return;
     }
 
-    if (event->button() == Qt::LeftButton) {
-        // scrollToEntry centers the tile (clamped to scroll bounds), kicks
-        // the smooth-scroll timer, and emits entryClicked. When the tile
-        // is already centered the diff is ~0 and the timer self-stops.
-        scrollToEntry(idx);
-        return;
-    }
+    const int idx = indexAt(event->pos());
+    if (idx < 0) return;
 
     if (event->button() == Qt::RightButton) {
         core::Entry* e = m_entries[idx];
@@ -403,6 +467,88 @@ void EntryView::mousePressEvent(QMouseEvent* event)
     }
 }
 
+void EntryView::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (event->button() != Qt::LeftButton) return;
+    if (!m_pressedLeft) return;
+
+    const bool wasDragging = m_dragging;
+    m_pressedLeft = false;
+    m_dragging = false;
+
+    if (wasDragging) {
+        // Stale velocity (cursor paused before release) shouldn't fling.
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        if (m_lastMoveTime == 0 || (now - m_lastMoveTime) > 80) m_flingVelocity = 0.0;
+        if (m_flingVelocity != 0.0 && !m_animTimer->isActive()) m_animTimer->start();
+        return;
+    }
+
+    const int idx = indexAt(event->pos());
+    if (idx < 0) return;
+
+    // scrollToEntry centers the tile (clamped to scroll bounds), kicks
+    // the smooth-scroll timer, and emits entryClicked. When the tile
+    // is already centered the diff is ~0 and the timer self-stops.
+    scrollToEntry(idx);
+}
+
+void EntryView::keyPressEvent(QKeyEvent* event)
+{
+    if (m_entries.isEmpty() || m_cols <= 0) {
+        QWidget::keyPressEvent(event);
+        return;
+    }
+
+    int cur = -1;
+    if (m_selectedEntryId >= 0) {
+        for (int i = 0; i < m_entries.size(); ++i) {
+            if (m_entries[i]->id == m_selectedEntryId) { cur = i; break; }
+        }
+    }
+
+    const int last = m_entries.size() - 1;
+    int next = cur;
+
+    switch (event->key()) {
+    case Qt::Key_Left:
+        next = (cur < 0) ? 0 : std::max(0, cur - 1);
+        break;
+    case Qt::Key_Right:
+        next = (cur < 0) ? 0 : std::min(last, cur + 1);
+        break;
+    case Qt::Key_Up:
+        next = (cur < 0) ? 0 : std::max(0, cur - m_cols);
+        break;
+    case Qt::Key_Down:
+        // Clamp to last entry so the bottom partial row stays reachable.
+        next = (cur < 0) ? 0 : std::min(last, cur + m_cols);
+        break;
+    case Qt::Key_Home:
+        next = 0;
+        break;
+    case Qt::Key_End:
+        next = last;
+        break;
+    case Qt::Key_PageUp: {
+        const int rows = std::max(1, height() / (TileH + Spacing));
+        next = (cur < 0) ? 0 : std::max(0, cur - rows * m_cols);
+        break;
+    }
+    case Qt::Key_PageDown: {
+        const int rows = std::max(1, height() / (TileH + Spacing));
+        next = (cur < 0) ? 0 : std::min(last, cur + rows * m_cols);
+        break;
+    }
+    default:
+        QWidget::keyPressEvent(event);
+        return;
+    }
+
+    if (next != cur) scrollToEntry(next);
+    event->accept();
+}
+
 void EntryView::rebuildNavPanel()
 {
     if (!m_navPanel) return;
@@ -430,6 +576,7 @@ void EntryView::selectAndScrollToEntry(int32_t entryId)
 void EntryView::scrollToEntry(int idx)
 {
     if (idx < 0 || idx >= m_entries.size()) return;
+    m_flingVelocity = 0.0; // explicit target wins over residual fling
     const int row = idx / std::max(1, m_cols);
     const qreal tileTop = PadV + row * static_cast<qreal>(TileH + Spacing);
     const qreal centered = tileTop - (height() - TileH) / 2.0;

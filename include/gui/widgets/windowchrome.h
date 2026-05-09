@@ -39,7 +39,7 @@ public:
         bool modalGrab = false;
     };
 
-    WindowChrome(QWidget* host, Options opt = {});
+    WindowChrome(QWidget* host, Options opt = Options{});
 
     // Add this to the host's layout (or setCentralWidget for QMainWindow).
     QWidget* frame() const

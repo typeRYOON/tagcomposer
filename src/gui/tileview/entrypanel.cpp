@@ -1164,6 +1164,24 @@ void EntryPanel::setEntry(core::Entry* entry)
     // Snapshot the current content so it can be faded out on top of the new one.
     const bool crossfade = (entry != nullptr && m_entry != nullptr && entry != m_entry &&
                             m_stack->currentIndex() == 1 && m_fadeOverlay);
+
+    // Cancel any in-progress fade before grabbing - the overlays are children
+    // inside m_contentWidget, so a mid-fade pixmap would otherwise be baked
+    // into the new snapshot. Holding an arrow key would then stack each
+    // previous title/image into the next snapshot until the user released.
+    if (crossfade) {
+        m_fadeOverlayAnim->stop();
+        m_fadeOverlayFx->setOpacity(0.0);
+        m_fadeOverlay->hide();
+        m_fadeOverlay->clear();
+        if (m_imageFadeOverlay) {
+            m_imageFadeOverlayAnim->stop();
+            m_imageFadeOverlayFx->setOpacity(0.0);
+            m_imageFadeOverlay->hide();
+            m_imageFadeOverlay->clear();
+        }
+    }
+
     QPixmap snapshot;
     if (crossfade) snapshot = m_contentWidget->grab();
 
