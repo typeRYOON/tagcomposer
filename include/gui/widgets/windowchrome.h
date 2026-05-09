@@ -39,7 +39,12 @@ public:
         bool modalGrab = false;
     };
 
-    WindowChrome(QWidget* host, Options opt = Options{});
+    // Two overloads instead of a defaulted Options{}: GCC (bug 88165) rejects
+    // brace-init of a nested struct in a default argument because it forces
+    // the nested struct's default member initializers to be instantiated
+    // before the enclosing class is complete.
+    explicit WindowChrome(QWidget* host);
+    WindowChrome(QWidget* host, Options opt);
 
     // Add this to the host's layout (or setCentralWidget for QMainWindow).
     QWidget* frame() const

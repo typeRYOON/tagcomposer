@@ -17,6 +17,8 @@ using gui::framelesschrome::ResizeOutline;
 
 namespace gui {
 
+WindowChrome::WindowChrome(QWidget* host) : WindowChrome(host, Options{}) {}
+
 WindowChrome::WindowChrome(QWidget* host, Options opt) : QObject(host), m_host(host), m_opt(opt)
 {
     // m_frame is the chrome wrapper. Its kResizeBorder layout margin creates
