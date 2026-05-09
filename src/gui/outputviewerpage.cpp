@@ -109,7 +109,7 @@ private:
         p.setPen(QPen(QColor(0x88, 0x88, 0x88), 2));
         p.setBrush(Qt::NoBrush);
         p.drawRoundedRect(QRectF(3, 5, 26, 22), 3, 3);
-        // "Mountain range" inside - universal shorthand for an image.
+        // "Mountain range"
         p.setPen(Qt::NoPen);
         QPainterPath mtn;
         mtn.moveTo(6, 24);
@@ -259,7 +259,6 @@ public:
                 requestThumbnail(path, gen);
             }
         }
-        // Defer so the scrollbar's visibility settles before we re-centre.
         QMetaObject::invokeMethod(
             this, [this]() { centerLayout(); }, Qt::QueuedConnection);
     }
@@ -268,8 +267,6 @@ private:
     static constexpr int kThumbW = 192;
     static constexpr int kThumbH = 192;
 
-    // IconMode has no center-align; split the leftover row width between
-    // left and right viewport margins instead.
     void centerLayout()
     {
         const int gridW = gridSize().width();
@@ -288,8 +285,7 @@ private:
         setViewportMargins(side, 16, side, 0);
     }
 
-    // Decode at thumb size on a worker; the generation guard skips
-    // redundant requeues, and the GUI-side guard drops stale results.
+    // Decode at thumb size on a worker
     void requestThumbnail(const QString& path, int generation)
     {
         if (m_pending.contains(path)) return;
@@ -333,8 +329,7 @@ private:
         }
     }
 
-    // Generic folder thumb so directory items aren't blank: a rounded
-    // dark-grey rectangle with a folder glyph, drawn once at construction.
+    // Generic folder thumb so directory items aren't blank
     QIcon makeFolderIcon() const
     {
         QPixmap pm(kThumbW, kThumbH);
@@ -347,7 +342,7 @@ private:
         bg.addRoundedRect(QRectF(0, 0, kThumbW, kThumbH), 12, 12);
         p.fillPath(bg, QColor(28, 28, 28));
 
-        // Folder glyph (two-rectangle hand-drawn folder)
+        // Folder glyph
         const qreal cx = kThumbW / 2.0;
         const qreal cy = kThumbH / 2.0;
         const qreal w = kThumbW * 0.55;
@@ -358,11 +353,9 @@ private:
         QPainterPath fp;
         fp.addRoundedRect(tab, 4, 4);
         fp.addRoundedRect(body, 6, 6);
-        p.fillPath(fp, QColor(204, 204, 204)); // #cccccc, app's primary text color
+        p.fillPath(fp, QColor(204, 204, 204));
 
-        // A subtle highlight strip across the top of the body so the folder
-        // reads as 3D rather than a flat block.
-        p.setPen(QPen(QColor(238, 238, 238, 180), 2)); // slightly brighter, semi-transparent
+        p.setPen(QPen(QColor(238, 238, 238, 180), 2));
         p.drawLine(body.left() + 8, body.top() + 4, body.right() - 8, body.top() + 4);
         return QIcon(pm);
     }
@@ -381,21 +374,14 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
     setAttribute(Qt::WA_StyledBackground, true);
 
     m_fsModel = new QFileSystemModel(this);
-    // Stateless provider; one shared instance for every OutputViewerPage is
-    // safe and saves the manual-lifetime dance (QFileIconProvider isn't a
-    // QObject, so it can't be parented to the model).
     static FsTypeIconProvider s_typeIcons;
     m_fsModel->setIconProvider(&s_typeIcons);
     m_fsModel->setNameFilters(kImageFilters);
     m_fsModel->setNameFilterDisables(false);
-    // AllDirs makes the name filters skip directories; otherwise our
-    // *.png/*.jpg filters would hide folders too. Restated explicitly
-    // even though it's part of the model's default.
     m_fsModel->setFilter(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::AllDirs);
     m_fsModel->setReadOnly(true);
 
-    // Retry deferred navigation on each directoryLoaded; today's subfolder
-    // may not have been realised yet when setOutputFolder ran.
+    // Retry deferred navigation on each directoryLoaded
     connect(m_fsModel, &QFileSystemModel::directoryLoaded, this,
             [this](const QString&) { navigateToPendingIfReady(); });
 
@@ -409,8 +395,6 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
     m_tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_tree->setVerticalScrollBar(new AppScrollBar(Qt::Vertical));
     m_tree->setFrameShape(QFrame::NoFrame);
-    // QFileSystemModel exposes Name/Size/Type/Date columns; only Name belongs
-    // in the navigation tree.
     for (int c = 1; c < m_fsModel->columnCount(); ++c)
         m_tree->hideColumn(c);
 
@@ -423,9 +407,6 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
     m_status->setWordWrap(true);
 
     // ---- Header builder
-    // 50 px bar matching WorkflowEditPage so flipping between pages doesn't
-    // shift the title row. Returns (header, subtitle) so the page can update
-    // the subtitle as the user navigates.
     constexpr int kHeaderHeight = 50;
     auto buildHeader = [&](const QString& title) -> std::tuple<QWidget*, QLabel*, QHBoxLayout*> {
         auto* header = new QWidget;
@@ -454,7 +435,6 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
     m_thumbSubtitle = rightSubtitle;
 
     // Open the folder currently shown in the thumb pane in the OS file explorer.
-    // Mirrors the SidebarBtn used on WorkflowEditPage's headers.
     m_openFolderBtn = new QPushButton;
     m_openFolderBtn->setObjectName("SidebarBtn");
     m_openFolderBtn->setFixedSize(24, 24);
@@ -468,9 +448,6 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
         if (m_currentThumbDir.isEmpty()) return;
         QDesktopServices::openUrl(QUrl::fromLocalFile(m_currentThumbDir));
     });
-    // setOutputFolder early-returns when pattern is unchanged, so on the
-    // first call with an empty configured path the subtitle would never be
-    // initialised - seed it here so the header reads sensibly out of the box.
     m_treeSubtitle->setText(QStringLiteral("(not configured)"));
 
     auto* leftPanel = new QWidget;
@@ -494,9 +471,6 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
     m_split->setStretchFactor(0, 0);
     m_split->setStretchFactor(1, 1);
     m_split->setSizes({320, 900});
-    // Without a non-trivial handle width the QSS background can't render and
-    // the divider stays invisible - 5px is the same width WorkflowEditPage's
-    // implicit splitters use.
     m_split->setHandleWidth(5);
     m_split->setChildrenCollapsible(false);
 
@@ -514,15 +488,7 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
             [this](const QModelIndex& idx) { m_tree->setExpanded(idx, !m_tree->isExpanded(idx)); });
     connect(m_tree, &OutputTreeView::crossToThumbsRequested, this,
             &OutputViewerPage::focusThumbForImage);
-
-    // Click in the right pane selects only; Enter (routed through
-    // OutputThumbList's keyPressEvent -> enterActivated) is the commit action
-    // that opens images / navigates folders.
     connect(m_thumbs, &OutputThumbList::enterActivated, this, &OutputViewerPage::onThumbActivated);
-
-    // Escape on the right pane (with a selection, not fullscreen) bounces
-    // focus back to the tree - sync the tree's current row to whatever the
-    // user had highlighted in the thumb grid before handing focus over.
     connect(m_thumbs, &OutputThumbList::escapePressed, this, [this]() {
         if (auto* it = m_thumbs->currentItem()) {
             const QString path = it->data(Qt::UserRole).toString();
@@ -579,9 +545,6 @@ void OutputViewerPage::setOutputFolder(const QString& folderPattern)
         m_pendingNavTo = datedPath;
         m_currentThumbDir = datedPath;
         populateThumbsForDir(datedPath);
-        // QFileSystemModel populates lazily; the dated index may not be
-        // realised yet. Try once now and retry from directoryLoaded if it
-        // wasn't ready (see ctor's signal hookup).
         navigateToPendingIfReady();
     }
     else {
@@ -603,8 +566,6 @@ void OutputViewerPage::onTreeCurrentChanged(const QModelIndex& current, const QM
 {
     if (!current.isValid()) return;
     const QString path = m_fsModel->filePath(current);
-    // Files use their parent dir so arrowing between siblings keeps the
-    // thumb grid stable (the equality check below short-circuits).
     const QString targetDir = m_fsModel->isDir(current) ? path : QFileInfo(path).absolutePath();
 
     if (targetDir == m_currentThumbDir) return;
@@ -620,9 +581,6 @@ void OutputViewerPage::onTreeActivated(const QModelIndex& index)
 
 void OutputViewerPage::focusThumbForImage(const QString& imagePath)
 {
-    // The right pane should already be showing this file's parent dir
-    // (onTreeCurrentChanged keeps it in sync), but rebuild defensively if
-    // something has drifted - otherwise the lookup below would silently fail.
     const QString parentDir = QFileInfo(imagePath).absolutePath();
     if (parentDir != m_currentThumbDir) {
         m_currentThumbDir = parentDir;
@@ -639,7 +597,6 @@ void OutputViewerPage::focusThumbForImage(const QString& imagePath)
         }
     }
     // Fallback: thumb pane doesn't have the file (race during repopulate);
-    // still move focus so the user's keyboard input lands somewhere useful.
     m_thumbs->setFocus();
 }
 
@@ -695,9 +652,6 @@ void OutputViewerPage::selectInTree(const QString& path)
 {
     const QModelIndex idx = m_fsModel->index(path);
     if (!idx.isValid()) return;
-    // Expand all parents up to the root so the index becomes visible - without
-    // this, setCurrentIndex on a deep child silently no-ops because the tree
-    // hasn't realized those rows yet.
     QModelIndex p = idx.parent();
     while (p.isValid()) {
         m_tree->expand(p);

@@ -13,7 +13,7 @@ namespace gui {
 
 namespace {
 
-// ---- Logo composition - tune these to position the two layers
+// ---- Logo composition
 
 constexpr QSize kLogoFrameSize{626, 252};
 constexpr QRect kTagRect{174, 1, 280, 251};
@@ -23,7 +23,6 @@ constexpr int kBottomMargin = 20;
 constexpr int kRyoonLogoHeight = 50;
 constexpr int kHeaderTopMargin = 70;
 
-// Where the ryoon logo click lands.
 constexpr const char* kRyoonGithubUrl = "https://github.com/typeRYOON/";
 
 } // namespace
@@ -40,24 +39,24 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent)
 
     m_tagLabel = new QLabel(logoFrame);
     m_tagLabel->setObjectName("HomeTagLogo");
-    m_tagLabel->setScaledContents(true); // honour the rect's size
+    m_tagLabel->setScaledContents(true);
     m_tagLabel->setPixmap(QPixmap(":/img/tc_logo0.png"));
     m_tagLabel->setGeometry(kTagRect);
 
     m_wordmark = new ShinyLogo(logoFrame);
     m_wordmark->setLogo(QPixmap(":/img/tc_logo1.png"));
     m_wordmark->setGeometry(kWordmarkRect);
-    m_wordmark->raise(); // keep wordmark on top of the tag-mark
+    m_wordmark->raise();
     m_wordmark->startShine();
 
-    // ---- Update label (hidden until setUpdateAvailable is called)
+    // ---- Update label
     m_updateLabel = new QLabel(this);
     m_updateLabel->setObjectName("HomeUpdateLabel");
     m_updateLabel->setAlignment(Qt::AlignCenter);
     m_updateLabel->hide();
-    m_updateLabel->installEventFilter(this); // click -> release page
+    m_updateLabel->installEventFilter(this);
 
-    // ---- ryoon logo, bottom-right corner, click -> github profile
+    // ---- ryoon logo
     m_ryoonLogo = new QLabel(this);
     m_ryoonLogo->setObjectName("HomeRyoonLogo");
     {

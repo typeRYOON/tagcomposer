@@ -97,8 +97,6 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     m_tileTitleColor->setFixedSize(110, 32);
     m_tileTitleColor->setCursor(Qt::PointingHandCursor);
 
-    // Pick a readable foreground (black on light backgrounds, white on dark)
-    // so the hex string stays legible regardless of the chosen color.
     auto applyTitleSwatch = [this]() {
         const QColor c(m_settings->tileTitleColor);
         const bool dark =
@@ -666,8 +664,6 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
         emit settingsChanged();
     });
 
-    // Tile-gradient values are read once at startup by EntryView, so these
-    // just persist to the settings file - they take effect on next launch.
     connect(m_tileGradStart, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this](double v) {
                 m_settings->tileGradientStart = v;
@@ -678,8 +674,6 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
         emit settingsChanged();
     });
 
-    // Live-apply to SoundPlayer so the user hears the new level immediately,
-    // then emit so AppMainWindow persists.
     connect(m_sfxVolume, &QSlider::valueChanged, this, [this](int v) {
         m_settings->sfxVolume = v / 100.0f;
         m_sfxVolumeValue->setText(QString::number(v) + "%");

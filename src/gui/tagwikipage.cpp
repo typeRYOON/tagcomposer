@@ -608,9 +608,6 @@ void TagWikiPage::startThumbFade(const QString& resourceUrl, const QPixmap& fina
 
 void TagWikiPage::onThumbFadeTick()
 {
-    // One markContentsDirty + viewport update per tick, regardless of how
-    // many thumbs are fading. The previous per-thumb timer cascaded into
-    // hundreds of full-document re-layouts on image-heavy pages.
     constexpr int totalMs = 220;
     constexpr int stepMs = 25;
     constexpr int totalSteps = totalMs / stepMs;

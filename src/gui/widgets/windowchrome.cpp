@@ -117,8 +117,6 @@ bool WindowChrome::eventFilter(QObject* obj, QEvent* event)
             }
         }
         else if (event->type() == QEvent::Leave) {
-            // Don't reset the cursor mid-drag - the cursor naturally leaves
-            // the overlay when the user pulls past the old window edge.
             if (!m_dragEdges) m_resizeOverlay->unsetCursor();
         }
     }
@@ -142,9 +140,7 @@ void WindowChrome::beginResizeDrag(Qt::Edges edges, const QPoint& globalStart)
     QApplication::setOverrideCursor(QCursor(cursorForEdges(edges)));
 
     // QDialog::exec()'s modal loop breaks the implicit mouse grab a press
-    // would normally hold on m_resizeOverlay (showing ResizeOutline as a
-    // separate top-level disrupts it), so we grab explicitly. Non-modal
-    // hosts don't need this.
+    // would normally hold on m_resizeOverlay, so we grab explicitly.
     if (m_opt.modalGrab) m_resizeOverlay->grabMouse();
 }
 
@@ -174,8 +170,6 @@ QRect WindowChrome::computeResizeGeometry(const QPoint& globalNow) const
     if (m_dragEdges & Qt::TopEdge) g.setTop(g.top() + d.y());
     if (m_dragEdges & Qt::BottomEdge) g.setBottom(g.bottom() + d.y());
 
-    // Clamp to the host's minimum size; from top/left, pin against the
-    // opposite edge so it stays put.
     QSize minSz(320, 200);
     if (m_host) {
         minSz =

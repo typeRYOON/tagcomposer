@@ -101,8 +101,6 @@ void TitleBar::mousePressEvent(QMouseEvent* event)
     // Right/middle fall through so a future context menu can hook in.
     if (event->button() == Qt::LeftButton) {
         if (auto* w = window()) {
-            // Windows-like restore-on-drag: if maximized, restore first so
-            // the window doesn't snap back to its old geometry mid-drag.
             if (w->isMaximized()) w->showNormal();
             if (auto* h = w->windowHandle()) {
                 h->startSystemMove();
@@ -126,7 +124,6 @@ void TitleBar::mouseDoubleClickEvent(QMouseEvent* event)
 
 void TitleBar::toggleFullScreen()
 {
-    // Fade through black so the OS-level fullscreen transition is hidden.
     auto* w = window();
     if (!w) return;
     auto* anim = utils::propertyAnimate(w, "windowOpacity", w->windowOpacity(), 0.0, 200,

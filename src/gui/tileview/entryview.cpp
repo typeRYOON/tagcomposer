@@ -135,12 +135,9 @@ EntryView::EntryView(EntryModel* model, QWidget* parent) : QWidget(parent), m_mo
     setAttribute(Qt::WA_OpaquePaintEvent);
 
     // Cap at 200 tiles (~55 MB at 234 * 300 * 4 bytes per tile).
-    // Tuned for typical use: viewport plus 3-row preload fits well under
-    // the cap, and scrolling through more entries than this evicts oldest.
     m_pixCache.setMaxCost(200);
 
-    // Transparent in-flight placeholder - keeps the initial paint clean
-    // (no flash of the placeholder image while real images stream in).
+    // Transparent in-flight placeholder
     m_placeholder = QPixmap(TileW, TileH);
     m_placeholder.fill(Qt::transparent);
 

@@ -55,15 +55,11 @@ QColor danbooruCategoryColor(int cat)
 }
 
 // In-app tags use spaces; the Danbooru API expects underscores.
-// Parens stay literal (URL-safe in path component).
 QString tagToApiSlug(const QString& tag)
 {
-    QString s = tag.toLower();
-    s.replace(' ', '_');
-    return s;
+    return tag.toLower().replace(' ', '_');
 }
 
-// QPixmap can't decode video/ugoira; fall back to the static preview thumb.
 QString pickPreviewUrl(const QJsonObject& post)
 {
     const QString ext = post.value("file_ext").toString().toLower();
@@ -93,13 +89,13 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
 
     m_undefinedHeader = new QLabel;
     m_undefinedHeader->setObjectName("FacetPanelHeader");
-    m_undefinedHeader->hide(); // shown by refreshUndefinedList when non-empty
+    m_undefinedHeader->hide();
 
     m_undefinedList = new QListWidget;
     m_undefinedList->setObjectName("FacetTagList");
     m_undefinedList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_undefinedList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
-    m_undefinedList->setMaximumHeight(160); // ~6 rows; longer lists scroll
+    m_undefinedList->setMaximumHeight(160);
     m_undefinedList->hide();
 
     m_countLabel = new QLabel;
@@ -124,7 +120,6 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
 
     connect(m_searchEdit, &QLineEdit::textChanged, this, &FacetEditorPage::applyListFilter);
 
-    // Enter selects the typed tag, or creates a new entry if it doesn't exist.
     connect(m_searchEdit, &QLineEdit::returnPressed, this, [this]() {
         const QString tag = m_searchEdit->text().trimmed();
         if (tag.isEmpty()) return;
@@ -135,7 +130,6 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     m_tagList->installEventFilter(this);
     m_undefinedList->installEventFilter(this);
 
-    // Right-click -> "Go to Wiki" on either list
     auto installWikiMenu = [this](QListWidget* list) {
         list->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(list, &QListWidget::customContextMenuRequested, this,
@@ -195,8 +189,6 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     schemaReloadBtn->setToolTip("Reload facets.fct (does not touch tag definitions)");
     connect(schemaReloadBtn, &QPushButton::clicked, this, &FacetEditorPage::schemaReloadRequested);
 
-    // Wrap the row in a styled container so the underline runs the full width
-    // (under the open/reload buttons too), not just under the label.
     auto* selectedRow = new QWidget;
     selectedRow->setObjectName("FacetSelectedTagRow");
     selectedRow->setAttribute(Qt::WA_StyledBackground, true);
@@ -292,8 +284,6 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     previewBody->addStretch();
     previewLayout->addLayout(previewBody);
 
-    // Only fixed pieces are the 24px gaps on either side of the editor;
-    // the editor takes all remaining width between TAGS and the preview panel.
     auto* editorOuter = new QWidget;
     auto* editorOuterLayout = new QHBoxLayout(editorOuter);
     editorOuterLayout->setContentsMargins(0, 0, 0, 0);
@@ -308,8 +298,8 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     hintLabel->setAlignment(Qt::AlignCenter);
 
     m_rightStack = new QStackedWidget;
-    m_rightStack->addWidget(hintLabel);   // 0
-    m_rightStack->addWidget(editorOuter); // 1
+    m_rightStack->addWidget(hintLabel);
+    m_rightStack->addWidget(editorOuter);
 
     // ---- Root layout
     auto* root = new QHBoxLayout(this);
@@ -447,9 +437,6 @@ void FacetEditorPage::applyFacetFilter(const QString& query)
 {
     const QString lower = query.trimmed().toLower();
 
-    // Match logic per block: empty query -> show all. Otherwise, if the
-    // category name matches, show every pill in the block; else show only
-    // pills whose facet name matches. Hide blocks with zero visible pills.
     for (auto* block : m_facetsContainer->findChildren<QFrame*>("FacetCategoryBlock")) {
         const QString cat = block->property("_categoryName").toString().toLower();
         const bool catMatches = !lower.isEmpty() && cat.contains(lower);
@@ -510,14 +497,10 @@ void FacetEditorPage::selectTag(const QString& tag)
     m_selectedTag = tag;
     m_selectedLabel->setText(tag);
 
-    // Match the entry-panel tag list: color the header by danbooru category
-    // so the selected tag's type is recognisable at a glance.
     const int cat = m_danbooruIndex ? m_danbooruIndex->tagCategory(tag) : -1;
     const QColor col = danbooruCategoryColor(cat);
     m_selectedLabel->setStyleSheet(QString("color: %1;").arg(col.name()));
 
-    // Drive the right-rail Danbooru preview. cat == -1 means the tag isn't
-    // known to Danbooru, so don't waste a request.
     if (cat >= 0)
         fetchPreview(tag);
     else
@@ -591,8 +574,6 @@ void FacetEditorPage::selectTag(const QString& tag)
         pill->installEventFilter(this);
         connect(pill, &QPushButton::toggled, this, [this](bool) { refreshActivePills(); });
     }
-    // Catch clicks on non-pill regions (block frame, label, gaps) so the
-    // first pill takes focus and arrow-nav works without clicking a pill.
     for (auto* w : m_facetsContainer->findChildren<QWidget*>())
         if (w->objectName() != "FacetPillBtn") w->installEventFilter(this);
     refreshActivePills();
@@ -628,8 +609,6 @@ void FacetEditorPage::refreshActivePills()
         mini->setChecked(true);
         mini->setCursor(Qt::PointingHandCursor);
         mini->setFocusPolicy(Qt::NoFocus);
-        // Click removes the facet by unchecking the matching pill below;
-        // the toggled signal there triggers another refresh of this strip.
         QPointer<QPushButton> mainPtr(main);
         connect(mini, &QPushButton::clicked, this,
                 [mainPtr]() { if (mainPtr) mainPtr->setChecked(false); });
@@ -742,9 +721,6 @@ void FacetEditorPage::setPreviewPixmap(const QPixmap& pix)
 
     const QPixmap scaled = pix.scaled(maxW, maxH, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
-    // QSS border-radius on QLabel doesn't clip the pixmap content - paint into
-    // a transparent canvas with a rounded clip path so the corners are actually
-    // rounded on the image itself.
     QPixmap rounded(scaled.size());
     rounded.fill(Qt::transparent);
     {
@@ -876,8 +852,7 @@ bool FacetEditorPage::eventFilter(QObject* obj, QEvent* ev)
                 key == Qt::Key_Alt || key == Qt::Key_Meta || key == Qt::Key_AltGr)
                 return false;
 
-            // Everything else (typing, Backspace, Ctrl+A/C/V, Home/End, etc.)
-            // routes to the filter so the search box stays usable from the pills.
+            // Everything else routes to the filter so the search box stays usable from the pills.
             QKeyEvent fwd(QEvent::KeyPress, key, ke->modifiers(), ke->text());
             m_facetSearchEdit->setFocus();
             QApplication::sendEvent(m_facetSearchEdit, &fwd);

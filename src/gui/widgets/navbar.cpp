@@ -36,7 +36,7 @@ void NavButton::leaveEvent(QEvent* e)
 
 void NavButton::paintEvent(QPaintEvent* e)
 {
-    QPushButton::paintEvent(e); // draws QSS background / border-radius
+    QPushButton::paintEvent(e);
 
     if (m_navIcon.isNull()) return;
 

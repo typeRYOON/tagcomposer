@@ -612,7 +612,6 @@ void AppMainWindow::applyComfySettings()
 
 void AppMainWindow::reloadFacets()
 {
-    // Persist on every mutation: cheap, and keeps disk state crash-aligned.
     m_facetIndex.saveDefinitions(BASE_PATH + "/" + DEFINITIONS_PATH);
     m_facetEditorPage->reload();
     m_composerPage->repush();
@@ -629,7 +628,7 @@ void AppMainWindow::applyQuickFacet(const QString& tag, const QString& facetName
     }
     existing << facetName;
     m_facetIndex.setDefinition(tag, existing);
-    reloadFacets(); // also persists via saveDefinitions
+    reloadFacets();
     m_statusBar->showMessage(QString("Added facet '%1' to '%2'").arg(facetName, tag));
 }
 
@@ -819,9 +818,6 @@ void AppMainWindow::clearUnusedInputs()
 {
     if (!m_inputCache) return;
 
-    // Collect references that keep cache entries alive; anything else orphans.
-    // Saved states snapshot workflow vars and overwrite live vars on restore,
-    // so their image refs must keep the cache alive too.
     QSet<QString> usedImageUuids;
     QSet<QString> usedMaskIds;
     QSet<QString> usedEditsHashes;
@@ -963,7 +959,6 @@ void AppMainWindow::purgeUnknownFacets()
 
     QStringList offenderList(offenders.cbegin(), offenders.cend());
     std::sort(offenderList.begin(), offenderList.end());
-    // Cap the preview so a flood of typos doesn't blow up the dialog.
     const int previewCap = 12;
     QString preview = offenderList.mid(0, previewCap).join(", ");
     if (offenderList.size() > previewCap)

@@ -78,7 +78,6 @@ private:
 // ---- DropImageLabel
 // QLabel that accepts dropped image files and emits the local path of the
 // first one. Used as the thumbnail/drop target on the Image var card.
-
 class DropImageLabel : public QLabel {
     Q_OBJECT
 public:
@@ -285,8 +284,6 @@ WorkflowEditPage::WorkflowEditPage(QWidget* parent) : QWidget(parent)
 
     auto* batchRunBtn = new QPushButton(" Run Batch");
     batchRunBtn->setObjectName("WfAddBtn");
-    // #66aa66 is the hover-shade green from the WfAddBtn theme - matches
-    // the button's text color so the icon and label read as one piece.
     batchRunBtn->setIcon(gui::icons::play(14, QColor(0x66, 0xaa, 0x66)));
     batchRunBtn->setIconSize(QSize(12, 12));
     batchRunBtn->setCursor(Qt::PointingHandCursor);

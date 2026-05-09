@@ -1392,7 +1392,6 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
         updateExtraBtnState();
     });
 
-    // editingFinished (focus-loss without Enter): revert to committed tag
     connect(edit, &QLineEdit::editingFinished, this,
             [edit, row]() { edit->setText(row->property("_tag").toString()); });
 
@@ -1469,7 +1468,6 @@ QWidget* EntryPanel::createTagRow(const QString& tag)
 
 void EntryPanel::addTagRowToList(const QString& tag)
 {
-    // Insert before the trailing stretch
     const int pos = std::max(0, m_tagListLayout->count() - 1);
     QWidget* row = createTagRow(tag);
     m_tagListLayout->insertWidget(pos, row);

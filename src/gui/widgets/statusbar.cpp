@@ -18,7 +18,7 @@ StatusBar::StatusBar(QWidget* parent) : QWidget(parent)
     m_label->setObjectName("StatusBarLabel");
     m_label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 
-    // Status text auto-clears after 10s; full history lives in the settings log.
+    // Status text auto-clears after 10s
     m_clearTimer = new QTimer(this);
     m_clearTimer->setSingleShot(true);
     m_clearTimer->setInterval(10'000);
@@ -26,7 +26,6 @@ StatusBar::StatusBar(QWidget* parent) : QWidget(parent)
 
     m_activeLabel = new QLabel("0 active", this);
     m_activeLabel->setObjectName("StatusBarActiveLabel");
-    // Pinned to the bar's height so HBox centers their text on the same line.
     m_activeLabel->setFixedHeight(14);
     m_activeLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
 
@@ -78,7 +77,7 @@ void StatusBar::showMessage(const QString& message)
 
 void StatusBar::setProgress(int step, int total)
 {
-    if (step <= 0 || total <= 0) return; // ignore between-prompt idle reports
+    if (step <= 0 || total <= 0) return;
     m_progress->setRange(0, total);
     m_progress->setValue(qMin(step, total));
     m_progress->setFormat(QString("%1 / %2").arg(step).arg(total));
