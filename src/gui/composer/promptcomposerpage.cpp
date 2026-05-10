@@ -1415,11 +1415,13 @@ void PromptComposerPage::applyTagFilter()
     for (const PipelineTag& pt : m_lastResult) {
         if (m_undefinedOnly && !isUndefined(pt)) continue;
         if (!m_filterQuery.isEmpty()) {
-            const bool matchTag = pt.tag.startsWith(m_filterQuery, Qt::CaseInsensitive);
+            // Substring match (case-insensitive) so "shirt" finds "black
+            // shirt" - same shape as the facet editor's filter.
+            const bool matchTag = pt.tag.contains(m_filterQuery, Qt::CaseInsensitive);
             const bool matchSrc = !pt.sourceTag.isEmpty() &&
-                                  pt.sourceTag.startsWith(m_filterQuery, Qt::CaseInsensitive);
+                                  pt.sourceTag.contains(m_filterQuery, Qt::CaseInsensitive);
             const bool matchGroup =
-                displayGroupOf(pt).startsWith(m_filterQuery, Qt::CaseInsensitive);
+                displayGroupOf(pt).contains(m_filterQuery, Qt::CaseInsensitive);
             if (!matchTag && !matchSrc && !matchGroup) continue;
         }
         filtered << pt;
