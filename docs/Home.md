@@ -30,7 +30,7 @@ Cross-cutting docs that aren't tied to one page:
 - [[Tag Composer - Groups]] - the `groups.fct` grammar plus the routing-facet (`rBody`, `rClothing`, ...) convention that pairs with leaf facets to drive the composer's category buckets.
 - [[Workflow Variables]] - placeholder substitution rules, built-ins (`__positive__`, `__lora_*__`, ...), and per-type behavior.
 - [[ComfyUI Integration]] - connection setup, queue/interrupt semantics, image input upload flow, and the run/batch validation rules.
-- [[Keyboard Shortcuts]] - app-wide and page-local key bindings. **(stub)**
+- [[Keyboard Shortcuts]] - app-wide and page-local key bindings.
 
 ## Concepts
 

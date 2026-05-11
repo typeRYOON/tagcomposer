@@ -105,7 +105,7 @@ Runs an ONNX classifier (typically a wd14-style tagger or any compatible model) 
 
 ### Left panel - parameters
 
-- **Model dropdown** - lists every model installed under `data/models/`. See [[Settings#auto-tagger]] **(stub)** for how to add models.
+- **Model dropdown** - lists every model installed under `data/models/`. To add a new tagger, drop its ONNX folder into `data/models/<model-name>/` (typically containing `model.onnx` and a `selected_tags.csv`) and the dropdown picks it up on next page show. Hit **Refresh models** (or just restart) if you added a folder while the page was open.
 - **Input folder** - the images to tag. Browse-button.
 - **Output folder** - where the `.txt` sidecars (and optionally the moved images) land. Leave empty to write sidecars next to the source images.
 - **Threshold slider** - 0.0 to 1.0. A tag is included if its predicted confidence is above this value.

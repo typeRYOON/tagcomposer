@@ -114,7 +114,7 @@ An `Image` var stores a uuid into the [[ComfyUI Integration]] input cache. The s
 
 `tagcomposer/` is a fixed subfolder under ComfyUI's `input/` - the app uploads there to stay out of ComfyUI's `clipspace/`. The `<uuid>.png` filename uses the cache's stable id, so the same image always lands at the same path.
 
-If the var has `ImageEdits` (crop, mask, trim), the **edited** PNG is the one that gets uploaded - but the path stays `tagcomposer/<uuid>.png` regardless. Edit variants are cached separately under `_edited/<editsHash>/` in the cache.
+If the var has `ImageEdits` (crop, mask, trim) - configured via the [[Clip Editor]] modal - the **edited** PNG is the one that gets uploaded; the path stays `tagcomposer/<uuid>.png` regardless. Edit variants are cached separately under `_edited/<editsHash>/` in the cache; masks under `_masks/<maskId>.png`.
 
 ### Wildcards: merged into the prompt
 
@@ -248,3 +248,4 @@ The engine doesn't impose a placeholder shape - any string a user var stores in 
 - [[Tag Composer]] - source of `__positive__`.
 - [[Tile View]] - source of the active LoRA stack.
 - [[Prompt History]] - records every rendered JSON so you can see what actually shipped.
+- [[Clip Editor]] - the modal that produces the `ImageEdits` payload for Image-type variables.

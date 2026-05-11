@@ -133,7 +133,7 @@ For workflows that take an image input (img2img, controlnet, inpainting referenc
 ```
 
 - **Thumbnail (96 x 96)** with drop-target for image files.
-- **Browse / Edit / Clear** buttons. Browse opens a file dialog; Edit launches the in-app **ClipEditorDialog** (crop, mask, alpha trim); Clear unbinds and frees the cached file.
+- **Browse / Edit / Clear** buttons. Browse opens a file dialog; Edit launches the in-app [[Clip Editor]] (crop, mask, alpha trim); Clear unbinds and frees the cached file.
 - The name label surfaces edit state ("cropped 768 x 768", "mask 1024 x 1024") so you can tell at a glance that the upload won't be the raw source.
 
 Edits are cached separately from the source image - the edited PNG is rendered (and re-rendered on edit-changes) into the input cache; uploads use the edited version.
@@ -282,5 +282,6 @@ This page doesn't list the available workflows - that's on the [[Tag Composer]]'
 - [[Prompt History]] - records every dispatched prompt (including batch iterations).
 - [[Tile View]] - where LoRAs get activated; the stack mirrored here.
 - [[Search Queries]] - the query grammar shared by the batch query field.
-- [[Workflow Variables]] - **(stub)** - the cross-cutting reference for placeholder substitution rules and built-ins (`__positive__`, `__lora_*__`).
-- [[ComfyUI Integration]] - **(stub)** - the run/batch validation rules and queue/interrupt semantics.
+- [[Workflow Variables]] - the cross-cutting reference for placeholder substitution rules and built-ins (`__positive__`, `__lora_*__`).
+- [[ComfyUI Integration]] - the run/batch validation rules and queue/interrupt semantics.
+- [[Clip Editor]] - the modal launched by Image variable cards' **Edit...** button (crop / mask / trim).
