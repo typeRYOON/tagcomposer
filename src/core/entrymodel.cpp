@@ -8,8 +8,90 @@
 #include <QFileInfo>
 #include <QSet>
 #include <algorithm>
+#include <optional>
 
 using namespace utils;
+
+namespace {
+
+// Parsed `images:[op]N` / `tags:[op]N` predicate. Op::Off means the user
+// didn't write a clause, so match() is a no-op pass.
+struct NumFilter {
+    enum Op { Off, Eq, Lt, Le, Gt, Ge } op = Off;
+    int value = 0;
+
+    bool active() const
+    {
+        return op != Off;
+    }
+    bool match(int n) const
+    {
+        switch (op) {
+        case Off:
+            return true;
+        case Eq:
+            return n == value;
+        case Lt:
+            return n < value;
+        case Le:
+            return n <= value;
+        case Gt:
+            return n > value;
+        case Ge:
+            return n >= value;
+        }
+        return true;
+    }
+};
+
+// Accepts ">=N", "<=N", ">N", "<N", "=N", or bare "N" (= Eq). Invalid /
+// negative values leave the result Off so the clause is silently ignored
+// rather than dropping every entry.
+NumFilter parseNumFilter(QString s)
+{
+    NumFilter f;
+    s = s.trimmed();
+    if (s.isEmpty()) return f;
+
+    NumFilter::Op op = NumFilter::Eq;
+    QString rest = s;
+    if (rest.startsWith(QStringLiteral(">="))) {
+        op = NumFilter::Ge;
+        rest = rest.mid(2);
+    }
+    else if (rest.startsWith(QStringLiteral("<="))) {
+        op = NumFilter::Le;
+        rest = rest.mid(2);
+    }
+    else if (rest.startsWith('>')) {
+        op = NumFilter::Gt;
+        rest = rest.mid(1);
+    }
+    else if (rest.startsWith('<')) {
+        op = NumFilter::Lt;
+        rest = rest.mid(1);
+    }
+    else if (rest.startsWith('=')) {
+        op = NumFilter::Eq;
+        rest = rest.mid(1);
+    }
+
+    bool ok = false;
+    const int v = rest.trimmed().toInt(&ok);
+    if (!ok || v < 0) return f;
+    f.op = op;
+    f.value = v;
+    return f;
+}
+
+int totalTagCount(const core::Entry* e)
+{
+    int n = 0;
+    for (const auto& img : e->images) n += img.tagIds.size();
+    return n;
+}
+
+} // namespace
 
 namespace core {
 
@@ -76,16 +158,45 @@ QList<Entry*> EntryModel::filterAndGroup(const QString& sub, QString& outSortKey
 {
     QList<Entry*> ret;
     QString titleTerm;
+    QString commentTerm;
     QString loraTerm;
     QStringList tagParts;
     QStringList negParts;
+    NumFilter imagesFilter;
+    NumFilter tagsFilter;
+    // nullopt = no constraint, true = must have, false = must NOT have.
+    // Last directive on a given field wins, mirroring sort:. `image` is
+    // not exposed because every entry carries a placeholder ImageData
+    // slot, which would make has:image / missing:image meaningless.
+    std::optional<bool> requireLora;
+    std::optional<bool> requireTitle;
+    std::optional<bool> requireComment;
+
+    auto applyPresence = [&](const QString& field, bool wantPresent) {
+        const QString f = field.toLower();
+        if (f == "lora") requireLora = wantPresent;
+        else if (f == "title") requireTitle = wantPresent;
+        else if (f == "comment") requireComment = wantPresent;
+        // Unknown field names are ignored - leaving a typo'd "has:foo"
+        // clause as a silent no-op beats dropping every entry.
+    };
 
     for (const QString& part : sub.split(',', Qt::SkipEmptyParts)) {
         const QString t = part.trimmed();
         if (t.startsWith("title:", Qt::CaseInsensitive))
             titleTerm = t.mid(6).trimmed();
+        else if (t.startsWith("comment:", Qt::CaseInsensitive))
+            commentTerm = t.mid(8).trimmed();
         else if (t.startsWith("lora:", Qt::CaseInsensitive))
             loraTerm = t.mid(5).trimmed();
+        else if (t.startsWith("images:", Qt::CaseInsensitive))
+            imagesFilter = parseNumFilter(t.mid(7));
+        else if (t.startsWith("tags:", Qt::CaseInsensitive))
+            tagsFilter = parseNumFilter(t.mid(5));
+        else if (t.startsWith("has:", Qt::CaseInsensitive))
+            applyPresence(t.mid(4).trimmed(), true);
+        else if (t.startsWith("missing:", Qt::CaseInsensitive))
+            applyPresence(t.mid(8).trimmed(), false);
         else if (t.startsWith("sort:", Qt::CaseInsensitive)) {
             // sort:<key>[:asc|:desc] - global across the whole query; the
             // outer filter() picks the last non-empty value.
@@ -138,6 +249,32 @@ QList<Entry*> EntryModel::filterAndGroup(const QString& sub, QString& outSortKey
     if (!titleTerm.isEmpty()) {
         auto end = std::remove_if(ret.begin(), ret.end(), [&](const Entry* e) {
             return !e->title.contains(titleTerm, Qt::CaseInsensitive);
+        });
+        ret.erase(end, ret.end());
+    }
+
+    if (!commentTerm.isEmpty()) {
+        auto end = std::remove_if(ret.begin(), ret.end(), [&](const Entry* e) {
+            return !e->comment.contains(commentTerm, Qt::CaseInsensitive);
+        });
+        ret.erase(end, ret.end());
+    }
+
+    if (requireLora.has_value() || requireTitle.has_value() || requireComment.has_value()) {
+        auto end = std::remove_if(ret.begin(), ret.end(), [&](const Entry* e) {
+            if (requireLora.has_value() && e->lora.has_value() != *requireLora) return true;
+            if (requireTitle.has_value() && (!e->title.isEmpty()) != *requireTitle) return true;
+            if (requireComment.has_value() && (!e->comment.isEmpty()) != *requireComment) return true;
+            return false;
+        });
+        ret.erase(end, ret.end());
+    }
+
+    if (imagesFilter.active() || tagsFilter.active()) {
+        auto end = std::remove_if(ret.begin(), ret.end(), [&](const Entry* e) {
+            if (imagesFilter.active() && !imagesFilter.match(e->images.size())) return true;
+            if (tagsFilter.active() && !tagsFilter.match(totalTagCount(e))) return true;
+            return false;
         });
         ret.erase(end, ret.end());
     }
