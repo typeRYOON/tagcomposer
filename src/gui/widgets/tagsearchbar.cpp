@@ -1,5 +1,7 @@
 #include <gui/widgets/tagsearchbar.h>
 #include <utils/stringutils.h>
+#include <QApplication>
+#include <QMouseEvent>
 #include <QVBoxLayout>
 #include <QPainter>
 #include <QStyledItemDelegate>
@@ -291,10 +293,19 @@ bool TagSearchBar::eventFilter(QObject* obj, QEvent* event)
             auto* ke = static_cast<QKeyEvent*>(event);
             switch (ke->key()) {
             case Qt::Key_Down:
-                if (!m_popup->isVisible())
-                    showPopup();
-                else
+                if (m_popup->isVisible()) {
                     m_list->setCurrentRow(std::min(m_list->currentRow() + 1, m_list->count() - 1));
+                }
+                else if (m_list->count() > 0) {
+                    // Re-show a previously-populated popup (e.g. after a
+                    // focus-out hide).
+                    showPopup();
+                }
+                else if (m_input->text().isEmpty()) {
+                    // Empty input + Down = "navigate into the list below";
+                    // the host wires this to a focus shift.
+                    emit downArrowOnEmpty();
+                }
                 return true;
             case Qt::Key_Up:
                 m_list->setCurrentRow(std::max(m_list->currentRow() - 1, 0));
@@ -337,6 +348,186 @@ bool TagSearchBar::eventFilter(QObject* obj, QEvent* event)
             m_popup->isVisible())
             repositionPopup();
     }
+    return false;
+}
+
+// ---- TagLineAutocomplete
+
+TagLineAutocomplete::TagLineAutocomplete(QLineEdit* edit, core::DanbooruIndex* index,
+                                         QObject* parent)
+    : QObject(parent ? parent : edit), m_edit(edit), m_index(index)
+{
+    m_edit->installEventFilter(this);
+
+    m_debounce = new QTimer(this);
+    m_debounce->setSingleShot(true);
+    m_debounce->setInterval(120);
+    connect(m_edit, &QLineEdit::textChanged, m_debounce, qOverload<>(&QTimer::start));
+    connect(m_debounce, &QTimer::timeout, this,
+            [this]() { runSearch(m_edit->text().trimmed()); });
+}
+
+void TagLineAutocomplete::ensurePopup()
+{
+    if (m_popup) return;
+    m_popup = new QFrame(m_edit->window(),
+                         Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+    m_popup->setObjectName("TagSearchPopup");
+    m_popup->setAttribute(Qt::WA_ShowWithoutActivating);
+
+    m_list = new QListWidget(m_popup);
+    m_list->setObjectName("TagSearchList");
+    m_list->setItemDelegate(new TagDelegate(m_list));
+    m_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_list->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_list->setFocusPolicy(Qt::NoFocus);
+    m_list->setMouseTracking(true);
+    connect(m_list, &QListWidget::itemClicked, this,
+            [this](QListWidgetItem*) { commitSelection(); });
+    connect(m_list, &QListWidget::itemEntered, m_list,
+            qOverload<QListWidgetItem*>(&QListWidget::setCurrentItem));
+
+    auto* layout = new QVBoxLayout(m_popup);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+    layout->addWidget(m_list);
+}
+
+void TagLineAutocomplete::runSearch(const QString& text)
+{
+    if (!m_index || text.isEmpty() || !m_edit->hasFocus()) {
+        hidePopup();
+        return;
+    }
+    ensurePopup();
+    m_list->clear();
+
+    const auto results = m_index->search(text, 12);
+    if (results.isEmpty()) {
+        hidePopup();
+        return;
+    }
+    for (const auto& r : results) {
+        auto* item = new QListWidgetItem(r.displayName);
+        item->setData(CanonicalTagRole, r.canonicalTag);
+        item->setData(CountRole, (qlonglong)r.count);
+        item->setData(CategoryRole, r.category);
+        item->setData(IsAliasRole, r.isAlias);
+        item->setData(MatchStartRole, r.matchStart);
+        item->setData(MatchLenRole, r.matchLen);
+        m_list->addItem(item);
+    }
+
+    const int rowH = 36;
+    const int visH = rowH * std::min((int)results.size(), 8);
+    m_list->setFixedHeight(visH);
+    m_popup->setFixedSize(qMax(m_edit->width(), 240), visH);
+
+    showPopup();
+}
+
+void TagLineAutocomplete::showPopup()
+{
+    if (!m_popup) return;
+    repositionPopup();
+    m_popup->show();
+    m_popup->raise();
+    // Catch outside clicks: focusOut alone doesn't fire when the click
+    // lands on a non-focusable widget or another window.
+    qApp->installEventFilter(this);
+}
+
+void TagLineAutocomplete::hidePopup()
+{
+    if (m_popup) m_popup->hide();
+    qApp->removeEventFilter(this);
+}
+
+void TagLineAutocomplete::repositionPopup()
+{
+    if (!m_popup) return;
+    m_popup->move(m_edit->mapToGlobal(QPoint(0, m_edit->height())));
+}
+
+void TagLineAutocomplete::commitSelection()
+{
+    if (!m_list) return;
+    auto* item = m_list->currentItem();
+    if (!item) return;
+    const QString canonical = item->data(CanonicalTagRole).toString();
+    hidePopup();
+    m_edit->setText(canonical);
+    // clearFocus triggers editingFinished, which runs the host's rename
+    // handler (same path as if the user had typed it and pressed Enter).
+    m_edit->clearFocus();
+}
+
+bool TagLineAutocomplete::eventFilter(QObject* obj, QEvent* event)
+{
+    // Outside-click: any mouse press (anywhere in the app) that lands
+    // outside both the popup and the edit hides the popup. Don't consume
+    // the event - the click should still reach its target.
+    if ((event->type() == QEvent::MouseButtonPress ||
+         event->type() == QEvent::NonClientAreaMouseButtonPress) &&
+        m_popup && m_popup->isVisible()) {
+        auto* me = static_cast<QMouseEvent*>(event);
+        const QPoint gp = me->globalPosition().toPoint();
+        const QRect popupRect(m_popup->mapToGlobal(QPoint(0, 0)), m_popup->size());
+        const QRect editRect(m_edit->mapToGlobal(QPoint(0, 0)), m_edit->size());
+        if (!popupRect.contains(gp) && !editRect.contains(gp)) hidePopup();
+    }
+
+    if (obj != m_edit) return false;
+
+    if (event->type() == QEvent::KeyPress) {
+        auto* ke = static_cast<QKeyEvent*>(event);
+        const bool popupOpen = m_popup && m_popup->isVisible();
+        switch (ke->key()) {
+        case Qt::Key_Down:
+            if (popupOpen) {
+                m_list->setCurrentRow(std::min(m_list->currentRow() + 1, m_list->count() - 1));
+                return true;
+            }
+            break;
+        case Qt::Key_Up:
+            if (popupOpen) {
+                m_list->setCurrentRow(std::max(m_list->currentRow() - 1, 0));
+                return true;
+            }
+            break;
+        case Qt::Key_Return:
+        case Qt::Key_Enter:
+        case Qt::Key_Tab:
+            // With a live selection, commit it; otherwise dismiss the popup
+            // and let the edit's normal Enter handling (editingFinished)
+            // commit whatever the user typed.
+            if (popupOpen) {
+                if (m_list->currentItem()) {
+                    commitSelection();
+                    return true;
+                }
+                hidePopup();
+            }
+            break;
+        case Qt::Key_Escape:
+            if (popupOpen) {
+                hidePopup();
+                return true;
+            }
+            break;
+        }
+    }
+    if (event->type() == QEvent::FocusOut) {
+        // Defer in case the focus moved into the popup itself (it shouldn't,
+        // but the click delivery races with focus transfer on some styles).
+        QTimer::singleShot(150, this, [this]() {
+            if (!m_edit->hasFocus()) hidePopup();
+        });
+    }
+    // Page switches hide the edit indirectly (parent page hides) - the popup
+    // is a separate top-level window so it would otherwise linger.
+    if (event->type() == QEvent::Hide || event->type() == QEvent::HideToParent)
+        hidePopup();
     return false;
 }
 

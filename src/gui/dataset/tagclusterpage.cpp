@@ -53,6 +53,31 @@ static QString fmtTag(const QString& tag)
     return QString(tag).replace('_', ' ').replace('(', "\\(").replace(')', "\\)");
 }
 
+// Capitalises the first alphabetic char of each whitespace-separated word.
+// Punctuation like '(' is preserved so "taihou_(azur lane)" -> "Taihou (Azur Lane)"
+// after the underscore swap.
+static QString titleCase(const QString& s)
+{
+    QString out;
+    out.reserve(s.size());
+    bool capNext = true;
+    for (const QChar c : s) {
+        if (c.isSpace()) {
+            capNext = true;
+            out.append(c);
+        }
+        else if (capNext && c.isLetter()) {
+            out.append(c.toUpper());
+            capNext = false;
+        }
+        else {
+            out.append(c);
+            if (c.isLetter()) capNext = false;
+        }
+    }
+    return out;
+}
+
 // ---- Layout dimensions kept here so tweaks live in one place
 constexpr int kPanelWidth = 280;
 constexpr int kPreviewPanelWidth = 320;
@@ -139,6 +164,13 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
                             "Helpful for cleaner clusters, but characters with few solo\n"
                             "posts will return less data - leave off if results are sparse.");
 
+    m_singleCharCheck = new QCheckBox("Single character tag only", paramsBody);
+    m_singleCharCheck->setObjectName("DatasetSoloCheck");
+    m_singleCharCheck->setToolTip(
+        "Drop posts that list more than one character tag. Useful for\n"
+        "characters with skin/alt-form tags (e.g. taihou, taihou (racing),\n"
+        "mu) whose differing outfits otherwise muddy concept extraction.");
+
     m_charPagesSpin = mkSpin(1, 100, 15);
     m_globalPagesSpin = mkSpin(1, 200, 30);
     m_minCountSpin = mkSpin(1, 1000, 3);
@@ -197,6 +229,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
 
     pbl->addWidget(m_tagInput);
     pbl->addWidget(m_soloCheck);
+    pbl->addWidget(m_singleCharCheck);
     pbl->addLayout(grid);
     pbl->addWidget(m_fetchBtn);
     pbl->addWidget(m_clearCacheBtn);
@@ -413,8 +446,10 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     });
 
     connect(m_createEntryBtn, &QPushButton::clicked, this, [this]() {
-        const QString title = m_targetTag.trimmed();
-        if (title.isEmpty()) return;
+        const QString rawTitle = m_targetTag.trimmed();
+        if (rawTitle.isEmpty()) return;
+        // "taihou_(azur lane)" -> "Taihou (Azur Lane)" for the entry title.
+        const QString title = titleCase(QString(rawTitle).replace('_', ' '));
         if (auto* sp = core::SoundPlayer::instance()) sp->play("ok");
         // Mirror the copy string's contents: target + copyright + visible
         // rows. EntryModel::getTagIds normalizes (underscores -> spaces,
@@ -430,6 +465,8 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     // +solo flips the Danbooru query - flag the cached data as stale until the
     // user re-fetches, since the underlying post population is now different.
     connect(m_soloCheck, &QCheckBox::toggled, this, [this](bool) { markStaleIfFetched(); });
+    connect(m_singleCharCheck, &QCheckBox::toggled, this,
+            [this](bool) { markStaleIfFetched(); });
 
     // Debounced recompute - bursts (slider drag, typing in the filter editor)
     // collapse into a single rebuild after the user pauses for ~150 ms.
@@ -458,10 +495,14 @@ void TagClusterPage::onFetchClicked()
     const QString raw = m_tagInput->text().trimmed();
     if (raw.isEmpty()) return;
 
+    // Strip composer-style backslash escapes ("taihou_\(azur lane\)" pasted
+    // from a prompt) before sending to Danbooru.
     QString tmp = raw;
+    tmp.remove('\\');
     tmp.replace(' ', '_');
     m_targetTag = tmp;
     m_fetchedSolo = m_soloCheck->isChecked();
+    m_fetchedSingleChar = m_singleCharCheck->isChecked();
 
     // Clear previous results + char counters; preserve global cache.
     clearResultRows();
@@ -561,6 +602,14 @@ void TagClusterPage::processPage(const QJsonArray& posts)
             m_globalTotal += tags.size();
         }
         else {
+            // Skin/alt-form posts list the base + every variant as separate
+            // character tags - dropping them keeps the cluster on-model.
+            if (m_fetchedSingleChar) {
+                const QStringList chars =
+                    post["tag_string_character"].toString().split(' ', Qt::SkipEmptyParts);
+                if (chars.size() != 1) continue;
+            }
+
             const QStringList gen =
                 post["tag_string_general"].toString().split(' ', Qt::SkipEmptyParts);
             for (const QString& t : gen)
@@ -715,6 +764,15 @@ QWidget* TagClusterPage::makeResultRow(const QString& tag, double pmi, int idx)
     auto* tagLbl = new QLabel(utils::normalizeTagInput(tag), row);
     tagLbl->setObjectName("DatasetResultTag");
 
+    // "?" badge for tags missing facets - mirrors the entry-panel tag list
+    // and the composer. Reuses the TagNoFacetBadge style from entrypanel.qss.
+    // FacetIndex keys on space form, so normalize before lookup (raw `tag`
+    // here is still the underscored Danbooru wire form).
+    auto* noFacetBadge = new QLabel("?", row);
+    noFacetBadge->setObjectName("TagNoFacetBadge");
+    noFacetBadge->setAttribute(Qt::WA_StyledBackground, true);
+    noFacetBadge->setVisible(m_facets && !m_facets->hasFacets(utils::normalizeTagInput(tag)));
+
     // The user threshold is in PMI units, so the displayed value is the raw
     // PMI (not the freq-weighted sort key) - that way the slider directly
     // matches the score column.
@@ -726,6 +784,7 @@ QWidget* TagClusterPage::makeResultRow(const QString& tag, double pmi, int idx)
 
     layout->addWidget(removeBtn);
     layout->addWidget(tagLbl, 1);
+    layout->addWidget(noFacetBadge);
     layout->addWidget(pmiLbl);
 
     connect(removeBtn, &QPushButton::clicked, this, [this, idx]() {
@@ -1121,6 +1180,7 @@ void TagClusterPage::setFetchRunning(bool on)
     m_fetchBtn->setEnabled(!on);
     m_tagInput->setEnabled(!on);
     m_soloCheck->setEnabled(!on);
+    m_singleCharCheck->setEnabled(!on);
     m_charPagesSpin->setEnabled(!on);
     m_globalPagesSpin->setEnabled(!on);
     m_progressBar->setVisible(on);

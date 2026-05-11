@@ -43,6 +43,10 @@ public:
 
 signals:
     void entryClicked(core::Entry*);
+    // Fires only for pointer-driven selections (mouse release, nav panel,
+    // external selectAndScrollToEntry). Skipped on keyboard arrow nav so
+    // focus can stay on the tile view.
+    void entryClickedByPointer(core::Entry*);
     void loraStackChanged(QList<core::LoraConfig> stack);
     void tagsExported(int entryId, int imageIdx, QList<QString> tags);
 
@@ -60,7 +64,7 @@ private:
     void recomputeLayout();
     QRect tileRect(int index) const;
     int indexAt(QPoint widgetPos) const;
-    void scrollToEntry(int idx);
+    void scrollToEntry(int idx, bool fromKeyboard = false);
     void repositionNav();
     void rebuildNavPanel();
 

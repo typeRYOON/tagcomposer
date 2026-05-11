@@ -49,6 +49,10 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
     for (const auto& v : obj["deactivatedTags"].toArray())
         s.deactivatedTags.insert(v.toString());
 
+    const QJsonObject deactCat = obj["deactivatedCategory"].toObject();
+    for (auto it = deactCat.constBegin(); it != deactCat.constEnd(); ++it)
+        s.deactivatedCategory[it.key()] = it.value().toString();
+
     for (const auto& v : obj["activePushes"].toArray())
         s.activePushes << EntryPush::fromJson(v.toObject());
 
@@ -124,6 +128,11 @@ QJsonObject SavedState::toJson() const
     for (const auto& t : deactivatedTags)
         deactArr.append(t);
     obj["deactivatedTags"] = deactArr;
+
+    QJsonObject deactCatObj;
+    for (auto it = deactivatedCategory.constBegin(); it != deactivatedCategory.constEnd(); ++it)
+        deactCatObj[it.key()] = it.value();
+    obj["deactivatedCategory"] = deactCatObj;
 
     QJsonArray pushesArr;
     for (const auto& ep : activePushes)

@@ -68,6 +68,15 @@ private:
     // emit an empty filename token into the workflow JSON.
     QStringList unloadedImageInputs() const;
 
+    // Returns human-readable problems with the workflow template that should
+    // block a run: variables whose placeholder/token never appears in `tmpl`,
+    // stray __dunder__ tokens in `tmpl` that no handler (vars, positive,
+    // lora stack) will substitute, and (when activeLoraCount > 0) missing
+    // __lora_name_N__ slots that would silently drop the user's selection.
+    // Built-ins like __positive__ are never required to be present.
+    // Empty list = OK to send.
+    QStringList workflowTemplateIssues(const QString& tmpl, int activeLoraCount) const;
+
     // Sweep WorkflowInputCache: drop entries no workflow var references.
     void clearUnusedInputs();
 

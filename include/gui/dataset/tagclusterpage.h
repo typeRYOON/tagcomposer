@@ -54,6 +54,7 @@ private:
     // ---- Params (left panel)
     QLineEdit* m_tagInput;
     QCheckBox* m_soloCheck;
+    QCheckBox* m_singleCharCheck;
     QSpinBox* m_charPagesSpin;
     QSpinBox* m_globalPagesSpin;
     QSlider* m_minPmiSlider;
@@ -100,6 +101,7 @@ private:
     int m_globalPages = 0;
     QString m_targetTag;
     bool m_fetchedSolo = false;
+    bool m_fetchedSingleChar = false;
 
     // ---- Cached counters (live for the session)
     QHash<QString, int> m_globalCounter;

@@ -1229,6 +1229,14 @@ void EntryPanel::applyEntry(core::Entry* entry)
     }
 }
 
+void EntryPanel::focusSearchInput()
+{
+    // Park focus in the search bar so repeated tag-adds across entries
+    // skip a mouse-move + click after each switch. Only meaningful when
+    // the bar is enabled (i.e. the current entry has at least one image).
+    if (m_searchBar->isEnabled()) m_searchBar->setFocus(Qt::OtherFocusReason);
+}
+
 void EntryPanel::applyOrientation(bool portrait)
 {
     if (portrait) {

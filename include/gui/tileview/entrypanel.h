@@ -33,6 +33,10 @@ public:
     explicit EntryPanel(core::EntryModel* model, QWidget* parent = nullptr);
 
     void setEntry(core::Entry* entry);
+    // Routes focus to the tag search field. Called by TileViewPage after a
+    // pointer-driven entry selection so the user can start typing without
+    // an extra click.
+    void focusSearchInput();
     void setDanbooruIndex(core::DanbooruIndex* index);
     void setFacetIndex(core::FacetIndex* index);
     void setActiveGroups(const QMap<int, QList<int>>& groups);

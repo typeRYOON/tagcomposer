@@ -71,6 +71,7 @@ void PromptComposerPage::captureCurrentState(core::SavedState& state) const
     for (auto it = m_tagWeights.cbegin(); it != m_tagWeights.cend(); ++it)
         if (qAbs(it.value() - 1.0f) >= 0.001f) state.tagWeights[it.key()] = it.value();
     state.deactivatedTags = m_deactivatedTags;
+    state.deactivatedCategory = m_deactivatedCategory;
 
     // Convert runtime keys to stable (uuid, imageFileName).
     state.activePushes = dumpActivePushes();
@@ -167,6 +168,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     m_activeTagSet.clear();
     m_tagWeights.clear();
     m_deactivatedTags.clear();
+    m_deactivatedCategory.clear();
     // m_activePushes is replaced wholesale by loadActivePushes below.
 
     m_activeTags = state.activeTags;
@@ -174,6 +176,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         m_activeTagSet.insert(t);
     m_tagWeights = state.tagWeights;
     m_deactivatedTags = state.deactivatedTags;
+    m_deactivatedCategory = state.deactivatedCategory;
 
     const int missing = loadActivePushes(state.activePushes);
 

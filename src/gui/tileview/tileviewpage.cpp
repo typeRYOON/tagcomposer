@@ -87,6 +87,11 @@ TileViewPage::TileViewPage(core::EntryModel* model, QWidget* parent) : QWidget(p
             [this]() { m_entryView->query(m_searchBar->text()); });
 
     connect(m_entryView, &EntryView::entryClicked, m_entryPanel, &EntryPanel::setEntry);
+    // Pointer-driven selections (mouse, nav panel, external requests) also
+    // park focus in the search bar; keyboard arrow nav deliberately skips
+    // this so the tile view keeps focus for chained arrow presses.
+    connect(m_entryView, &EntryView::entryClickedByPointer, m_entryPanel,
+            &EntryPanel::focusSearchInput);
 
     // selectAndScrollToEntry emits entryClicked, which routes back to setEntry above.
     connect(m_entryPanel, &EntryPanel::entrySelectRequested, m_entryView,

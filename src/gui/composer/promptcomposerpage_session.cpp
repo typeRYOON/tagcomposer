@@ -27,6 +27,10 @@ void PromptComposerPage::saveSession(const QString& path) const
     for (const QString& t : m_deactivatedTags)
         deactivatedArr.append(t);
 
+    QJsonObject deactivatedCategoryObj;
+    for (auto it = m_deactivatedCategory.constBegin(); it != m_deactivatedCategory.constEnd(); ++it)
+        deactivatedCategoryObj[it.key()] = it.value();
+
     QJsonArray loraUuidsArr;
     for (const QString& uuid : m_activeLoraUuids)
         loraUuidsArr.append(uuid);
@@ -36,6 +40,7 @@ void PromptComposerPage::saveSession(const QString& path) const
     root["tagWeights"] = weightsObj;
     root["activePushes"] = pushesArr;
     root["deactivatedTags"] = deactivatedArr;
+    root["deactivatedCategory"] = deactivatedCategoryObj;
     root["activeLoraUuids"] = loraUuidsArr;
 
     QFile f(path);
@@ -61,6 +66,7 @@ void PromptComposerPage::restoreSession(const QString& path)
     m_activeTagSet.clear();
     m_tagWeights.clear();
     m_deactivatedTags.clear();
+    m_deactivatedCategory.clear();
     // m_activePushes is replaced by loadActivePushes below.
 
     for (const QJsonValue& v : root["activeTags"].toArray()) {
@@ -77,6 +83,10 @@ void PromptComposerPage::restoreSession(const QString& path)
 
     for (const QJsonValue& v : root["deactivatedTags"].toArray())
         if (const QString t = v.toString(); !t.isEmpty()) m_deactivatedTags.insert(t);
+
+    const QJsonObject deactCatObj = root["deactivatedCategory"].toObject();
+    for (auto it = deactCatObj.constBegin(); it != deactCatObj.constEnd(); ++it)
+        m_deactivatedCategory[it.key()] = it.value().toString();
 
     QList<core::EntryPush> pushes;
     for (const QJsonValue& v : root["activePushes"].toArray())

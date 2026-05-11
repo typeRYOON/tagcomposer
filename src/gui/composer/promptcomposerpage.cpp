@@ -20,6 +20,7 @@
 #include <QPushButton>
 #include <QMenu>
 #include <QCursor>
+#include <QApplication>
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QRegularExpression>
@@ -150,13 +151,37 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         m_filterDebounceTimer->start();
     });
     connect(m_searchBar, &TagSearchBar::tagAdded, this, [this](const QString& tag) {
-        if (!m_activeTagSet.contains(tag)) {
-            m_activeTags << tag;
-            m_activeTagSet.insert(tag);
-            m_freezeNextRebuild = true;
-            captureUndoSnapshot();
-            queueRepush();
+        // Split on commas so a paste / typed "a, b" lands as two distinct
+        // tags - mirrors the entry panel's expectation. The search bar
+        // commits one signal per tag in most cases, but defending here
+        // covers any caller that hands us a comma-joined string.
+        QStringList parts;
+        if (tag.contains(','))
+            parts = tag.split(',', Qt::SkipEmptyParts);
+        else
+            parts << tag;
+
+        bool added = false;
+        for (const QString& raw : parts) {
+            const QString t = raw.trimmed();
+            if (t.isEmpty() || m_activeTagSet.contains(t)) continue;
+            m_activeTags << t;
+            m_activeTagSet.insert(t);
+            added = true;
         }
+        if (!added) return;
+        m_freezeNextRebuild = true;
+        captureUndoSnapshot();
+        queueRepush();
+    });
+    connect(m_searchBar, &TagSearchBar::downArrowOnEmpty, this, [this]() {
+        if (m_tagRowWidgets.isEmpty() || !m_groupsScroll) return;
+        m_groupsScroll->setFocus(Qt::OtherFocusReason);
+        const int next = (m_selectedRowIdx < 0)
+                             ? 0
+                             : std::min(m_selectedRowIdx + 1,
+                                        int(m_tagRowWidgets.size()) - 1);
+        setSelectedRow(next);
     });
     connect(m_searchBar, &TagSearchBar::escapePressed, this, [this]() {
         // Prefer the groups scroll (so arrow keys / wheel scroll work);
@@ -197,6 +222,9 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     tabToSearch->setContext(Qt::WidgetWithChildrenShortcut);
     connect(tabToSearch, &QShortcut::activated, this,
             [this]() { m_searchBar->setFocus(Qt::TabFocusReason); });
+
+    // Up/Down on the focused groups scroll selects neighboring tag rows.
+    groupsScroll->installEventFilter(this);
 
     auto* emptyHint =
         new QLabel("Press \"Composer Toggle\" on an entry image\nto push its tags here.");
@@ -845,6 +873,65 @@ void PromptComposerPage::showEvent(QShowEvent* event)
 
 bool PromptComposerPage::eventFilter(QObject* obj, QEvent* event)
 {
+    if (obj == m_groupsScroll && event->type() == QEvent::KeyPress) {
+        auto* ke = static_cast<QKeyEvent*>(event);
+        if (ke->key() == Qt::Key_Down || ke->key() == Qt::Key_Up) {
+            if (m_tagRowWidgets.isEmpty()) return false;
+            int next = m_selectedRowIdx;
+            if (next < 0)
+                next = (ke->key() == Qt::Key_Down) ? 0 : m_tagRowWidgets.size() - 1;
+            else
+                next += (ke->key() == Qt::Key_Down) ? 1 : -1;
+            next = std::clamp(next, 0, int(m_tagRowWidgets.size()) - 1);
+            setSelectedRow(next);
+            return true;
+        }
+
+        // Delete on the selected row removes the tag (same as the row's
+        // ✕ button). Skip Injected rows (no row-level "active" entry to
+        // delete) - their _tag isn't in m_activeTagSet.
+        const auto modsRaw = ke->modifiers() & ~Qt::ShiftModifier;
+        if (modsRaw == Qt::NoModifier && ke->key() == Qt::Key_Delete &&
+            m_selectedRowIdx >= 0 && m_selectedRowIdx < m_tagRowWidgets.size()) {
+            QWidget* row = m_tagRowWidgets[m_selectedRowIdx];
+            QString activeKey;
+            if (auto* edit = row->findChild<QLineEdit*>())
+                activeKey = edit->property("_tag").toString();
+            if (!activeKey.isEmpty() && m_activeTagSet.contains(activeKey)) {
+                m_activeTags.removeOne(activeKey);
+                m_activeTagSet.remove(activeKey);
+                m_tagWeights.remove(activeKey);
+                m_deactivatedTags.remove(activeKey);
+                m_deactivatedCategory.remove(activeKey);
+                captureUndoSnapshot();
+                queueRepush();
+                return true;
+            }
+        }
+
+        // Type-to-edit: any printable char or Backspace on the focused
+        // list focuses the selected row's editable QLineEdit and replays
+        // the keystroke. Skip when modifiers are pressed so app shortcuts
+        // (Ctrl+C, Shift+E run, etc.) still reach their handlers.
+        const auto mods = ke->modifiers() & ~Qt::ShiftModifier;
+        const bool isPrintable = !ke->text().isEmpty() && ke->text()[0].isPrint();
+        const bool isEditKey = ke->key() == Qt::Key_Backspace;
+        if (mods == Qt::NoModifier && (isPrintable || isEditKey) && m_selectedRowIdx >= 0 &&
+            m_selectedRowIdx < m_tagRowWidgets.size()) {
+            QWidget* row = m_tagRowWidgets[m_selectedRowIdx];
+            if (auto* edit = row->findChild<QLineEdit*>("ComposerTagEdit")) {
+                edit->setFocus(Qt::OtherFocusReason);
+                // Printable replaces the tag (selectAll then type); Backspace/
+                // Delete just trims from the end.
+                if (isPrintable)
+                    edit->selectAll();
+                else
+                    edit->setCursorPosition(edit->text().size());
+                QApplication::sendEvent(edit, ke);
+                return true;
+            }
+        }
+    }
     if (obj == m_statesList && event->type() == QEvent::Leave) {
         hideStatePreview();
         return false;
@@ -1095,6 +1182,7 @@ int PromptComposerPage::currentPromptCount() const
 
 void PromptComposerPage::setDanbooruIndex(core::DanbooruIndex* index)
 {
+    m_danbooruIndex = index;
     m_searchBar->setIndex(index);
 }
 
@@ -1458,6 +1546,8 @@ void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)
     }
 
     m_groupHeaders.clear();
+    m_tagRowWidgets.clear();
+    m_selectedRowIdx = -1;
 
     // Count off m_lastResult (not flat) so the nav badge stays accurate
     // when a search query has narrowed the view.
@@ -1498,23 +1588,36 @@ void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)
         m_groupsLayout->addWidget(header);
         m_groupHeaders[displayName] = header;
         navNames << displayName;
-        for (const PipelineTag& pt : tags)
-            m_groupsLayout->addWidget(makeTagRow(pt));
+        for (const PipelineTag& pt : tags) {
+            QWidget* row = makeTagRow(pt);
+            m_groupsLayout->addWidget(row);
+            m_tagRowWidgets << row;
+        }
         auto* spacer = new QWidget;
         spacer->setFixedHeight(6);
         m_groupsLayout->addWidget(spacer);
     };
 
-    QStringList navNames;
-    for (const CategoryGroup& cg : bucketForOutput(flat, m_groups)) {
-        const QString displayName = cg.category.isEmpty() ? "Uncategorized" : cg.category;
-        addSection(displayName, cg.tags, navNames);
+    // Display bucketing - includes deactivated tags so they keep their
+    // original category section. Output-side bucketForOutput still filters
+    // them, so prompt strings are unaffected.
+    QHash<QString, QList<PipelineTag>> displayBuckets;
+    for (const PipelineTag& pt : flat) {
+        const QString cat = (pt.result == RuleResult::Deactivated)
+                                ? m_deactivatedCategory.value(pt.tag)
+                                : m_groups.groupFor(pt.facets);
+        displayBuckets[cat] << pt;
     }
 
-    QList<PipelineTag> deactivated;
-    for (const PipelineTag& pt : flat)
-        if (pt.result == RuleResult::Deactivated) deactivated << pt;
-    if (!deactivated.isEmpty()) addSection("Deactivated", deactivated, navNames);
+    QStringList navNames;
+    for (const TagGroup& g : m_groups.groups()) {
+        const auto it = displayBuckets.constFind(g.name);
+        if (it == displayBuckets.cend() || it.value().isEmpty()) continue;
+        addSection(g.name, it.value(), navNames);
+    }
+    const auto unc = displayBuckets.constFind(QString());
+    if (unc != displayBuckets.cend() && !unc.value().isEmpty())
+        addSection("Uncategorized", unc.value(), navNames);
 
     m_groupsLayout->addStretch();
 
@@ -1524,6 +1627,27 @@ void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)
     if (m_categoryNav)
         static_cast<CategoryNavPanel*>(m_categoryNav)->updateCategories(navNames,
                                                                        undefinedByCategory);
+}
+
+void PromptComposerPage::setSelectedRow(int idx)
+{
+    auto repolish = [](QWidget* w) {
+        w->style()->unpolish(w);
+        w->style()->polish(w);
+        w->update();
+    };
+    if (m_selectedRowIdx >= 0 && m_selectedRowIdx < m_tagRowWidgets.size()) {
+        QWidget* old = m_tagRowWidgets[m_selectedRowIdx];
+        old->setProperty("selected", false);
+        repolish(old);
+    }
+    m_selectedRowIdx = idx;
+    if (m_selectedRowIdx >= 0 && m_selectedRowIdx < m_tagRowWidgets.size()) {
+        QWidget* row = m_tagRowWidgets[m_selectedRowIdx];
+        row->setProperty("selected", true);
+        repolish(row);
+        if (m_groupsScroll) m_groupsScroll->ensureWidgetVisible(row, 0, 24);
+    }
 }
 
 // ---- Tag row
@@ -1636,13 +1760,18 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
     tagEdit->setReadOnly(!editable);
     tagEdit->setProperty("_tag", activeKey);
 
-    if (pt.result == RuleResult::Skipped || pt.result == RuleResult::Replaced) {
+    if (pt.result == RuleResult::Skipped || pt.result == RuleResult::Replaced ||
+        pt.result == RuleResult::Deactivated) {
         QFont f = tagEdit->font();
         f.setStrikeOut(true);
         tagEdit->setFont(f);
     }
 
     if (editable) {
+        // Danbooru-style autocomplete popup on the inline edit. Picking a
+        // suggestion sets the text and clears focus, so the rename below
+        // runs unchanged.
+        if (m_danbooruIndex) new TagLineAutocomplete(tagEdit, m_danbooruIndex, tagEdit);
         connect(tagEdit, &QLineEdit::editingFinished, this, [this, tagEdit]() {
             const QString oldTag = tagEdit->property("_tag").toString();
             const QString newTag = tagEdit->text().trimmed();
@@ -1748,15 +1877,23 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
             // wikiTag (expanded form) would orphan the entry.
             m_tagWeights.remove(activeKey);
             m_deactivatedTags.remove(activeKey);
+            m_deactivatedCategory.remove(activeKey);
             captureUndoSnapshot();
             queueRepush();
         };
 
-        auto onToggleDeactivate = [this, activeKey]() {
-            if (m_deactivatedTags.contains(activeKey))
+        // Snapshot the row's current category so a later display rebuild
+        // can keep the deactivated tag in this section.
+        const QString originalCategory = m_groups.groupFor(pt.facets);
+        auto onToggleDeactivate = [this, activeKey, originalCategory]() {
+            if (m_deactivatedTags.contains(activeKey)) {
                 m_deactivatedTags.remove(activeKey);
-            else
+                m_deactivatedCategory.remove(activeKey);
+            }
+            else {
                 m_deactivatedTags.insert(activeKey);
+                m_deactivatedCategory.insert(activeKey, originalCategory);
+            }
             captureUndoSnapshot();
             queueRepush();
         };

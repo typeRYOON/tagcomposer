@@ -487,9 +487,6 @@ void EntryView::mouseReleaseEvent(QMouseEvent* event)
     const int idx = indexAt(event->pos());
     if (idx < 0) return;
 
-    // scrollToEntry centers the tile (clamped to scroll bounds), kicks
-    // the smooth-scroll timer, and emits entryClicked. When the tile
-    // is already centered the diff is ~0 and the timer self-stops.
     scrollToEntry(idx);
 }
 
@@ -545,7 +542,7 @@ void EntryView::keyPressEvent(QKeyEvent* event)
         return;
     }
 
-    if (next != cur) scrollToEntry(next);
+    if (next != cur) scrollToEntry(next, true);
     event->accept();
 }
 
@@ -573,7 +570,7 @@ void EntryView::selectAndScrollToEntry(int32_t entryId)
     }
 }
 
-void EntryView::scrollToEntry(int idx)
+void EntryView::scrollToEntry(int idx, bool fromKeyboard)
 {
     if (idx < 0 || idx >= m_entries.size()) return;
     m_flingVelocity = 0.0; // explicit target wins over residual fling
@@ -596,8 +593,14 @@ void EntryView::scrollToEntry(int idx)
         if (!m_animTimer->isActive()) m_animTimer->start();
     }
 
+    const int32_t prevSelected = m_selectedEntryId;
     m_selectedEntryId = m_entries[idx]->id;
+    // Selection halo redraw isn't guaranteed by the scroll/anim path when the
+    // target is already at the current position (e.g. re-clicking the visible
+    // tile after navigating away in the panel).
+    if (prevSelected != m_selectedEntryId) update();
     emit entryClicked(m_entries[idx]);
+    if (!fromKeyboard) emit entryClickedByPointer(m_entries[idx]);
 }
 
 void EntryView::repositionNav()
@@ -733,6 +736,24 @@ void EntryView::paintEvent(QPaintEvent*)
                 const QRectF badge(r.right() - 17.0, r.top() + 9.0, 10.0, 10.0);
                 p.drawRoundedRect(badge, 3.0, 3.0);
             }
+        }
+
+        // Panel-active entry: soft white halo sitting just outside the tile
+        // edge. Distinct from the composer-toggle green inset border and the
+        // LoRA orange inner/badge, so all three can co-exist on one tile.
+        if (m_entries[i]->id == m_selectedEntryId) {
+            p.setOpacity(1.0);
+            p.setPen(QPen(QColor(255, 255, 255, 90), 4.0));
+            p.setBrush(Qt::NoBrush);
+            QPainterPath haloOuter;
+            haloOuter.addRoundedRect(QRectF(r).adjusted(-2.0, -2.0, 2.0, 2.0),
+                                     Radius + 2.0, Radius + 2.0);
+            p.drawPath(haloOuter);
+            p.setPen(QPen(QColor(255, 255, 255, 220), 1.5));
+            QPainterPath haloInner;
+            haloInner.addRoundedRect(QRectF(r).adjusted(-0.5, -0.5, 0.5, 0.5),
+                                     Radius + 0.5, Radius + 0.5);
+            p.drawPath(haloInner);
         }
 
         p.restore();

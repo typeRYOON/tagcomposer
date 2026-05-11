@@ -24,6 +24,7 @@ struct SavedState {
     QList<QString> activeTags;
     QHash<QString, float> tagWeights;
     QSet<QString> deactivatedTags;
+    QHash<QString, QString> deactivatedCategory; // tag -> category at deactivation
     QList<EntryPush> activePushes;               // uuid+imageIdx -> tags
     QMap<QString, bool> ruleStates;              // rule -> enabled
     QMap<QString, QList<QString>> ruleArguments; // rule -> Add/Replace args

@@ -204,6 +204,7 @@ private:
     core::PromptPipeline* m_pipeline;
     core::RuleEngine* m_rules;
     core::TagGroupIndex m_groups;
+    core::DanbooruIndex* m_danbooruIndex = nullptr;
     core::VariableIndex* m_varIndex = nullptr;
     core::WorkflowManager* m_wfManager = nullptr;
     core::EntryModel* m_entryModel = nullptr;
@@ -223,6 +224,10 @@ private:
     QList<QString> m_activeTags;
     QSet<QString> m_activeTagSet;
     QSet<QString> m_deactivatedTags; // tags kept in list but excluded from pipeline
+    // Category captured at deactivation time so the row can keep showing in
+    // its original section instead of being pooled into a "Deactivated"
+    // group. Ephemeral - falls back to Uncategorized if missing.
+    QHash<QString, QString> m_deactivatedCategory;
     QList<core::PipelineTag> m_lastResult;
     QHash<QString, float>
         m_tagWeights; // weight keyed via weightKeyOf - sourceTag wins when present
@@ -280,6 +285,12 @@ private:
     int m_lastComfyStep = 0;
     int m_lastComfyTotal = 0;
     int m_lastComfyActive = 0;
+
+    // Up/Down keyboard navigation across the groups list. m_tagRowWidgets is
+    // rebuilt each applyGroupsRebuild; m_selectedRowIdx indexes into it.
+    QList<QWidget*> m_tagRowWidgets;
+    int m_selectedRowIdx = -1;
+    void setSelectedRow(int idx);
 
     // Coalesces rapid search-bar keystrokes into one faded rebuild so the
     // composer doesn't tear from per-char applyTagFilter calls.

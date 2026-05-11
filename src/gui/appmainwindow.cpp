@@ -37,6 +37,7 @@
 #include <QFutureWatcher>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QRegularExpression>
 #include <QShortcut>
 #include <QtConcurrent>
 
@@ -293,6 +294,13 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         QFile f(wf->absolutePath());
         if (!f.open(QIODevice::ReadOnly)) return;
         const QString tmpl = QString::fromUtf8(f.readAll());
+
+        const QStringList issues =
+            workflowTemplateIssues(tmpl, m_activeLoraStack.size());
+        if (!issues.isEmpty()) {
+            m_statusBar->showMessage(QString("Run blocked - %1").arg(issues.join("; ")));
+            return;
+        }
 
         ensureImageInputsUploaded([this, tmpl, count]() {
             QList<core::LoraConfig> healed = m_activeLoraStack;
@@ -664,6 +672,22 @@ void AppMainWindow::runBatch(const QString& query)
     }
     const QString tmpl = QString::fromUtf8(f.readAll());
 
+    // Worst-case LoRA count across the matched set: any entry with its own
+    // lora bumps the effective stack by one, so the template needs that
+    // many slots to avoid silent drops.
+    int maxLoraCount = m_activeLoraStack.size();
+    for (core::Entry* entry : matched) {
+        if (entry->lora.has_value()) {
+            maxLoraCount = m_activeLoraStack.size() + 1;
+            break;
+        }
+    }
+    const QStringList issues = workflowTemplateIssues(tmpl, maxLoraCount);
+    if (!issues.isEmpty()) {
+        m_statusBar->showMessage(QString("Batch blocked - %1").arg(issues.join("; ")));
+        return;
+    }
+
     const int count = m_composerPage->currentPromptCount();
 
     ensureImageInputsUploaded([this, matched, tmpl, count]() {
@@ -745,6 +769,99 @@ QStringList AppMainWindow::unloadedImageInputs() const
         if (var.imageUuid.isEmpty()) missing << var.placeholder;
     }
     return missing;
+}
+
+QStringList AppMainWindow::workflowTemplateIssues(const QString& tmpl,
+                                                  int activeLoraCount) const
+{
+    QStringList issues;
+    constexpr int kLoraSlots = 10; // matches applyLoraStack's default maxSlots
+
+    // 1. Variables declared on the workflow whose placeholder/token never
+    // shows up in the raw template. Wildcards fold into __positive__ and
+    // have no direct token, so skip them.
+    QStringList unusedVars;
+    for (const core::WorkflowVar& var : m_workflowManager.variables()) {
+        if (var.type == core::WorkflowVarType::Wildcard) continue;
+        if (var.type == core::WorkflowVarType::LatentSize) {
+            const bool wEmpty = var.latentWidthToken.isEmpty();
+            const bool hEmpty = var.latentHeightToken.isEmpty();
+            if (wEmpty && hEmpty) {
+                unusedVars << QStringLiteral("(latent size: no tokens)");
+                continue;
+            }
+            if (!wEmpty && !tmpl.contains(var.latentWidthToken))
+                unusedVars << var.latentWidthToken;
+            if (!hEmpty && !tmpl.contains(var.latentHeightToken))
+                unusedVars << var.latentHeightToken;
+            continue;
+        }
+        if (var.placeholder.isEmpty()) {
+            unusedVars << QString("(unnamed %1 var)")
+                              .arg(core::WorkflowManager::typeToStr(var.type));
+            continue;
+        }
+        if (!tmpl.contains(var.placeholder)) unusedVars << var.placeholder;
+    }
+    if (!unusedVars.isEmpty())
+        issues << QString("unused variable(s): %1").arg(unusedVars.join(", "));
+
+    // 2. __dunder__ tokens in the template that no handler will touch.
+    // Built-ins like __positive__ are intentionally optional (e.g. upscale
+    // workflows drop the prompt), and applyLoraStack always wipes every
+    // __lora_*_N__ for N=1..maxSlots (empty slots get "None"), so all of
+    // those are pre-considered handled regardless of presence.
+    QSet<QString> handled{QStringLiteral("__positive__"),
+                          QStringLiteral("__lora_count__")};
+    for (int slot = 1; slot <= kLoraSlots; ++slot) {
+        handled.insert(QString("__lora_name_%1__").arg(slot));
+        handled.insert(QString("__lora_wt_%1__").arg(slot));
+        handled.insert(QString("__lora_model_str_%1__").arg(slot));
+        handled.insert(QString("__lora_clip_str_%1__").arg(slot));
+    }
+    for (const core::WorkflowVar& var : m_workflowManager.variables()) {
+        if (var.type == core::WorkflowVarType::Wildcard) continue;
+        if (var.type == core::WorkflowVarType::LatentSize) {
+            if (!var.latentWidthToken.isEmpty()) handled.insert(var.latentWidthToken);
+            if (!var.latentHeightToken.isEmpty()) handled.insert(var.latentHeightToken);
+            continue;
+        }
+        if (!var.placeholder.isEmpty()) handled.insert(var.placeholder);
+    }
+
+    // Non-greedy so "__a__b__" yields "__a__", not the whole span. Inner
+    // chars can include underscores but not the bracketing "__".
+    static const QRegularExpression dunderRe(QStringLiteral("__[A-Za-z0-9_]+?__"));
+    QSet<QString> stray;
+    auto it = dunderRe.globalMatch(tmpl);
+    while (it.hasNext()) {
+        const QString tok = it.next().captured(0);
+        if (!handled.contains(tok)) stray.insert(tok);
+    }
+    if (!stray.isEmpty()) {
+        QStringList list(stray.cbegin(), stray.cend());
+        list.sort();
+        issues << QString("unresolved token(s): %1").arg(list.join(", "));
+    }
+
+    // 3. LoRA coverage: if N LoRAs are active, slots __lora_name_1__ ..
+    // __lora_name_N__ must all be in the template, otherwise applyLoraStack
+    // has nowhere to write those LoRAs and they're silently dropped. With
+    // no LoRAs active the template is free to omit lora tokens entirely.
+    if (activeLoraCount > 0) {
+        QStringList missingSlots;
+        const int slotsNeeded = std::min(activeLoraCount, kLoraSlots);
+        for (int slot = 1; slot <= slotsNeeded; ++slot) {
+            const QString tok = QString("__lora_name_%1__").arg(slot);
+            if (!tmpl.contains(tok)) missingSlots << tok;
+        }
+        if (!missingSlots.isEmpty())
+            issues << QString("%1 LoRA(s) active but missing slot(s): %2")
+                          .arg(activeLoraCount)
+                          .arg(missingSlots.join(", "));
+    }
+
+    return issues;
 }
 
 // Tracking key is (uuid + editsHash) so editing forces a re-upload.
