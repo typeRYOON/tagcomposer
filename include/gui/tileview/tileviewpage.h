@@ -60,8 +60,6 @@ signals:
     void statusMessageRequested(const QString& message);
 
 private:
-    void applyOrientation(bool portrait);
-
     EntryView* m_entryView;
     EntryPanel* m_entryPanel;
     QLineEdit* m_searchBar;

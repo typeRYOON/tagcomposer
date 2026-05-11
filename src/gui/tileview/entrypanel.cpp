@@ -480,6 +480,7 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
 
     // ---- Image dropper
     m_imageDrop = new ImageDropper(this);
+    m_imageDrop->setFixedSize(200, 257);
 
     m_imageFadeOverlay = new QLabel(m_imageDrop);
     m_imageFadeOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -1105,8 +1106,6 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
     outerLayout->setContentsMargins(0, 0, 0, 0);
     outerLayout->setSpacing(0);
     outerLayout->addWidget(m_stack, 1);
-
-    applyOrientation(false);
 }
 
 // ---- Public API
@@ -1235,26 +1234,6 @@ void EntryPanel::focusSearchInput()
     // skip a mouse-move + click after each switch. Only meaningful when
     // the bar is enabled (i.e. the current entry has at least one image).
     if (m_searchBar->isEnabled()) m_searchBar->setFocus(Qt::OtherFocusReason);
-}
-
-void EntryPanel::applyOrientation(bool portrait)
-{
-    if (portrait) {
-        // Panel is short+wide - place header left, tags right
-        m_rootLayout->setDirection(QBoxLayout::LeftToRight);
-        m_headerWidget->setFixedWidth(300);
-        m_headerWidget->setMaximumHeight(QWIDGETSIZE_MAX);
-        m_headerWidget->setMinimumHeight(0);
-        m_imageDrop->setFixedSize(120, 154);
-    }
-    else {
-        // Panel is tall+narrow - stack header above tags
-        m_rootLayout->setDirection(QBoxLayout::TopToBottom);
-        m_headerWidget->setMaximumWidth(QWIDGETSIZE_MAX);
-        m_headerWidget->setMinimumWidth(0);
-        m_headerWidget->setMaximumHeight(QWIDGETSIZE_MAX);
-        m_imageDrop->setFixedSize(200, 257);
-    }
 }
 
 // ---- Private

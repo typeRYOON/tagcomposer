@@ -144,7 +144,7 @@ TileViewPage::TileViewPage(core::EntryModel* model, QWidget* parent) : QWidget(p
     m_rootLayout->addLayout(centerCol, 1);
     m_rootLayout->addWidget(m_entryPanel);
 
-    applyOrientation(false);
+    m_entryPanel->setFixedWidth(480);
     m_entryView->query("");
 }
 
@@ -232,15 +232,6 @@ void TileViewPage::setTileGradient(qreal start, int alpha)
 void TileViewPage::setTileTitleColor(const QColor& color)
 {
     m_entryView->setTileTitleColor(color);
-}
-
-void TileViewPage::applyOrientation(bool portrait)
-{
-    m_rootLayout->setDirection(QBoxLayout::LeftToRight);
-    m_entryPanel->setMaximumHeight(QWIDGETSIZE_MAX);
-    m_entryPanel->setMinimumHeight(0);
-    m_entryPanel->setFixedWidth(480);
-    m_entryPanel->applyOrientation(portrait);
 }
 
 } // namespace gui

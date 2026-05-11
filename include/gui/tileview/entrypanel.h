@@ -44,7 +44,6 @@ public:
     void setQuickFacets(const QString& characterFacet, const QString& copyrightFacet,
                         const QString& triggerWordFacet, const QString& styleFacet);
     void refreshTags();
-    void applyOrientation(bool portrait);
     // primary is the move-target for dropped files outside both roots;
     // test is read-only (recognised on drop, never written to). Either empty.
     void setLoraDirs(const QString& primaryDir, const QString& testDir);
