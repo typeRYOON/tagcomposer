@@ -210,6 +210,20 @@ void TileViewPage::selectEntry(int32_t entryId)
     m_entryView->selectAndScrollToEntry(entryId);
 }
 
+void TileViewPage::clearSearchAndSelect(int32_t entryId)
+{
+    // blockSignals + manual query so we don't bounce through the debounce
+    // timer (would race with the immediate selectAndScroll call below).
+    if (!m_searchBar->text().isEmpty()) {
+        m_searchBar->blockSignals(true);
+        m_searchBar->clear();
+        m_searchBar->blockSignals(false);
+        m_debounce->stop();
+        m_entryView->query(QString());
+    }
+    m_entryView->selectAndScrollToEntry(entryId);
+}
+
 void TileViewPage::setTileGradient(qreal start, int alpha)
 {
     m_entryView->setTileGradient(start, alpha);

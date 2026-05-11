@@ -17,10 +17,11 @@ enum class Page : int {
     TagComposer = 2,
     WorkflowEditor = 3,
     FacetEditor = 4,
-    OutputViewer = 5,
-    DatasetHelpers = 6,
-    DanbooruWiki = 7,
-    Settings = 8,
+    PromptHistory = 5,
+    OutputViewer = 6,
+    DatasetHelpers = 7,
+    DanbooruWiki = 8,
+    Settings = 9,
 };
 
 class NavButton : public QPushButton {

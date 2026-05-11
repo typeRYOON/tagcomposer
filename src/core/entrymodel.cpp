@@ -30,7 +30,6 @@ QList<Entry*> EntryModel::filter(const QString& query)
 {
     QList<Entry*> ret;
     const QString query_in = query.trimmed();
-
     QString sortKey;
     QString sortDir;
 
@@ -40,77 +39,119 @@ QList<Entry*> EntryModel::filter(const QString& query)
             if (e) ret << e;
     }
     else {
-        QString titleTerm;
-        QString loraTerm;
-        QStringList tagParts;
-        QStringList negParts;
-
-        for (const QString& part : query_in.split(',', Qt::SkipEmptyParts)) {
-            const QString t = part.trimmed();
-            if (t.startsWith("title:", Qt::CaseInsensitive))
-                titleTerm = t.mid(6).trimmed();
-            else if (t.startsWith("lora:", Qt::CaseInsensitive))
-                loraTerm = t.mid(5).trimmed();
-            else if (t.startsWith("sort:", Qt::CaseInsensitive)) {
-                // sort:<key>[:asc|:desc] - last sort: wins.
-                const QString rest = t.mid(5).trimmed().toLower();
-                const int colon = rest.indexOf(':');
-                sortKey = (colon < 0) ? rest : rest.left(colon).trimmed();
-                sortDir = (colon < 0) ? QString() : rest.mid(colon + 1).trimmed();
+        // '|' is the OR separator between AND-groups. Single-group queries
+        // (no '|') run filterAndGroup exactly once and behave identically to
+        // the previous parser. The literal "| |" Danbooru tag is shadowed by
+        // this rule -- acceptable trade-off, very narrow tag.
+        const QStringList groups = query_in.split('|', Qt::KeepEmptyParts);
+        QSet<int32_t> seen;
+        for (const QString& g : groups) {
+            const QString gt = g.trimmed();
+            if (gt.isEmpty()) continue; // skip "||", trailing/leading "|"
+            QString gSortKey;
+            QString gSortDir;
+            const QList<Entry*> sub = filterAndGroup(gt, gSortKey, gSortDir);
+            // Last group's sort: wins; empty groups don't overwrite an
+            // earlier directive.
+            if (!gSortKey.isEmpty()) {
+                sortKey = gSortKey;
+                sortDir = gSortDir;
             }
-            else if (t.startsWith('-') && t.length() > 1)
-                negParts << t.mid(1).trimmed();
-            else if (!t.isEmpty())
-                tagParts << t;
-        }
-
-        if (tagParts.isEmpty()) {
-            ret.reserve(m_entryByIndex.size());
-            for (Entry* e : m_entryByIndex)
-                if (e) ret << e;
-        }
-        else {
-            const QList<int32_t> ids = m_tagIndex.multiPrefixSearch(tagParts.join(','));
-            ret.reserve(ids.size());
-            for (int32_t id : ids)
-                if (Entry* e = m_entryByIndex[id]) ret << e;
-        }
-
-        if (!loraTerm.isEmpty()) {
-            const QString lower = loraTerm.toLower();
-            auto end = std::remove_if(ret.begin(), ret.end(), [&](const Entry* e) {
-                if (!e->lora.has_value()) return true;
-                return !QFileInfo(e->lora->file).baseName().toLower().contains(lower) &&
-                       !e->lora->sha256.startsWith(lower);
-            });
-            ret.erase(end, ret.end());
-        }
-
-        if (!negParts.isEmpty()) {
-            QSet<int32_t> excludeIds;
-            for (const QString& neg : negParts)
-                for (int32_t id : m_tagIndex.entriesForTerm(neg))
-                    excludeIds.insert(id);
-            if (!excludeIds.isEmpty()) {
-                auto end = std::remove_if(ret.begin(), ret.end(), [&](const Entry* e) {
-                    return excludeIds.contains(int32_t(e->id));
-                });
-                ret.erase(end, ret.end());
+            for (Entry* e : sub) {
+                if (!e) continue;
+                const int32_t id = int32_t(e->id);
+                if (seen.contains(id)) continue;
+                seen.insert(id);
+                ret << e;
             }
         }
+    }
 
-        if (!titleTerm.isEmpty()) {
+    applySortSpec(ret, sortKey, sortDir);
+    return ret;
+}
+
+QList<Entry*> EntryModel::filterAndGroup(const QString& sub, QString& outSortKey,
+                                         QString& outSortDir)
+{
+    QList<Entry*> ret;
+    QString titleTerm;
+    QString loraTerm;
+    QStringList tagParts;
+    QStringList negParts;
+
+    for (const QString& part : sub.split(',', Qt::SkipEmptyParts)) {
+        const QString t = part.trimmed();
+        if (t.startsWith("title:", Qt::CaseInsensitive))
+            titleTerm = t.mid(6).trimmed();
+        else if (t.startsWith("lora:", Qt::CaseInsensitive))
+            loraTerm = t.mid(5).trimmed();
+        else if (t.startsWith("sort:", Qt::CaseInsensitive)) {
+            // sort:<key>[:asc|:desc] - global across the whole query; the
+            // outer filter() picks the last non-empty value.
+            const QString rest = t.mid(5).trimmed().toLower();
+            const int colon = rest.indexOf(':');
+            outSortKey = (colon < 0) ? rest : rest.left(colon).trimmed();
+            outSortDir = (colon < 0) ? QString() : rest.mid(colon + 1).trimmed();
+        }
+        else if (t.startsWith('-') && t.length() > 1)
+            negParts << t.mid(1).trimmed();
+        else if (!t.isEmpty())
+            tagParts << t;
+    }
+
+    if (tagParts.isEmpty()) {
+        ret.reserve(m_entryByIndex.size());
+        for (Entry* e : m_entryByIndex)
+            if (e) ret << e;
+    }
+    else {
+        const QList<int32_t> ids = m_tagIndex.multiPrefixSearch(tagParts.join(','));
+        ret.reserve(ids.size());
+        for (int32_t id : ids)
+            if (Entry* e = m_entryByIndex[id]) ret << e;
+    }
+
+    if (!loraTerm.isEmpty()) {
+        const QString lower = loraTerm.toLower();
+        auto end = std::remove_if(ret.begin(), ret.end(), [&](const Entry* e) {
+            if (!e->lora.has_value()) return true;
+            return !QFileInfo(e->lora->file).baseName().toLower().contains(lower) &&
+                   !e->lora->sha256.startsWith(lower);
+        });
+        ret.erase(end, ret.end());
+    }
+
+    if (!negParts.isEmpty()) {
+        QSet<int32_t> excludeIds;
+        for (const QString& neg : negParts)
+            for (int32_t id : m_tagIndex.entriesForTerm(neg))
+                excludeIds.insert(id);
+        if (!excludeIds.isEmpty()) {
             auto end = std::remove_if(ret.begin(), ret.end(), [&](const Entry* e) {
-                return !e->title.contains(titleTerm, Qt::CaseInsensitive);
+                return excludeIds.contains(int32_t(e->id));
             });
             ret.erase(end, ret.end());
         }
     }
 
-    // Sort key dispatch. Each lambda is the "ascending" comparator; we flip
-    // its arguments below if descending is wanted. keyAscDefault picks a
-    // sensible default direction so `sort:title` reads alphabetically and
-    // `sort:created` reads newest-first.
+    if (!titleTerm.isEmpty()) {
+        auto end = std::remove_if(ret.begin(), ret.end(), [&](const Entry* e) {
+            return !e->title.contains(titleTerm, Qt::CaseInsensitive);
+        });
+        ret.erase(end, ret.end());
+    }
+
+    return ret;
+}
+
+void EntryModel::applySortSpec(QList<Entry*>& list, const QString& sortKey,
+                               const QString& sortDir) const
+{
+    // Each lambda is the "ascending" comparator; we flip its arguments below
+    // if descending is wanted. keyAscDefault picks a sensible default
+    // direction so `sort:title` reads alphabetically and `sort:created`
+    // reads newest-first.
     using EntryCmp = bool (*)(const Entry*, const Entry*);
     EntryCmp ascCmp = [](const Entry* a, const Entry* b) {
         return a->creationTime < b->creationTime;
@@ -147,11 +188,10 @@ QList<Entry*> EntryModel::filter(const QString& query)
     }
     // `created`/`date` and unknown keys fall through to the default ascCmp.
 
-    const bool asc =
-        (sortDir == "asc") ? true : (sortDir == "desc") ? false : keyAscDefault;
-    std::sort(ret.begin(), ret.end(),
-              [ascCmp, asc](const Entry* a, const Entry* b) { return asc ? ascCmp(a, b) : ascCmp(b, a); });
-    return ret;
+    const bool asc = (sortDir == "asc") ? true : (sortDir == "desc") ? false : keyAscDefault;
+    std::sort(list.begin(), list.end(), [ascCmp, asc](const Entry* a, const Entry* b) {
+        return asc ? ascCmp(a, b) : ascCmp(b, a);
+    });
 }
 
 

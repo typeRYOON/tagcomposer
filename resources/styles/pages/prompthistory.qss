@@ -1,0 +1,182 @@
+/* PromptHistoryPage */
+
+#PromptHistoryPage {
+    background: transparent;
+}
+
+/* Header bar mirrors WfEditHeader / OvHeader (dark bg + bottom rule).
+ * Title/subtitle reuse #WfEditTitle / #WfEditSubtitle styles from app.qss. */
+#PhHeader {
+    background: #0f0f0f;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+#PhEmpty {
+    color: #444444;
+    font-style: italic;
+    font-size: 14px;
+    padding: 24px;
+}
+
+#PhSplit::handle:horizontal {
+    background: #161616;
+    border-left:  1px solid #0a0a0a;
+    border-right: 1px solid #2a2a2a;
+}
+
+#PhSplit::handle:horizontal:hover {
+    background: #262626;
+}
+
+#PhSplit::handle:horizontal:pressed {
+    background: #333333;
+}
+
+/* Left column - list of records */
+#PhList {
+    background: #0f0f0f;
+    color: #aaaaaa;
+    border: none;
+    outline: 0;
+    padding-top: 8px;
+}
+
+#PhList::item {
+    padding: 6px 10px;
+    border: none;
+    border-left: 2px solid transparent;
+}
+
+#PhList::item:hover {
+    background: #161616;
+    color: #cccccc;
+}
+
+#PhList::item:selected {
+    background: #1a1a1a;
+    color: #cccccc;
+    border-left: 2px solid #4488cc;
+}
+
+#PhClearBtn {
+    background: transparent;
+    color: #777777;
+    border: 1px solid #2a2a2a;
+    border-radius: 3px;
+    padding: 4px 10px;
+}
+
+#PhClearBtn:hover {
+    background: #1a1a1a;
+    color: #cc6666;
+    border-color: #3a3a3a;
+}
+
+#PhClearBtn:pressed {
+    background: #221111;
+}
+
+/* Right column - details (transparent so it blends with the page). */
+#PhDetailsScroll {
+    background: transparent;
+    border: none;
+}
+
+#PhDetailsHost {
+    background: transparent;
+}
+
+/* Entry tile inside the Active Entries grid. */
+#PhEntryTile {
+    background: #0f0f0f;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+}
+
+#PhEntryTileImage {
+    background: #141414;
+    border-radius: 3px;
+}
+
+#PhEntryTileTitle {
+    color: #cccccc;
+    font-size: 11px;
+    padding: 2px 4px;
+}
+
+#PhActionBar {
+    background: transparent;
+    padding: 6px 0;
+}
+
+#PhActionBtn {
+    background: #1a1a1a;
+    color: #cccccc;
+    border: 1px solid #2a2a2a;
+    border-radius: 3px;
+    padding: 6px 12px;
+}
+
+#PhActionBtn:hover {
+    background: #232323;
+    border-color: #3a3a3a;
+}
+
+#PhActionBtn:pressed {
+    background: #2a2a2a;
+}
+
+#PhActionBtn:disabled {
+    color: #444444;
+    border-color: #1a1a1a;
+}
+
+#PhSectionLabel {
+    color: #888888;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 8px 0 2px 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#PhMetaLabel {
+    color: #888888;
+    font-size: 12px;
+}
+
+#PhMetaValue {
+    color: #cccccc;
+    font-size: 12px;
+}
+
+#PhPromptBlock {
+    background: #111111;
+    color: #cccccc;
+    border: 1px solid #1a1a1a;
+    border-radius: 3px;
+    padding: 8px;
+    font-family: "Hiragino Maru Gothic ProN W4", sans-serif;
+}
+
+#PhVarRow, #PhLoraRow, #PhEntryRow {
+    background: transparent;
+    color: #aaaaaa;
+    padding: 2px 0;
+}
+
+#PhVarKey {
+    color: #888888;
+    font-size: 12px;
+}
+
+#PhVarValue {
+    color: #cccccc;
+    font-size: 12px;
+}
+
+#PhDimText {
+    color: #555555;
+    font-size: 12px;
+    font-style: italic;
+}

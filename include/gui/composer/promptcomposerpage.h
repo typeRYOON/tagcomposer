@@ -76,6 +76,19 @@ public:
     void saveSession(const QString& path) const;
     void restoreSession(const QString& path);
 
+    // Snapshot the live composer/workflow state. Caller fills id, name, and
+    // previewImagePath; everything else is populated by captureCurrentState.
+    core::SavedState currentSnapshot() const;
+
+    // Public adapter over restoreState so external pages (history) can load
+    // a saved snapshot back into the composer.
+    void restoreFromSnapshot(const core::SavedState& s);
+
+    // Append `state` to the state manager with a generated id and the given
+    // display name (auto-numbered if empty). No prompt dialog - meant for
+    // history-style "save the snapshot as a state" actions.
+    void appendSnapshotAsState(core::SavedState state, const QString& displayName = {});
+
     // Image-typed workflow vars rebuilt from every saved state. Lets the
     // input-cache purge keep entries that a state restore would re-reference.
     QList<core::WorkflowVar> imageVarsFromStates() const;

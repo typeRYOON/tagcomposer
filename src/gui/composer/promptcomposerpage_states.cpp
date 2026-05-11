@@ -106,6 +106,33 @@ void PromptComposerPage::captureCurrentState(core::SavedState& state) const
     state.activeLoraUuids = m_activeLoraUuids;
 }
 
+core::SavedState PromptComposerPage::currentSnapshot() const
+{
+    core::SavedState state;
+    captureCurrentState(state);
+    return state;
+}
+
+void PromptComposerPage::restoreFromSnapshot(const core::SavedState& s)
+{
+    restoreState(s);
+}
+
+void PromptComposerPage::appendSnapshotAsState(core::SavedState state, const QString& displayName)
+{
+    if (m_statesDir.isEmpty()) return;
+
+    state.id = QString::number(QDateTime::currentMSecsSinceEpoch());
+    state.name = displayName.trimmed().isEmpty()
+                     ? QString("State %1").arg(m_stateManager.states().size() + 1)
+                     : displayName.trimmed();
+
+    m_stateManager.states().prepend(state);
+    m_stateManager.saveToDir(m_statesDir);
+    rebuildStatesList();
+    emit statusMessageRequested(QString("Saved: %1").arg(state.name));
+}
+
 QList<core::WorkflowVar> PromptComposerPage::imageVarsFromStates() const
 {
     QList<core::WorkflowVar> out;

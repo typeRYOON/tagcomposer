@@ -44,6 +44,11 @@ public:
     // current filter result set; call refreshEntries first if just added).
     void selectEntry(int32_t entryId);
 
+    // Drops any current search-bar query so `entryId` is guaranteed to be in
+    // the result set, then scrolls + selects. Used by cross-page jumps where
+    // the caller can't know whether the active filter would hide the entry.
+    void clearSearchAndSelect(int32_t entryId);
+
 signals:
     void tagsExported(int entryId, int imageIdx, QList<QString> tags);
     void entryTagAdded(int entryId, int imageIdx, const QString& tag);

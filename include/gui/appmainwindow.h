@@ -7,6 +7,7 @@
 #include <core/variableindex.h>
 #include <core/promptpipeline.h>
 #include <core/comfyuiclient.h>
+#include <core/prompthistory.h>
 #include <core/workflowmanager.h>
 #include <core/workflowinputcache.h>
 #include <core/autotaggerlibrary.h>
@@ -34,6 +35,7 @@ class SettingsPage;
 class WorkflowEditPage;
 class OutputViewerPage;
 class DatasetHelpersPage;
+class PromptHistoryPage;
 class StatusBar;
 class DanmakuOverlay;
 class WindowChrome;
@@ -77,6 +79,12 @@ private:
     // Empty list = OK to send.
     QStringList workflowTemplateIssues(const QString& tmpl, int activeLoraCount) const;
 
+    // Snapshot composer/workflow state, append a record to m_promptHistory,
+    // and push the rendered JSON to ComfyUI. Centralises history capture so
+    // composer Run and batch share the same code path.
+    void recordAndQueue(const QString& renderedJson, const QString& positivePrompt,
+                        const QList<core::LoraConfig>& healed, int batchEntryId = -1);
+
     // Sweep WorkflowInputCache: drop entries no workflow var references.
     void clearUnusedInputs();
 
@@ -117,6 +125,7 @@ private:
     gui::WorkflowEditPage* m_workflowEditPage = nullptr;
     gui::OutputViewerPage* m_outputViewerPage = nullptr;
     gui::DatasetHelpersPage* m_datasetHelpersPage = nullptr;
+    gui::PromptHistoryPage* m_promptHistoryPage = nullptr;
     gui::StatusBar* m_statusBar = nullptr;
     gui::DanmakuOverlay* m_danmakuOverlay = nullptr;
     gui::WindowChrome* m_chrome = nullptr;
@@ -143,6 +152,7 @@ private:
     core::VariableIndex m_varIndex;
     core::WorkflowManager m_workflowManager;
     core::PromptPipeline* m_pipeline = nullptr;
+    core::PromptHistory* m_promptHistory = nullptr;
 
     // One library per app: shares the Ort::Env and cached sessions.
     std::unique_ptr<core::AutoTaggerLibrary> m_taggerLibrary;

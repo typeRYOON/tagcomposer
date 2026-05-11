@@ -44,5 +44,17 @@ private:
     void buildIndex();
 
     QSet<int32_t> collectTags(const Entry& entry) const;
+
+    // Filter a single AND-group (one slice between `|` separators in the
+    // user's query). Returns unsorted candidates. `outSortKey/outSortDir`
+    // capture any sort: directive the group contained so the outer filter
+    // can apply the last group's sort to the OR-union.
+    QList<Entry*> filterAndGroup(const QString& sub, QString& outSortKey,
+                                 QString& outSortDir);
+
+    // Apply a sort directive in-place. Empty key falls through to the
+    // default ordering (creation time, newest first).
+    void applySortSpec(QList<Entry*>& list, const QString& sortKey,
+                       const QString& sortDir) const;
 };
 } // namespace core

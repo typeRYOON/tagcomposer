@@ -11,6 +11,7 @@
         <file>styles/pages/home.qss</file>
         <file>styles/pages/log.qss</file>
         <file>styles/pages/outputviewer.qss</file>
+        <file>styles/pages/prompthistory.qss</file>
         <file>styles/pages/settings.qss</file>
         <file>styles/pages/wiki.qss</file>
         <file>styles/pages/workfloweditor.qss</file>

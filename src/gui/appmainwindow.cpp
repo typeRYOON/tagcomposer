@@ -12,6 +12,8 @@
 #include <gui/outputviewerpage.h>
 #include <gui/dataset/datasethelperspage.h>
 #include <gui/dataset/tagclusterpage.h>
+#include <gui/prompthistorypage.h>
+#include <core/prompthistory.h>
 #include <gui/dataset/tageditorpage.h>
 #include <gui/dataset/collectorpage.h>
 #include <core/updatechecker.h>
@@ -121,17 +123,22 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_outputViewerPage = new OutputViewerPage(this);
     m_outputViewerPage->setOutputFolder(m_settings.comfyUiOutputFolder);
 
+    m_promptHistory = new core::PromptHistory(this);
+    m_promptHistoryPage = new PromptHistoryPage(m_promptHistory, m_entryModel, m_composerPage,
+                                                m_comfyClient, this);
+
     m_pages = new QStackedWidget(this);
     m_pages->setObjectName("MainPages");
     m_pages->installEventFilter(this);
     // Order must match gui::Page enum and the navbar's addButton sequence.
     m_homePage = new HomePage(this);
-    m_pages->addWidget(m_homePage);         // Page::Home
-    m_pages->addWidget(m_tileViewPage);     // Page::EntryViewer
-    m_pages->addWidget(m_composerPage);     // Page::TagComposer
-    m_pages->addWidget(m_workflowEditPage); // Page::WorkflowEditor
-    m_pages->addWidget(m_facetEditorPage);  // Page::FacetEditor
-    m_pages->addWidget(m_outputViewerPage); // Page::OutputViewer
+    m_pages->addWidget(m_homePage);            // Page::Home
+    m_pages->addWidget(m_tileViewPage);        // Page::EntryViewer
+    m_pages->addWidget(m_composerPage);        // Page::TagComposer
+    m_pages->addWidget(m_workflowEditPage);    // Page::WorkflowEditor
+    m_pages->addWidget(m_facetEditorPage);     // Page::FacetEditor
+    m_pages->addWidget(m_promptHistoryPage);   // Page::PromptHistory
+    m_pages->addWidget(m_outputViewerPage);    // Page::OutputViewer
     m_taggerLibrary = std::make_unique<core::AutoTaggerLibrary>(BASE_PATH + "/" + MODELS_DIR);
     if (m_settings.activeAutoTagModel.isEmpty()) {
         const auto names = m_taggerLibrary->availableModels();
@@ -150,6 +157,17 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     NavBar* nav = new NavBar(this, this);
     connect(nav, &NavBar::pageRequested, m_pages, &QStackedWidget::setCurrentIndex);
     connect(m_pages, &QStackedWidget::currentChanged, nav, &NavBar::setCurrentPage);
+
+    // ---- Prompt history page wiring
+    connect(m_promptHistoryPage, &PromptHistoryPage::statusMessageRequested, this,
+            [this](const QString& msg) { m_statusBar->showMessage(msg); });
+    connect(m_promptHistoryPage, &PromptHistoryPage::switchToComposerRequested, this,
+            [this]() { m_pages->setCurrentIndex(int(Page::TagComposer)); });
+    connect(m_promptHistoryPage, &PromptHistoryPage::openEntryRequested, this,
+            [this](int entryId) {
+                m_pages->setCurrentIndex(int(Page::EntryViewer));
+                m_tileViewPage->clearSearchAndSelect(int32_t(entryId));
+            });
 
     // ---- LoRA stack: tile view -> main window + composer + workflow editor
     connect(m_tileViewPage, &TileViewPage::loraStackChanged, this,
@@ -315,7 +333,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
                 QString json = m_workflowManager.applyToJson(tmpl);
                 core::WorkflowManager::applyPositive(json, positivePrompt);
                 core::WorkflowManager::applyLoraStack(json, healed);
-                m_comfyClient->queuePrompt(json);
+                recordAndQueue(json, positivePrompt, healed);
             }
             m_workflowManager.saveToFile(BASE_PATH + "/" + WORKFLOWS_PATH);
             m_workflowEditPage->refresh();
@@ -718,7 +736,7 @@ void AppMainWindow::runBatch(const QString& query)
                 QString json = m_workflowManager.applyToJson(tmpl);
                 core::WorkflowManager::applyPositive(json, positivePrompt);
                 core::WorkflowManager::applyLoraStack(json, stackForEntry);
-                m_comfyClient->queuePrompt(json);
+                recordAndQueue(json, positivePrompt, stackForEntry, int(entry->id));
                 ++dispatched;
             }
         }
@@ -862,6 +880,55 @@ QStringList AppMainWindow::workflowTemplateIssues(const QString& tmpl,
     }
 
     return issues;
+}
+
+void AppMainWindow::recordAndQueue(const QString& renderedJson, const QString& positivePrompt,
+                                   const QList<core::LoraConfig>& healed, int batchEntryId)
+{
+    if (m_promptHistory) {
+        core::PromptRecord rec;
+        rec.queuedAt = QDateTime::currentDateTime();
+        if (const core::WorkflowFile* wf = m_workflowManager.selectedFile()) rec.workflowName = wf->name;
+        rec.positivePrompt = positivePrompt;
+        rec.renderedJson = renderedJson;
+        rec.snapshot = m_composerPage->currentSnapshot();
+        rec.lorasUsed = healed;
+        rec.batchEntryId = batchEntryId;
+
+        // Batch iterations don't go through the composer's push system, so the
+        // iterated entry is absent from snapshot.activePushes AND its tags
+        // are absent from snapshot.activeTags (the batch unions them only
+        // transiently inside computePromptWithExtraTags). Synthesize the push
+        // and merge the tags so the history reflects the effective state that
+        // produced the prompt -- "Active entries" lists the entry, the row
+        // count matches reality, and restore/save-state replay the actual tag
+        // set instead of just the pre-batch composer state.
+        if (batchEntryId >= 0 && m_entryModel) {
+            if (core::Entry* e = m_entryModel->entryById(batchEntryId)) {
+                if (!e->images.isEmpty()) {
+                    core::EntryPush push;
+                    push.uuid = e->uuid;
+                    push.imageFileName = e->images[0].fileName;
+                    push.tags = m_entryModel->getTags(e->images[0].tagIds);
+                    rec.snapshot.activePushes.prepend(push);
+
+                    // Union tags into activeTags, preserving order and skipping
+                    // duplicates already in the composer state.
+                    QSet<QString> seen(rec.snapshot.activeTags.cbegin(),
+                                       rec.snapshot.activeTags.cend());
+                    for (const QString& t : push.tags) {
+                        if (!seen.contains(t)) {
+                            rec.snapshot.activeTags << t;
+                            seen.insert(t);
+                        }
+                    }
+                }
+            }
+        }
+
+        m_promptHistory->append(std::move(rec));
+    }
+    m_comfyClient->queuePrompt(renderedJson);
 }
 
 // Tracking key is (uuid + editsHash) so editing forces a re-upload.
