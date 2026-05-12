@@ -108,7 +108,7 @@ Linux and macOS aren't yet shipped as prebuilt binaries. For those platforms, [b
 ## Building from source
 
 > [!NOTE]
-> Windows is the primary supported platform and the only one currently tested. Linux and macOS builds are wired up in CMake but you'll be the first one through; if something doesn't work, [open an issue](#issues--feature-requests).
+> macOS builds are untested; if something doesn't work, [open an issue](#issues--feature-requests).
 
 Common to every platform:
 
@@ -117,7 +117,7 @@ Common to every platform:
    git clone https://github.com/typeRYOON/tagcomposer.git
    cd tagcomposer
    ```
-2. Install **Qt 6.11 or newer**. Required modules: Core, Gui, Widgets, Network, Concurrent, WebSockets.
+2. Install **Qt 6.11 or newer**. Required modules: Core, Gui, Widgets, Network, Multimedia, Concurrent, WebSockets.
 
 ### Windows
 
