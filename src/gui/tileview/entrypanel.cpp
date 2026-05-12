@@ -22,6 +22,7 @@
 #include <QFutureWatcher>
 #include <QtConcurrent>
 
+#include <QAbstractSpinBox>
 #include <QApplication>
 #include <QClipboard>
 #include <QMenu>
@@ -29,6 +30,7 @@
 #include <QContextMenuEvent>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QKeyEvent>
 #include <QMimeData>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -1106,6 +1108,59 @@ EntryPanel::EntryPanel(EntryModel* model, QWidget* parent) : QWidget(parent), m_
     outerLayout->setContentsMargins(0, 0, 0, 0);
     outerLayout->setSpacing(0);
     outerLayout->addWidget(m_stack, 1);
+
+    // Tab within the tags section (search bar + tag list) routes focus to
+    // the tag search bar.
+    qApp->installEventFilter(this);
+}
+
+bool EntryPanel::eventFilter(QObject* watched, QEvent* event)
+{
+    if (event->type() == QEvent::KeyPress) {
+        auto* ke = static_cast<QKeyEvent*>(event);
+        QWidget* fw = QApplication::focusWidget();
+        const bool inPanel = fw && (fw == this || isAncestorOf(fw));
+        const bool inSearch = fw && (fw == m_searchBar || m_searchBar->isAncestorOf(fw));
+
+        // Tab from inside the tags section (but not the search bar itself)
+        // parks focus in the tag search bar.
+        if (ke->key() == Qt::Key_Tab &&
+            !(ke->modifiers() &
+              (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
+            const bool inTagsSection =
+                fw && (fw == m_tagsWidget || m_tagsWidget->isAncestorOf(fw));
+            if (inTagsSection && !inSearch && m_searchBar->isEnabled()) {
+                m_searchBar->setFocus(Qt::OtherFocusReason);
+                return true;
+            }
+        }
+
+        // Tile-view keys pressed anywhere in the panel hand off to the grid:
+        // arrows / Home / End / PageUp / PageDown move the selection, Enter
+        // toggles the selected tile in the composer. Skipped in the search
+        // bar and in widgets that use these keys themselves (the title /
+        // comment / tag-rename edits, the LoRA spin boxes), where the
+        // keystroke belongs to the focused widget.
+        switch (ke->key()) {
+        case Qt::Key_Left:
+        case Qt::Key_Right:
+        case Qt::Key_Up:
+        case Qt::Key_Down:
+        case Qt::Key_Home:
+        case Qt::Key_End:
+        case Qt::Key_PageUp:
+        case Qt::Key_PageDown:
+        case Qt::Key_Return:
+        case Qt::Key_Enter:
+            if (inPanel && !inSearch && !qobject_cast<QLineEdit*>(fw) &&
+                !qobject_cast<QPlainTextEdit*>(fw) && !qobject_cast<QAbstractSpinBox*>(fw)) {
+                emit gridNavRequested(ke->key());
+                return true;
+            }
+            break;
+        }
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 // ---- Public API

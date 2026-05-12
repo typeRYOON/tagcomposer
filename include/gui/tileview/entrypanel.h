@@ -49,6 +49,14 @@ public:
     void setLoraDirs(const QString& primaryDir, const QString& testDir);
     void setLoraDefaults(double modelStr, double clipStr);
 
+protected:
+    // App-wide filter: a plain Tab from inside the tags section parks focus
+    // in the tag search bar (unless already there); the tile-view nav keys
+    // (arrows / Home / End / PageUp / PageDown / Enter) from anywhere in the
+    // panel (outside text fields / spin boxes / the search bar) hand off to
+    // the tile view.
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 signals:
     void entryListChanged();
     void entrySelectRequested(int32_t entryId);
@@ -63,6 +71,10 @@ signals:
     void facetEditorRequested(const QString& tag);
     void quickFacetRequested(const QString& tag, const QString& facetName);
     void statusMessageRequested(const QString& message);
+    // A tile-view nav key (arrow / Home / End / PageUp / PageDown / Enter)
+    // was pressed inside the panel; the host should focus the tile view and
+    // replay the key there (selection moves; Enter toggles in the composer).
+    void gridNavRequested(int key);
 
 private:
     void loadImagePage(int idx);

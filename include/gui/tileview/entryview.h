@@ -49,6 +49,9 @@ signals:
     void entryClickedByPointer(core::Entry*);
     void loraStackChanged(QList<core::LoraConfig> stack);
     void tagsExported(int entryId, int imageIdx, QList<QString> tags);
+    // Tab pressed while the grid has focus; the host parks focus in the
+    // entry-filter search bar above.
+    void focusFilterRequested();
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -58,6 +61,7 @@ protected:
     void mousePressEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
+    bool focusNextPrevChild(bool next) override;
     void resizeEvent(QResizeEvent* event) override;
 
 private:

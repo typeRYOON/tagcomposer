@@ -1,10 +1,12 @@
 #include <gui/tileview/tileviewpage.h>
 #include <gui/tileview/entryview.h>
 #include <gui/tileview/entrypanel.h>
+#include <QApplication>
 #include <QVBoxLayout>
 #include <QFontDatabase>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QKeyEvent>
 #include <QMimeData>
 #include <QFile>
 #include <QFileInfo>
@@ -92,6 +94,17 @@ TileViewPage::TileViewPage(core::EntryModel* model, QWidget* parent) : QWidget(p
     // this so the tile view keeps focus for chained arrow presses.
     connect(m_entryView, &EntryView::entryClickedByPointer, m_entryPanel,
             &EntryPanel::focusSearchInput);
+    // Tab on the tile grid jumps focus up to the entry-filter search bar.
+    connect(m_entryView, &EntryView::focusFilterRequested, this,
+            [this]() { m_searchBar->setFocus(Qt::OtherFocusReason); });
+    // A tile-view nav key (arrow / Home / End / PageUp / PageDown / Enter) in
+    // the entry panel moves focus to the tile grid and replays the keystroke
+    // (selection moves; Enter toggles the selected tile in the composer).
+    connect(m_entryPanel, &EntryPanel::gridNavRequested, this, [this](int key) {
+        m_entryView->setFocus(Qt::OtherFocusReason);
+        QKeyEvent ev(QEvent::KeyPress, key, Qt::NoModifier);
+        QApplication::sendEvent(m_entryView, &ev);
+    });
 
     // selectAndScrollToEntry emits entryClicked, which routes back to setEntry above.
     connect(m_entryPanel, &EntryPanel::entrySelectRequested, m_entryView,

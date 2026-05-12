@@ -172,8 +172,11 @@ EntryView::EntryView(EntryModel* model, QWidget* parent) : QWidget(parent), m_mo
         bool anyActive = false;
         bool scrollChanged = false;
 
-        // Fling: integrate velocity into scroll, then decay.
-        if (m_flingVelocity != 0.0) {
+        // Fling: integrate velocity into scroll, then decay. Held off while
+        // the button is down - during a drag m_flingVelocity only accumulates
+        // the release velocity, so applying it here would fight the 1:1
+        // cursor tracking and jitter the view.
+        if (m_flingVelocity != 0.0 && !m_pressedLeft) {
             const qreal dt = 16.0 / 1000.0;
             const int maxScroll = std::max(0, m_totalH - height());
             const qreal next = m_scrollYActual + m_flingVelocity * dt;
@@ -350,11 +353,23 @@ void EntryView::resizeEvent(QResizeEvent* event)
 void EntryView::wheelEvent(QWheelEvent* event)
 {
     const int delta = event->angleDelta().y();
-    const int maxScroll = std::max(0, m_totalH - height());
+    if (delta == 0) {
+        event->accept();
+        return;
+    }
 
-    m_scrollYTarget -= delta / 120.0 * (TileH / 3.0);
-    m_scrollYTarget = std::clamp(m_scrollYTarget, 0.0, (qreal)maxScroll);
-    m_flingVelocity = 0.0; // wheel takes direct control, kill any active fling
+    // Inertial wheel scrolling: each notch injects velocity (px/s) into the
+    // same fling integrator the anim timer runs after a drag-release, so a
+    // flick of the wheel glides smoothly and coasts to a stop instead of
+    // stepping. Successive notches accumulate; an opposite-direction notch
+    // reverses it. delta > 0 (wheel away from user) scrolls toward the top -
+    // scrollY decreases, the same sign convention as a downward drag.
+    constexpr qreal velPerNotch = 1000.0;
+    constexpr qreal maxVel = 10000.0;
+    m_flingVelocity = std::clamp(m_flingVelocity - delta / 120.0 * velPerNotch, -maxVel, maxVel);
+    // Keep the eased-scroll target pinned to the live position so it doesn't
+    // fight the integrator.
+    m_scrollYTarget = m_scrollYActual;
 
     if (!m_animTimer->isActive()) m_animTimer->start();
     event->accept();
@@ -362,6 +377,17 @@ void EntryView::wheelEvent(QWheelEvent* event)
 
 void EntryView::mouseMoveEvent(QMouseEvent* event)
 {
+    // Recover from a lost release: if we still think the left button is held
+    // but it isn't, the release never reached us (cursor left the window, the
+    // Start menu / Alt-Tab stole the implicit grab, ...). Drop the stale
+    // press/drag state so a free-moving cursor doesn't keep scrolling.
+    if (m_pressedLeft && !(event->buttons() & Qt::LeftButton)) {
+        m_pressedLeft = false;
+        m_dragging = false;
+        m_flingVelocity = 0.0;
+        m_lastMoveTime = 0;
+    }
+
     if (m_pressedLeft) {
         if (!m_dragging) {
             const int dx = std::abs(event->pos().x() - m_pressPos.x());
@@ -507,6 +533,29 @@ void EntryView::keyPressEvent(QKeyEvent* event)
     const int last = m_entries.size() - 1;
     int next = cur;
 
+    // Enter on the selected tile toggles it in the composer. The composer's
+    // loadPipeline already syncs the entry's LoRA activation with its push
+    // state, so for entries with images that's all we do. A LoRA-only entry
+    // (no images) has no push to ride on, so toggle its LoRA directly.
+    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+        if (cur >= 0) {
+            core::Entry* e = m_entries[cur];
+            if (!e->images.isEmpty()) {
+                emit tagsExported(e->id, 0, m_model->getTags(e->images[0].tagIds));
+            }
+            else if (e->lora.has_value()) {
+                if (m_loraActiveOrder.contains(e->id))
+                    m_loraActiveOrder.removeAll(e->id);
+                else
+                    m_loraActiveOrder.append(e->id);
+                update();
+                emitLoraStack();
+            }
+        }
+        event->accept();
+        return;
+    }
+
     switch (event->key()) {
     case Qt::Key_Left:
         next = (cur < 0) ? 0 : std::max(0, cur - 1);
@@ -544,6 +593,17 @@ void EntryView::keyPressEvent(QKeyEvent* event)
 
     if (next != cur) scrollToEntry(next, true);
     event->accept();
+}
+
+bool EntryView::focusNextPrevChild(bool next)
+{
+    // Tab parks focus in the entry-filter search bar above the grid;
+    // Shift+Tab keeps the default backward traversal.
+    if (next) {
+        emit focusFilterRequested();
+        return true;
+    }
+    return QWidget::focusNextPrevChild(next);
 }
 
 void EntryView::rebuildNavPanel()
