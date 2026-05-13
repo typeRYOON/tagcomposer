@@ -19,7 +19,11 @@ class DanbooruIndex {
 public:
     static DanbooruIndex* loadFromFile(const QString& path);
     QList<TagSearchResult> search(const QString& prefix, int maxResults = 12) const;
+    // tagCategory/tagCount expect the canonical csv form (lowercase, spaces) -
+    // callers holding Danbooru wire forms ("long_hair") must normalizeTagInput
+    // first. search() normalizes its argument internally.
     int tagCategory(const QString& tag) const; // -1 if not found
+    int64_t tagCount(const QString& tag) const; // -1 if not found
 
 private:
     DanbooruIndex() = default;

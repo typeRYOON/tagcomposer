@@ -17,11 +17,13 @@
 #include <QPixmap>
 
 class QNetworkAccessManager;
+class QNetworkReply;
 class QJsonArray;
 class QTimer;
 
 namespace core {
 class FacetIndex;
+class DanbooruIndex;
 }
 
 namespace gui {
@@ -30,6 +32,11 @@ class TagClusterPage : public QWidget {
     Q_OBJECT
 public:
     explicit TagClusterPage(core::FacetIndex* facets, QWidget* parent = nullptr);
+
+    // Set once the async danbooru.csv load finishes (see AppMainWindow). The
+    // PMI baseline reads per-tag post counts from this index, so until it
+    // arrives the results panel stays empty.
+    void setDanbooruIndex(core::DanbooruIndex* index);
 
     // Quick-facet menu wiring - same names AppMainWindow uses for the composer
     // and tile view. Empty string disables that quick-add entry.
@@ -50,18 +57,19 @@ protected:
 
 private:
     core::FacetIndex* m_facets = nullptr;
+    core::DanbooruIndex* m_danbooru = nullptr; // PMI baseline (per-tag post counts)
 
     // ---- Params (left panel)
     QLineEdit* m_tagInput;
     QCheckBox* m_soloCheck;
     QCheckBox* m_singleCharCheck;
     QSpinBox* m_charPagesSpin;
-    QSpinBox* m_globalPagesSpin;
+    QSlider* m_minPctSlider;   // min share of fetched posts a tag must appear in
+    QLabel* m_minPctValueLbl;
     QSlider* m_minPmiSlider;
     QLabel* m_minPmiValueLbl;
-    QSpinBox* m_minCountSpin;
     QPushButton* m_fetchBtn;
-    QPushButton* m_clearCacheBtn;
+    QPushButton* m_cancelBtn;
 
     // ---- Filter editor
     QRadioButton* m_blacklistRadio;
@@ -92,24 +100,27 @@ private:
 
     // ---- Network
     QNetworkAccessManager* m_nam;
+    QNetworkReply* m_pageReply = nullptr; // in-flight posts.json request, if any
 
     // ---- Fetch state
-    enum class Phase { Idle, GlobalFetch, CharFetch };
+    enum class Phase { Idle, CharFetch };
     Phase m_phase = Phase::Idle;
     int m_currentPage = 0;
     int m_charPages = 0;
-    int m_globalPages = 0;
+    // Bumped on every Fetch and on Cancel; in-flight replies / page timers
+    // captured the old value and bail when it no longer matches.
+    int m_fetchGen = 0;
     QString m_targetTag;
     bool m_fetchedSolo = false;
     bool m_fetchedSingleChar = false;
 
-    // ---- Cached counters (live for the session)
-    QHash<QString, int> m_globalCounter;
-    qint64 m_globalTotal = 0;
-
+    // ---- Per-fetch counters (live for the session, rebuilt on each Fetch).
+    // m_charCounter is a document frequency: a post lists each general tag
+    // once, so the value is "how many of the character's posts carry this tag".
     QHash<QString, int> m_charCounter;
     QHash<QString, int> m_copyrightCounter;
-    qint64 m_charTotal = 0;
+    int m_charPostCount = 0;  // posts that contributed to m_charCounter
+    int m_fetchedPostCount = 0; // posts pulled from the API (>= m_charPostCount)
     bool m_charDataReady = false;
 
     // ---- Result rows
@@ -132,7 +143,8 @@ private:
 
     // ---- Methods
     void onFetchClicked();
-    void fetchNextPage();
+    void cancelFetch();
+    void fetchNextPage(int gen);
     void processPage(const QJsonArray& posts);
     void onPhaseDone();
     void recompute();         // re-applies filters/threshold to cached counters
@@ -146,12 +158,6 @@ private:
     void loadFilters(); // reads from data/system/cluster_filters.fct
     void saveFilters(); // writes back; called explicitly via the button
     core::ClusterFilter buildFilterFromEditor() const;
-
-    // Global cache (the only thing that persists across sessions)
-    bool hasCachedGlobal() const;
-    void loadGlobalCache();
-    void saveGlobalCache();
-    QString cachePath() const;
 
     // Preview chain mirrors FacetEditorPage: wiki page first, falls back to first post.
     void clearPreview();

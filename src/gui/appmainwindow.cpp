@@ -472,6 +472,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         m_facetEditorPage->setDanbooruIndex(m_danbooruIndex);
         if (auto* tep = m_datasetHelpersPage->tagEditorPage())
             tep->setDanbooruIndex(m_danbooruIndex);
+        if (auto* tcp = m_datasetHelpersPage->tagClusterPage())
+            tcp->setDanbooruIndex(m_danbooruIndex);
         watcher->deleteLater();
     });
     watcher->setFuture(

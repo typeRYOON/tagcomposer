@@ -141,6 +141,29 @@ QComboBox#DatasetSpin QAbstractItemView {
     border-color: #1a1a1a;
 }
 
+/* Secondary button sitting next to #DatasetRunBtn (e.g. the Tag Cluster
+   Cancel button) - same box metrics so the two line up, neutral palette. */
+#DatasetCancelBtn {
+    background: #1a1a1a;
+    color: #999999;
+    border: 1px solid #2a2a2a;
+    border-radius: 5px;
+    padding: 6px 12px;
+    font-size: 14px;
+}
+
+#DatasetCancelBtn:hover {
+    background: #222222;
+    color: #cccccc;
+    border-color: #383838;
+}
+
+#DatasetCancelBtn:disabled {
+    background: #141414;
+    color: #2a2a2a;
+    border-color: #1a1a1a;
+}
+
 /* Dark-input base in app.qss. */
 #DatasetExcludeEdit {
     color: #cccccc;

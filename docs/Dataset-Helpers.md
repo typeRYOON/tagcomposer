@@ -33,20 +33,24 @@ The handoff is just folder routing - it doesn't trigger the target's run. You st
 
 ## Tag Cluster
 
-Mines a Danbooru-style booru for tag co-occurrence. Given a seed tag (typically a character name or copyright), it fetches a sample of posts, counts every other tag's occurrences, and ranks them by **PMI (pointwise mutual information)** against the booru's global tag distribution.
+Mines a Danbooru-style booru for tag co-occurrence. Given a seed tag (typically a character name or copyright), it fetches a sample of that seed's posts, counts which of them carry each other tag, and ranks them by **PMI (pointwise mutual information)** against the corpus-wide tag frequencies baked into the bundled `danbooru.csv`.
 
 > **Screenshot suggestion:** the tab with a seed tag like `hatsune miku` mined, the PMI slider set mid-range, ~30 result rows on the right, and the in-tag-cluster preview image showing on the far right.
 
 ### Left panel - parameters
 
-- **Tag input** - the seed tag (Danbooru-style: underscores).
-- **`+solo`** - if checked, the global probe pulls `solo` posts only (less noisy character co-occurrence).
-- **`single character`** - restricts the character probe to posts tagged with exactly one character name.
-- **`Character pages`** / **`Global pages`** - page counts for the two phases of the fetch (each page is 200 posts). Character pages drive the seed-related sample; global pages drive the background distribution used for PMI normalization.
-- **Min PMI slider** - threshold below which tags are hidden.
-- **Min count spinbox** - threshold below which tags are hidden (raw co-occurrence count, before PMI).
-- **Fetch** button - kicks off the two-phase fetch.
-- **Clear cache** - drops the global tag cache (`data/system/global_tag_cache.json`), forcing the next fetch to rebuild it.
+- **Tag input** - the seed tag (Danbooru-style: underscores; backslash-escaped parens from a composer prompt are accepted too).
+- **`+solo`** - if checked, the character query is restricted to `solo` posts (cleaner co-occurrence). Characters with few solo posts return less data, so leave it off if results are sparse.
+- **`single character tag only`** - drops fetched posts that list more than one character tag, keeping alt-form / skin variants from muddying the cluster.
+- **`Char pages`** - how many pages of the seed's posts to fetch (200 posts per page). More pages = stronger PMI signal, slower fetch.
+- **Min % slider** - drop tags that appear in fewer than this *share* of the fetched posts, before PMI ranking. It resolves against the actual fetch size, so it scales with `Char pages` automatically (1% of a ~3000-post sample is ~30 posts; 1% of a ~200-post niche character is ~2). Bump it up for cleaner results on a big character; drop it for a sparse one. Live-applied.
+- **Min PMI slider** - threshold below which tags are hidden. Live-applied, no re-fetch.
+- **Fetch** button - pulls the seed's posts from Danbooru and builds the cluster.
+- **Cancel** button - enabled only while a fetch is running. Stops it mid-stream; whatever pages were already pulled are kept and scored (the status bar reports how many posts / tags that was), so you can ballpark a cluster without waiting for all the pages.
+
+While fetching, the status line shows a running tally (`Fetching... N posts, M tags so far.`) and the progress bar tracks pages. When it finishes - or you cancel - the status settles to `N posts, M tags. Showing K ...` (and, if `single character tag only` dropped any, `... (J multi-character skipped) ...`), so you always know how big the sample behind the cluster actually was.
+
+The PMI baseline (per-tag post counts) comes from `danbooru.csv` - the same file that drives autocomplete - so there's no separate "global" fetch or cache to manage. Tags absent from that file, or below a small post-count floor, are dropped from the results.
 
 ### Filter editor (left panel, below)
 
@@ -65,7 +69,7 @@ A blacklist / whitelist for tags you never want to see in cluster results regard
 
 ### What's PMI?
 
-`PMI(t, seed) = log2(P(t and seed) / (P(t) * P(seed)))`. High PMI = tag is meaningfully associated with the seed (more than chance); low PMI = tag is just popular everywhere (gets a low score even if it co-occurs a lot). The slider lets you tune how exotic a tag has to be to surface.
+`PMI(t | seed) = ln( P(t among the seed's posts) / P(t across all of Danbooru) )`. The numerator is how often the tag showed up in the fetched sample; the denominator is the tag's `danbooru.csv` post count divided by the corpus size. High PMI = the tag is meaningfully enriched for this seed (more than chance); near-zero = it's just popular everywhere (low score even if it co-occurs a lot). The slider tunes how enriched a tag has to be to surface; the score column shows the raw PMI so it lines up directly with the threshold.
 
 ## Auto-collect
 

@@ -1,6 +1,7 @@
 #include <gui/dataset/tagclusterpage.h>
 #include <gui/widgets/appscrollbar.h>
 #include <core/facetindex.h>
+#include <core/danbooruindex.h>
 #include <core/soundplayer.h>
 #include <utils/appconfig.h>
 #include <utils/stringutils.h>
@@ -90,6 +91,22 @@ constexpr int kPmiSliderMin = 0;      // 0.00
 constexpr int kPmiSliderMax = 500;    // 5.00
 constexpr int kPmiSliderDefault = 50; // 0.50
 
+// Min-% slider stores tenths of a percent (0 = no floor, 100 = 10.0%). It's a
+// share of the *fetched* posts, resolved to an absolute count at recompute
+// time, so it scales with how many pages were pulled.
+constexpr int kMinPctSliderMin = 0;
+constexpr int kMinPctSliderMax = 100;
+constexpr int kMinPctSliderDefault = 10; // 1.0%
+
+// PMI baseline: the marginal P(tag) comes from danbooru.csv's post_count
+// column. kDanbooruTotalPosts is the corpus-size denominator - a uniform log
+// offset on every score, so an approximate (late-2025-ish) value is fine; it
+// only shifts where the slider threshold sits. Tags whose corpus count is
+// below kGlobalCountFloor - or absent from the index - are dropped: keeps the
+// log() well-conditioned and strips typo/single-use tags from the top.
+constexpr double kDanbooruTotalPosts = 9000000.0;
+constexpr int64_t kGlobalCountFloor = 20;
+
 TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     : QWidget(parent), m_facets(facets)
 {
@@ -172,16 +189,32 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
         "mu) whose differing outfits otherwise muddy concept extraction.");
 
     m_charPagesSpin = mkSpin(1, 100, 15);
-    m_globalPagesSpin = mkSpin(1, 200, 30);
-    m_minCountSpin = mkSpin(1, 1000, 3);
-
     m_charPagesSpin->setToolTip("Pages of the character's posts to fetch (200 posts per page).\n"
                                 "More pages = better PMI signal but slower.");
-    m_globalPagesSpin->setToolTip("Pages of unrelated posts used to build the baseline tag\n"
-                                  "distribution. Cached after the first fetch - only matters\n"
-                                  "the first run or after clearing the global cache.");
-    m_minCountSpin->setToolTip("Drop tags that appear in fewer than this many of the\n"
-                               "character's posts. Live-applied - no re-fetch needed.");
+
+    m_minPctSlider = new QSlider(Qt::Horizontal, paramsBody);
+    m_minPctSlider->setObjectName("DatasetPmiSlider");
+    m_minPctSlider->setRange(kMinPctSliderMin, kMinPctSliderMax);
+    m_minPctSlider->setValue(kMinPctSliderDefault);
+    m_minPctSlider->setToolTip("Minimum share of the fetched posts a tag must appear in to be\n"
+                               "considered (applied before PMI). Resolves against this fetch's\n"
+                               "post count, so it scales with Char pages. Live-applied.");
+
+    m_minPctValueLbl = new QLabel(paramsBody);
+    m_minPctValueLbl->setObjectName("DatasetParamValue");
+    m_minPctValueLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    m_minPctValueLbl->setMinimumWidth(40);
+
+    auto syncPctLabel = [this]() {
+        m_minPctValueLbl->setText(QString::number(m_minPctSlider->value() / 10.0, 'f', 1) + "%");
+    };
+    syncPctLabel();
+
+    auto* pctRow = new QHBoxLayout;
+    pctRow->setContentsMargins(0, 0, 0, 0);
+    pctRow->setSpacing(6);
+    pctRow->addWidget(m_minPctSlider, 1);
+    pctRow->addWidget(m_minPctValueLbl);
 
     m_minPmiSlider = new QSlider(Qt::Horizontal, paramsBody);
     m_minPmiSlider->setObjectName("DatasetPmiSlider");
@@ -193,7 +226,7 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     m_minPmiValueLbl = new QLabel(paramsBody);
     m_minPmiValueLbl->setObjectName("DatasetParamValue");
     m_minPmiValueLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    m_minPmiValueLbl->setMinimumWidth(36);
+    m_minPmiValueLbl->setMinimumWidth(40);
 
     auto syncPmiLabel = [this]() {
         m_minPmiValueLbl->setText(QString::number(m_minPmiSlider->value() / 100.0, 'f', 2));
@@ -212,27 +245,32 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
     int r = 0;
     grid->addWidget(mkLabel("Char pages", paramsBody), r, 0);
     grid->addWidget(m_charPagesSpin, r++, 1);
-    grid->addWidget(mkLabel("Global pages", paramsBody), r, 0);
-    grid->addWidget(m_globalPagesSpin, r++, 1);
-    grid->addWidget(mkLabel("Min count", paramsBody), r, 0);
-    grid->addWidget(m_minCountSpin, r++, 1);
+    grid->addWidget(mkLabel("Min %", paramsBody), r, 0);
+    grid->addLayout(pctRow, r++, 1);
     grid->addWidget(mkLabel("Min PMI", paramsBody), r, 0);
     grid->addLayout(pmiRow, r++, 1);
 
     m_fetchBtn = new QPushButton("Fetch", paramsBody);
-    m_clearCacheBtn = new QPushButton("Clear global cache", paramsBody);
     m_fetchBtn->setObjectName("DatasetRunBtn");
-    m_clearCacheBtn->setObjectName("EntryActionBtn");
     m_fetchBtn->setToolTip("Pull posts from Danbooru and rebuild the cluster.");
-    m_clearCacheBtn->setToolTip("Delete the cached global tag distribution. The next fetch\n"
-                                "will rebuild it from scratch.");
+
+    m_cancelBtn = new QPushButton("Cancel", paramsBody);
+    m_cancelBtn->setObjectName("DatasetCancelBtn");
+    m_cancelBtn->setEnabled(false);
+    m_cancelBtn->setToolTip("Stop the in-progress fetch. Posts already pulled are kept and\n"
+                            "scored - re-fetch for the full sample.");
+
+    auto* fetchRow = new QHBoxLayout;
+    fetchRow->setContentsMargins(0, 0, 0, 0);
+    fetchRow->setSpacing(8);
+    fetchRow->addWidget(m_fetchBtn, 1);
+    fetchRow->addWidget(m_cancelBtn);
 
     pbl->addWidget(m_tagInput);
     pbl->addWidget(m_soloCheck);
     pbl->addWidget(m_singleCharCheck);
     pbl->addLayout(grid);
-    pbl->addWidget(m_fetchBtn);
-    pbl->addWidget(m_clearCacheBtn);
+    pbl->addLayout(fetchRow);
 
     // Filter-section body - gets its own objectName so we can frame it with a
     // visible top + right border to set it apart from the params section above.
@@ -433,13 +471,8 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
 
     // ---- Wire
     connect(m_fetchBtn, &QPushButton::clicked, this, &TagClusterPage::onFetchClicked);
+    connect(m_cancelBtn, &QPushButton::clicked, this, &TagClusterPage::cancelFetch);
     connect(m_tagInput, &QLineEdit::returnPressed, this, &TagClusterPage::onFetchClicked);
-    connect(m_clearCacheBtn, &QPushButton::clicked, this, [this]() {
-        QFile::remove(cachePath());
-        m_globalCounter.clear();
-        m_globalTotal = 0;
-        setStatus("Global cache cleared.");
-    });
     connect(m_copyBtn, &QPushButton::clicked, this, [this]() {
         QApplication::clipboard()->setText(m_copyEdit->toPlainText());
         if (auto* sp = core::SoundPlayer::instance()) sp->play("ok");
@@ -470,12 +503,14 @@ TagClusterPage::TagClusterPage(core::FacetIndex* facets, QWidget* parent)
 
     // Debounced recompute - bursts (slider drag, typing in the filter editor)
     // collapse into a single rebuild after the user pauses for ~150 ms.
+    connect(m_minPctSlider, &QSlider::valueChanged, this, [this, syncPctLabel](int) {
+        syncPctLabel();
+        scheduleRecompute();
+    });
     connect(m_minPmiSlider, &QSlider::valueChanged, this, [this, syncPmiLabel](int) {
         syncPmiLabel();
         scheduleRecompute();
     });
-    connect(m_minCountSpin, qOverload<int>(&QSpinBox::valueChanged), this,
-            [this](int) { scheduleRecompute(); });
     connect(m_filterEdit, &QPlainTextEdit::textChanged, this, [this]() { scheduleRecompute(); });
     connect(m_blacklistRadio, &QRadioButton::toggled, this, [this](bool) { scheduleRecompute(); });
     connect(m_whitelistRadio, &QRadioButton::toggled, this, [this](bool) { scheduleRecompute(); });
@@ -504,7 +539,7 @@ void TagClusterPage::onFetchClicked()
     m_fetchedSolo = m_soloCheck->isChecked();
     m_fetchedSingleChar = m_singleCharCheck->isChecked();
 
-    // Clear previous results + char counters; preserve global cache.
+    // Clear previous results + per-fetch counters.
     clearResultRows();
     m_copyEdit->clear();
     m_copyBtn->setEnabled(false);
@@ -512,25 +547,16 @@ void TagClusterPage::onFetchClicked()
     m_copyright.clear();
     m_charCounter.clear();
     m_copyrightCounter.clear();
-    m_charTotal = 0;
+    m_charPostCount = 0;
+    m_fetchedPostCount = 0;
     m_charDataReady = false;
     m_charPages = m_charPagesSpin->value();
-    m_globalPages = m_globalPagesSpin->value();
     m_currentPage = 0;
+    m_pageReply = nullptr;
+    const int gen = ++m_fetchGen;
 
-    if (hasCachedGlobal() && m_globalCounter.isEmpty()) loadGlobalCache();
-
-    if (!m_globalCounter.isEmpty()) {
-        setStatus(QString("Global cache loaded (%1 tags). Fetching character posts...")
-                      .arg(m_globalCounter.size()));
-        m_phase = Phase::CharFetch;
-    }
-    else {
-        m_globalCounter.clear();
-        m_globalTotal = 0;
-        setStatus("Building global tag distribution (this only runs once)...");
-        m_phase = Phase::GlobalFetch;
-    }
+    setStatus("Fetching character posts...");
+    m_phase = Phase::CharFetch;
 
     setFetchRunning(true);
     if (m_emptyStateLbl) m_emptyStateLbl->setText("Fetching…");
@@ -539,29 +565,58 @@ void TagClusterPage::onFetchClicked()
     // pipeline, no need to block on it.
     fetchPreview(m_targetTag);
 
-    fetchNextPage();
+    fetchNextPage(gen);
 }
 
-void TagClusterPage::fetchNextPage()
+void TagClusterPage::cancelFetch()
 {
+    if (m_phase == Phase::Idle) return;
+
+    ++m_fetchGen; // any in-flight reply / pending page timer is now stale
+    if (m_pageReply) {
+        m_pageReply->abort();
+        m_pageReply = nullptr;
+    }
+
+    // Finalize on whatever partial sample we collected (onPhaseDone -> recompute
+    // does the copyright pick + scoring + status), then overwrite the status
+    // with a cancel-specific note.
+    onPhaseDone();
+    if (m_charPostCount > 0) {
+        setStatus(QString("Cancelled. Kept %1 posts, %2 tags - tweak any threshold to refine.")
+                      .arg(m_charPostCount)
+                      .arg(m_charCounter.size()));
+    }
+    else {
+        setStatus("Fetch cancelled.");
+        if (m_emptyStateLbl) m_emptyStateLbl->setText("Fetch cancelled.");
+        setResultsEmpty(true);
+    }
+}
+
+void TagClusterPage::fetchNextPage(int gen)
+{
+    if (gen != m_fetchGen) return; // cancelled (or superseded) during the inter-page delay
+
     QUrl url(DANBOORU_BASE);
     QUrlQuery q;
     q.addQueryItem("limit", "200");
     q.addQueryItem("page", QString::number(m_currentPage + 1));
-    if (m_phase == Phase::CharFetch) {
-        // +solo lives directly in the tag string - Danbooru treats space as AND.
-        QString tags = m_targetTag;
-        if (m_fetchedSolo) tags += " solo";
-        q.addQueryItem("tags", tags);
-    }
+    // +solo lives directly in the tag string - Danbooru treats space as AND.
+    QString tags = m_targetTag;
+    if (m_fetchedSolo) tags += " solo";
+    q.addQueryItem("tags", tags);
     url.setQuery(q);
 
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::UserAgentHeader, "TagComposer/1.0");
 
     auto* reply = m_nam->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+    m_pageReply = reply;
+    connect(reply, &QNetworkReply::finished, this, [this, reply, gen]() {
         reply->deleteLater();
+        if (m_pageReply == reply) m_pageReply = nullptr;
+        if (gen != m_fetchGen) return; // cancelFetch already finalized this run
 
         if (reply->error() != QNetworkReply::NoError) {
             setStatus(QString("Network error: %1").arg(reply->errorString()));
@@ -577,16 +632,18 @@ void TagClusterPage::fetchNextPage()
         if (!posts.isEmpty()) {
             processPage(posts);
             m_currentPage++;
+            setStatus(QString("Fetching... %1 posts, %2 tags so far.")
+                          .arg(m_charPostCount)
+                          .arg(m_charCounter.size()));
         }
 
-        const int total = (m_phase == Phase::GlobalFetch) ? m_globalPages : m_charPages;
-        setProgress(qMin(m_currentPage, total), total);
+        setProgress(qMin(m_currentPage, m_charPages), m_charPages);
 
-        const bool exhausted = posts.isEmpty() || m_currentPage >= total;
+        const bool exhausted = posts.isEmpty() || m_currentPage >= m_charPages;
         if (exhausted)
             onPhaseDone();
         else
-            QTimer::singleShot(500, this, &TagClusterPage::fetchNextPage);
+            QTimer::singleShot(500, this, [this, gen]() { fetchNextPage(gen); });
     });
 }
 
@@ -594,63 +651,46 @@ void TagClusterPage::processPage(const QJsonArray& posts)
 {
     for (const QJsonValue& v : posts) {
         const QJsonObject post = v.toObject();
-        if (m_phase == Phase::GlobalFetch) {
-            const QStringList tags =
-                post["tag_string_general"].toString().split(' ', Qt::SkipEmptyParts);
-            for (const QString& t : tags)
-                m_globalCounter[t]++;
-            m_globalTotal += tags.size();
-        }
-        else {
-            // Skin/alt-form posts list the base + every variant as separate
-            // character tags - dropping them keeps the cluster on-model.
-            if (m_fetchedSingleChar) {
-                const QStringList chars =
-                    post["tag_string_character"].toString().split(' ', Qt::SkipEmptyParts);
-                if (chars.size() != 1) continue;
-            }
+        m_fetchedPostCount++;
 
-            const QStringList gen =
-                post["tag_string_general"].toString().split(' ', Qt::SkipEmptyParts);
-            for (const QString& t : gen)
-                m_charCounter[t]++;
-            m_charTotal += gen.size();
-
-            const QStringList cop =
-                post["tag_string_copyright"].toString().split(' ', Qt::SkipEmptyParts);
-            for (const QString& c : cop)
-                m_copyrightCounter[c]++;
+        // Skin/alt-form posts list the base + every variant as separate
+        // character tags - dropping them keeps the cluster on-model.
+        if (m_fetchedSingleChar) {
+            const QStringList chars =
+                post["tag_string_character"].toString().split(' ', Qt::SkipEmptyParts);
+            if (chars.size() != 1) continue;
         }
+
+        const QStringList gen =
+            post["tag_string_general"].toString().split(' ', Qt::SkipEmptyParts);
+        for (const QString& t : gen)
+            m_charCounter[t]++; // one increment per post -> document frequency
+        m_charPostCount++;
+
+        const QStringList cop =
+            post["tag_string_copyright"].toString().split(' ', Qt::SkipEmptyParts);
+        for (const QString& c : cop)
+            m_copyrightCounter[c]++;
     }
 }
 
 void TagClusterPage::onPhaseDone()
 {
-    if (m_phase == Phase::GlobalFetch) {
-        saveGlobalCache();
-        m_currentPage = 0;
-        m_phase = Phase::CharFetch;
-        setStatus(QString("Global stats built (%1 tags). Fetching character posts...")
-                      .arg(m_globalCounter.size()));
-        QTimer::singleShot(500, this, &TagClusterPage::fetchNextPage);
-    }
-    else {
-        m_phase = Phase::Idle;
-        setFetchRunning(false);
-        m_charDataReady = true;
+    m_phase = Phase::Idle;
+    setFetchRunning(false);
+    m_charDataReady = true;
 
-        // Most common copyright (computed once per fetch - not part of the
-        // recompute hot path).
-        m_copyright = "No Copyright";
-        int maxCop = 0;
-        for (auto it = m_copyrightCounter.constBegin(); it != m_copyrightCounter.constEnd(); ++it)
-            if (it.value() > maxCop) {
-                maxCop = it.value();
-                m_copyright = it.key();
-            }
+    // Most common copyright (computed once per fetch - not part of the
+    // recompute hot path).
+    m_copyright = "No Copyright";
+    int maxCop = 0;
+    for (auto it = m_copyrightCounter.constBegin(); it != m_copyrightCounter.constEnd(); ++it)
+        if (it.value() > maxCop) {
+            maxCop = it.value();
+            m_copyright = it.key();
+        }
 
-        recompute();
-    }
+    recompute();
 }
 
 // ---- Recompute (runs on every threshold/filter change)
@@ -659,10 +699,36 @@ void TagClusterPage::recompute()
 {
     if (!m_charDataReady) return;
 
+    // PMI needs the danbooru index for the marginal P(tag); if it isn't loaded
+    // (or the fetch matched no posts) there's nothing to score.
+    auto bail = [this](const QString& status, const QString& empty) {
+        clearResultRows();
+        setStatus(status);
+        m_copyEdit->clear();
+        m_copyBtn->setEnabled(false);
+        m_createEntryBtn->setEnabled(false);
+        if (m_emptyStateLbl) m_emptyStateLbl->setText(empty);
+        setResultsEmpty(true);
+    };
+    if (!m_danbooru) {
+        bail("danbooru.csv index not loaded - can't compute PMI.", "danbooru.csv not loaded.");
+        return;
+    }
+    if (m_charPostCount <= 0) {
+        bail(QString("No usable posts (%1 fetched). Check the tag name, or turn off "
+                     "+solo / 'single character tag only'.")
+                 .arg(m_fetchedPostCount),
+             "No usable posts - check the tag name and re-fetch.");
+        return;
+    }
+
     const core::ClusterFilter filter = buildFilterFromEditor();
 
     const double minPmi = m_minPmiSlider->value() / 100.0;
-    const int minCnt = m_minCountSpin->value();
+    // "Min %" (tenths of a percent) -> an absolute occurrence floor for this
+    // fetch's post total. 0 means no floor (every tag in m_charCounter has
+    // count >= 1, so a minCnt of 0 keeps them all).
+    const int minCnt = qRound(m_minPctSlider->value() / 1000.0 * m_charPostCount);
 
     // Each candidate tag carries its own PMI (the value displayed in the
     // results) and a sort weight (PMI scaled by sqrt(freq) so common-and-
@@ -680,25 +746,26 @@ void TagClusterPage::recompute()
 
         if (count < minCnt) continue;
 
-        // FacetIndex keys on space form, but Danbooru tags use underscores.
-        // Tags without a facet hit ClusterFilter::keep (kept in blacklist
-        // mode, dropped in whitelist).
+        // FacetIndex and DanbooruIndex both key on the space form; Danbooru
+        // wire tags use underscores. A tag with no facet still reaches
+        // ClusterFilter::keep (kept in blacklist mode, dropped in whitelist).
         const QString lookupTag = utils::normalizeTagInput(tag);
         const QList<QString> facets = m_facets ? m_facets->facetsFor(lookupTag) : QList<QString>{};
         if (!filter.keep(facets)) continue;
 
-        const int gCount = m_globalCounter.value(tag, 0);
-        if (gCount < 50) continue; // global rarity floor - keeps PMI stable
+        // Marginal P(tag) from the bundled danbooru index. Tags below the
+        // floor - or absent (tagCount == -1) - are dropped: keeps log() stable
+        // and strips typo/single-use tags from the top of the list.
+        const int64_t gCount = m_danbooru->tagCount(lookupTag);
+        if (gCount < kGlobalCountFloor) continue;
 
-        // Pure MLE PMI - the gCount floor above is what protects the log()
-        // from blowing up on rare/zero-count tags.
-        const double p_tc = double(count) / double(m_charTotal);
-        const double p_t = double(gCount) / double(m_globalTotal);
+        // Document-level PMI: P(tag | this character's posts) vs. P(tag) corpus-wide.
+        const double p_tc = double(count) / double(m_charPostCount);
+        const double p_t = double(gCount) / kDanbooruTotalPosts;
         const double pmi = std::log(p_tc / p_t);
         if (pmi < minPmi) continue;
 
-        const double freq = double(count) / double(m_charTotal);
-        scored.append({tag, pmi, pmi * std::sqrt(freq)});
+        scored.append({tag, pmi, pmi * std::sqrt(p_tc)});
     }
 
     // Sort by raw PMI so the on-screen order matches the displayed score
@@ -720,7 +787,13 @@ void TagClusterPage::recompute()
         m_resultsLayout->insertWidget(i, row);
     }
 
-    setStatus(QString("Showing %1 tags (re-tweak any threshold to refine).").arg(scored.size()));
+    QString postsPart = QString("%1 posts").arg(m_charPostCount);
+    if (const int skipped = m_fetchedPostCount - m_charPostCount; skipped > 0)
+        postsPart += QString(" (%1 multi-character skipped)").arg(skipped);
+    setStatus(QString("%1, %2 tags. Showing %3 (tweak any threshold to refine).")
+                  .arg(postsPart)
+                  .arg(m_charCounter.size())
+                  .arg(scored.size()));
     m_copyBtn->setEnabled(!scored.isEmpty());
     m_createEntryBtn->setEnabled(!scored.isEmpty());
     if (scored.isEmpty() && m_emptyStateLbl)
@@ -849,6 +922,14 @@ void TagClusterPage::setQuickFacets(const QString& character, const QString& cop
     m_quickStyleFacet = style;
 }
 
+void TagClusterPage::setDanbooruIndex(core::DanbooruIndex* index)
+{
+    m_danbooru = index;
+    // A fetch that finished before the index loaded leaves the panel empty;
+    // recompute now that the PMI baseline is available (no-op if no fetch yet).
+    scheduleRecompute();
+}
+
 void TagClusterPage::rebuildCopyString()
 {
     QStringList parts;
@@ -922,44 +1003,6 @@ void TagClusterPage::saveFilters()
     f.saveToFile(path);
     m_filterStatusLbl->setText(
         QString("Saved %1 rule(s), %2 negation(s).").arg(f.rules.size()).arg(f.negations.size()));
-}
-
-// ---- Global cache
-
-QString TagClusterPage::cachePath() const
-{
-    return BASE_PATH + "/" + BOORU_CACHE_PATH;
-}
-
-bool TagClusterPage::hasCachedGlobal() const
-{
-    return QFile::exists(cachePath());
-}
-
-void TagClusterPage::loadGlobalCache()
-{
-    QFile f(cachePath());
-    if (!f.open(QIODevice::ReadOnly)) return;
-    const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
-    m_globalTotal = root["total"].toInteger();
-    m_globalCounter.clear();
-    const QJsonObject tags = root["tags"].toObject();
-    for (auto it = tags.constBegin(); it != tags.constEnd(); ++it)
-        m_globalCounter[it.key()] = it.value().toInt();
-}
-
-void TagClusterPage::saveGlobalCache()
-{
-    QDir().mkpath(BASE_PATH + "/data/system");
-    QFile f(cachePath());
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
-    QJsonObject tags;
-    for (auto it = m_globalCounter.constBegin(); it != m_globalCounter.constEnd(); ++it)
-        tags[it.key()] = it.value();
-    QJsonObject root;
-    root["total"] = m_globalTotal;
-    root["tags"] = tags;
-    f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
 }
 
 // ---- Preview chain (mirrors FacetEditorPage::fetchPreview)
@@ -1178,11 +1221,11 @@ void TagClusterPage::setProgress(int cur, int total)
 void TagClusterPage::setFetchRunning(bool on)
 {
     m_fetchBtn->setEnabled(!on);
+    m_cancelBtn->setEnabled(on);
     m_tagInput->setEnabled(!on);
     m_soloCheck->setEnabled(!on);
     m_singleCharCheck->setEnabled(!on);
     m_charPagesSpin->setEnabled(!on);
-    m_globalPagesSpin->setEnabled(!on);
     m_progressBar->setVisible(on);
     if (!on) m_progressBar->setVisible(false);
 }

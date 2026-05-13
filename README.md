@@ -306,7 +306,6 @@ data/
     ├── danbooru.csv              danbooru tag list (search-bar autocomplete)
     ├── danmaku.txt               lines for the optional danmaku overlay
     ├── facets.fct                @category schema: facet names grouped into categories
-    ├── global_tag_cache.json     cached wiki / category data from the danbooru API
     ├── groups.fct                @category blocks defining tag groups (composer category nav)
     ├── latent_sizes.txt          preset list for the LatentSize variable type
     ├── rules.fct                 rule engine: match expressions + actions

@@ -113,4 +113,12 @@ int DanbooruIndex::tagCategory(const QString& tag) const
     return -1;
 }
 
+int64_t DanbooruIndex::tagCount(const QString& tag) const
+{
+    auto it = std::lower_bound(m_byName.cbegin(), m_byName.cend(), tag,
+                               [&](int idx, const QString& key) { return m_tags[idx].name < key; });
+    if (it != m_byName.cend() && m_tags[*it].name == tag) return m_tags[*it].count;
+    return -1;
+}
+
 } // namespace core
