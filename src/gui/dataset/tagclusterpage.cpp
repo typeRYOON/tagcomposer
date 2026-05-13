@@ -1,5 +1,6 @@
 #include <gui/dataset/tagclusterpage.h>
 #include <gui/widgets/appscrollbar.h>
+#include <gui/widgets/tagsearchbar.h>
 #include <core/facetindex.h>
 #include <core/danbooruindex.h>
 #include <core/soundplayer.h>
@@ -79,11 +80,12 @@ static QString titleCase(const QString& s)
     return out;
 }
 
-// ---- Layout dimensions kept here so tweaks live in one place
-constexpr int kPanelWidth = 280;
-constexpr int kPreviewPanelWidth = 320;
-constexpr int kPreviewMaxW = 296; // panel width minus 12*2 margins
-constexpr int kPreviewMaxH = 420;
+// ---- Layout dimensions kept here so tweaks live in one place. Panel widths
+// match the Auto-collect tab's left / right columns so the dataset tabs align.
+constexpr int kPanelWidth = 380;
+constexpr int kPreviewPanelWidth = 420;
+constexpr int kPreviewMaxW = kPreviewPanelWidth - 24; // minus 12*2 body margins
+constexpr int kPreviewMaxH = 560;
 
 // PMI slider stores integer hundredths so it can drive the live recompute
 // without the awkward QDoubleSpinBox keyboard increments.
@@ -925,6 +927,10 @@ void TagClusterPage::setQuickFacets(const QString& character, const QString& cop
 void TagClusterPage::setDanbooruIndex(core::DanbooruIndex* index)
 {
     m_danbooru = index;
+    // The index loads async, so the autocomplete on the tag field is wired up
+    // here once it's actually available (it never changes afterwards).
+    if (index && !m_tagAutocomplete)
+        m_tagAutocomplete = new TagLineAutocomplete(m_tagInput, index, this);
     // A fetch that finished before the index loaded leaves the panel empty;
     // recompute now that the PMI baseline is available (no-op if no fetch yet).
     scheduleRecompute();

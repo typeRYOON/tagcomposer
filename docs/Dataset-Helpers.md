@@ -39,7 +39,7 @@ Mines a Danbooru-style booru for tag co-occurrence. Given a seed tag (typically 
 
 ### Left panel - parameters
 
-- **Tag input** - the seed tag (Danbooru-style: underscores; backslash-escaped parens from a composer prompt are accepted too).
+- **Tag input** - the seed tag. Autocompletes against the local danbooru index (same popup as the rest of the app's tag fields) - pick a suggestion, then hit Fetch. Underscores or spaces both work, and backslash-escaped parens pasted from a composer prompt are accepted too.
 - **`+solo`** - if checked, the character query is restricted to `solo` posts (cleaner co-occurrence). Characters with few solo posts return less data, so leave it off if results are sparse.
 - **`single character tag only`** - drops fetched posts that list more than one character tag, keeping alt-form / skin variants from muddying the cluster.
 - **`Char pages`** - how many pages of the seed's posts to fetch (200 posts per page). More pages = stronger PMI signal, slower fetch.

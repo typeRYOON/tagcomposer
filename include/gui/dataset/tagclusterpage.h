@@ -28,6 +28,8 @@ class DanbooruIndex;
 
 namespace gui {
 
+class TagLineAutocomplete;
+
 class TagClusterPage : public QWidget {
     Q_OBJECT
 public:
@@ -61,6 +63,7 @@ private:
 
     // ---- Params (left panel)
     QLineEdit* m_tagInput;
+    TagLineAutocomplete* m_tagAutocomplete = nullptr; // attached once the index loads
     QCheckBox* m_soloCheck;
     QCheckBox* m_singleCharCheck;
     QSpinBox* m_charPagesSpin;
