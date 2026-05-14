@@ -154,7 +154,8 @@ void PreviewPopoutWindow::resizeEvent(QResizeEvent* e)
     constexpr int margin = 12;
 
     // Movable bounds: the body area inside the cosmetic frame, below the
-    // titlebar, with a small margin so the label can't kiss the edges.
+    // titlebar, above the status bar, with a small margin so the label can't
+    // kiss the edges or sit on top of status text.
     QRect bounds(kResizeBorder + margin, kResizeBorder + margin,
                  width() - 2 * (kResizeBorder + margin),
                  height() - 2 * (kResizeBorder + margin));
@@ -162,6 +163,11 @@ void PreviewPopoutWindow::resizeEvent(QResizeEvent* e)
         const QPoint tbBR = m_chrome->titleBar()->mapTo(
             this, QPoint(0, m_chrome->titleBar()->height()));
         if (tbBR.y() + margin > bounds.top()) bounds.setTop(tbBR.y() + margin);
+    }
+    if (m_statusBar && m_statusBar->isVisible()) {
+        const int statusBarTop = m_statusBar->mapTo(this, QPoint(0, 0)).y();
+        if (statusBarTop - margin < bounds.bottom())
+            bounds.setBottom(statusBarTop - margin);
     }
     m_tempLabel->setMovableBounds(bounds);
 

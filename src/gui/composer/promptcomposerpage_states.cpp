@@ -2,25 +2,19 @@
 // explicit named snapshots with optional preview thumbnails.
 
 #include <gui/composer/promptcomposerpage.h>
-#include <gui/composer/stateslistwidget.h>
+#include <gui/composer/statesgridview.h>
 #include <core/entrymodel.h>
 #include <utils/appconfig.h>
-#include <QColor>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
-#include <QFont>
-#include <QGuiApplication>
-#include <QIcon>
 #include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QJsonValue>
 #include <QLabel>
 #include <QLineEdit>
-#include <QListWidget>
-#include <QListWidgetItem>
-#include <QPixmap>
-#include <QScreen>
+#include <QSet>
 
 using namespace core;
 using namespace utils;
@@ -32,50 +26,26 @@ void PromptComposerPage::setStatesDir(const QString& dir)
     m_statesDir = dir;
     QDir().mkpath(dir);
     m_stateManager = core::StateManager::loadFromDir(dir);
+    // Re-point the grid at the (potentially) re-initialized states list.
+    if (m_statesGrid) m_statesGrid->setStates(&m_stateManager.states());
     rebuildStatesList();
 }
 
 void PromptComposerPage::rebuildStatesList()
 {
-    if (!m_statesList) return;
-    m_statesList->clear();
-
-    const auto& states = m_stateManager.states();
-    if (states.isEmpty()) {
-        auto* item = new QListWidgetItem("No saved states");
-        item->setFlags(Qt::NoItemFlags);
-        QFont f = item->font();
-        f.setItalic(true);
-        item->setFont(f);
-        item->setForeground(QColor("#2a2a2a"));
-        m_statesList->addItem(item);
-        return;
-    }
-
-    // Inline thumbnail; dark placeholder for states without a preview so rows
-    // stay uniform height. iconSize set on the list widget; we scale to fit.
-    const QSize iconSz = m_statesList->iconSize();
-    QPixmap placeholder(iconSz);
-    placeholder.fill(QColor("#1a1a1a"));
+    if (!m_statesGrid) return;
 
     const QString filter = m_statesFilter ? m_statesFilter->text().trimmed() : QString();
-    for (int i = 0; i < states.size(); ++i) {
-        const auto& state = states[i];
-        if (!filter.isEmpty() && !state.name.contains(filter, Qt::CaseInsensitive)) continue;
+    m_statesGrid->setStates(&m_stateManager.states());
+    m_statesGrid->setFilter(filter);
 
-        auto* item = new QListWidgetItem(state.name);
-        // UserRole = model index; the visual row may differ when filtered.
-        item->setData(Qt::UserRole, i);
-
-        QPixmap thumb;
-        if (!state.previewImagePath.isEmpty() && QFile::exists(state.previewImagePath))
-            thumb.load(state.previewImagePath);
-        if (thumb.isNull())
-            item->setIcon(QIcon(placeholder));
-        else
-            item->setIcon(QIcon(thumb.scaled(iconSz, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
-
-        m_statesList->addItem(item);
+    if (m_statesEmptyHint) {
+        const bool empty = m_statesGrid->isEmpty();
+        m_statesEmptyHint->setText(m_stateManager.states().isEmpty()
+                                       ? "No saved states"
+                                       : "No states match filter");
+        m_statesEmptyHint->setVisible(empty);
+        m_statesGrid->setVisible(!empty);
     }
 }
 
@@ -93,10 +63,14 @@ void PromptComposerPage::captureCurrentState(core::SavedState& state) const
 
     state.ruleStates.clear();
     state.ruleArguments.clear();
+    state.rulesSnapshot = QJsonArray();
     for (const auto& rule : m_rules->rules()) {
         state.ruleStates[rule.name] = rule.enabled;
         // Add/Replace args are user-typed; part of state.
         state.ruleArguments[rule.name] = rule.action.arguments;
+        // Full definition so restoring on a machine missing this rule can
+        // recreate it locally.
+        state.rulesSnapshot.append(core::RuleEngine::ruleToJson(rule));
     }
 
     state.varValues.clear();
@@ -232,6 +206,24 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     m_activeLoraUuids = state.activeLoraUuids;
     emit loraUuidsRestored(m_activeLoraUuids);
 
+    // Bring back any rules the state knows about but the local rules.fct
+    // doesn't (match by name). Existing-named rules are left untouched - the
+    // local definition wins.
+    int rulesAdded = 0;
+    {
+        QSet<QString> existing;
+        for (const auto& r : m_rules->rules())
+            existing.insert(r.name);
+        for (const QJsonValue& v : state.rulesSnapshot) {
+            const core::Rule restored = core::RuleEngine::ruleFromJson(v.toObject());
+            if (restored.name.isEmpty()) continue;
+            if (existing.contains(restored.name)) continue;
+            m_rules->rules().append(restored);
+            existing.insert(restored.name);
+            ++rulesAdded;
+        }
+    }
+
     // Restore enabled flags + Add/Replace args. Rules added after the
     // snapshot are force-disabled so reload-from-disk matches the view.
     // Match expressions and force flags are untouched.
@@ -323,6 +315,10 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     if (missing > 0)
         warnings
             << QString("%1 entr%2 no longer exist").arg(missing).arg(missing == 1 ? "y" : "ies");
+    if (rulesAdded > 0)
+        warnings << QString("appended %1 rule%2 from state")
+                        .arg(rulesAdded)
+                        .arg(rulesAdded == 1 ? "" : "s");
 
     // Undo/redo are silent and manage stacks externally.
     if (m_suppressUndoCapture) return;
@@ -334,58 +330,6 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
             QString("Restored: %1  (%2)").arg(state.name, warnings.join(", ")));
 
     rebaselineUndo();
-}
-
-void PromptComposerPage::showStatePreview(int listRow)
-{
-    QListWidgetItem* item = m_statesList ? m_statesList->item(listRow) : nullptr;
-    if (!item) {
-        hideStatePreview();
-        return;
-    }
-    const QVariant v = item->data(Qt::UserRole);
-    if (!v.isValid()) {
-        hideStatePreview();
-        return;
-    }
-    const int row = v.toInt();
-    if (row < 0 || row >= m_stateManager.states().size()) {
-        hideStatePreview();
-        return;
-    }
-    const core::SavedState& state = m_stateManager.states()[row];
-    if (state.previewImagePath.isEmpty() || !QFile::exists(state.previewImagePath)) {
-        hideStatePreview();
-        return;
-    }
-    QPixmap pix(state.previewImagePath);
-    if (pix.isNull()) {
-        hideStatePreview();
-        return;
-    }
-
-    pix = pix.scaled(420, 420, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    m_statesPreviewPopup->setPixmap(pix);
-    m_statesPreviewPopup->adjustSize();
-
-    const QRect itemRect = m_statesList->visualRect(m_statesList->model()->index(listRow, 0));
-    const QPoint globalTopLeft = m_statesList->viewport()->mapToGlobal(itemRect.topLeft());
-    int x = globalTopLeft.x() - m_statesPreviewPopup->width() - 8;
-    int y = globalTopLeft.y();
-
-    if (QScreen* scr = QGuiApplication::screenAt(globalTopLeft)) {
-        const QRect sg = scr->availableGeometry();
-        y = qBound(sg.top(), y, sg.bottom() - m_statesPreviewPopup->height());
-    }
-
-    m_statesPreviewPopup->move(x, y);
-    m_statesPreviewPopup->show();
-    m_statesPreviewPopup->raise();
-}
-
-void PromptComposerPage::hideStatePreview()
-{
-    if (m_statesPreviewPopup) m_statesPreviewPopup->hide();
 }
 
 } // namespace gui

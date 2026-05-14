@@ -8,13 +8,6 @@
     background: #1a1a1a;
 }
 
-/* Top-level Tool window - WA_StyledBackground is set so this bg paints. */
-#StatesPreviewPopup {
-    background: #0d0d0d;
-    border: 1px solid #2a2a2a;
-    padding: 4px;
-}
-
 #ComposerScroll, #ComposerGroupsContainer {
     background: transparent;
 }
@@ -160,7 +153,8 @@
     border-left: 1px solid #1a1a1a;
 }
 
-#ComposerVarsContainer {
+#ComposerVarsScroll, #ComposerVarsContainer {
+    background: transparent;
     border-left: 1px solid #1a1a1a;
 }
 

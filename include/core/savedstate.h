@@ -31,6 +31,10 @@ struct SavedState {
     QList<EntryPush> activePushes;               // uuid+imageIdx -> tags
     QMap<QString, bool> ruleStates;              // rule -> enabled
     QMap<QString, QList<QString>> ruleArguments; // rule -> Add/Replace args
+    // Full rule definitions at capture time. On restore, any rule here whose
+    // name is missing from the local rules.fct is appended (existing-named
+    // rules are never overwritten - the local definition wins).
+    QJsonArray rulesSnapshot;
     // QList (not QMap) so user-defined variable order survives save/restore.
     QList<QPair<QString, QString>> varValues;
     QString selectedWorkflowId; // WorkflowFile::id

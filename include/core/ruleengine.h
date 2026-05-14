@@ -2,6 +2,8 @@
 #include <QString>
 #include <QList>
 
+class QJsonObject;
+
 namespace core {
 
 class FacetIndex;
@@ -90,6 +92,11 @@ public:
 
     // Rules run in order; only Include tags are eligible per rule.
     QList<PipelineTag> evaluate(const QList<PipelineTag>& input, const FacetIndex& facets) const;
+
+    // Lossless Rule <-> JSON conversion for saved-state snapshots. Used so
+    // state files can restore rules the local rules.fct no longer carries.
+    static QJsonObject ruleToJson(const Rule& rule);
+    static Rule ruleFromJson(const QJsonObject& obj);
 
 private:
     QList<Rule> m_rules;

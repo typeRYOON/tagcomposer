@@ -63,28 +63,12 @@
     color: #4a4a4a;
 }
 
-#StatesList {
-    background: #0f0f0f;
+/* Transparent so the danmaku overlay (behind the page stack) shows through
+   the gaps between tiles. */
+#StatesGrid {
+    background: transparent;
     border: none;
-    border-left: 1px solid #1a1a1a;
     outline: none;
-    font-size: 13px;
-    color: #4a4a4a;
-}
-
-#StatesList::item {
-    padding: 3px 12px;
-    border: none;
-}
-
-#StatesList::item:hover {
-    background: #141414;
-    color: #888888;
-}
-
-#StatesList::item:selected {
-    background: #141414;
-    color: #aaaaaa;
 }
 
 #WfList::item {

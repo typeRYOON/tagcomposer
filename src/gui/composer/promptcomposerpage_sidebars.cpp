@@ -441,6 +441,7 @@ void PromptComposerPage::rebuildVarsSidebar()
     arl->addWidget(addName);
     arl->addWidget(addValue, 1);
     m_varsLayout->addWidget(addRow);
+    m_varsLayout->addStretch();
 }
 
 } // namespace gui

@@ -72,6 +72,8 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
         s.ruleArguments[it.key()] = args;
     }
 
+    s.rulesSnapshot = obj["rulesSnapshot"].toArray();
+
     // Array form preserves user order; object form is legacy and reorders once.
     {
         const QJsonValue vv = obj["varValues"];
@@ -157,6 +159,7 @@ QJsonObject SavedState::toJson() const
         ruleArgsObj[it.key()] = arr;
     }
     obj["ruleArguments"] = ruleArgsObj;
+    obj["rulesSnapshot"] = rulesSnapshot;
 
     QJsonArray varsArr;
     for (const auto& v : varValues) {

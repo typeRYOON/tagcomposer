@@ -9,6 +9,7 @@
 #include <core/workflowmanager.h>
 #include <core/workflowinputcache.h>
 #include <gui/widgets/tagsearchbar.h>
+#include <QColor>
 #include <QWidget>
 #include <QSet>
 #include <QMap>
@@ -38,7 +39,7 @@ namespace gui {
 
 class ComposerScrollArea;
 class PreviewClickLabel;
-class StatesListWidget;
+class StatesGridView;
 class WorkflowDropList;
 
 class PromptComposerPage : public QWidget {
@@ -58,6 +59,11 @@ public:
     }
     void setQuickFacets(const QString& characterFacet, const QString& copyrightFacet,
                         const QString& triggerWordFacet, const QString& styleFacet);
+
+    // Tile rendering settings (shared with the entry tile view). Startup-only:
+    // applied before the states grid is rendered the first time.
+    void setTileGradient(qreal start, int alpha);
+    void setTileTitleColor(const QColor& color);
 
     QString currentPromptString(bool forJson) const;
     // Active tags plus rule-injected names from the last run, so the facet
@@ -161,8 +167,6 @@ private:
     // previewImagePath alone - caller owns those.
     void captureCurrentState(core::SavedState& state) const;
     void restoreState(const core::SavedState& state);
-    void showStatePreview(int row);
-    void hideStatePreview();
 
     QWidget* makeTagRow(const core::PipelineTag& pt);
 
@@ -272,15 +276,33 @@ private:
     QString m_outputFolderPattern;
     QString m_tempFolder;
 
-    // UI - workflow/states sidebar
+    // UI - workflow sidebar
     WorkflowDropList* m_wfList = nullptr;
-    StatesListWidget* m_statesList = nullptr;
+    StatesGridView* m_statesGrid = nullptr;
     QLineEdit* m_wfFilter = nullptr;
     QLineEdit* m_statesFilter = nullptr;
-    QStackedWidget* m_wfStateStack = nullptr;
     QPushButton* m_wfEditBtnRef = nullptr;
     QPushButton* m_saveStateBtn = nullptr;
-    QLabel* m_statesPreviewPopup = nullptr;
+    QPushButton* m_statesToggleBtn = nullptr;
+
+    // States grid view shown in the center area when m_statesToggleBtn is on.
+    QWidget* m_statesView = nullptr;
+    QLabel* m_statesEmptyHint = nullptr;
+    bool m_statesViewActive = false;
+    // Hidden together when the states grid view is active.
+    QList<QWidget*> m_composerFloats;
+    void setStatesViewActive(bool active);
+    // Forcibly drop states-view UI state without animation. Called when a
+    // pipeline rebuild (rule/var/entry-toggle/etc.) swaps the stack back to
+    // the composer view; otherwise the toggle button would stay checked
+    // even though the composer view is now visible.
+    void leaveStatesViewMode();
+
+    // Tile rendering + async cache live on StatesGridView; the page just
+    // forwards settings via setTileGradient/setTileTitleColor.
+    // Used by the toggle to return to the right composer view (empty hint vs
+    // groups). Returns 1 when there are tags to show, 0 otherwise.
+    int composerStackIndex() const;
 
     // State management
     core::StateManager m_stateManager;
@@ -289,10 +311,15 @@ private:
     // Next rebuildGroupsDisplay fades through 0 instead of swapping in place.
     bool m_freezeNextRebuild = false;
 
-    // Effect on m_mainStack (not contentWidget) so the search bar stays
-    // interactive while the tag list fades.
-    QGraphicsOpacityEffect* m_mainStackFx = nullptr;
+    // Per-child opacity effects on m_mainStack's children. A single effect on
+    // the QStackedWidget itself caches the source pixmap across current-child
+    // swaps and goes stale; one effect per child sidesteps that.
+    QGraphicsOpacityEffect* m_emptyHintFx = nullptr;
+    QGraphicsOpacityEffect* m_groupsFx = nullptr;
+    QGraphicsOpacityEffect* m_statesViewFx = nullptr;
+    // Single reusable animation retargeted at each transition's child effect.
     QPropertyAnimation* m_mainStackFade = nullptr;
+    QGraphicsOpacityEffect* stackChildFx(int index) const;
 
     // Cached so a freshly-opened popout can sync to the in-flight job state.
     int m_lastComfyStep = 0;

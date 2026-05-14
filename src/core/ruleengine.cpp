@@ -1,6 +1,8 @@
 #include <core/ruleengine.h>
 #include <core/facetindex.h>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QSet>
 #include <QTextStream>
 #include <QRegularExpression>
@@ -316,6 +318,131 @@ QList<Rule>& RuleEngine::rules()
 const QList<Rule>& RuleEngine::rules() const
 {
     return m_rules;
+}
+
+// ---- JSON conversion (for saved-state snapshots)
+
+namespace {
+
+QString matchTypeToStr(MatchType t)
+{
+    switch (t) {
+    case MatchType::AnyTagFacets:
+        return "facets";
+    case MatchType::AnyTagName:
+        return "name";
+    }
+    return "facets";
+}
+
+MatchType matchTypeFromStr(const QString& s)
+{
+    return s == "name" ? MatchType::AnyTagName : MatchType::AnyTagFacets;
+}
+
+QString actionTypeToStr(ActionType t)
+{
+    switch (t) {
+    case ActionType::Skip:
+        return "skip";
+    case ActionType::Add:
+        return "add";
+    case ActionType::Replace:
+        return "replace";
+    case ActionType::Flag:
+        return "flag";
+    case ActionType::Delete:
+        return "delete";
+    }
+    return "skip";
+}
+
+ActionType actionTypeFromStr(const QString& s)
+{
+    if (s == "add") return ActionType::Add;
+    if (s == "replace") return ActionType::Replace;
+    if (s == "flag") return ActionType::Flag;
+    if (s == "delete") return ActionType::Delete;
+    return ActionType::Skip;
+}
+
+} // namespace
+
+QJsonObject RuleEngine::ruleToJson(const Rule& r)
+{
+    QJsonArray orArr;
+    for (const QList<MatchClause>& group : r.match.orGroups) {
+        QJsonArray andArr;
+        for (const MatchClause& c : group) {
+            QJsonObject co;
+            co["negate"] = c.negate;
+            co["type"] = matchTypeToStr(c.type);
+            if (c.type == MatchType::AnyTagFacets) {
+                QJsonArray facetsArr;
+                for (const QString& f : c.facets)
+                    facetsArr.append(f);
+                co["facets"] = facetsArr;
+            }
+            else {
+                co["nameGlob"] = c.nameGlob;
+            }
+            andArr.append(co);
+        }
+        orArr.append(andArr);
+    }
+
+    QJsonArray argsArr;
+    for (const QString& a : r.action.arguments)
+        argsArr.append(a);
+
+    QJsonObject matchObj;
+    matchObj["orGroups"] = orArr;
+
+    QJsonObject actionObj;
+    actionObj["type"] = actionTypeToStr(r.action.type);
+    actionObj["arguments"] = argsArr;
+
+    QJsonObject obj;
+    obj["name"] = r.name;
+    obj["enabled"] = r.enabled;
+    obj["force"] = r.force;
+    obj["match"] = matchObj;
+    obj["action"] = actionObj;
+    return obj;
+}
+
+Rule RuleEngine::ruleFromJson(const QJsonObject& obj)
+{
+    Rule r;
+    r.name = obj["name"].toString();
+    r.enabled = obj["enabled"].toBool();
+    r.force = obj["force"].toBool();
+
+    for (const QJsonValue& orVal : obj["match"].toObject()["orGroups"].toArray()) {
+        QList<MatchClause> group;
+        for (const QJsonValue& andVal : orVal.toArray()) {
+            const QJsonObject co = andVal.toObject();
+            MatchClause c;
+            c.negate = co["negate"].toBool();
+            c.type = matchTypeFromStr(co["type"].toString());
+            if (c.type == MatchType::AnyTagFacets) {
+                for (const QJsonValue& fv : co["facets"].toArray())
+                    c.facets << fv.toString();
+            }
+            else {
+                c.nameGlob = co["nameGlob"].toString();
+            }
+            group << c;
+        }
+        if (!group.isEmpty()) r.match.orGroups << group;
+    }
+
+    const QJsonObject actionObj = obj["action"].toObject();
+    r.action.type = actionTypeFromStr(actionObj["type"].toString());
+    for (const QJsonValue& av : actionObj["arguments"].toArray())
+        r.action.arguments << av.toString();
+
+    return r;
 }
 
 // ---- Matching

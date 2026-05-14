@@ -4,7 +4,7 @@
 #include <gui/composer/composerscrollarea.h>
 #include <gui/composer/previewclicklabel.h>
 #include <gui/composer/previewpopoutwindow.h>
-#include <gui/composer/stateslistwidget.h>
+#include <gui/composer/statesgridview.h>
 #include <gui/composer/workflowdroplist.h>
 #include <gui/widgets/composericons.h>
 #include <core/entrymodel.h>
@@ -28,6 +28,7 @@
 #include <QUrl>
 #include <QFileInfo>
 #include <QInputDialog>
+#include <QListView>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSplitter>
@@ -110,7 +111,8 @@ static QString resolveOutputPath(const QString& pattern)
     return result;
 }
 
-// Cap stored size: previews are shown at 220 px max (showStatePreview).
+// Cap stored size: tile thumbnails are downscaled from this. Generous so
+// future bigger tiles or higher-DPI displays still render crisply.
 static constexpr int STATE_PREVIEW_MAX_W = 1024;
 static constexpr int STATE_PREVIEW_MAX_H = 1280;
 
@@ -236,12 +238,17 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_mainStack->addWidget(emptyHint);    // 0
     m_mainStack->addWidget(groupsScroll); // 1
 
-    // Fade around big rebuilds (manual add via search, state restore).
-    // Replaces setUpdatesEnabled(false) which left widgets half-rendered.
-    m_mainStackFx = new QGraphicsOpacityEffect(m_mainStack);
-    m_mainStackFx->setOpacity(1.0);
-    m_mainStack->setGraphicsEffect(m_mainStackFx);
-    m_mainStackFade = new QPropertyAnimation(m_mainStackFx, "opacity", this);
+    // Per-child opacity effects (m_statesViewFx is attached when m_statesView
+    // is built further down). One reusable animation is retargeted at the
+    // active child's effect before each fade.
+    m_emptyHintFx = new QGraphicsOpacityEffect(emptyHint);
+    m_emptyHintFx->setOpacity(1.0);
+    emptyHint->setGraphicsEffect(m_emptyHintFx);
+    m_groupsFx = new QGraphicsOpacityEffect(groupsScroll);
+    m_groupsFx->setOpacity(1.0);
+    groupsScroll->setGraphicsEffect(m_groupsFx);
+    m_mainStackFade = new QPropertyAnimation(this);
+    m_mainStackFade->setPropertyName("opacity");
     m_mainStackFade->setDuration(180);
     m_mainStackFade->setEasingCurve(QEasingCurve::InOutSine);
 
@@ -319,10 +326,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_varsLayout = new QVBoxLayout(m_varsContainer);
     m_varsLayout->setContentsMargins(8, 6, 8, 8);
     m_varsLayout->setSpacing(6);
-
-    auto* varsSep = new QWidget;
-    varsSep->setObjectName("ComposerHairlineSep");
-    varsSep->setFixedHeight(1);
+    m_varsLayout->setAlignment(Qt::AlignTop);
 
     auto* varsHeaderRow = new QWidget;
     varsHeaderRow->setObjectName("ComposerHeaderRow");
@@ -366,17 +370,19 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     wfHRL->setContentsMargins(8, 6, 8, 4);
     wfHRL->setSpacing(2);
 
-    auto* wfTabBtn = new QPushButton("WF");
-    wfTabBtn->setObjectName("ComposerModeTab");
-    wfTabBtn->setCheckable(true);
-    wfTabBtn->setChecked(true);
-    wfTabBtn->setCursor(Qt::PointingHandCursor);
+    auto* wfHeaderLabel = new QLabel("WORKFLOWS");
+    wfHeaderLabel->setObjectName("ComposerHeaderLabel");
 
-    auto* statesTabBtn = new QPushButton("STATES");
-    statesTabBtn->setObjectName("ComposerModeTab");
-    statesTabBtn->setCheckable(true);
-    statesTabBtn->setChecked(false);
-    statesTabBtn->setCursor(Qt::PointingHandCursor);
+    // STATES is a view toggle: when on, the center area fades to the states
+    // tile grid; off restores the composer tag list.
+    m_statesToggleBtn = new QPushButton("STATES");
+    m_statesToggleBtn->setObjectName("ComposerModeTab");
+    m_statesToggleBtn->setCheckable(true);
+    m_statesToggleBtn->setChecked(false);
+    m_statesToggleBtn->setCursor(Qt::PointingHandCursor);
+    m_statesToggleBtn->setToolTip("Browse saved states");
+    connect(m_statesToggleBtn, &QPushButton::toggled, this,
+            [this](bool on) { setStatesViewActive(on); });
 
     m_wfEditBtnRef = new QPushButton;
     m_wfEditBtnRef->setObjectName("SidebarBtn");
@@ -395,12 +401,11 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_saveStateBtn->setIconSize(QSize(14, 14));
     m_saveStateBtn->setCursor(Qt::PointingHandCursor);
     m_saveStateBtn->setToolTip("Save current state");
-    m_saveStateBtn->setVisible(false);
     connect(m_saveStateBtn, &QPushButton::clicked, this, &PromptComposerPage::saveCurrentState);
 
-    wfHRL->addWidget(wfTabBtn);
-    wfHRL->addSpacing(4);
-    wfHRL->addWidget(statesTabBtn);
+    wfHRL->addWidget(wfHeaderLabel);
+    wfHRL->addSpacing(8);
+    wfHRL->addWidget(m_statesToggleBtn);
     wfHRL->addStretch(1);
     wfHRL->addWidget(m_wfEditBtnRef);
     wfHRL->addWidget(m_saveStateBtn);
@@ -518,59 +523,39 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
 
     rebuildWorkflowList();
 
-    // ---- States list
-    m_statesList = new StatesListWidget;
-    m_statesList->setObjectName("StatesList");
-    m_statesList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_statesList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
-    m_statesList->setIconSize(QSize(64, 64));
-    m_statesList->installEventFilter(this);
+    // ---- States grid (custom widget; smooth scroll, centered, async tiles)
+    m_statesGrid = new StatesGridView;
+    m_statesGrid->setObjectName("StatesGrid");
+    m_statesGrid->setStates(&m_stateManager.states());
 
-    // Visual row != model index when filtered; UserRole stores the model index.
-    auto modelIdxOf = [this](QListWidgetItem* item) -> int {
-        if (!item) return -1;
-        const QVariant v = item->data(Qt::UserRole);
-        if (!v.isValid()) return -1;
-        return v.toInt();
-    };
-
-    connect(m_statesList, &StatesListWidget::imageDroppedOnRow, this,
-            [this, modelIdxOf](int listRow, const QString& srcPath) {
-                const int row = modelIdxOf(m_statesList->item(listRow));
+    connect(m_statesGrid, &StatesGridView::tileImageDropped, this,
+            [this](int row, const QString& srcPath) {
                 if (row < 0 || row >= m_stateManager.states().size()) return;
                 core::SavedState& state = m_stateManager.states()[row];
                 const QString stateDir = m_statesDir + "/" + state.id;
                 QDir().mkpath(stateDir);
-                // Drop any existing preview regardless of extension.
                 if (!state.previewImagePath.isEmpty() && QFile::exists(state.previewImagePath))
                     QFile::remove(state.previewImagePath);
                 const QString dest = stateDir + "/preview.png";
                 if (!saveStatePreview(srcPath, dest)) return;
+                const QString id = state.id;
                 state.previewImagePath = dest;
                 state.createdAt = QDateTime::currentMSecsSinceEpoch();
                 if (row != 0) m_stateManager.states().move(row, 0);
                 m_stateManager.saveToDir(m_statesDir);
+                m_statesGrid->invalidateTile(id);
                 rebuildStatesList();
             });
 
-    connect(m_statesList, &QListWidget::itemClicked, this,
-            [this, modelIdxOf](QListWidgetItem* item) {
-                const int row = modelIdxOf(item);
-                if (row >= 0 && row < m_stateManager.states().size()) {
-                    m_freezeNextRebuild = true;
-                    restoreState(m_stateManager.states()[row]);
-                }
-            });
+    connect(m_statesGrid, &StatesGridView::tileClicked, this, [this](int row) {
+        if (row < 0 || row >= m_stateManager.states().size()) return;
+        m_freezeNextRebuild = true;
+        setStatesViewActive(false);
+        restoreState(m_stateManager.states()[row]);
+    });
 
-    connect(m_statesList, &QListWidget::itemEntered, this,
-            [this](QListWidgetItem* item) { showStatePreview(m_statesList->row(item)); });
-
-    m_statesList->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(m_statesList, &QListWidget::customContextMenuRequested, this,
-            [this, modelIdxOf](const QPoint& pos) {
-                QListWidgetItem* item = m_statesList->itemAt(pos);
-                if (!item) return;
-                const int row = modelIdxOf(item);
+    connect(m_statesGrid, &StatesGridView::tileContextMenuRequested, this,
+            [this](int row, QPoint globalPos) {
                 if (row < 0 || row >= m_stateManager.states().size()) return;
 
                 QMenu menu;
@@ -579,7 +564,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
                 QAction* overwriteAct = menu.addAction("Overwrite with current");
                 QAction* renameAct = menu.addAction("Rename");
                 QAction* deleteAct = menu.addAction("Delete");
-                QAction* chosen = menu.exec(m_statesList->mapToGlobal(pos));
+                QAction* chosen = menu.exec(globalPos);
 
                 if (chosen == openAct) {
                     const QString statePath =
@@ -595,40 +580,28 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
                         QInputDialog::getText(this, "Rename State", "Name:", QLineEdit::Normal,
                                               m_stateManager.states()[row].name, &ok);
                     if (!ok || name.trimmed().isEmpty()) return;
+                    const QString id = m_stateManager.states()[row].id;
                     m_stateManager.states()[row].name = name.trimmed();
                     m_stateManager.states()[row].createdAt =
                         QDateTime::currentMSecsSinceEpoch();
                     if (row != 0) m_stateManager.states().move(row, 0);
                     m_stateManager.saveToDir(m_statesDir);
+                    m_statesGrid->invalidateTile(id);
                     rebuildStatesList();
                 }
                 else if (chosen == deleteAct) {
-                    const QString stateDir = m_statesDir + "/" + m_stateManager.states()[row].id;
+                    const QString id = m_stateManager.states()[row].id;
+                    const QString stateDir = m_statesDir + "/" + id;
                     QDir(stateDir).removeRecursively();
                     m_stateManager.states().removeAt(row);
                     m_stateManager.saveToDir(m_statesDir);
-                    hideStatePreview();
+                    m_statesGrid->invalidateTile(id);
                     rebuildStatesList();
                 }
             });
 
-    // Tab toggle
-    connect(wfTabBtn, &QPushButton::clicked, this, [this, wfTabBtn, statesTabBtn]() {
-        wfTabBtn->setChecked(true);
-        statesTabBtn->setChecked(false);
-        m_wfStateStack->setCurrentIndex(0);
-        m_wfEditBtnRef->setVisible(true);
-        m_saveStateBtn->setVisible(false);
-        hideStatePreview();
-    });
-    connect(statesTabBtn, &QPushButton::clicked, this, [this, wfTabBtn, statesTabBtn]() {
-        statesTabBtn->setChecked(true);
-        wfTabBtn->setChecked(false);
-        m_wfStateStack->setCurrentIndex(1);
-        m_wfEditBtnRef->setVisible(false);
-        m_saveStateBtn->setVisible(true);
-    });
-
+    // Workflow filter + list live directly in the sidebar wf section now;
+    // the states list moved to the center area as a tile grid.
     auto* wfPage = new QWidget;
     auto* wfPageL = new QVBoxLayout(wfPage);
     wfPageL->setContentsMargins(0, 0, 0, 0);
@@ -639,37 +612,43 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_wfFilter->setClearButtonEnabled(true);
     wfPageL->addWidget(m_wfFilter);
     wfPageL->addWidget(m_wfList, 1);
+    wfPage->setMinimumHeight(80);
     connect(m_wfFilter, &QLineEdit::textChanged, this,
             [this](const QString&) { rebuildWorkflowList(); });
 
-    auto* statesPage = new QWidget;
-    auto* statesPageL = new QVBoxLayout(statesPage);
-    statesPageL->setContentsMargins(0, 0, 0, 0);
-    statesPageL->setSpacing(2);
+    // States grid view (center area); filter on top, custom grid widget below.
+    // Filter spans edge-to-edge like the composer's tag search bar; the grid
+    // owns its own scroll/centering/spacing/tile cache.
+    m_statesView = new QWidget;
+    m_statesViewFx = new QGraphicsOpacityEffect(m_statesView);
+    m_statesViewFx->setOpacity(1.0);
+    m_statesView->setGraphicsEffect(m_statesViewFx);
+    auto* statesViewL = new QVBoxLayout(m_statesView);
+    statesViewL->setContentsMargins(0, 0, 0, 0);
+    statesViewL->setSpacing(0);
     m_statesFilter = new QLineEdit;
-    m_statesFilter->setObjectName("ComposerVarEdit");
+    m_statesFilter->setObjectName("TagSearchInput");
     m_statesFilter->setPlaceholderText("Filter states...");
     m_statesFilter->setClearButtonEnabled(true);
-    statesPageL->addWidget(m_statesFilter);
-    statesPageL->addWidget(m_statesList, 1);
-    connect(m_statesFilter, &QLineEdit::textChanged, this,
-            [this](const QString&) { rebuildStatesList(); });
+    statesViewL->addWidget(m_statesFilter);
+    statesViewL->addWidget(m_statesGrid, 1);
+    // Empty-state hint takes the same slot as the grid when no states match.
+    m_statesEmptyHint = new QLabel("No saved states");
+    m_statesEmptyHint->setObjectName("ComposerEmptyHint");
+    m_statesEmptyHint->setAlignment(Qt::AlignCenter);
+    m_statesEmptyHint->hide();
+    statesViewL->addWidget(m_statesEmptyHint, 1);
+    // Debounce typing so we don't bake/fade tiles on every keystroke - matches
+    // the 180ms cadence the composer's tag search uses.
+    auto* statesFilterDebounce = new QTimer(this);
+    statesFilterDebounce->setSingleShot(true);
+    statesFilterDebounce->setInterval(180);
+    connect(statesFilterDebounce, &QTimer::timeout, this,
+            [this]() { rebuildStatesList(); });
+    connect(m_statesFilter, &QLineEdit::textChanged, statesFilterDebounce,
+            qOverload<>(&QTimer::start));
 
-    m_wfStateStack = new QStackedWidget;
-    m_wfStateStack->addWidget(wfPage);     // 0
-    m_wfStateStack->addWidget(statesPage); // 1
-    // Height is driven by the sidebar splitter; minimum keeps tabs visible
-    // when the user collapses toward the top.
-    m_wfStateStack->setMinimumHeight(80);
-
-    // Floating preview popup for state images
-    m_statesPreviewPopup =
-        new QLabel(this, Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
-    m_statesPreviewPopup->setObjectName("StatesPreviewPopup");
-    m_statesPreviewPopup->setAttribute(Qt::WA_ShowWithoutActivating);
-    m_statesPreviewPopup->setAttribute(Qt::WA_StyledBackground, true);
-    m_statesPreviewPopup->setAlignment(Qt::AlignCenter);
-    m_statesPreviewPopup->hide();
+    m_mainStack->addWidget(m_statesView); // 2
 
     // Rules section + WF/States section live inside a vertical QSplitter so
     // the divider between them is draggable. The vars section stays pinned
@@ -681,24 +660,45 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     rulesSectionL->addWidget(rulesHeaderRow);
     rulesSectionL->addWidget(rulesScroll, 1);
 
-    auto* wfStatesSection = new QWidget;
-    auto* wfStatesSectionL = new QVBoxLayout(wfStatesSection);
-    wfStatesSectionL->setContentsMargins(0, 0, 0, 0);
-    wfStatesSectionL->setSpacing(0);
-    wfStatesSectionL->addWidget(wfHeaderRow);
-    wfStatesSectionL->addWidget(m_wfStateStack, 1);
+    auto* wfSection = new QWidget;
+    auto* wfSectionL = new QVBoxLayout(wfSection);
+    wfSectionL->setContentsMargins(0, 0, 0, 0);
+    wfSectionL->setSpacing(0);
+    wfSectionL->addWidget(wfHeaderRow);
+    wfSectionL->addWidget(wfPage, 1);
+
+    // Variables section + its scroll wrapper; joins the splitter as a third
+    // resizable child so the user can grow / shrink it relative to rules
+    // and wf. (varsSep hairline is no longer needed - the splitter handle
+    // replaces it.)
+    auto* varsScroll = new QScrollArea;
+    varsScroll->setObjectName("ComposerVarsScroll");
+    varsScroll->setWidget(m_varsContainer);
+    varsScroll->setWidgetResizable(true);
+    varsScroll->setFrameShape(QFrame::NoFrame);
+    varsScroll->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+    varsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    auto* varsSection = new QWidget;
+    auto* varsSectionL = new QVBoxLayout(varsSection);
+    varsSectionL->setContentsMargins(0, 0, 0, 0);
+    varsSectionL->setSpacing(0);
+    varsSectionL->addWidget(varsHeaderRow);
+    varsSectionL->addWidget(varsScroll, 1);
 
     auto* sidebarSplit = new QSplitter(Qt::Vertical);
     sidebarSplit->setObjectName("ComposerSidebarSplit");
     sidebarSplit->setHandleWidth(5);
     sidebarSplit->setChildrenCollapsible(false);
     sidebarSplit->addWidget(rulesSection);
-    sidebarSplit->addWidget(wfStatesSection);
+    sidebarSplit->addWidget(wfSection);
+    sidebarSplit->addWidget(varsSection);
+    // Rules absorbs leftover space; wf and vars hold their dragged size.
     sidebarSplit->setStretchFactor(0, 1);
     sidebarSplit->setStretchFactor(1, 0);
-    // Initial split: WF/states starts ~340px so ~4 thumbnail rows fit. Rules
-    // takes the remainder.
-    sidebarSplit->setSizes({400, 340});
+    sidebarSplit->setStretchFactor(2, 0);
+    // Initial split: rules ~remainder, wf ~240px, vars ~200px.
+    sidebarSplit->setSizes({400, 240, 200});
 
     auto* sidebar = new QWidget;
     sidebar->setObjectName("ComposerSidebar");
@@ -707,9 +707,6 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     sidebarLayout->setContentsMargins(0, 0, 0, 0);
     sidebarLayout->setSpacing(0);
     sidebarLayout->addWidget(sidebarSplit, 1);
-    sidebarLayout->addWidget(varsSep);
-    sidebarLayout->addWidget(varsHeaderRow);
-    sidebarLayout->addWidget(m_varsContainer);
 
     // ---- Root layout
     auto* root = new QHBoxLayout(this);
@@ -903,6 +900,102 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     connect(m_pipeline, &PromptPipeline::pipelineReady, this, &PromptComposerPage::onPipelineReady);
 
     rebuildRulesSidebar();
+
+    // Floats hidden together when the states grid view is active.
+    m_composerFloats = {m_previewLabel, m_controlBar, m_categoryNav, m_clearBtn};
+}
+
+int PromptComposerPage::composerStackIndex() const
+{
+    return m_lastResult.isEmpty() ? 0 : 1;
+}
+
+QGraphicsOpacityEffect* PromptComposerPage::stackChildFx(int index) const
+{
+    switch (index) {
+    case 0:
+        return m_emptyHintFx;
+    case 1:
+        return m_groupsFx;
+    case 2:
+        return m_statesViewFx;
+    }
+    return nullptr;
+}
+
+void PromptComposerPage::leaveStatesViewMode()
+{
+    if (!m_statesViewActive) return;
+    m_statesViewActive = false;
+    if (m_statesToggleBtn) {
+        QSignalBlocker block(m_statesToggleBtn);
+        m_statesToggleBtn->setChecked(false);
+    }
+    if (m_searchBar) m_searchBar->setVisible(true);
+    for (QWidget* w : m_composerFloats) {
+        if (!w) continue;
+        if (w == m_previewLabel)
+            w->setVisible(!m_currentPix.isNull());
+        else
+            w->setVisible(true);
+    }
+}
+
+void PromptComposerPage::setTileGradient(qreal start, int alpha)
+{
+    if (m_statesGrid) m_statesGrid->setTileGradient(start, alpha);
+}
+
+void PromptComposerPage::setTileTitleColor(const QColor& color)
+{
+    if (m_statesGrid) m_statesGrid->setTileTitleColor(color);
+}
+
+void PromptComposerPage::setStatesViewActive(bool active)
+{
+    if (m_statesViewActive == active) return;
+    m_statesViewActive = active;
+
+    // Keep the sidebar toggle in sync without re-entering this method.
+    if (m_statesToggleBtn && m_statesToggleBtn->isChecked() != active) {
+        QSignalBlocker block(m_statesToggleBtn);
+        m_statesToggleBtn->setChecked(active);
+    }
+
+    // Hide the tag search bar + composer floats while in states view.
+    if (m_searchBar) m_searchBar->setVisible(!active);
+    if (active) {
+        for (QWidget* w : m_composerFloats)
+            if (w) w->setVisible(false);
+    }
+    else {
+        // Preview label has its own lifecycle (visible only after an image
+        // has arrived); other floats are always-on.
+        for (QWidget* w : m_composerFloats) {
+            if (!w) continue;
+            if (w == m_previewLabel)
+                w->setVisible(!m_currentPix.isNull());
+            else
+                w->setVisible(true);
+        }
+    }
+
+    if (active) {
+        rebuildStatesList();
+        if (m_statesFilter) m_statesFilter->setFocus();
+    }
+
+    // Snap-fade m_mainStack to the target view. If a rebuild is also in flight
+    // (e.g., tile click -> restoreState), its own fade will collapse with ours.
+    if (m_mainStackFade->state() == QAbstractAnimation::Running) m_mainStackFade->stop();
+    m_mainStack->setCurrentIndex(active ? 2 : composerStackIndex());
+    if (auto* fx = stackChildFx(m_mainStack->currentIndex())) {
+        fx->setOpacity(0.0);
+        m_mainStackFade->setTargetObject(fx);
+        m_mainStackFade->setStartValue(0.0);
+        m_mainStackFade->setEndValue(1.0);
+        m_mainStackFade->start();
+    }
 }
 
 // ---- showEvent / eventFilter
@@ -976,16 +1069,14 @@ bool PromptComposerPage::eventFilter(QObject* obj, QEvent* event)
             }
         }
     }
-    if (obj == m_statesList && event->type() == QEvent::Leave) {
-        hideStatePreview();
-        return false;
-    }
     if (obj == m_popout) {
         if (event->type() == QEvent::Show) {
             m_previewLabel->hide();
         }
         else if (event->type() == QEvent::Hide) {
-            if (!m_currentPix.isNull()) {
+            // States view hides all composer floats; don't re-show the inset
+            // here or it'll pop up on top of the tile grid.
+            if (!m_currentPix.isNull() && !m_statesViewActive) {
                 m_previewLabel->show();
                 repositionFloats();
             }
@@ -1005,7 +1096,9 @@ void PromptComposerPage::setPreviewImage(const QImage& image)
         m_currentPix.scaled(QSize(200, 200), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
     const bool popoutOpen = m_popout && m_popout->isVisible();
-    if (!popoutOpen) {
+    // Inset only shows in composer view - states view hides all floats; the
+    // pixmap is still captured so toggling back will show the latest image.
+    if (!popoutOpen && !m_statesViewActive) {
         m_previewLabel->show();
         m_previewLabel->raise();
         fadePreviewInset(1.0); // first show fades 0->1; later calls no-op
@@ -1080,9 +1173,10 @@ void PromptComposerPage::repositionFloats()
     m_controlBar->move(right - m_controlBar->width(), bottom - m_controlBar->height());
     bottom -= m_controlBar->height() + gap;
 
-    if (m_previewLabel->isVisible()) {
-        m_previewLabel->move(right - m_previewLabel->width(), bottom - m_previewLabel->height());
-    }
+    // Position regardless of visibility - if we skip while hidden (states view
+    // or popout open) and the window is resized in the meantime, the label
+    // would re-show at its stale pre-resize position next time it's revealed.
+    m_previewLabel->move(right - m_previewLabel->width(), bottom - m_previewLabel->height());
 }
 
 void PromptComposerPage::resizeEvent(QResizeEvent* event)
@@ -1563,6 +1657,12 @@ void PromptComposerPage::applyTagFilter()
 
 void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
 {
+    // If a pipeline rebuild lands while the user is in states view (e.g.
+    // they edited a rule in the sidebar), the stack is about to switch back
+    // to the composer view - sync the toggle button + floats now so they
+    // don't leave the user a step out of sync.
+    leaveStatesViewMode();
+
     const bool fade = m_freezeNextRebuild;
     m_freezeNextRebuild = false;
 
@@ -1571,14 +1671,19 @@ void PromptComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& flat)
         return;
     }
 
-    // Snap invisible, swap, fade back in.
+    // Snap invisible, swap, fade back in. applyGroupsRebuild may change
+    // currentIndex (emptyHint vs groupsScroll), so we resolve the effect
+    // after the swap.
     if (m_mainStackFade->state() == QAbstractAnimation::Running)
         m_mainStackFade->stop();
-    m_mainStackFx->setOpacity(0.0);
     applyGroupsRebuild(flat);
-    m_mainStackFade->setStartValue(0.0);
-    m_mainStackFade->setEndValue(1.0);
-    m_mainStackFade->start();
+    if (auto* fx = stackChildFx(m_mainStack->currentIndex())) {
+        fx->setOpacity(0.0);
+        m_mainStackFade->setTargetObject(fx);
+        m_mainStackFade->setStartValue(0.0);
+        m_mainStackFade->setEndValue(1.0);
+        m_mainStackFade->start();
+    }
 }
 
 void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)

@@ -97,6 +97,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_tileViewPage->setTileGradient(m_settings.tileGradientStart, m_settings.tileGradientAlpha);
     m_tileViewPage->setTileTitleColor(QColor(m_settings.tileTitleColor));
     m_composerPage = new PromptComposerPage(m_pipeline, &m_ruleEngine, m_tagGroupIndex, this);
+    m_composerPage->setTileGradient(m_settings.tileGradientStart, m_settings.tileGradientAlpha);
+    m_composerPage->setTileTitleColor(QColor(m_settings.tileTitleColor));
     m_composerPage->setVariableIndex(&m_varIndex);
     m_composerPage->setWorkflowManager(&m_workflowManager, BASE_PATH + "/" + WORKFLOWS_PATH);
     m_composerPage->setStatesDir(BASE_PATH + "/" + STATES_DIR);
