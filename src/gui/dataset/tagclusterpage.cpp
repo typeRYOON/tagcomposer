@@ -810,6 +810,11 @@ void TagClusterPage::scheduleRecompute()
     m_recomputeTimer->start(); // restarts if already running
 }
 
+void TagClusterPage::refreshFacets()
+{
+    scheduleRecompute();
+}
+
 void TagClusterPage::clearResultRows()
 {
     while (m_resultsLayout->count() > 1) {

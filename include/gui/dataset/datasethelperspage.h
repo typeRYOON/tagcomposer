@@ -54,6 +54,13 @@ public:
         return m_collectorPage;
     }
 
+    // Label of the currently active sub-tab (the page's button text).
+    // AppMainWindow uses it to append the tab name to the window title.
+    QString currentTabLabel() const;
+
+signals:
+    void tabChanged(const QString& label);
+
 protected:
     void showEvent(QShowEvent* event) override;
 

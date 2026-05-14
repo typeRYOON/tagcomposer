@@ -23,6 +23,8 @@ inline constexpr const char* CLUSTER_FILTERS_PATH = "data/system/cluster_filters
 inline constexpr const char* MODELS_DIR = "data/models";
 inline constexpr const char* COLLECTIONS_DIR = "data/collections";
 
+inline constexpr const char* DISCORD_INVITE_URL = "https://discord.gg/4jgC8C9Ku8";
+
 inline constexpr int SAVE_IMAGE_W = 468;
 inline constexpr int SAVE_IMAGE_H = 600;
 

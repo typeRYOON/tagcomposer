@@ -46,6 +46,10 @@ DatasetHelpersPage::DatasetHelpersPage(core::FacetIndex* facets,
     m_tabGroup->setExclusive(true);
 
     m_stack = new QStackedWidget(this);
+    // Fires for both user clicks and programmatic switches (the inter-tab
+    // handoff lambdas below); AppMainWindow listens to update the title bar.
+    connect(m_stack, &QStackedWidget::currentChanged, this,
+            [this](int) { emit tabChanged(currentTabLabel()); });
 
     // Tab order matches the typical workflow: build a collection first,
     // then tag, edit, and batch downstream.
@@ -155,6 +159,15 @@ void DatasetHelpersPage::moveIndicatorTo(QWidget* btn, bool animate)
     m_indicatorAnim->setStartValue(m_indicator->geometry());
     m_indicatorAnim->setEndValue(target);
     m_indicatorAnim->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
+QString DatasetHelpersPage::currentTabLabel() const
+{
+    if (!m_stack || !m_tabLayout) return {};
+    const int idx = m_stack->currentIndex();
+    if (auto* item = m_tabLayout->itemAt(idx))
+        if (auto* btn = qobject_cast<QPushButton*>(item->widget())) return btn->text();
+    return {};
 }
 
 void DatasetHelpersPage::showEvent(QShowEvent* event)

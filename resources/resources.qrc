@@ -44,5 +44,7 @@
         <file>icons/nav_output.png</file>
         <file>sfx/finish.wav</file>
         <file>sfx/ok.wav</file>
+        <file>icons/nav_history.png</file>
+        <file>icons/nav_discord.png</file>
     </qresource>
 </RCC>

@@ -370,8 +370,18 @@ TagLineAutocomplete::TagLineAutocomplete(QLineEdit* edit, core::DanbooruIndex* i
 void TagLineAutocomplete::ensurePopup()
 {
     if (m_popup) return;
-    m_popup = new QFrame(m_edit->window(),
-                         Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+    // Parent to m_edit (not m_edit->window()) so the popup is destroyed when
+    // the line edit is - the prompt composer rebuilds inline tag rows on every
+    // rename, and a window-parented popup would orphan a visible widget when
+    // the row goes away mid-click.
+    //
+    // Qt::WindowDoesNotAcceptFocus is what makes mouse clicks on the popup
+    // work: without it, Qt::Tool windows activate on click on Windows, which
+    // steals focus from m_edit and fires editingFinished with the partially-
+    // typed text before commitSelection has a chance to substitute canonical.
+    m_popup = new QFrame(m_edit, Qt::Tool | Qt::FramelessWindowHint |
+                                     Qt::NoDropShadowWindowHint |
+                                     Qt::WindowDoesNotAcceptFocus);
     m_popup->setObjectName("TagSearchPopup");
     m_popup->setAttribute(Qt::WA_ShowWithoutActivating);
 
@@ -457,6 +467,10 @@ void TagLineAutocomplete::commitSelection()
     const QString canonical = item->data(CanonicalTagRole).toString();
     hidePopup();
     m_edit->setText(canonical);
+    // setText's textChanged restarts the debounce when canonical differs from
+    // the typed text (e.g. backslash-escaped parens or different spacing);
+    // cancel it so the popup doesn't pop back open 120 ms later.
+    m_debounce->stop();
     // clearFocus triggers editingFinished, which runs the host's rename
     // handler (same path as if the user had typed it and pressed Enter).
     m_edit->clearFocus();

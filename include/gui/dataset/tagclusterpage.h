@@ -45,6 +45,12 @@ public:
     void setQuickFacets(const QString& character, const QString& copyright,
                         const QString& triggerWord, const QString& style);
 
+    // Called by AppMainWindow::reloadFacets when the facet index changes
+    // (quick-add, facet editor save, etc.) so the result rows reflect the
+    // new facet badges and the facet filter is re-applied. No-op until a
+    // fetch has produced data.
+    void refreshFacets();
+
 signals:
     void wikiRequested(const QString& tag);
     void facetEditorRequested(const QString& tag);

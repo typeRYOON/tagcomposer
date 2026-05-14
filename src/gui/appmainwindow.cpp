@@ -158,6 +158,46 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(nav, &NavBar::pageRequested, m_pages, &QStackedWidget::setCurrentIndex);
     connect(m_pages, &QStackedWidget::currentChanged, nav, &NavBar::setCurrentPage);
 
+    // ---- Window title tracks the current page (and sub-tab on Dataset Helpers).
+    // TitleBar listens for WindowTitleChange and re-reads, so a plain setWindowTitle
+    // call is all that's needed here.
+    auto updateWindowTitle = [this]() {
+        auto pageName = [](int idx) -> QString {
+            switch (Page(idx)) {
+            case Page::Home: return "Home";
+            case Page::EntryViewer: return "Entry Viewer";
+            case Page::TagComposer: return "Tag Composer";
+            case Page::WorkflowEditor: return "Workflow Editor";
+            case Page::FacetEditor: return "Facet Editor";
+            case Page::PromptHistory: return "Prompt History";
+            case Page::OutputViewer: return "Output Viewer";
+            case Page::DatasetHelpers: return "Dataset Helpers";
+            case Page::DanbooruWiki: return "Danbooru Wiki";
+            case Page::Settings: return "Settings";
+            }
+            return {};
+        };
+        const int idx = m_pages->currentIndex();
+        // TagComposer page shares the app name; skip the suffix to avoid the
+        // duplicated "Tag Composer — Tag Composer" rendering.
+        if (idx == int(Page::TagComposer)) {
+            setWindowTitle(QStringLiteral("Tag Composer"));
+            return;
+        }
+        QString suffix = pageName(idx);
+        if (idx == int(Page::DatasetHelpers) && m_datasetHelpersPage) {
+            const QString tab = m_datasetHelpersPage->currentTabLabel();
+            if (!tab.isEmpty()) suffix += QStringLiteral(" — ") + tab;
+        }
+        setWindowTitle(suffix.isEmpty() ? QStringLiteral("Tag Composer")
+                                        : QStringLiteral("Tag Composer — ") + suffix);
+    };
+    connect(m_pages, &QStackedWidget::currentChanged, this,
+            [updateWindowTitle](int) { updateWindowTitle(); });
+    connect(m_datasetHelpersPage, &DatasetHelpersPage::tabChanged, this,
+            [updateWindowTitle](const QString&) { updateWindowTitle(); });
+    updateWindowTitle();
+
     // ---- Prompt history page wiring
     connect(m_promptHistoryPage, &PromptHistoryPage::statusMessageRequested, this,
             [this](const QString& msg) { m_statusBar->showMessage(msg); });
@@ -646,6 +686,7 @@ void AppMainWindow::reloadFacets()
     m_facetEditorPage->reload();
     m_composerPage->repush();
     m_tileViewPage->refreshTags();
+    if (auto* tcp = m_datasetHelpersPage->tagClusterPage()) tcp->refreshFacets();
 }
 
 void AppMainWindow::applyQuickFacet(const QString& tag, const QString& facetName)

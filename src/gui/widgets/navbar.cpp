@@ -1,8 +1,11 @@
 #include <gui/widgets/navbar.h>
+#include <utils/appconfig.h>
 #include <QVBoxLayout>
 #include <QEnterEvent>
 #include <QPainter>
 #include <QImage>
+#include <QDesktopServices>
+#include <QUrl>
 
 namespace gui {
 
@@ -112,6 +115,19 @@ NavBar::NavBar(QWidget* tooltipParent, QWidget* parent) : QWidget(parent)
     addButton(Page::DatasetHelpers, "Dataset Helpers", ":/icons/nav_dataset.png");
     addButton(Page::DanbooruWiki, "Danbooru Wiki", ":/icons/nav_wiki.png");
     layout->addStretch();
+
+    // Discord invite - not a page, just opens the URL in the default browser.
+    // Not checkable so it doesn't latch into a pressed state after click.
+    auto* discordBtn = new NavButton(QString(), "Discord", this);
+    discordBtn->setCheckable(false);
+    layout->addWidget(discordBtn, 0, Qt::AlignHCenter);
+    connect(discordBtn, &NavButton::hovered, this, &NavBar::showTooltip);
+    connect(discordBtn, &NavButton::unhovered, this, &NavBar::hideTooltip);
+    connect(discordBtn, &QPushButton::clicked, this,
+            [] { QDesktopServices::openUrl(QUrl(utils::DISCORD_INVITE_URL)); });
+    QPixmap discordPx(":/icons/nav_discord.png");
+    if (!discordPx.isNull()) discordBtn->setNavIcon(discordPx);
+
     addButton(Page::Settings, "Settings", ":/icons/nav_settings.png");
 }
 

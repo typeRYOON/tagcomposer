@@ -39,6 +39,7 @@ int main(int argc, char** argv)
         QThreadPool::globalInstance()->setMaxThreadCount(QThread::idealThreadCount());
 
         QFontDatabase::addApplicationFont(":/fonts/Hiragino Maru Gothic ProN W4.otf");
+        QFontDatabase::addApplicationFont(":/fonts/azukiB.ttf");
         QApplication::setApplicationName(QString::fromStdString(APP_NAME));
         QApplication::setOrganizationName(QString::fromStdString(ORGANIZATION_NAME));
         QApplication::setApplicationVersion(QString::fromStdString(APP_VERSION));
