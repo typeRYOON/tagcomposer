@@ -30,6 +30,7 @@
 #include <QInputDialog>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QSplitter>
 #include <QStyle>
 #include <QTimer>
 #include <QDir>
@@ -357,10 +358,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     vhrL->addWidget(varsReloadBtn);
 
     // ---- Workflow / States sidebar section
-    auto* wfSep = new QWidget;
-    wfSep->setObjectName("ComposerHairlineSep");
-    wfSep->setFixedHeight(1);
-
+    // (wfSep removed; the QSplitter handle below replaces it.)
     auto* wfHeaderRow = new QWidget;
     wfHeaderRow->setObjectName("ComposerHeaderRow");
     wfHeaderRow->setAttribute(Qt::WA_StyledBackground, true);
@@ -525,6 +523,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_statesList->setObjectName("StatesList");
     m_statesList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_statesList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+    m_statesList->setIconSize(QSize(64, 64));
     m_statesList->installEventFilter(this);
 
     // Visual row != model index when filtered; UserRole stores the model index.
@@ -659,7 +658,9 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_wfStateStack = new QStackedWidget;
     m_wfStateStack->addWidget(wfPage);     // 0
     m_wfStateStack->addWidget(statesPage); // 1
-    m_wfStateStack->setFixedHeight(220);
+    // Height is driven by the sidebar splitter; minimum keeps tabs visible
+    // when the user collapses toward the top.
+    m_wfStateStack->setMinimumHeight(80);
 
     // Floating preview popup for state images
     m_statesPreviewPopup =
@@ -670,17 +671,42 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_statesPreviewPopup->setAlignment(Qt::AlignCenter);
     m_statesPreviewPopup->hide();
 
+    // Rules section + WF/States section live inside a vertical QSplitter so
+    // the divider between them is draggable. The vars section stays pinned
+    // below the splitter at its natural height.
+    auto* rulesSection = new QWidget;
+    auto* rulesSectionL = new QVBoxLayout(rulesSection);
+    rulesSectionL->setContentsMargins(0, 0, 0, 0);
+    rulesSectionL->setSpacing(0);
+    rulesSectionL->addWidget(rulesHeaderRow);
+    rulesSectionL->addWidget(rulesScroll, 1);
+
+    auto* wfStatesSection = new QWidget;
+    auto* wfStatesSectionL = new QVBoxLayout(wfStatesSection);
+    wfStatesSectionL->setContentsMargins(0, 0, 0, 0);
+    wfStatesSectionL->setSpacing(0);
+    wfStatesSectionL->addWidget(wfHeaderRow);
+    wfStatesSectionL->addWidget(m_wfStateStack, 1);
+
+    auto* sidebarSplit = new QSplitter(Qt::Vertical);
+    sidebarSplit->setObjectName("ComposerSidebarSplit");
+    sidebarSplit->setHandleWidth(5);
+    sidebarSplit->setChildrenCollapsible(false);
+    sidebarSplit->addWidget(rulesSection);
+    sidebarSplit->addWidget(wfStatesSection);
+    sidebarSplit->setStretchFactor(0, 1);
+    sidebarSplit->setStretchFactor(1, 0);
+    // Initial split: WF/states starts ~340px so ~4 thumbnail rows fit. Rules
+    // takes the remainder.
+    sidebarSplit->setSizes({400, 340});
+
     auto* sidebar = new QWidget;
     sidebar->setObjectName("ComposerSidebar");
-    sidebar->setFixedWidth(280);
+    sidebar->setFixedWidth(330);
     auto* sidebarLayout = new QVBoxLayout(sidebar);
     sidebarLayout->setContentsMargins(0, 0, 0, 0);
     sidebarLayout->setSpacing(0);
-    sidebarLayout->addWidget(rulesHeaderRow);
-    sidebarLayout->addWidget(rulesScroll, 1);
-    sidebarLayout->addWidget(wfSep);
-    sidebarLayout->addWidget(wfHeaderRow);
-    sidebarLayout->addWidget(m_wfStateStack);
+    sidebarLayout->addWidget(sidebarSplit, 1);
     sidebarLayout->addWidget(varsSep);
     sidebarLayout->addWidget(varsHeaderRow);
     sidebarLayout->addWidget(m_varsContainer);

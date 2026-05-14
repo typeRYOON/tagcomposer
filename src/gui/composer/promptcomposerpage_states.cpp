@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QFont>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -51,15 +52,29 @@ void PromptComposerPage::rebuildStatesList()
         return;
     }
 
+    // Inline thumbnail; dark placeholder for states without a preview so rows
+    // stay uniform height. iconSize set on the list widget; we scale to fit.
+    const QSize iconSz = m_statesList->iconSize();
+    QPixmap placeholder(iconSz);
+    placeholder.fill(QColor("#1a1a1a"));
+
     const QString filter = m_statesFilter ? m_statesFilter->text().trimmed() : QString();
     for (int i = 0; i < states.size(); ++i) {
         const auto& state = states[i];
         if (!filter.isEmpty() && !state.name.contains(filter, Qt::CaseInsensitive)) continue;
-        const bool hasImg =
-            !state.previewImagePath.isEmpty() && QFile::exists(state.previewImagePath);
-        auto* item = new QListWidgetItem((hasImg ? "◆  " : "") + state.name);
+
+        auto* item = new QListWidgetItem(state.name);
         // UserRole = model index; the visual row may differ when filtered.
         item->setData(Qt::UserRole, i);
+
+        QPixmap thumb;
+        if (!state.previewImagePath.isEmpty() && QFile::exists(state.previewImagePath))
+            thumb.load(state.previewImagePath);
+        if (thumb.isNull())
+            item->setIcon(QIcon(placeholder));
+        else
+            item->setIcon(QIcon(thumb.scaled(iconSz, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+
         m_statesList->addItem(item);
     }
 }
@@ -349,7 +364,7 @@ void PromptComposerPage::showStatePreview(int listRow)
         return;
     }
 
-    pix = pix.scaled(220, 220, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    pix = pix.scaled(420, 420, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     m_statesPreviewPopup->setPixmap(pix);
     m_statesPreviewPopup->adjustSize();
 
