@@ -450,9 +450,19 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         for (const auto& wf : m_wfManager->files())
             if (wf.path == relPath) return;
 
-        const QString newId = QString::number(QDateTime::currentMSecsSinceEpoch());
-        m_wfManager->files() << core::WorkflowFile{newId, fi.completeBaseName(), relPath};
-        if (m_wfManager->selectedIndex() < 0) m_wfManager->setSelectedIndex(0);
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        const QString newId = QString::number(now);
+        core::WorkflowFile wf;
+        wf.id = newId;
+        wf.name = fi.completeBaseName();
+        wf.path = relPath;
+        wf.createdAt = now;
+        // Prepend so newest shows at top; shift selectedIndex to follow.
+        m_wfManager->files().prepend(wf);
+        if (m_wfManager->selectedIndex() < 0)
+            m_wfManager->setSelectedIndex(0);
+        else
+            m_wfManager->setSelectedIndex(m_wfManager->selectedIndex() + 1);
         m_wfManager->saveToFile(m_wfSavePath);
         rebuildWorkflowList();
     });
@@ -489,6 +499,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
                                       m_wfManager->files()[idx].name, &ok);
             if (!ok || name.trimmed().isEmpty()) return;
             m_wfManager->files()[idx].name = name.trimmed();
+            m_wfManager->touch(idx);
             m_wfManager->saveToFile(m_wfSavePath);
             rebuildWorkflowList();
         });
@@ -537,6 +548,8 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
                 const QString dest = stateDir + "/preview.png";
                 if (!saveStatePreview(srcPath, dest)) return;
                 state.previewImagePath = dest;
+                state.createdAt = QDateTime::currentMSecsSinceEpoch();
+                if (row != 0) m_stateManager.states().move(row, 0);
                 m_stateManager.saveToDir(m_statesDir);
                 rebuildStatesList();
             });
@@ -584,6 +597,9 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
                                               m_stateManager.states()[row].name, &ok);
                     if (!ok || name.trimmed().isEmpty()) return;
                     m_stateManager.states()[row].name = name.trimmed();
+                    m_stateManager.states()[row].createdAt =
+                        QDateTime::currentMSecsSinceEpoch();
+                    if (row != 0) m_stateManager.states().move(row, 0);
                     m_stateManager.saveToDir(m_statesDir);
                     rebuildStatesList();
                 }
@@ -869,6 +885,8 @@ void PromptComposerPage::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
     repositionFloats();
+    // Workflow editor may have reordered files via touch(); resync here.
+    rebuildWorkflowList();
 }
 
 bool PromptComposerPage::eventFilter(QObject* obj, QEvent* event)

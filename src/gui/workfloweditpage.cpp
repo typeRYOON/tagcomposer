@@ -408,7 +408,10 @@ void WorkflowEditPage::refresh()
 
 void WorkflowEditPage::save()
 {
-    if (m_wm && !m_savePath.isEmpty()) m_wm->saveToFile(m_savePath);
+    if (!m_wm || m_savePath.isEmpty()) return;
+    // Editor save = user edit; bump MRU on the workflow being edited.
+    m_wm->touch(m_wm->selectedIndex());
+    m_wm->saveToFile(m_savePath);
 }
 
 void WorkflowEditPage::addVariable(core::WorkflowVarType type)

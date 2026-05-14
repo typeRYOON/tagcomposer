@@ -122,7 +122,9 @@ void PromptComposerPage::appendSnapshotAsState(core::SavedState state, const QSt
 {
     if (m_statesDir.isEmpty()) return;
 
-    state.id = QString::number(QDateTime::currentMSecsSinceEpoch());
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    state.id = QString::number(now);
+    state.createdAt = now;
     state.name = displayName.trimmed().isEmpty()
                      ? QString("State %1").arg(m_stateManager.states().size() + 1)
                      : displayName.trimmed();
@@ -156,7 +158,9 @@ void PromptComposerPage::saveCurrentState()
     if (!ok || name.trimmed().isEmpty()) return;
 
     core::SavedState state;
-    state.id = QString::number(QDateTime::currentMSecsSinceEpoch());
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    state.id = QString::number(now);
+    state.createdAt = now;
     state.name = name.trimmed();
     captureCurrentState(state);
 
@@ -172,21 +176,24 @@ void PromptComposerPage::overwriteState(int row)
     if (row < 0 || row >= m_stateManager.states().size()) return;
 
     // Preserve id (on-disk dir) and existing preview; overwrite refreshes
-    // payload only.
-    core::SavedState& state = m_stateManager.states()[row];
-    const QString id = state.id;
-    const QString name = state.name;
-    const QString previewImagePath = state.previewImagePath;
+    // payload only. Bump createdAt so MRU floats to top.
+    const QString id = m_stateManager.states()[row].id;
+    const QString name = m_stateManager.states()[row].name;
+    const QString previewImagePath = m_stateManager.states()[row].previewImagePath;
 
-    state = core::SavedState();
-    state.id = id;
-    state.name = name;
-    state.previewImagePath = previewImagePath;
-    captureCurrentState(state);
+    core::SavedState fresh;
+    fresh.id = id;
+    fresh.name = name;
+    fresh.createdAt = QDateTime::currentMSecsSinceEpoch();
+    fresh.previewImagePath = previewImagePath;
+    captureCurrentState(fresh);
+
+    m_stateManager.states()[row] = fresh;
+    if (row != 0) m_stateManager.states().move(row, 0);
 
     m_stateManager.saveToDir(m_statesDir);
     rebuildStatesList();
-    emit statusMessageRequested(QString("Overwrote: %1").arg(state.name));
+    emit statusMessageRequested(QString("Overwrote: %1").arg(name));
 }
 
 void PromptComposerPage::restoreState(const core::SavedState& state)

@@ -9,6 +9,7 @@
 #include <QJsonArray>
 #include <QRandomGenerator>
 #include <QDateTime>
+#include <algorithm>
 
 namespace core {
 
@@ -263,6 +264,9 @@ WorkflowManager WorkflowManager::loadFromFile(const QString& path)
         wf.name = o["name"].toString();
         wf.path = o["path"].toString();
         if (wf.id.isEmpty()) wf.id = QString::number(loadBase + backfillCount++);
+        // Legacy files predate createdAt; id was a ms-since-epoch timestamp.
+        wf.createdAt =
+            o.contains("createdAt") ? o["createdAt"].toInteger() : wf.id.toLongLong();
         for (const QJsonValue& vv : o["variables"].toArray())
             wf.vars << varFromJson(vv.toObject());
         wm.m_files << wf;
@@ -273,6 +277,16 @@ WorkflowManager WorkflowManager::loadFromFile(const QString& path)
         for (const QJsonValue& v : legacyVars)
             wm.m_files[wm.m_selectedIndex].vars << varFromJson(v.toObject());
     }
+
+    // Newest first by createdAt. Track selection by id so the index follows.
+    const QString selectedId = (wm.m_selectedIndex >= 0 && wm.m_selectedIndex < wm.m_files.size())
+                                   ? wm.m_files[wm.m_selectedIndex].id
+                                   : QString();
+    std::stable_sort(wm.m_files.begin(), wm.m_files.end(),
+                     [](const WorkflowFile& a, const WorkflowFile& b) {
+                         return a.createdAt > b.createdAt;
+                     });
+    if (!selectedId.isEmpty()) wm.m_selectedIndex = wm.workflowIndexById(selectedId);
 
     return wm;
 }
@@ -288,6 +302,7 @@ void WorkflowManager::saveToFile(const QString& path) const
         o["id"] = wf.id;
         o["name"] = wf.name;
         o["path"] = wf.path;
+        o["createdAt"] = qint64(wf.createdAt);
         o["variables"] = varsArr;
         filesArr.append(o);
     }
@@ -317,6 +332,20 @@ int WorkflowManager::workflowIndexById(const QString& id) const
     for (int i = 0; i < m_files.size(); ++i)
         if (m_files[i].id == id) return i;
     return -1;
+}
+
+void WorkflowManager::touch(int index)
+{
+    if (index < 0 || index >= m_files.size()) return;
+    m_files[index].createdAt = QDateTime::currentMSecsSinceEpoch();
+    if (index == 0) return;
+    // Move to top. selectedIndex tracks the moved item.
+    WorkflowFile wf = m_files.takeAt(index);
+    m_files.prepend(wf);
+    if (m_selectedIndex == index)
+        m_selectedIndex = 0;
+    else if (m_selectedIndex >= 0 && m_selectedIndex < index)
+        m_selectedIndex += 1;
 }
 
 QString WorkflowManager::applyToJson(const QString& jsonContent)

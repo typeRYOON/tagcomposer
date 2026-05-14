@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QDir>
 #include <QFileInfo>
+#include <algorithm>
 
 namespace core {
 
@@ -38,6 +39,9 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
     SavedState s;
     s.id = obj["id"].toString();
     s.name = obj["name"].toString();
+    // Legacy states predate createdAt; id was already a ms-since-epoch timestamp.
+    s.createdAt =
+        obj.contains("createdAt") ? obj["createdAt"].toInteger() : s.id.toLongLong();
 
     for (const auto& v : obj["activeTags"].toArray())
         s.activeTags << v.toString();
@@ -113,6 +117,7 @@ QJsonObject SavedState::toJson() const
     QJsonObject obj;
     obj["id"] = id;
     obj["name"] = name;
+    obj["createdAt"] = qint64(createdAt);
 
     QJsonArray tagsArr;
     for (const auto& t : activeTags)
@@ -181,7 +186,8 @@ StateManager StateManager::loadFromDir(const QString& dir)
     QDir d(dir);
     if (!d.exists()) return sm;
 
-    // One state per subdir; sort by name = chronological since IDs are timestamps.
+    // One state per subdir. Final order is by createdAt desc (set below);
+    // entryList order here is irrelevant.
     const QStringList subs = d.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
     for (const QString& sub : subs) {
         QFile f(dir + "/" + sub + "/state.json");
@@ -193,6 +199,12 @@ StateManager StateManager::loadFromDir(const QString& dir)
         }
         sm.m_states << s;
     }
+
+    // Newest first.
+    std::stable_sort(sm.m_states.begin(), sm.m_states.end(),
+                     [](const SavedState& a, const SavedState& b) {
+                         return a.createdAt > b.createdAt;
+                     });
     return sm;
 }
 

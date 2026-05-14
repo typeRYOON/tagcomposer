@@ -67,9 +67,12 @@ struct WorkflowVar {
 };
 
 struct WorkflowFile {
-    QString id; // stable timestamp-based id
+    QString id; // stable timestamp-based id; never changes (saved-state refs)
     QString name;
     QString path; // relative to BASE_PATH (under data/workflows/)
+    // Sort key. Bumped on rename / editor save so MRU floats to top. Falls
+    // back to id-as-timestamp on load when missing.
+    qint64 createdAt = 0;
     QList<WorkflowVar> vars;
 
     QString absolutePath() const;
@@ -104,6 +107,10 @@ public:
 
     const WorkflowFile* selectedFile() const;
     int workflowIndexById(const QString& id) const;
+
+    // Bumps createdAt and moves the workflow to the top of m_files,
+    // adjusting m_selectedIndex to track the moved entry.
+    void touch(int index);
 
     // Replaces __PLACEHOLDER__ tokens; advances Increment seeds as a side effect.
     QString applyToJson(const QString& jsonContent);

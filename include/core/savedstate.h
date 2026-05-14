@@ -21,6 +21,9 @@ struct EntryPush {
 struct SavedState {
     QString id;
     QString name;
+    // Sort key. Bumped on overwrite/rename/preview-drop so most-recently-edited
+    // floats to top. Falls back to id-as-timestamp on load when missing.
+    qint64 createdAt = 0;
     QList<QString> activeTags;
     QHash<QString, float> tagWeights;
     QSet<QString> deactivatedTags;
