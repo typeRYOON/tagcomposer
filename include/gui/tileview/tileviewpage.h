@@ -49,6 +49,9 @@ public:
     // the caller can't know whether the active filter would hide the entry.
     void clearSearchAndSelect(int32_t entryId);
 
+protected:
+    bool eventFilter(QObject* obj, QEvent* event) override;
+
 signals:
     void tagsExported(int entryId, int imageIdx, QList<QString> tags);
     void entryTagAdded(int entryId, int imageIdx, const QString& tag);

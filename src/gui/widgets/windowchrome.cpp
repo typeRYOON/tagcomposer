@@ -6,6 +6,7 @@
 #include <QEvent>
 #include <QMouseEvent>
 #include <QRegion>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -52,6 +53,21 @@ WindowChrome::WindowChrome(QWidget* host, Options opt) : QObject(host), m_host(h
     m_resizeOverlay->setMouseTracking(true);
     m_resizeOverlay->installEventFilter(this);
     m_resizeOverlay->raise();
+
+    // If the OS swallows our release event mid-drag (a chord/keybind click on
+    // the user's mouse can do this by breaking Qt's implicit grab), neither
+    // updateResizeOutline nor endResizeDrag would ever run again - the outline
+    // and override cursor stay stuck. This poll catches it and aborts.
+    m_dragGuardTimer = new QTimer(this);
+    m_dragGuardTimer->setInterval(200);
+    connect(m_dragGuardTimer, &QTimer::timeout, this, [this]() {
+        if (!m_dragEdges) return;
+        if (QApplication::mouseButtons() & Qt::LeftButton) return;
+        // Revert to the pre-drag geometry rather than committing to wherever
+        // the cursor happens to be now - the user wasn't actually dragging
+        // when this fired.
+        endResizeDrag(m_dragStartGlobal);
+    });
 }
 
 void WindowChrome::onWindowStateChanged()
@@ -128,6 +144,12 @@ bool WindowChrome::eventFilter(QObject* obj, QEvent* event)
 
 void WindowChrome::beginResizeDrag(Qt::Edges edges, const QPoint& globalStart)
 {
+    // Re-entry guard: a second press arriving while a drag is live (sidebutton
+    // / chord / keybind-simulated click) would push another override cursor
+    // and reset the start geometry. The guard-timer cleans up if the existing
+    // drag is actually stale.
+    if (m_dragEdges) return;
+
     m_dragEdges = edges;
     m_dragStartGeo = m_host ? m_host->geometry() : QRect();
     m_dragStartGlobal = globalStart;
@@ -144,6 +166,8 @@ void WindowChrome::beginResizeDrag(Qt::Edges edges, const QPoint& globalStart)
     // QDialog::exec()'s modal loop breaks the implicit mouse grab a press
     // would normally hold on m_resizeOverlay, so we grab explicitly.
     if (m_opt.modalGrab) m_resizeOverlay->grabMouse();
+
+    if (m_dragGuardTimer) m_dragGuardTimer->start();
 }
 
 void WindowChrome::updateResizeOutline(const QPoint& globalNow)
@@ -155,6 +179,7 @@ void WindowChrome::updateResizeOutline(const QPoint& globalNow)
 void WindowChrome::endResizeDrag(const QPoint& globalNow)
 {
     if (!m_dragEdges) return;
+    if (m_dragGuardTimer) m_dragGuardTimer->stop();
     if (m_opt.modalGrab && m_resizeOverlay) m_resizeOverlay->releaseMouse();
     const QRect target = computeResizeGeometry(globalNow);
     if (m_resizeOutline) m_resizeOutline->hide();

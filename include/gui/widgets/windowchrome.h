@@ -5,6 +5,7 @@
 #include <Qt>
 
 class QEvent;
+class QTimer;
 class QWidget;
 
 namespace gui {
@@ -85,6 +86,10 @@ private:
     Qt::Edges m_dragEdges{};
     QRect m_dragStartGeo;
     QPoint m_dragStartGlobal;
+    // Polls mouseButtons() while a drag is live. Lets us recover when the
+    // implicit grab gets broken mid-drag (e.g. a chord/keybind click during
+    // the hold) and we never receive the matching release event.
+    QTimer* m_dragGuardTimer = nullptr;
 };
 
 } // namespace gui

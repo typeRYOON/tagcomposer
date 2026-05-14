@@ -73,6 +73,9 @@ TileViewPage::TileViewPage(core::EntryModel* model, QWidget* parent) : QWidget(p
     m_searchBar = new LoraDropSearchBar(this);
     m_searchBar->setObjectName("SearchBar");
     m_searchBar->setPlaceholderText("search tags...");
+    // Down arrow drops focus into the entry grid, mirroring the entry panel's
+    // gridNavRequested behavior - see eventFilter below.
+    m_searchBar->installEventFilter(this);
     const QStringList families = QFontDatabase::applicationFontFamilies(0);
     if (!families.isEmpty()) {
         m_searchBar->setFont(QFont(families.first()));
@@ -235,6 +238,24 @@ void TileViewPage::clearSearchAndSelect(int32_t entryId)
         m_entryView->query(QString());
     }
     m_entryView->selectAndScrollToEntry(entryId);
+}
+
+bool TileViewPage::eventFilter(QObject* obj, QEvent* event)
+{
+    if (obj == m_searchBar && event->type() == QEvent::KeyPress) {
+        auto* ke = static_cast<QKeyEvent*>(event);
+        if (ke->key() == Qt::Key_Down) {
+            // Shift focus to the grid and replay the keystroke so the same
+            // press also performs the first selection step - matches what
+            // gridNavRequested does coming the other way (entry panel ->
+            // grid).
+            m_entryView->setFocus(Qt::OtherFocusReason);
+            QKeyEvent replay(QEvent::KeyPress, Qt::Key_Down, Qt::NoModifier);
+            QApplication::sendEvent(m_entryView, &replay);
+            return true;
+        }
+    }
+    return QWidget::eventFilter(obj, event);
 }
 
 void TileViewPage::setTileGradient(qreal start, int alpha)
