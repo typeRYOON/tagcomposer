@@ -1,6 +1,7 @@
 #include <core/danbooruindex.h>
 #include <utils/stringutils.h>
 #include <QFile>
+#include <QSet>
 #include <QTextStream>
 #include <algorithm>
 #include <numeric>
@@ -61,6 +62,26 @@ DanbooruIndex* DanbooruIndex::loadFromFile(const QString& path)
     std::sort(idx->m_byAlias.begin(), idx->m_byAlias.end(),
               [](const AliasEntry& a, const AliasEntry& b) { return a.normalized < b.normalized; });
 
+    // Word index: every non-leading space-separated word in every tag.
+    // Leading word is already covered by m_byName.
+    for (int i = 0; i < idx->m_tags.size(); ++i) {
+        const QString& name = idx->m_tags[i].name;
+        int wordStart = 0;
+        bool firstWord = true;
+        for (int k = 0; k <= name.size(); ++k) {
+            if (k == name.size() || name[k] == ' ') {
+                if (!firstWord && k > wordStart) {
+                    idx->m_byWord.push_back(
+                        {name.mid(wordStart, k - wordStart), i, wordStart});
+                }
+                firstWord = false;
+                wordStart = k + 1;
+            }
+        }
+    }
+    std::sort(idx->m_byWord.begin(), idx->m_byWord.end(),
+              [](const WordEntry& a, const WordEntry& b) { return a.word < b.word; });
+
     return idx;
 }
 
@@ -72,8 +93,12 @@ QList<TagSearchResult> DanbooruIndex::search(const QString& prefix, int maxResul
     const QString p = utils::normalizeTagInput(prefix);
     if (p.isEmpty()) return {};
 
-    QList<TagSearchResult> results;
+    // Tiered ranking: prefix-of-name > word-prefix > alias.
+    // Within each tier, sort by post count descending.
+    QSet<int> seen;
+    QList<TagSearchResult> tier0, tier1, tier2;
 
+    // Tier 0: prefix-of-name
     {
         auto it = std::lower_bound(
             m_byName.cbegin(), m_byName.cend(), p,
@@ -81,10 +106,27 @@ QList<TagSearchResult> DanbooruIndex::search(const QString& prefix, int maxResul
         for (; it != m_byName.cend(); ++it) {
             const Tag& t = m_tags[*it];
             if (!t.name.startsWith(p)) break;
-            results.push_back({t.name, t.name, t.category, t.count, false, 0, (int)p.size()});
+            seen.insert(*it);
+            tier0.push_back({t.name, t.name, t.category, t.count, false, 0, (int)p.size()});
         }
     }
 
+    // Tier 1: word-prefix on any non-leading word
+    {
+        auto it = std::lower_bound(
+            m_byWord.cbegin(), m_byWord.cend(), p,
+            [](const WordEntry& we, const QString& key) { return we.word < key; });
+        for (; it != m_byWord.cend(); ++it) {
+            if (!it->word.startsWith(p)) break;
+            if (seen.contains(it->tagIdx)) continue;
+            seen.insert(it->tagIdx);
+            const Tag& t = m_tags[it->tagIdx];
+            tier1.push_back(
+                {t.name, t.name, t.category, t.count, false, it->offset, (int)p.size()});
+        }
+    }
+
+    // Tier 2: alias-prefix (independent rows; alias dest shown in pill)
     {
         auto it = std::lower_bound(
             m_byAlias.cbegin(), m_byAlias.cend(), p,
@@ -93,15 +135,26 @@ QList<TagSearchResult> DanbooruIndex::search(const QString& prefix, int maxResul
             if (!it->normalized.startsWith(p)) break;
             const Tag& t = m_tags[it->tagIdx];
             const int offset = it->original.startsWith('/') ? 1 : 0;
-            results.push_back(
+            tier2.push_back(
                 {it->original, t.name, t.category, t.count, true, offset, (int)p.size()});
         }
     }
 
-    std::sort(results.begin(), results.end(),
-              [](const TagSearchResult& a, const TagSearchResult& b) { return a.count > b.count; });
+    auto byCount = [](const TagSearchResult& a, const TagSearchResult& b) {
+        return a.count > b.count;
+    };
+    std::sort(tier0.begin(), tier0.end(), byCount);
+    std::sort(tier1.begin(), tier1.end(), byCount);
+    std::sort(tier2.begin(), tier2.end(), byCount);
 
-    if (results.size() > maxResults) results.resize(maxResults);
+    QList<TagSearchResult> results;
+    results.reserve(maxResults);
+    for (auto* tier : {&tier0, &tier1, &tier2}) {
+        for (auto& r : *tier) {
+            if ((int)results.size() >= maxResults) return results;
+            results.push_back(std::move(r));
+        }
+    }
     return results;
 }
 

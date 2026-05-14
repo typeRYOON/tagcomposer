@@ -38,13 +38,45 @@ void ClickableLabel::setFilePath(const QString& path)
 
 void ClickableLabel::setSourcePixmap(const QPixmap& pix)
 {
+    const bool wasNull = m_src.isNull();
+    const bool nowNull = pix.isNull();
     const bool aspectChanged =
-        m_src.isNull() != pix.isNull() ||
-        (!pix.isNull() && !m_src.isNull() &&
+        wasNull != nowNull ||
+        (!nowNull && !wasNull &&
          qreal(pix.width()) * m_src.height() != qreal(pix.height()) * m_src.width());
     m_src = pix;
     updateScaled();
-    if (!m_userPlaced && aspectChanged) autoFit();
+    if (!aspectChanged) return;
+
+    if (!m_userPlaced) {
+        autoFit();
+        return;
+    }
+    if (nowNull || pix.width() <= 0 || pix.height() <= 0) return;
+
+    // Re-derive size with the same formula the grip-resize uses: pick the
+    // bigger of currentW/srcW and currentH/srcH, lock to source aspect, clamp
+    // to minSide and bounds. Anchors the bottom edge so the label grows up
+    // the same way a grip-pull does.
+    qreal s = std::max(qreal(width()) / qreal(pix.width()),
+                       qreal(height()) / qreal(pix.height()));
+    const qreal minS = qreal(m_minSide) / qreal(qMin(pix.width(), pix.height()));
+    s = qMax(s, minS);
+    const QRect b = effectiveBounds();
+    if (b.isValid()) {
+        s = qMin(s, qreal(b.width()) / qreal(pix.width()));
+        s = qMin(s, qreal(b.height()) / qreal(pix.height()));
+    }
+    const int newW = qRound(pix.width() * s);
+    const int newH = qRound(pix.height() * s);
+    int newX = x();
+    int newY = y() + height() - newH;
+    if (b.isValid()) {
+        newX = qBound(b.left(), newX, b.right() - newW + 1);
+        newY = qBound(b.top(), newY, b.bottom() - newH + 1);
+    }
+    move(newX, newY);
+    resize(newW, newH);
 }
 
 void ClickableLabel::setOutputFolder(const QString& path)

@@ -41,9 +41,16 @@ private:
         int tagIdx{0};
     };
 
+    struct WordEntry {
+        QString word;  // non-leading space-separated word, for sorted lookup
+        int tagIdx{0};
+        int offset{0}; // byte offset of word within m_tags[tagIdx].name
+    };
+
     QList<Tag> m_tags;
     QList<int> m_byName;         // indices into m_tags, sorted by tag name
     QList<AliasEntry> m_byAlias; // sorted by normalized
+    QList<WordEntry> m_byWord;   // sorted by word; non-leading words only
 };
 
 } // namespace core

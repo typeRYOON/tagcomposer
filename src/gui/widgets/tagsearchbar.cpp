@@ -205,7 +205,7 @@ void TagSearchBar::runSearch(const QString& text)
         return;
     }
 
-    const auto results = m_index->search(text, 12);
+    const auto results = m_index->search(text, 30);
     if (results.isEmpty()) {
         hidePopup();
         return;
@@ -412,7 +412,7 @@ void TagLineAutocomplete::runSearch(const QString& text)
     ensurePopup();
     m_list->clear();
 
-    const auto results = m_index->search(text, 12);
+    const auto results = m_index->search(text, 30);
     if (results.isEmpty()) {
         hidePopup();
         return;
