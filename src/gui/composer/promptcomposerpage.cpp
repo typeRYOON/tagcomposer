@@ -887,6 +887,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
             m_popout->installEventFilter(this);
             connect(m_popout, &QObject::destroyed, this, [this]() {
                 m_popout = nullptr;
+                m_previewLabel->setAttribute(Qt::WA_TransparentForMouseEvents, false);
                 // Skip fade-back if nothing ever showed; setPreviewImage
                 // will reveal the inset when content arrives.
                 if (m_previewLabel->isVisible()) fadePreviewInset(1.0);
@@ -913,6 +914,9 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         m_popout->raise();
         m_popout->activateWindow();
         fadePreviewInset(0.0); // popout takes over; hide the inset
+        // Inset is invisible but still hit-tests; let clicks/wheel pass
+        // through to the tag-row weight spinboxes underneath.
+        m_previewLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     });
 
     // ---- Wire pipeline
