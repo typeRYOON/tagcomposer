@@ -34,6 +34,8 @@ signals:
 
 private:
     void onComfyToggled(bool enabled);
+    void rebuildFacetFormats();
+    QWidget* makeFacetFormatRow(int idx, bool isAddRow);
 
     utils::AppSettings* m_settings;
 
@@ -65,6 +67,7 @@ private:
     QLineEdit* m_quickCopyFacet;
     QLineEdit* m_quickTriggerFacet;
     QLineEdit* m_quickStyleFacet;
+    QWidget* m_formatsContainer = nullptr;
 
     // Log section
     QPlainTextEdit* m_log;

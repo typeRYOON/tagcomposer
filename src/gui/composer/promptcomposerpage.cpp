@@ -278,6 +278,16 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_rulesLayout->setSpacing(4);
     m_rulesLayout->addStretch();
 
+    // Right-click on empty rules area: just "Add rule...". Rule rows install
+    // their own menu in rebuildRulesSidebar.
+    m_rulesContainer->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_rulesContainer, &QWidget::customContextMenuRequested, this,
+            [this](const QPoint& pos) {
+                QMenu menu;
+                menu.addAction("Add rule...", this, [this]() { promptAddRule(); });
+                menu.exec(m_rulesContainer->mapToGlobal(pos));
+            });
+
     auto* rulesScroll = new QScrollArea;
     rulesScroll->setObjectName("ComposerRulesScroll");
     rulesScroll->setWidget(m_rulesContainer);
@@ -286,6 +296,9 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
 
     rulesScroll->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     rulesScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // Tab from blank area of the list redirects to the search bar; filter
+    // installed because QScrollArea has WheelFocus and grabs the click.
+    rulesScroll->installEventFilter(this);
 
     auto* rulesHeaderRow = new QWidget;
     rulesHeaderRow->setObjectName("ComposerHeaderRow");
@@ -414,6 +427,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     m_wfList->setObjectName("WfList");
     m_wfList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_wfList->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+    m_wfList->installEventFilter(this);
 
     connect(m_wfList, &WorkflowDropList::fileDropped, this, [this](const QString& path) {
         if (!m_wfManager) return;
@@ -678,6 +692,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     varsScroll->setFrameShape(QFrame::NoFrame);
     varsScroll->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
     varsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    varsScroll->installEventFilter(this);
 
     auto* varsSection = new QWidget;
     auto* varsSectionL = new QVBoxLayout(varsSection);
@@ -700,10 +715,14 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     // Initial split: rules ~remainder, wf ~240px, vars ~200px.
     sidebarSplit->setSizes({400, 240, 200});
 
-    auto* sidebar = new QWidget;
-    sidebar->setObjectName("ComposerSidebar");
-    sidebar->setFixedWidth(330);
-    auto* sidebarLayout = new QVBoxLayout(sidebar);
+    m_sidebar = new QWidget;
+    m_sidebar->setObjectName("ComposerSidebar");
+    m_sidebar->setFixedWidth(330);
+    // ClickFocus so blank-area clicks land focus on the sidebar itself; the
+    // eventFilter then redirects Tab to the search bar (or states filter).
+    m_sidebar->setFocusPolicy(Qt::ClickFocus);
+    m_sidebar->installEventFilter(this);
+    auto* sidebarLayout = new QVBoxLayout(m_sidebar);
     sidebarLayout->setContentsMargins(0, 0, 0, 0);
     sidebarLayout->setSpacing(0);
     sidebarLayout->addWidget(sidebarSplit, 1);
@@ -713,7 +732,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
     root->addWidget(mainArea, 1);
-    root->addWidget(sidebar);
+    root->addWidget(m_sidebar);
 
     // ---- Category nav panel (floating, top-right)
     auto* navPanel = new CategoryNavPanel(this);
@@ -1010,6 +1029,23 @@ void PromptComposerPage::showEvent(QShowEvent* event)
 
 bool PromptComposerPage::eventFilter(QObject* obj, QEvent* event)
 {
+    // Tab from a blank/non-focusable area of the sidebar jumps to the composer
+    // search bar (or the states filter when states view is open). Filter is
+    // installed on m_sidebar plus the WheelFocus children (rules/vars scrolls,
+    // workflow list) that grab the click before it reaches m_sidebar.
+    if (event->type() == QEvent::KeyPress && m_sidebar) {
+        auto* ke = static_cast<QKeyEvent*>(event);
+        if (ke->key() == Qt::Key_Tab && ke->modifiers() == Qt::NoModifier) {
+            auto* w = qobject_cast<QWidget*>(obj);
+            if (w && (w == m_sidebar || m_sidebar->isAncestorOf(w))) {
+                if (m_statesViewActive && m_statesFilter)
+                    m_statesFilter->setFocus(Qt::TabFocusReason);
+                else if (m_searchBar)
+                    m_searchBar->setFocus(Qt::TabFocusReason);
+                return true;
+            }
+        }
+    }
     if (obj == m_groupsScroll && event->type() == QEvent::KeyPress) {
         auto* ke = static_cast<QKeyEvent*>(event);
         if (ke->key() == Qt::Key_Down || ke->key() == Qt::Key_Up) {
@@ -1260,7 +1296,8 @@ QList<CategoryGroup> PromptComposerPage::bucketForOutput(const QList<PipelineTag
 
 QString PromptComposerPage::currentPromptString(bool forJson) const
 {
-    return PromptPipeline::buildPromptString(bucketForOutput(m_lastResult, m_groups), forJson);
+    return PromptPipeline::buildPromptString(bucketForOutput(m_lastResult, m_groups), forJson,
+                                             m_facetFormats);
 }
 
 QList<QString> PromptComposerPage::currentActiveTags() const
@@ -1290,7 +1327,8 @@ QString PromptComposerPage::computePromptForTags(const QList<QString>& tags, boo
     QList<PipelineTag> flat;
     for (const auto& g : groups)
         flat << g.tags;
-    return PromptPipeline::buildPromptString(bucketForOutput(flat, m_groups), forJson);
+    return PromptPipeline::buildPromptString(bucketForOutput(flat, m_groups), forJson,
+                                             m_facetFormats);
 }
 
 QString PromptComposerPage::computePromptWithExtraTags(const QList<QString>& extraTags,
@@ -1322,6 +1360,9 @@ void PromptComposerPage::setDanbooruIndex(core::DanbooruIndex* index)
 {
     m_danbooruIndex = index;
     m_searchBar->setIndex(index);
+    // Rule arg edits attach TagLineAutocomplete only when m_danbooruIndex is
+    // set; rebuild now so edits created during construction get the popup.
+    rebuildRulesSidebar();
 }
 
 void PromptComposerPage::setVariableIndex(core::VariableIndex* index)
@@ -1905,7 +1946,14 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
     rl->addWidget(dot, 0, Qt::AlignVCenter);
 
     auto* tagEdit = new QLineEdit(pt.tag);
-    tagEdit->setObjectName(editable ? "ComposerTagEdit" : "ComposerTagReadOnly");
+    QString tagStyle = "ComposerTagReadOnly";
+    if (editable)
+        tagStyle = "ComposerTagEdit";
+    else if (pt.result == RuleResult::Injected)
+        tagStyle = "ComposerTagInjected";
+    else if (hasVar)
+        tagStyle = "ComposerTagVar";
+    tagEdit->setObjectName(tagStyle);
     tagEdit->setReadOnly(!editable);
     tagEdit->setProperty("_tag", activeKey);
 

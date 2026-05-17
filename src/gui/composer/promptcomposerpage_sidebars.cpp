@@ -15,13 +15,18 @@
 #include <QFont>
 #include <QFontMetrics>
 #include <QHBoxLayout>
+#include <QInputDialog>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QMenu>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QTimer>
+#include <QUuid>
 #include <QVBoxLayout>
 
 using namespace core;
@@ -43,6 +48,14 @@ public:
         setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     }
 
+    void setFullText(const QString& full)
+    {
+        m_full = full;
+        setToolTip(full);
+        QFontMetrics fm(font());
+        setText(fm.elidedText(full, Qt::ElideRight, width()));
+    }
+
 protected:
     void resizeEvent(QResizeEvent* e) override
     {
@@ -53,6 +66,103 @@ protected:
 
 private:
     QString m_full;
+};
+
+// Click-to-edit rule name. Both children share one QHBoxLayout slot; only
+// one is visible at a time. Qt's layout skips hidden children for sizing,
+// so the row stays QLabel-tall in display mode (QStackedWidget would have
+// inflated it to the QLineEdit's height via QStackedLayout::minimumSize).
+// onCommit returns true to accept (widget shows the new text) or false to
+// revert (duplicate/empty validation).
+class EditableRuleName : public QWidget {
+public:
+    explicit EditableRuleName(const QString& full, QWidget* parent = nullptr)
+        : QWidget(parent),
+          m_label(new ElidingLabel(full, this)),
+          m_edit(new QLineEdit(this)),
+          m_text(full)
+    {
+        m_label->setObjectName("ComposerRuleName");
+        m_edit->setObjectName("ComposerRuleNameEdit");
+        auto* l = new QHBoxLayout(this);
+        l->setContentsMargins(0, 0, 0, 0);
+        l->setSpacing(0);
+        l->addWidget(m_label);
+        l->addWidget(m_edit);
+        m_edit->hide();
+        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+        m_label->installEventFilter(this);
+        m_edit->installEventFilter(this);
+    }
+
+    std::function<bool(const QString&)> onCommit;
+
+    void beginEdit()
+    {
+        if (m_edit->isVisible()) return;
+        m_edit->setText(m_text);
+        m_edit->selectAll();
+        m_label->hide();
+        m_edit->show();
+        m_edit->setFocus(Qt::OtherFocusReason);
+    }
+
+protected:
+    bool eventFilter(QObject* o, QEvent* e) override
+    {
+        if (o == m_label && e->type() == QEvent::MouseButtonDblClick) {
+            beginEdit();
+            return true;
+        }
+        if (o == m_edit) {
+            if (e->type() == QEvent::FocusOut) {
+                commitEdit();
+            }
+            else if (e->type() == QEvent::KeyPress) {
+                auto* ke = static_cast<QKeyEvent*>(e);
+                if (ke->key() == Qt::Key_Escape) {
+                    cancelEdit();
+                    return true;
+                }
+                if (ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter) {
+                    commitEdit();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+private:
+    void swapToLabel()
+    {
+        if (m_label->isVisible()) return;
+        m_edit->hide();
+        m_label->show();
+    }
+
+    void commitEdit()
+    {
+        if (m_committing || !m_edit->isVisible()) return;
+        m_committing = true;
+        const QString next = m_edit->text().trimmed();
+        if (!next.isEmpty() && next != m_text && onCommit && onCommit(next)) {
+            m_text = next;
+            m_label->setFullText(next);
+        }
+        swapToLabel();
+        m_committing = false;
+    }
+
+    void cancelEdit()
+    {
+        swapToLabel();
+    }
+
+    ElidingLabel* m_label;
+    QLineEdit* m_edit;
+    QString m_text;
+    bool m_committing = false;
 };
 
 // Rule row; hides args area unless hovered or focused. Hide is debounced
@@ -189,6 +299,8 @@ void PromptComposerPage::rebuildRulesSidebar()
             rwl->setContentsMargins(0, 0, 0, 2);
             rwl->setSpacing(2);
 
+            ruleWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+
             // ---- Header row: indicator-only checkbox + elided name + badges
             auto* cbRow = new QWidget;
             auto* cbRowL = new QHBoxLayout(cbRow);
@@ -206,9 +318,41 @@ void PromptComposerPage::rebuildRulesSidebar()
             });
             cbRowL->addWidget(cb);
 
-            auto* nameLabel = new ElidingLabel(rules[i].name);
-            nameLabel->setObjectName("ComposerRuleName");
-            cbRowL->addWidget(nameLabel, 1);
+            auto* nameWidget = new EditableRuleName(rules[i].name);
+            nameWidget->onCommit = [this, i](const QString& next) -> bool {
+                if (i >= m_rules->rules().size()) return false;
+                for (int j = 0; j < m_rules->rules().size(); ++j)
+                    if (j != i && m_rules->rules()[j].name == next) return false;
+                m_rules->rules()[i].name = next;
+                m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
+                captureUndoSnapshot();
+                // Refresh "^ <ruleSource>" badges on already-matched tags.
+                queueRepush();
+                return true;
+            };
+            cbRowL->addWidget(nameWidget, 1);
+
+            connect(ruleWidget, &QWidget::customContextMenuRequested, this,
+                    [this, ruleWidget, nameWidget, i](const QPoint& pos) {
+                        QMenu menu;
+                        // Deferred so the menu's focus restoration doesn't steal
+                        // focus back from the rename QLineEdit.
+                        menu.addAction("Rename...", this, [nameWidget]() {
+                            QTimer::singleShot(0, nameWidget,
+                                               [nameWidget]() { nameWidget->beginEdit(); });
+                        });
+                        menu.addAction("Delete", this, [this, i]() {
+                            if (i >= m_rules->rules().size()) return;
+                            m_rules->rules().removeAt(i);
+                            m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
+                            captureUndoSnapshot();
+                            rebuildRulesSidebar();
+                            queueRepush();
+                        });
+                        menu.addSeparator();
+                        menu.addAction("Add rule...", this, [this]() { promptAddRule(); });
+                        menu.exec(ruleWidget->mapToGlobal(pos));
+                    });
 
             if (rules[i].force) {
                 cbRowL->addWidget(makeBadge("⚑", "ComposerRuleForceBadge"));
@@ -241,6 +385,7 @@ void PromptComposerPage::rebuildRulesSidebar()
                     auto* edit = new QLineEdit(args[k]);
                     edit->setObjectName("ComposerRuleArgEdit");
                     edit->setPlaceholderText("tag…");
+                    if (m_danbooruIndex) new TagLineAutocomplete(edit, m_danbooruIndex, edit);
                     connect(edit, &QLineEdit::editingFinished, this, [this, i, k, edit]() {
                         QList<QString>& a = m_rules->rules()[i].action.arguments;
                         if (k >= a.size()) return;
@@ -280,6 +425,7 @@ void PromptComposerPage::rebuildRulesSidebar()
                 auto* addEdit = new QLineEdit;
                 addEdit->setObjectName("ComposerRuleArgEdit");
                 addEdit->setPlaceholderText("add tag…");
+                if (m_danbooruIndex) new TagLineAutocomplete(addEdit, m_danbooruIndex, addEdit);
                 connect(addEdit, &QLineEdit::editingFinished, this, [this, i, addEdit]() {
                     const QString t = addEdit->text().trimmed();
                     if (t.isEmpty()) return;
@@ -300,6 +446,34 @@ void PromptComposerPage::rebuildRulesSidebar()
     }
 
     m_rulesLayout->addStretch();
+}
+
+void PromptComposerPage::promptAddRule()
+{
+    bool ok = false;
+    const QString raw = QInputDialog::getText(this, "Add Rule", "Name:", QLineEdit::Normal,
+                                              QString(), &ok);
+    if (!ok) return;
+    const QString name = raw.trimmed();
+    if (name.isEmpty()) return;
+    for (const auto& r : m_rules->rules())
+        if (r.name == name) {
+            emit statusMessageRequested(QString("Rule \"%1\" already exists.").arg(name));
+            return;
+        }
+
+    core::Rule r;
+    r.uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    r.name = name;
+    r.enabled = true;
+    r.action.type = core::ActionType::Skip;
+    m_rules->rules().append(r);
+    m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
+    captureUndoSnapshot();
+    rebuildRulesSidebar();
+    queueRepush();
+    emit statusMessageRequested(
+        QString("Added rule \"%1\" - edit rules.fct to define its match.").arg(name));
 }
 
 void PromptComposerPage::rebuildWorkflowList()
@@ -392,8 +566,21 @@ void PromptComposerPage::rebuildVarsSidebar()
         delBtn->setToolTip("Remove variable");
         connect(delBtn, &QPushButton::clicked, this, [this, i, persistAndRepush]() {
             if (i >= m_varIndex->variables().size()) return;
+            const QString token = "$" + m_varIndex->variables()[i].name + "$";
+            int usage = 0;
+            for (const QString& t : m_activeTags)
+                if (t.contains(token)) ++usage;
+            for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it)
+                for (const QString& t : it.value())
+                    if (t.contains(token)) ++usage;
             m_varIndex->variables().removeAt(i);
             persistAndRepush();
+            if (usage > 0)
+                emit statusMessageRequested(
+                    QString("Removed %1 - still referenced by %2 tag%3.")
+                        .arg(token)
+                        .arg(usage)
+                        .arg(usage == 1 ? "" : "s"));
         });
 
         rl->addWidget(nameLabel);

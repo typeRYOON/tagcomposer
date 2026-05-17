@@ -2,6 +2,7 @@
 #include <core/facetindex.h>
 #include <core/ruleengine.h>
 #include <core/variableindex.h>
+#include <utils/appsettings.h>
 #include <QObject>
 
 namespace core {
@@ -19,7 +20,11 @@ public:
     QList<CategoryGroup> evaluate(const QList<QString>& tags) const;
 
     // Joins Include + Injected tags into a comma-separated prompt string.
-    static QString buildPromptString(const QList<CategoryGroup>& groups, bool forJson);
+    // `formats` wraps each tag whose facets contain a rule's facet name with
+    // its prefix/suffix; rules stack in list order. Applied before weight
+    // serialization so weighted output becomes `(<prefix>tag<suffix>:1.5)`.
+    static QString buildPromptString(const QList<CategoryGroup>& groups, bool forJson,
+                                     const QList<utils::FacetFormat>& formats = {});
 
 signals:
     void pipelineReady(QList<core::CategoryGroup> groups);

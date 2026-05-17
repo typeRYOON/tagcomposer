@@ -108,6 +108,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_composerPage->setTempFolder(m_settings.comfyUiTempFolder);
     m_composerPage->setQuickFacets(m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet,
                                    m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);
+    m_composerPage->setFacetFormats(m_settings.facetFormats);
     m_tileViewPage->setQuickFacets(m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet,
                                    m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);
     m_facetEditorPage = new FacetEditorPage(&m_facetIndex, m_entryModel, this);
@@ -137,8 +138,8 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_pages->addWidget(m_homePage);            // Page::Home
     m_pages->addWidget(m_tileViewPage);        // Page::EntryViewer
     m_pages->addWidget(m_composerPage);        // Page::TagComposer
-    m_pages->addWidget(m_workflowEditPage);    // Page::WorkflowEditor
     m_pages->addWidget(m_facetEditorPage);     // Page::FacetEditor
+    m_pages->addWidget(m_workflowEditPage);    // Page::WorkflowEditor
     m_pages->addWidget(m_promptHistoryPage);   // Page::PromptHistory
     m_pages->addWidget(m_outputViewerPage);    // Page::OutputViewer
     m_taggerLibrary = std::make_unique<core::AutoTaggerLibrary>(BASE_PATH + "/" + MODELS_DIR);
@@ -399,6 +400,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         m_composerPage->setQuickFacets(
             m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet,
             m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);
+        m_composerPage->setFacetFormats(m_settings.facetFormats);
         m_tileViewPage->setQuickFacets(
             m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet,
             m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);

@@ -69,10 +69,13 @@ void FacetIndex::loadDefinitionsFromFile(const QString& definitionsPath)
         const QString line = raw.trimmed();
         if (line.isEmpty() || line.startsWith('#') || !line.contains('=')) continue;
 
-        const int eq = line.indexOf('=');
+        // lastIndexOf so the full would-be tag is captured (and then rejected
+        // below if it contains '='); indexOf would silently truncate a tag
+        // like `foo=` to `foo` and load garbage facets.
+        const int eq = line.lastIndexOf('=');
         const QString tag = line.left(eq).trimmed();
-        const QList<QString> facets = splitTrimmed(line.mid(eq + 1), ',');
-        if (!tag.isEmpty()) m_tagToFacets[tag] = facets;
+        if (tag.isEmpty() || tag.contains('=')) continue; // '=' is reserved as the separator
+        m_tagToFacets[tag] = splitTrimmed(line.mid(eq + 1), ',');
     }
 }
 

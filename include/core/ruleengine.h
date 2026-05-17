@@ -45,6 +45,7 @@ struct RuleAction {
 // ---- Rule
 
 struct Rule {
+    QString uuid; // stable identity; survives renames. Auto-filled on load if missing.
     QString name;
     bool enabled{true};
     bool force{false}; // fire action even when no tags matched

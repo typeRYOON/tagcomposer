@@ -9,6 +9,7 @@
 #include <core/workflowmanager.h>
 #include <core/workflowinputcache.h>
 #include <gui/widgets/tagsearchbar.h>
+#include <utils/appsettings.h>
 #include <QColor>
 #include <QWidget>
 #include <QSet>
@@ -59,6 +60,10 @@ public:
     }
     void setQuickFacets(const QString& characterFacet, const QString& copyrightFacet,
                         const QString& triggerWordFacet, const QString& styleFacet);
+    void setFacetFormats(const QList<utils::FacetFormat>& formats)
+    {
+        m_facetFormats = formats;
+    }
 
     // Tile rendering settings (shared with the entry tile view). Startup-only:
     // applied before the states grid is rendered the first time.
@@ -155,6 +160,7 @@ private:
     void fadePreviewInset(qreal target);
     void applyTagFilter();
     void rebuildRulesSidebar();
+    void promptAddRule();
     void rebuildVarsSidebar();
     void rebuildWorkflowList();
     void rebuildStatesList();
@@ -233,6 +239,7 @@ private:
     QString m_quickCopyFacet;
     QString m_quickTriggerFacet;
     QString m_quickStyleFacet;
+    QList<utils::FacetFormat> m_facetFormats;
 
     QString m_filterQuery;
     bool m_undefinedOnly = false;
@@ -277,6 +284,7 @@ private:
     QString m_tempFolder;
 
     // UI - workflow sidebar
+    QWidget* m_sidebar = nullptr; // outer container; click-focuses on blank area
     WorkflowDropList* m_wfList = nullptr;
     StatesGridView* m_statesGrid = nullptr;
     QLineEdit* m_wfFilter = nullptr;

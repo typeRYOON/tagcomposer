@@ -457,6 +457,23 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     facetsLayout->addWidget(m_quickStyleFacet, 3, 1);
     facetsLayout->addWidget(facetsHint, 4, 1);
 
+    m_formatsContainer = new QWidget;
+    auto* formatsLayout = new QVBoxLayout(m_formatsContainer);
+    formatsLayout->setContentsMargins(0, 0, 0, 0);
+    formatsLayout->setSpacing(4);
+
+    auto* formatsHint = new QLabel(
+        "Wraps every tag whose facets include the listed facet with prefix + tag + suffix "
+        "right before the prompt is built for copy/ComfyUI. Rules stack in order. "
+        "Example: facet=rStyle, prefix=@, suffix=(empty) emits \"@asanagi\".");
+    formatsHint->setObjectName("SettingsHintLabel");
+    formatsHint->setWordWrap(true);
+
+    facetsLayout->addWidget(makeLabel("Tag formatting"), 5, 0, Qt::AlignTop);
+    facetsLayout->addWidget(m_formatsContainer, 5, 1);
+    facetsLayout->addWidget(formatsHint, 6, 1);
+    rebuildFacetFormats();
+
     auto* purgeHint =
         new QLabel("Drop tag definitions that have zero facets, or that aren't in the Danbooru "
                    "list and aren't used by any entry. Or strip facet entries whose name isn't "
@@ -480,8 +497,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     purgeRow->addWidget(purgeUnknownBtn);
     purgeRow->addStretch();
 
-    facetsLayout->addWidget(purgeHint, 5, 1);
-    facetsLayout->addLayout(purgeRow, 6, 1);
+    facetsLayout->addLayout(purgeRow, 7, 1);
+    facetsLayout->addWidget(purgeHint, 8, 1);
 
     auto* openDanbooruBtn = new QPushButton("Open danbooru.csv");
     openDanbooruBtn->setObjectName("SettingsLaunchBtn");
@@ -511,8 +528,8 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     systemFilesRow->addWidget(openDefinitionsBtn);
     systemFilesRow->addStretch();
 
-    facetsLayout->addWidget(systemFilesHint, 7, 1);
-    facetsLayout->addLayout(systemFilesRow, 8, 1);
+    facetsLayout->addLayout(systemFilesRow, 9, 1);
+    facetsLayout->addWidget(systemFilesHint, 10, 1);
 
     connect(purgeBtn, &QPushButton::clicked, this, &SettingsPage::purgeTagDefinitionsRequested);
     connect(purgeUnknownBtn, &QPushButton::clicked, this,
@@ -857,6 +874,103 @@ void SettingsPage::setComfyStatus(bool connected, const QString& error)
     }
     m_statusDot->style()->unpolish(m_statusDot);
     m_statusDot->style()->polish(m_statusDot);
+}
+
+void SettingsPage::rebuildFacetFormats()
+{
+    QLayout* l = m_formatsContainer->layout();
+    while (l->count() > 0) {
+        QLayoutItem* item = l->takeAt(0);
+        if (QWidget* w = item->widget()) w->deleteLater();
+        delete item;
+    }
+    for (int i = 0; i < m_settings->facetFormats.size(); ++i)
+        l->addWidget(makeFacetFormatRow(i, false));
+    l->addWidget(makeFacetFormatRow(-1, true));
+}
+
+QWidget* SettingsPage::makeFacetFormatRow(int idx, bool isAddRow)
+{
+    auto* row = new QWidget;
+    auto* hl = new QHBoxLayout(row);
+    hl->setContentsMargins(0, 0, 0, 0);
+    hl->setSpacing(6);
+
+    auto* facetEdit = new QLineEdit;
+    facetEdit->setObjectName("SettingsInput");
+    facetEdit->setPlaceholderText(isAddRow ? "add facet..." : "facet");
+
+    auto* prefixEdit = new QLineEdit;
+    prefixEdit->setObjectName("SettingsInput");
+    prefixEdit->setPlaceholderText("prefix");
+    prefixEdit->setMaximumWidth(80);
+
+    auto* suffixEdit = new QLineEdit;
+    suffixEdit->setObjectName("SettingsInput");
+    suffixEdit->setPlaceholderText("suffix");
+    suffixEdit->setMaximumWidth(80);
+
+    if (!isAddRow) {
+        const auto& f = m_settings->facetFormats[idx];
+        facetEdit->setText(f.facet);
+        prefixEdit->setText(f.prefix);
+        suffixEdit->setText(f.suffix);
+    }
+
+    auto* actionBtn = new QPushButton(isAddRow ? "+" : "✕");
+    actionBtn->setObjectName("ComposerRuleArgDelBtn");
+    actionBtn->setCursor(Qt::PointingHandCursor);
+    actionBtn->setFocusPolicy(Qt::NoFocus);
+    actionBtn->setFixedSize(20, 20);
+
+    if (isAddRow) {
+        auto commitAdd = [this, facetEdit, prefixEdit, suffixEdit]() {
+            const QString facet = facetEdit->text().trimmed();
+            if (facet.isEmpty()) return;
+            utils::FacetFormat ff;
+            ff.facet = facet;
+            ff.prefix = prefixEdit->text();
+            ff.suffix = suffixEdit->text();
+            m_settings->facetFormats << ff;
+            rebuildFacetFormats();
+            emit settingsChanged();
+        };
+        connect(facetEdit, &QLineEdit::returnPressed, this, commitAdd);
+        connect(prefixEdit, &QLineEdit::returnPressed, this, commitAdd);
+        connect(suffixEdit, &QLineEdit::returnPressed, this, commitAdd);
+        connect(actionBtn, &QPushButton::clicked, this, commitAdd);
+    }
+    else {
+        auto commitEdit = [this, idx, facetEdit, prefixEdit, suffixEdit]() {
+            if (idx >= m_settings->facetFormats.size()) return;
+            const QString facet = facetEdit->text().trimmed();
+            if (facet.isEmpty()) {
+                m_settings->facetFormats.removeAt(idx);
+                rebuildFacetFormats();
+                emit settingsChanged();
+                return;
+            }
+            m_settings->facetFormats[idx].facet = facet;
+            m_settings->facetFormats[idx].prefix = prefixEdit->text();
+            m_settings->facetFormats[idx].suffix = suffixEdit->text();
+            emit settingsChanged();
+        };
+        connect(facetEdit, &QLineEdit::editingFinished, this, commitEdit);
+        connect(prefixEdit, &QLineEdit::editingFinished, this, commitEdit);
+        connect(suffixEdit, &QLineEdit::editingFinished, this, commitEdit);
+        connect(actionBtn, &QPushButton::clicked, this, [this, idx]() {
+            if (idx >= m_settings->facetFormats.size()) return;
+            m_settings->facetFormats.removeAt(idx);
+            rebuildFacetFormats();
+            emit settingsChanged();
+        });
+    }
+
+    hl->addWidget(facetEdit, 1);
+    hl->addWidget(prefixEdit);
+    hl->addWidget(suffixEdit);
+    hl->addWidget(actionBtn);
+    return row;
 }
 
 } // namespace gui

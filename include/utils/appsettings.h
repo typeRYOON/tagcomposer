@@ -1,7 +1,17 @@
 #pragma once
 #include <QString>
+#include <QList>
 
 namespace utils {
+
+// Per-facet tag wrap applied right before prompt-string assembly. Used so
+// model-specific syntax (e.g. Anima's "@asanagi" for rstyle tags) can live
+// in settings instead of being baked into every saved tag name.
+struct FacetFormat {
+    QString facet;
+    QString prefix;
+    QString suffix;
+};
 
 struct AppSettings {
     // ---- Appearance
@@ -35,6 +45,7 @@ struct AppSettings {
     QString quickCopyrightFacet;
     QString quickTriggerWordFacet;
     QString quickStyleFacet;
+    QList<FacetFormat> facetFormats;
 
     // ---- AutoTag
     QString activeAutoTagModel;

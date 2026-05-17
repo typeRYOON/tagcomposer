@@ -310,9 +310,18 @@ bool TagSearchBar::eventFilter(QObject* obj, QEvent* event)
             case Qt::Key_Up:
                 m_list->setCurrentRow(std::max(m_list->currentRow() - 1, 0));
                 return true;
+            case Qt::Key_Tab:
+                // Only commit on Tab when the user has actively arrowed to a
+                // result. Otherwise let Tab fall through to default focus
+                // traversal so chained Tabs from neighboring widgets don't
+                // trigger an unintended commit.
+                if (m_popup->isVisible() && m_list->currentItem()) {
+                    commitCurrent();
+                    return true;
+                }
+                break;
             case Qt::Key_Return:
-            case Qt::Key_Enter:
-            case Qt::Key_Tab: {
+            case Qt::Key_Enter: {
                 const QString text = utils::normalizeTagInput(m_input->text());
                 if (text.contains(',') || !m_popup->isVisible() || !m_list->currentItem())
                     commitRaw(text);

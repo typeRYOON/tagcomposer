@@ -65,9 +65,9 @@ void PromptComposerPage::captureCurrentState(core::SavedState& state) const
     state.ruleArguments.clear();
     state.rulesSnapshot = QJsonArray();
     for (const auto& rule : m_rules->rules()) {
-        state.ruleStates[rule.name] = rule.enabled;
+        state.ruleStates[rule.uuid] = rule.enabled;
         // Add/Replace args are user-typed; part of state.
-        state.ruleArguments[rule.name] = rule.action.arguments;
+        state.ruleArguments[rule.uuid] = rule.action.arguments;
         // Full definition so restoring on a machine missing this rule can
         // recreate it locally.
         state.rulesSnapshot.append(core::RuleEngine::ruleToJson(rule));
@@ -207,19 +207,19 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     emit loraUuidsRestored(m_activeLoraUuids);
 
     // Bring back any rules the state knows about but the local rules.fct
-    // doesn't (match by name). Existing-named rules are left untouched - the
+    // doesn't (match by uuid). Existing-uuid rules are left untouched - the
     // local definition wins.
     int rulesAdded = 0;
     {
         QSet<QString> existing;
         for (const auto& r : m_rules->rules())
-            existing.insert(r.name);
+            existing.insert(r.uuid);
         for (const QJsonValue& v : state.rulesSnapshot) {
             const core::Rule restored = core::RuleEngine::ruleFromJson(v.toObject());
-            if (restored.name.isEmpty()) continue;
-            if (existing.contains(restored.name)) continue;
+            if (restored.uuid.isEmpty()) continue;
+            if (existing.contains(restored.uuid)) continue;
             m_rules->rules().append(restored);
-            existing.insert(restored.name);
+            existing.insert(restored.uuid);
             ++rulesAdded;
         }
     }
@@ -228,10 +228,10 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     // snapshot are force-disabled so reload-from-disk matches the view.
     // Match expressions and force flags are untouched.
     for (auto& rule : m_rules->rules()) {
-        auto it = state.ruleStates.find(rule.name);
+        auto it = state.ruleStates.find(rule.uuid);
         if (it != state.ruleStates.end()) {
             rule.enabled = it.value();
-            auto ait = state.ruleArguments.find(rule.name);
+            auto ait = state.ruleArguments.find(rule.uuid);
             if (ait != state.ruleArguments.end()) rule.action.arguments = ait.value();
         }
         else {

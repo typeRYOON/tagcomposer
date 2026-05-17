@@ -61,6 +61,22 @@
     padding: 0;
 }
 
+#ComposerTagVar {
+    background: transparent;
+    border: none;
+    color: #cccccc;
+    font-size: 20px;
+    padding: 0;
+}
+
+#ComposerTagInjected {
+    background: transparent;
+    border: none;
+    color: #a8eda8;
+    font-size: 20px;
+    padding: 0;
+}
+
 
 #ComposerVarBadge {
     background: transparent;

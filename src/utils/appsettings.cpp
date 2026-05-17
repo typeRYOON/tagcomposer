@@ -1,6 +1,7 @@
 #include <utils/appsettings.h>
 #include <QFile>
 #include <QDir>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QFileInfo>
@@ -45,6 +46,16 @@ AppSettings AppSettings::load(const QString& path)
     s.quickCopyrightFacet = facets["quickCopyright"].toString();
     s.quickTriggerWordFacet = facets["quickTriggerWord"].toString();
     s.quickStyleFacet = facets["quickStyle"].toString();
+    for (const auto& v : facets["formats"].toArray()) {
+        const QJsonObject o = v.toObject();
+        const QString facet = o["facet"].toString().trimmed();
+        if (facet.isEmpty()) continue;
+        FacetFormat ff;
+        ff.facet = facet;
+        ff.prefix = o["prefix"].toString();
+        ff.suffix = o["suffix"].toString();
+        s.facetFormats << ff;
+    }
 
     const QJsonObject autotag = root["autotag"].toObject();
     s.activeAutoTagModel = autotag["activeModel"].toString();
@@ -97,6 +108,15 @@ void AppSettings::save(const QString& path) const
     facets["quickCopyright"] = quickCopyrightFacet;
     facets["quickTriggerWord"] = quickTriggerWordFacet;
     facets["quickStyle"] = quickStyleFacet;
+    QJsonArray fmts;
+    for (const FacetFormat& f : facetFormats) {
+        QJsonObject o;
+        o["facet"] = f.facet;
+        o["prefix"] = f.prefix;
+        o["suffix"] = f.suffix;
+        fmts.append(o);
+    }
+    facets["formats"] = fmts;
 
     QJsonObject autotag;
     autotag["activeModel"] = activeAutoTagModel;

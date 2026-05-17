@@ -6,6 +6,7 @@
 #include <QSet>
 #include <QTextStream>
 #include <QRegularExpression>
+#include <QUuid>
 
 namespace core {
 
@@ -191,12 +192,19 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
     bool inRule{false};
     bool actionSet{false};
     bool skipBlock{false};
+    bool uuidsGenerated{false};
     QSet<QString> seenNames;
+    QSet<QString> seenUuids;
 
     auto finaliseRule = [&]() {
         if (skipBlock) return;
         if (!actionSet && errors)
             *errors << QString("Rule \"%1\": missing action").arg(current.name);
+        if (current.uuid.isEmpty() || seenUuids.contains(current.uuid)) {
+            current.uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+            uuidsGenerated = true;
+        }
+        seenUuids.insert(current.uuid);
         eng.m_rules << current;
     };
 
@@ -234,7 +242,9 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
         const QString key = line.left(eq).trimmed();
         const QString val = line.mid(eq + 1).trimmed();
 
-        if (key == "enabled")
+        if (key == "id")
+            current.uuid = val;
+        else if (key == "enabled")
             current.enabled = (val == "true");
         else if (key == "force")
             current.force = (val == "true");
@@ -255,6 +265,11 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
     }
 
     if (inRule) finaliseRule();
+    f.close();
+
+    // Stabilise auto-generated uuids on disk so subsequent loads are idempotent.
+    if (uuidsGenerated) eng.saveToFile(path);
+
     return eng;
 }
 
@@ -268,6 +283,7 @@ void RuleEngine::saveToFile(const QString& path) const
 
     for (const Rule& r : m_rules) {
         ts << "@rule " << r.name << "\n";
+        ts << "    id      = " << r.uuid << "\n";
         ts << "    enabled = " << (r.enabled ? "true" : "false") << "\n";
         if (r.force) ts << "    force   = true\n";
 
@@ -403,6 +419,7 @@ QJsonObject RuleEngine::ruleToJson(const Rule& r)
     actionObj["arguments"] = argsArr;
 
     QJsonObject obj;
+    obj["uuid"] = r.uuid;
     obj["name"] = r.name;
     obj["enabled"] = r.enabled;
     obj["force"] = r.force;
@@ -414,6 +431,7 @@ QJsonObject RuleEngine::ruleToJson(const Rule& r)
 Rule RuleEngine::ruleFromJson(const QJsonObject& obj)
 {
     Rule r;
+    r.uuid = obj["uuid"].toString();
     r.name = obj["name"].toString();
     r.enabled = obj["enabled"].toBool();
     r.force = obj["force"].toBool();

@@ -121,7 +121,8 @@ QList<CategoryGroup> PromptPipeline::groupByCategory(const QList<PipelineTag>& t
 
 // ---- Prompt string
 
-QString PromptPipeline::buildPromptString(const QList<CategoryGroup>& groups, bool forJson)
+QString PromptPipeline::buildPromptString(const QList<CategoryGroup>& groups, bool forJson,
+                                          const QList<utils::FacetFormat>& formats)
 {
     auto fmtWeight = [](float w) -> QString {
         QString s = QString::number(double(w), 'f', 2);
@@ -129,6 +130,13 @@ QString PromptPipeline::buildPromptString(const QList<CategoryGroup>& groups, bo
             s.chop(1);
         if (s.endsWith('.')) s.chop(1);
         return s;
+    };
+
+    auto applyFormats = [&formats](const PipelineTag* pt) -> QString {
+        QString out = pt->tag;
+        for (const utils::FacetFormat& f : formats)
+            if (pt->facets.contains(f.facet)) out = f.prefix + out + f.suffix;
+        return out;
     };
 
     QList<QString> parts;
@@ -140,7 +148,7 @@ QString PromptPipeline::buildPromptString(const QList<CategoryGroup>& groups, bo
                 active << &pt;
 
         for (const PipelineTag* pt : active) {
-            const QString s = utils::serializeTagForPrompt(pt->tag, forJson);
+            const QString s = utils::serializeTagForPrompt(applyFormats(pt), forJson);
             if (qAbs(pt->weight - 1.0f) < 0.0001f)
                 parts << s;
             else
