@@ -1,5 +1,6 @@
 #pragma once
 #include <core/facetindex.h>
+#include <core/profileindex.h>
 #include <core/ruleengine.h>
 #include <core/savedstate.h>
 #include <core/taggroups.h>
@@ -25,6 +26,7 @@
 #include <QSpinBox>
 
 class QVBoxLayout;
+class QComboBox;
 class QGraphicsOpacityEffect;
 class QPropertyAnimation;
 class QMenu;
@@ -60,9 +62,24 @@ public:
     }
     void setQuickFacets(const QString& characterFacet, const QString& copyrightFacet,
                         const QString& triggerWordFacet, const QString& styleFacet);
-    void setFacetFormats(const QList<utils::FacetFormat>& formats)
+    // settings.json's facets.formats list. Used verbatim while no format
+    // profile is active; otherwise the active profile wins.
+    void setSettingsFacetFormats(const QList<utils::FacetFormat>& formats);
+
+    // Re-seed the group index (a profile switch permutes it) and redraw. Only
+    // bucketing/order change, so no pipeline re-run is needed.
+    void setGroups(const core::TagGroupIndex& groups);
+
+    // Profile store + the unpermuted groups.fct index, both owned by
+    // AppMainWindow. Applies the active pair immediately.
+    void setProfiles(core::ProfileIndex* profiles, const core::TagGroupIndex* baseGroups,
+                     const QString& savePath);
+    // When true, restoreState overwrites match/action/name/force on rules
+    // already in memory with the same uuid. When false, those rules are left
+    // untouched (only their enabled flag and action.arguments get refreshed).
+    void setForceOverwriteRulesOnStateLoad(bool on)
     {
-        m_facetFormats = formats;
+        m_forceOverwriteRulesOnStateLoad = on;
     }
 
     // Tile rendering settings (shared with the entry tile view). Startup-only:
@@ -150,6 +167,10 @@ signals:
 protected:
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
+    // PNG drops: images carrying a baked "tagcomposer_state" text chunk
+    // restore that state (see promptcomposerpage_states.cpp).
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
@@ -162,6 +183,21 @@ private:
     void rebuildRulesSidebar();
     void promptAddRule();
     void rebuildVarsSidebar();
+    void rebuildProfilesSidebar();
+    void reloadProfiles();
+    // Free-text tag injected into `groupName`, carrying that group's facets so
+    // it qualifies for it. Prompts for the text.
+    void promptAddCustomTag(const QString& groupName);
+    // "Add tag to >" submenu over every group that has facets - the only way
+    // to reach a group with no rows (and so no header to right-click).
+    void addCustomTagMenu(QMenu& menu);
+    // Resolve the active group/format profile pair and apply it. `persist`
+    // writes the selection back to profiles.fct; `refreshNow` redraws (skip it
+    // when the caller repushes right after).
+    void applyActiveProfiles(bool persist, bool refreshNow);
+    // Apply a state's stamped snapshot. Selects the named profile when it
+    // still exists and resolves identically, else shows a one-off entry.
+    void applyProfileStamp(const core::SavedState& state, bool refreshNow);
     void rebuildWorkflowList();
     void rebuildStatesList();
     void repositionFloats();
@@ -239,7 +275,19 @@ private:
     QString m_quickCopyFacet;
     QString m_quickTriggerFacet;
     QString m_quickStyleFacet;
-    QList<utils::FacetFormat> m_facetFormats;
+    QList<utils::FacetFormat> m_facetFormats;         // effective (profile or settings)
+    QList<utils::FacetFormat> m_settingsFacetFormats; // fallback when no profile
+    bool m_forceOverwriteRulesOnStateLoad = false;
+
+    // Profiles. m_baseGroups is groups.fct as loaded; m_groups is the
+    // profile-ordered copy actually used for bucketing.
+    core::ProfileIndex* m_profiles = nullptr;
+    const core::TagGroupIndex* m_baseGroups = nullptr;
+    QString m_profilesPath;
+    // Non-empty while the live order/formats came from a state stamp that no
+    // named profile matches; shown as a trailing combo entry.
+    QString m_oneOffGroupLabel;
+    QString m_oneOffFormatLabel;
 
     QString m_filterQuery;
     bool m_undefinedOnly = false;
@@ -255,6 +303,11 @@ private:
     QList<core::PipelineTag> m_lastResult;
     QHash<QString, float>
         m_tagWeights; // weight keyed via weightKeyOf - sourceTag wins when present
+    // Custom-tag facets, keyed by the active-list string. Kept here rather
+    // than in tag_definitions.fct: these are one-off prompt fragments, and the
+    // definition purge drops anything not in Danbooru and unused by entries.
+    // Pruned against m_activeTags on every repush.
+    QHash<QString, QList<QString>> m_customTagFacets;
 
     QHash<qint64, QList<QString>> m_activePushes;
 
@@ -351,6 +404,10 @@ private:
     // UI - variable sidebar section
     QWidget* m_varsContainer;
     QVBoxLayout* m_varsLayout;
+
+    // UI - profiles sidebar section
+    QComboBox* m_groupProfileBox = nullptr;
+    QComboBox* m_formatProfileBox = nullptr;
 
     // Copy-to-clipboard button area
     QPushButton* m_copyBtn;

@@ -1,8 +1,10 @@
 #include <gui/composer/clickablelabel.h>
 #include <QApplication>
 #include <QColor>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
+#include <QDirIterator>
 #include <QDrag>
 #include <QFileInfo>
 #include <QMimeData>
@@ -20,6 +22,29 @@ namespace {
 constexpr int kGripSide = 16;
 constexpr int kGripLines = 3;
 constexpr int kOutputBtnSide = 24;
+
+// Newest image under `dir` by mtime, empty when the folder is unset, missing
+// or holds no images. Recursive: a save node's filename prefix puts the files
+// in a per-workflow subfolder (<output>/<date>/<workflow>/foo_00001.png), so a
+// flat scan of the configured output folder finds nothing.
+QString newestImageIn(const QString& dir)
+{
+    if (dir.isEmpty() || !QDir(dir).exists()) return {};
+    static const QStringList filters = {"*.png", "*.jpg", "*.jpeg", "*.webp"};
+
+    QString newestPath;
+    QDateTime newestTime;
+    QDirIterator it(dir, filters, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        const QDateTime t = it.fileInfo().lastModified();
+        if (newestPath.isEmpty() || t > newestTime) {
+            newestTime = t;
+            newestPath = it.fileInfo().absoluteFilePath();
+        }
+    }
+    return newestPath;
+}
 } // namespace
 
 ClickableLabel::ClickableLabel(QWidget* parent) : QLabel(parent)
@@ -85,6 +110,35 @@ void ClickableLabel::setOutputFolder(const QString& path)
     update();
 }
 
+void ClickableLabel::setTempFolder(const QString& path)
+{
+    m_tempFolder = path;
+    update();
+}
+
+// Folder button: the configured output folder, else the temp folder the
+// preview frames come from. A dated output pattern has no folder until the
+// first save of the day, so the fallback keeps the button useful.
+void ClickableLabel::openFolder() const
+{
+    QString target = m_outputFolder;
+    if (target.isEmpty() || !QDir(target).exists()) target = m_tempFolder;
+    if (target.isEmpty() || !QDir(target).exists()) return;
+    QDesktopServices::openUrl(QUrl::fromLocalFile(target));
+}
+
+// Clicks open the saved output rather than the temp frame that's on screen:
+// the temp folder holds ComfyUI's in-progress decodes, so the file worth
+// opening is the newest one the save node wrote. Falls back to the shown file
+// when no output folder is set (or it has no images yet).
+void ClickableLabel::openPreferredTarget() const
+{
+    QString target = newestImageIn(m_outputFolder);
+    if (target.isEmpty()) target = m_path;
+    if (target.isEmpty()) return;
+    QDesktopServices::openUrl(QUrl::fromLocalFile(target));
+}
+
 void ClickableLabel::setMovableBounds(const QRect& r)
 {
     m_movableBounds = r;
@@ -148,7 +202,7 @@ QRect ClickableLabel::gripRect() const
 
 QRect ClickableLabel::outputBtnRect() const
 {
-    if (m_outputFolder.isEmpty() || m_outputIcon.isNull()) return {};
+    if ((m_outputFolder.isEmpty() && m_tempFolder.isEmpty()) || m_outputIcon.isNull()) return {};
     return QRect(0, 0, kOutputBtnSide, kOutputBtnSide);
 }
 
@@ -180,21 +234,9 @@ void ClickableLabel::mousePressEvent(QMouseEvent* e)
         return;
     }
     if (e->button() == Qt::LeftButton && outputBtnRect().contains(e->pos())) {
-        if (!m_outputFolder.isEmpty()) {
-            // Open the most recent image in the folder; fall back to the
-            // folder itself when empty/missing so the click is never a no-op.
-            static const QStringList filters = {"*.png", "*.jpg", "*.jpeg", "*.webp"};
-            const QFileInfoList files =
-                QDir(m_outputFolder).entryInfoList(filters, QDir::Files);
-            QString target = m_outputFolder;
-            if (!files.isEmpty()) {
-                const QFileInfo* newest = &files[0];
-                for (const QFileInfo& fi : files)
-                    if (fi.lastModified() > newest->lastModified()) newest = &fi;
-                target = newest->absoluteFilePath();
-            }
-            QDesktopServices::openUrl(QUrl::fromLocalFile(target));
-        }
+        // Opened on release so the release handler can tell this gesture from
+        // a click on the image, and so dragging off the button cancels it.
+        m_pressOnFolderBtn = true;
         e->accept();
         return;
     }
@@ -309,23 +351,31 @@ void ClickableLabel::mouseMoveEvent(QMouseEvent* e)
 
 void ClickableLabel::mouseReleaseEvent(QMouseEvent* e)
 {
+    if (m_pressOnFolderBtn) {
+        m_pressOnFolderBtn = false;
+        if (outputBtnRect().contains(e->pos())) openFolder();
+        e->accept();
+        return;
+    }
+
     if (m_mode != Mode::Idle) {
         // Only mark user-placed if the gesture actually changed geometry,
         // so a stray right-click doesn't lock the auto-layout.
-        if (pos() != m_dragStartTopLeft || size() != m_dragStartSize)
-            m_userPlaced = true;
+        const bool moved = (pos() != m_dragStartTopLeft || size() != m_dragStartSize);
+        if (moved) m_userPlaced = true;
+        const bool wasGrip = (m_mode == Mode::Resizing);
         m_mode = Mode::Idle;
         updateHoverCursor(e->pos());
+        // Press-release on the grip with no drag is a click, not a resize.
+        if (wasGrip && !moved) openPreferredTarget();
         e->accept();
         return;
     }
 
     // Suppress the click-open when a drag was just started; otherwise
     // releasing inside the label after a quick click opens the OS viewer.
-    if (e->button() == Qt::LeftButton && !m_dragInFlight && !m_path.isEmpty() &&
-        rect().contains(e->pos())) {
-        QDesktopServices::openUrl(QUrl::fromLocalFile(m_path));
-    }
+    if (e->button() == Qt::LeftButton && !m_dragInFlight && rect().contains(e->pos()))
+        openPreferredTarget();
     m_dragInFlight = false;
     QLabel::mouseReleaseEvent(e);
 }

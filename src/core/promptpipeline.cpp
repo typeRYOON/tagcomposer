@@ -40,7 +40,14 @@ QList<CategoryGroup> PromptPipeline::evaluate(const QList<QString>& tags) const
         if (seenTags.contains(pt.tag)) continue;
         seenTags.insert(pt.tag);
 
-        pt.facets = m_facets->facetsFor(pt.tag);
+        // Override first: a custom tag's facets are composer state, keyed by
+        // what's in the active list (pre-expansion), so $vars$ inside one
+        // still resolve normally below.
+        if (m_customFacets) {
+            const auto it = m_customFacets->constFind(rawTag);
+            if (it != m_customFacets->constEnd()) pt.facets = it.value();
+        }
+        if (pt.facets.isEmpty()) pt.facets = m_facets->facetsFor(pt.tag);
         if (pt.facets.isEmpty() && !pt.sourceTag.isEmpty()) {
             const QString base = VariableIndex::stripVariables(pt.sourceTag);
             if (!base.isEmpty()) pt.facets = m_facets->facetsFor(base);

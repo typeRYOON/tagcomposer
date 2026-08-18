@@ -23,6 +23,14 @@ void PromptComposerPage::saveSession(const QString& path) const
     for (const core::EntryPush& ep : dumpActivePushes())
         pushesArr.append(ep.toJson());
 
+    QJsonObject customFacetsObj;
+    for (auto it = m_customTagFacets.constBegin(); it != m_customTagFacets.constEnd(); ++it) {
+        QJsonArray facetArr;
+        for (const QString& f : it.value())
+            facetArr.append(f);
+        customFacetsObj[it.key()] = facetArr;
+    }
+
     QJsonArray deactivatedArr;
     for (const QString& t : m_deactivatedTags)
         deactivatedArr.append(t);
@@ -39,6 +47,7 @@ void PromptComposerPage::saveSession(const QString& path) const
     root["activeTags"] = tagsArr;
     root["tagWeights"] = weightsObj;
     root["activePushes"] = pushesArr;
+    root["customTagFacets"] = customFacetsObj;
     root["deactivatedTags"] = deactivatedArr;
     root["deactivatedCategory"] = deactivatedCategoryObj;
     root["activeLoraUuids"] = loraUuidsArr;
@@ -65,6 +74,7 @@ void PromptComposerPage::restoreSession(const QString& path)
     m_activeTags.clear();
     m_activeTagSet.clear();
     m_tagWeights.clear();
+    m_customTagFacets.clear();
     m_deactivatedTags.clear();
     m_deactivatedCategory.clear();
     // m_activePushes is replaced by loadActivePushes below.
@@ -80,6 +90,14 @@ void PromptComposerPage::restoreSession(const QString& path)
     const QJsonObject weightsObj = root["tagWeights"].toObject();
     for (auto it = weightsObj.constBegin(); it != weightsObj.constEnd(); ++it)
         m_tagWeights[it.key()] = float(it.value().toDouble(1.0));
+
+    const QJsonObject customFacets = root["customTagFacets"].toObject();
+    for (auto it = customFacets.constBegin(); it != customFacets.constEnd(); ++it) {
+        QList<QString> facets;
+        for (const QJsonValue& f : it.value().toArray())
+            facets << f.toString();
+        if (!facets.isEmpty()) m_customTagFacets[it.key()] = facets;
+    }
 
     for (const QJsonValue& v : root["deactivatedTags"].toArray())
         if (const QString t = v.toString(); !t.isEmpty()) m_deactivatedTags.insert(t);

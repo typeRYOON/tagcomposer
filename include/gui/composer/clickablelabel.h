@@ -7,20 +7,24 @@
 
 namespace gui {
 
-// QLabel with a source pixmap and file path. Left-click opens the file
-// in the OS viewer; left-press + drag (outside the corner grip) starts a
-// copy-style URL drag so the file can be dropped onto an ImageDropper.
-// Right-button drag moves the label within its movable bounds; left-drag
-// from the bottom-right corner grip resizes it.
+// QLabel with a source pixmap and file path. Left-click - on the image or on
+// the corner grip without dragging - opens the newest image in the output
+// folder, falling back to the shown file; left-press + drag (outside the
+// corner grip) starts a copy-style URL drag of the shown file so it can be
+// dropped onto an ImageDropper. Right-button drag moves the label within its
+// movable bounds; left-drag from the corner grip resizes it.
 class ClickableLabel : public QLabel {
 public:
     explicit ClickableLabel(QWidget* parent = nullptr);
 
     void setFilePath(const QString& path);
     void setSourcePixmap(const QPixmap& pix);
-    // When non-empty, hovering the label reveals a top-left icon button
-    // that opens this folder in the OS file manager.
+    // Where finished images land. Clicks on the label open the newest image
+    // under it (recursively) instead of the shown file.
     void setOutputFolder(const QString& path);
+    // Where the shown preview frames come from. Only used as the folder
+    // button's fallback when the output folder is unset or missing.
+    void setTempFolder(const QString& path);
 
     // Bounds (in parent coords) the label is constrained to when the user
     // moves or resizes it. Defaults to parentWidget()->rect().
@@ -43,6 +47,10 @@ protected:
 
 private:
     void updateScaled();
+    // Newest output-folder image, else the shown file. Empty target = no-op.
+    void openPreferredTarget() const;
+    // Output folder, else temp folder. Skips folders that don't exist.
+    void openFolder() const;
     QRect gripRect() const;
     QRect outputBtnRect() const;
     QRect effectiveBounds() const;
@@ -50,10 +58,14 @@ private:
 
     QString m_path;
     QString m_outputFolder;
+    QString m_tempFolder;
     QPixmap m_src;
     QPixmap m_outputIcon;
     QPoint m_pressPos;
     bool m_dragInFlight = false;
+    // Press landed on the folder button; the release opens the folder and
+    // must not fall through to the image-opening path.
+    bool m_pressOnFolderBtn = false;
 
     enum class Mode { Idle, Moving, Resizing };
     Mode m_mode = Mode::Idle;

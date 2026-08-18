@@ -23,18 +23,33 @@ SoundPlayer* SoundPlayer::instance()
 
 void SoundPlayer::registerClip(const QString& name, const QString& resourcePath)
 {
+    m_sources.insert(name, resourcePath);
+}
+
+QSoundEffect* SoundPlayer::clip(const QString& name)
+{
+    if (auto it = m_clips.constFind(name); it != m_clips.cend()) return it.value();
+
+    const auto src = m_sources.constFind(name);
+    if (src == m_sources.cend()) return nullptr;
+
     auto* fx = new QSoundEffect(this);
-    fx->setSource(QUrl::fromLocalFile(resourcePath));
+    fx->setSource(QUrl::fromLocalFile(src.value()));
     fx->setVolume(m_volume);
     m_clips.insert(name, fx);
+    return fx;
+}
+
+void SoundPlayer::preload()
+{
+    for (auto it = m_sources.constBegin(); it != m_sources.constEnd(); ++it)
+        clip(it.key());
 }
 
 void SoundPlayer::play(const QString& name)
 {
     if (!m_enabled) return;
-    auto it = m_clips.constFind(name);
-    if (it == m_clips.cend()) return;
-    it.value()->play();
+    if (QSoundEffect* fx = clip(name)) fx->play();
 }
 
 void SoundPlayer::setVolume(float v)

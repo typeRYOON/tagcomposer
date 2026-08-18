@@ -12,6 +12,7 @@ inline constexpr const char* FACETS_PATH = "data/system/facets.fct";
 inline constexpr const char* DEFINITIONS_PATH = "data/system/tag_definitions.fct";
 inline constexpr const char* RULES_PATH = "data/system/rules.fct";
 inline constexpr const char* GROUPS_PATH = "data/system/groups.fct";
+inline constexpr const char* PROFILES_PATH = "data/system/profiles.fct";
 inline constexpr const char* VARS_PATH = "data/system/vars.fct";
 inline constexpr const char* SETTINGS_PATH = "data/system/settings.json";
 inline constexpr const char* SESSION_PATH = "data/system/session.json";

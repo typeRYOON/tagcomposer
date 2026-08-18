@@ -153,6 +153,13 @@
     background: transparent;
 }
 
+#FacetWikiText {
+    background: transparent;
+    color: #9a9a9a;
+    border: none;
+    padding: 4px 12px 12px 12px;
+}
+
 #FacetPreviewStatus {
     color: #3a3a3a;
     font-size: 11px;

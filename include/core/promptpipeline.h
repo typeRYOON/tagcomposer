@@ -13,6 +13,14 @@ public:
     explicit PromptPipeline(FacetIndex* facets, RuleEngine* rules, VariableIndex* vars = nullptr,
                             QObject* parent = nullptr);
 
+    // Facet overrides keyed by the raw (pre-variable-expansion) tag string,
+    // owned by the caller. Lets the composer inject a custom tag that carries
+    // a group's facets without a tag_definitions.fct entry. nullptr = none.
+    void setCustomFacets(const QHash<QString, QList<QString>>* facets)
+    {
+        m_customFacets = facets;
+    }
+
     // Async: emits pipelineReady on completion.
     void push(const QList<QString>& tags);
 
@@ -33,6 +41,7 @@ private:
     FacetIndex* m_facets;
     RuleEngine* m_rules;
     VariableIndex* m_varIndex;
+    const QHash<QString, QList<QString>>* m_customFacets = nullptr;
 
     QList<CategoryGroup> groupByCategory(const QList<PipelineTag>& tags) const;
 };

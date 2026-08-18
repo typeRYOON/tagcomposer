@@ -18,6 +18,10 @@ public:
 
     const QList<TagGroup>& groups() const;
 
+    // Replaces the group list wholesale. Used by profile ordering, which
+    // permutes the groups.fct definitions without redefining them.
+    void setGroups(QList<TagGroup> groups);
+
 private:
     QList<TagGroup> m_groups;
 };

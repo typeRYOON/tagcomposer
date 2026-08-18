@@ -18,7 +18,8 @@ public slots:
     void showMessage(const QString& message);
     // step >= 1 && total >= 1: update value and fade the bar in. Anything
     // else is a no-op, so transient (0,0) reports between batched prompts
-    // don't reset the bar - call clearProgress() to dismiss.
+    // don't reset the bar - call clearProgress() to dismiss. Ignored while
+    // nothing is queued (see setActiveCount).
     void setProgress(int step, int total);
     void clearProgress();
     // count > 0 fades the label in; count == 0 fades both label and bar out.
@@ -33,6 +34,9 @@ private:
     QLabel* m_activeLabel = nullptr;
     QGraphicsOpacityEffect* m_activeEffect = nullptr;
     QPropertyAnimation* m_activeFade = nullptr;
+    // Last count from the server. Progress is gated on it so a sampler
+    // preview that lands after the queue emptied can't re-show the bar.
+    int m_activeCount = 0;
     QProgressBar* m_progress = nullptr;
     QGraphicsOpacityEffect* m_progressEffect = nullptr;
     QPropertyAnimation* m_progressFade = nullptr;

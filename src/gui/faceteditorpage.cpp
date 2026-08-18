@@ -3,6 +3,7 @@
 #include <gui/widgets/composericons.h>
 #include <gui/widgets/flowlayout.h>
 #include <utils/appconfig.h>
+#include <utils/dtext.h>
 #include <utils/qutils.h>
 #include <QApplication>
 #include <QCursor>
@@ -25,6 +26,7 @@
 #include <QPropertyAnimation>
 #include <QRegularExpression>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QSet>
 #include <QStackedWidget>
 #include <QUrl>
@@ -271,6 +273,35 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     m_previewStatus->setAlignment(Qt::AlignCenter);
     m_previewStatus->setWordWrap(true);
 
+    // Wiki text under the image, from the same wiki_pages fetch the preview
+    // uses - a reading aid while assigning facets.
+    m_wikiHeader = new QLabel("WIKI");
+    m_wikiHeader->setObjectName("FacetPanelHeader");
+    m_wikiHeader->hide();
+
+    m_wikiText = new QTextBrowser;
+    m_wikiText->setObjectName("FacetWikiText");
+    m_wikiText->setFrameShape(QFrame::NoFrame);
+    m_wikiText->setOpenLinks(false); // handled below
+    m_wikiText->setVerticalScrollBar(new gui::AppScrollBar(Qt::Vertical));
+    m_wikiText->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_wikiText->hide();
+    connect(m_wikiText, &QTextBrowser::anchorClicked, this, [this](const QUrl& url) {
+        // Same link schemes the wiki page emits: keep [[tag]] inside the app,
+        // send post/asset references to Danbooru.
+        if (url.scheme() == "wiki") {
+            emit wikiRequested(url.path());
+            return;
+        }
+        if (url.scheme() == "post" || url.scheme() == "asset") {
+            const QString kind = url.scheme() == "post" ? "posts" : "media_assets";
+            QDesktopServices::openUrl(
+                QUrl(QString("https://danbooru.donmai.us/%1/%2").arg(kind, url.path())));
+            return;
+        }
+        QDesktopServices::openUrl(url);
+    });
+
     auto* previewLayout = new QVBoxLayout(m_previewPanel);
     previewLayout->setContentsMargins(0, 0, 0, 0);
     previewLayout->setSpacing(8);
@@ -278,11 +309,11 @@ FacetEditorPage::FacetEditorPage(core::FacetIndex* facets, core::EntryModel* mod
     auto* previewBody = new QVBoxLayout;
     previewBody->setContentsMargins(12, 8, 12, 12);
     previewBody->setSpacing(8);
-    previewBody->addStretch();
     previewBody->addWidget(m_previewImage);
     previewBody->addWidget(m_previewStatus);
-    previewBody->addStretch();
     previewLayout->addLayout(previewBody);
+    previewLayout->addWidget(m_wikiHeader);
+    previewLayout->addWidget(m_wikiText, 1);
 
     auto* editorOuter = new QWidget;
     auto* editorOuterLayout = new QHBoxLayout(editorOuter);
@@ -693,6 +724,43 @@ void FacetEditorPage::clearEditor()
 
 // ---- Danbooru preview
 
+// Compact take on the wiki page's CSS: same palette, panel-sized type.
+static QString wikiPanelCss()
+{
+    return QStringLiteral(
+        "<style>"
+        "body{color:#9a9a9a;font-size:13px;}"
+        "h1,h2,h3,h4,h5,h6{color:#888;font-size:13px;border-bottom:1px solid #222;"
+        "padding-bottom:2px;margin-top:10px;}"
+        "a{color:#66aa66;text-decoration:none;}"
+        "blockquote{border-left:2px solid #333;margin:4px 0 4px 6px;padding-left:8px;color:#777;}"
+        "code{background:#1a1a1a;border-radius:3px;padding:1px 3px;font-family:monospace;}"
+        "ul,ol{padding-left:16px;margin:3px 0;}"
+        "li{margin:2px 0;}"
+        ".wsh{color:#666;font-weight:bold;font-size:11px;margin:0 0 3px 0;}"
+        ".wtn{color:#666;font-size:11px;}"
+        ".wsp{color:#555;}"
+        "</style>");
+}
+
+void FacetEditorPage::setWikiBody(const QString& body)
+{
+    if (!m_wikiText) return;
+    const QString dtext = body.trimmed();
+    if (dtext.isEmpty()) {
+        m_wikiText->clear();
+        m_wikiText->hide();
+        if (m_wikiHeader) m_wikiHeader->hide();
+        return;
+    }
+    // No post/asset collectors: this panel can't resolve thumbnail resources,
+    // so those bullets render as links instead of broken images.
+    m_wikiText->setHtml(wikiPanelCss() + utils::dtextToHtml(dtext));
+    m_wikiText->verticalScrollBar()->setValue(0);
+    m_wikiText->show();
+    if (m_wikiHeader) m_wikiHeader->show();
+}
+
 void FacetEditorPage::clearPreview()
 {
     m_previewPostId = -1;
@@ -707,6 +775,7 @@ void FacetEditorPage::clearPreview()
         m_previewStatus->clear();
         m_previewStatus->hide();
     }
+    setWikiBody({});
 }
 
 void FacetEditorPage::setPreviewPixmap(const QPixmap& pix)
@@ -914,6 +983,7 @@ void FacetEditorPage::fetchPreview(const QString& tag)
 
     if (m_previewCache.contains(tag)) {
         m_previewPostId = m_previewPostIds.value(tag, -1);
+        setWikiBody(m_wikiBodies.value(tag));
         setPreviewPixmap(m_previewCache.value(tag));
         return;
     }
@@ -941,17 +1011,23 @@ void FacetEditorPage::fetchPreview(const QString& tag)
 
         if (reply->error() != QNetworkReply::NoError) {
             // 404 (no wiki) or any network failure -> fall through to a posts search.
+            m_wikiBodies[tag] = QString();
             fetchFirstPostByTag(tag);
             return;
         }
 
         QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
         if (!doc.isObject()) {
+            m_wikiBodies[tag] = QString();
             fetchFirstPostByTag(tag);
             return;
         }
 
         const QString body = doc.object().value("body").toString();
+        // Same response the preview hunts !post #N in - render it as the
+        // facet-editing guide under the image.
+        m_wikiBodies[tag] = body;
+        setWikiBody(body);
         static const QRegularExpression postRe(R"(!post\s+#(\d+))");
         const auto m = postRe.match(body);
         if (m.hasMatch())

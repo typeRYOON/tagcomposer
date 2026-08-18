@@ -10,6 +10,7 @@
 #include <core/entrymodel.h>
 #include <utils/appconfig.h>
 #include <utils/qutils.h>
+#include <QComboBox>
 #include <QFile>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -138,6 +139,8 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     // Focusable so an Escape from the search bar can land here when the
     // groups scroll isn't visible (e.g. empty composer).
     setFocusPolicy(Qt::StrongFocus);
+    // Baked-state PNG drops restore composer state (dropEvent).
+    setAcceptDrops(true);
 
     // ---- Search bar
     m_searchBar = new TagSearchBar(this);
@@ -164,15 +167,38 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         else
             parts << tag;
 
-        bool added = false;
+        bool changed = false;
         for (const QString& raw : parts) {
             const QString t = raw.trimmed();
-            if (t.isEmpty() || m_activeTagSet.contains(t)) continue;
+            if (t.isEmpty()) continue;
+            if (m_activeTagSet.contains(t)) {
+                // Re-entering a tag that's sitting there deactivated is a
+                // request to bring it back. Only manual deactivations live in
+                // this set - a rule-driven Skip is recomputed every push, so
+                // this can't override one.
+                if (m_deactivatedTags.remove(t)) {
+                    m_deactivatedCategory.remove(t);
+                    changed = true;
+                }
+                continue;
+            }
             m_activeTags << t;
             m_activeTagSet.insert(t);
-            added = true;
+            changed = true;
         }
-        if (!added) return;
+        if (!changed) return;
+        m_freezeNextRebuild = true;
+        captureUndoSnapshot();
+        queueRepush();
+    });
+    // The search bar routes a tag that's already active here instead of
+    // tagAdded. Re-entering one that is sitting there deactivated is a request
+    // to bring it back; only manual deactivations live in m_deactivatedTags, so
+    // a rule-driven Skip is unaffected (it is recomputed on the next push).
+    connect(m_searchBar, &TagSearchBar::tagAlreadyPresent, this, [this](const QString& tag) {
+        if (!m_deactivatedTags.remove(tag)) return;
+        m_deactivatedCategory.remove(tag);
+        emit statusMessageRequested(QString("Reactivated: %1").arg(tag));
         m_freezeNextRebuild = true;
         captureUndoSnapshot();
         queueRepush();
@@ -196,9 +222,20 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         target->setFocus(Qt::OtherFocusReason);
     });
 
+    // Custom-tag facets live here, not in the shared FacetIndex.
+    m_pipeline->setCustomFacets(&m_customTagFacets);
+
     // ---- Main groups area
     m_groupsContainer = new QWidget;
     m_groupsContainer->setObjectName("ComposerGroupsContainer");
+    // Right-click blank space: reach any group, including empty ones.
+    m_groupsContainer->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_groupsContainer, &QWidget::customContextMenuRequested, this,
+            [this](const QPoint& pos) {
+                QMenu menu;
+                addCustomTagMenu(menu);
+                menu.exec(m_groupsContainer->mapToGlobal(pos));
+            });
     m_groupsLayout = new QVBoxLayout(m_groupsContainer);
     m_groupsLayout->setContentsMargins(12, 12, 12, 12);
     m_groupsLayout->setSpacing(2);
@@ -715,6 +752,98 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     // Initial split: rules ~remainder, wf ~240px, vars ~200px.
     sidebarSplit->setSizes({400, 240, 200});
 
+    // ---- Profiles section (group ordering + tag formatting presets)
+    // Pinned above the splitter: it is a mode switch for everything below,
+    // and two combo rows have no reason to be resizable.
+    auto* profilesHeaderRow = new QWidget;
+    profilesHeaderRow->setObjectName("ComposerHeaderRow");
+    profilesHeaderRow->setAttribute(Qt::WA_StyledBackground, true);
+    auto* phrL = new QHBoxLayout(profilesHeaderRow);
+    phrL->setContentsMargins(12, 10, 10, 6);
+    phrL->setSpacing(4);
+
+    auto* profilesHeaderLabel = new QLabel("PROFILES");
+    profilesHeaderLabel->setObjectName("ComposerHeaderLabel");
+
+    auto* profilesOpenBtn = new QPushButton;
+    profilesOpenBtn->setObjectName("SidebarBtn");
+    profilesOpenBtn->setFixedSize(20, 20);
+    profilesOpenBtn->setIcon(gui::icons::openExternal());
+    profilesOpenBtn->setIconSize(QSize(14, 14));
+    profilesOpenBtn->setCursor(Qt::PointingHandCursor);
+    profilesOpenBtn->setToolTip("Open profiles.fct in editor");
+    connect(profilesOpenBtn, &QPushButton::clicked, this,
+            []() { utils::openSystemFile(BASE_PATH + "/" + PROFILES_PATH); });
+
+    auto* profilesReloadBtn = new QPushButton;
+    profilesReloadBtn->setObjectName("SidebarBtn");
+    profilesReloadBtn->setFixedSize(20, 20);
+    profilesReloadBtn->setIcon(gui::icons::reload());
+    profilesReloadBtn->setIconSize(QSize(14, 14));
+    profilesReloadBtn->setCursor(Qt::PointingHandCursor);
+    profilesReloadBtn->setToolTip("Reload profiles from file");
+    connect(profilesReloadBtn, &QPushButton::clicked, this, &PromptComposerPage::reloadProfiles);
+
+    phrL->addWidget(profilesHeaderLabel, 1);
+    phrL->addWidget(profilesOpenBtn);
+    phrL->addWidget(profilesReloadBtn);
+
+    m_groupProfileBox = new QComboBox;
+    m_groupProfileBox->setObjectName("ComposerProfileBox");
+    m_groupProfileBox->setToolTip("Group ordering. Groups match top-to-bottom, so the order\n"
+                                  "decides which group claims a tag as well as where it lands\n"
+                                  "in the prompt.");
+    m_formatProfileBox = new QComboBox;
+    m_formatProfileBox->setObjectName("ComposerProfileBox");
+    m_formatProfileBox->setToolTip("Per-facet tag wrapping (e.g. the leading @ on artist tags).\n"
+                                   "Independent of the ordering profile.");
+
+    auto profileRow = [](const QString& text, QComboBox* box) -> QWidget* {
+        auto* row = new QWidget;
+        auto* l = new QHBoxLayout(row);
+        l->setContentsMargins(0, 0, 0, 0);
+        l->setSpacing(6);
+        auto* lbl = new QLabel(text);
+        lbl->setObjectName("ComposerProfileLabel");
+        lbl->setFixedWidth(46);
+        l->addWidget(lbl);
+        l->addWidget(box, 1);
+        return row;
+    };
+
+    auto* profilesBody = new QWidget;
+    profilesBody->setObjectName("ComposerProfilesBody");
+    auto* pbL = new QVBoxLayout(profilesBody);
+    pbL->setContentsMargins(8, 6, 8, 8);
+    pbL->setSpacing(4);
+    pbL->addWidget(profileRow("Groups", m_groupProfileBox));
+    pbL->addWidget(profileRow("Format", m_formatProfileBox));
+
+    auto* profilesSection = new QWidget;
+    auto* psL = new QVBoxLayout(profilesSection);
+    psL->setContentsMargins(0, 0, 0, 0);
+    psL->setSpacing(0);
+    psL->addWidget(profilesHeaderRow);
+    psL->addWidget(profilesBody);
+
+    // activated (not currentIndexChanged) so rebuilds don't re-enter. Items
+    // carry the profile name as data; a one-off "(from state)" entry carries
+    // an empty name and is inert.
+    connect(m_groupProfileBox, &QComboBox::activated, this, [this](int idx) {
+        if (!m_profiles) return;
+        const QString name = m_groupProfileBox->itemData(idx).toString();
+        if (name.isEmpty() || name == m_profiles->activeGroup()) return;
+        m_profiles->setActiveGroup(name);
+        applyActiveProfiles(true, true);
+    });
+    connect(m_formatProfileBox, &QComboBox::activated, this, [this](int idx) {
+        if (!m_profiles) return;
+        const QString name = m_formatProfileBox->itemData(idx).toString();
+        if (name.isEmpty() || name == m_profiles->activeFormat()) return;
+        m_profiles->setActiveFormat(name);
+        applyActiveProfiles(true, true);
+    });
+
     m_sidebar = new QWidget;
     m_sidebar->setObjectName("ComposerSidebar");
     m_sidebar->setFixedWidth(330);
@@ -725,6 +854,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     auto* sidebarLayout = new QVBoxLayout(m_sidebar);
     sidebarLayout->setContentsMargins(0, 0, 0, 0);
     sidebarLayout->setSpacing(0);
+    sidebarLayout->addWidget(profilesSection);
     sidebarLayout->addWidget(sidebarSplit, 1);
 
     // ---- Root layout
@@ -892,9 +1022,6 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
                 // will reveal the inset when content arrives.
                 if (m_previewLabel->isVisible()) fadePreviewInset(1.0);
             });
-            if (!m_tempFolder.isEmpty()) popout->setTempFolder(m_tempFolder);
-            if (!m_outputFolderPattern.isEmpty())
-                popout->setOutputFolder(resolveDatePattern(m_outputFolderPattern));
             popout->setActiveCount(m_lastComfyActive);
             if (m_lastComfyStep > 0 && m_lastComfyTotal > 0)
                 popout->setProgress(m_lastComfyStep, m_lastComfyTotal);
@@ -908,8 +1035,14 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
             connect(popout, &PreviewPopoutWindow::clearPendingRequested, this,
                     &PromptComposerPage::clearPendingRequested);
         }
-        if (!m_currentPix.isNull())
-            static_cast<PreviewPopoutWindow*>(m_popout)->setImage(m_currentPix);
+        auto* popoutWin = static_cast<PreviewPopoutWindow*>(m_popout);
+        // Re-pushed on every open: a {yyyy-MM-dd} output pattern goes stale
+        // once the app is left running past midnight, and the preview's
+        // click-to-open resolves against this folder.
+        if (!m_tempFolder.isEmpty()) popoutWin->setTempFolder(m_tempFolder);
+        if (!m_outputFolderPattern.isEmpty())
+            popoutWin->setOutputFolder(resolveDatePattern(m_outputFolderPattern));
+        if (!m_currentPix.isNull()) popoutWin->setImage(m_currentPix);
         m_popout->show();
         m_popout->raise();
         m_popout->activateWindow();
@@ -923,6 +1056,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     connect(m_pipeline, &PromptPipeline::pipelineReady, this, &PromptComposerPage::onPipelineReady);
 
     rebuildRulesSidebar();
+    rebuildProfilesSidebar();
 
     // Floats hidden together when the states grid view is active.
     m_composerFloats = {m_previewLabel, m_controlBar, m_categoryNav, m_clearBtn};
@@ -1306,7 +1440,12 @@ QString PromptComposerPage::currentPromptString(bool forJson) const
 
 QList<QString> PromptComposerPage::currentActiveTags() const
 {
-    QList<QString> out = m_activeTags;
+    // Custom tags carry their facets in composer state on purpose, so the
+    // facet editor shouldn't list them as undefined and needing triage.
+    QList<QString> out;
+    out.reserve(m_activeTags.size());
+    for (const QString& t : m_activeTags)
+        if (!m_customTagFacets.contains(t)) out << t;
     QSet<QString> seen(out.begin(), out.end());
     for (const core::PipelineTag& pt : m_lastResult) {
         if (pt.result == core::RuleResult::Injected && !seen.contains(pt.tag)) {
@@ -1373,6 +1512,32 @@ void PromptComposerPage::setVariableIndex(core::VariableIndex* index)
 {
     m_varIndex = index;
     rebuildVarsSidebar();
+}
+
+void PromptComposerPage::setGroups(const core::TagGroupIndex& groups)
+{
+    m_groups = groups;
+    m_freezeNextRebuild = true; // reorder fades instead of snapping
+    applyTagFilter();
+}
+
+void PromptComposerPage::setSettingsFacetFormats(const QList<utils::FacetFormat>& formats)
+{
+    m_settingsFacetFormats = formats;
+    // Only the fallback source. A state-stamped one-off or an active format
+    // profile outranks settings.json, so a settings edit must not clobber it.
+    if (!m_oneOffFormatLabel.isEmpty()) return;
+    if (m_profiles && m_profiles->formatProfile(m_profiles->activeFormat())) return;
+    m_facetFormats = formats;
+}
+
+void PromptComposerPage::setProfiles(core::ProfileIndex* profiles,
+                                     const core::TagGroupIndex* baseGroups, const QString& savePath)
+{
+    m_profiles = profiles;
+    m_baseGroups = baseGroups;
+    m_profilesPath = savePath;
+    applyActiveProfiles(false, false);
 }
 
 void PromptComposerPage::setWorkflowManager(core::WorkflowManager* wm, const QString& savePath)
@@ -1599,6 +1764,17 @@ void PromptComposerPage::repush()
 {
     m_repushPending = false;
     m_freezeNextRebuild = true;
+    // Single prune point for every removal path (row delete, clear, entry
+    // un-push, rule-deleted). Renames migrate their key explicitly.
+    if (!m_customTagFacets.isEmpty()) {
+        const QSet<QString> live(m_activeTags.cbegin(), m_activeTags.cend());
+        for (auto it = m_customTagFacets.begin(); it != m_customTagFacets.end();) {
+            if (live.contains(it.key()))
+                ++it;
+            else
+                it = m_customTagFacets.erase(it);
+        }
+    }
     QList<QString> active;
     for (const QString& t : m_activeTags)
         if (!m_deactivatedTags.contains(t)) active << t;
@@ -1615,11 +1791,14 @@ void PromptComposerPage::queueRepush()
 void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGroups)
 {
     // Deleted drops from m_activeTags entirely; Skipped only hides from output.
+    // Use weightKeyOf so $VAR$ tags (whose sourceTag is the active-set key) are
+    // removed - otherwise the post-expansion pt.tag misses every container and
+    // the rule re-fires every repush, looking like an invisible Skip.
     QList<QString> deleted;
     for (auto& g : categoryGroups) {
         auto end = std::remove_if(g.tags.begin(), g.tags.end(), [&deleted](const PipelineTag& pt) {
             if (pt.result == RuleResult::Deleted) {
-                deleted << pt.tag;
+                deleted << weightKeyOf(pt);
                 return true;
             }
             return false;
@@ -1655,6 +1834,80 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
 
     m_lastResult = flat;
     applyTagFilter();
+}
+
+// ---- Custom tags
+
+void PromptComposerPage::addCustomTagMenu(QMenu& menu)
+{
+    auto* sub = menu.addMenu("Add tag to");
+    for (const TagGroup& g : m_groups.groups()) {
+        if (g.facets.isEmpty()) continue;
+        const QString name = g.name;
+        sub->addAction(name, this, [this, name]() { promptAddCustomTag(name); });
+    }
+    if (sub->isEmpty()) sub->setEnabled(false);
+}
+
+// Free text that qualifies for a group by carrying its facets - lets an Anima
+// style prose fragment sit in the prompt at a chosen position and still run
+// through rules, variables, weights and grouping like any other tag.
+void PromptComposerPage::promptAddCustomTag(const QString& groupName)
+{
+    const TagGroup* group = nullptr;
+    for (const TagGroup& g : m_groups.groups())
+        if (g.name == groupName) {
+            group = &g;
+            break;
+        }
+    if (!group || group->facets.isEmpty()) {
+        emit statusMessageRequested(
+            QString("\"%1\" defines no facets - nothing to qualify for.").arg(groupName));
+        return;
+    }
+
+    bool ok = false;
+    const QString text =
+        QInputDialog::getText(this, QString("Add tag to %1").arg(groupName),
+                              "Text (natural language is fine):", QLineEdit::Normal, QString(),
+                              &ok)
+            .trimmed();
+    if (!ok || text.isEmpty()) return;
+    if (m_activeTagSet.contains(text)) {
+        // Same rule as the search bar: re-entering a manually deactivated
+        // entry reactivates it rather than reporting a no-op.
+        if (m_deactivatedTags.remove(text)) {
+            m_deactivatedCategory.remove(text);
+            emit statusMessageRequested(QString("Reactivated: %1").arg(text));
+            m_freezeNextRebuild = true;
+            captureUndoSnapshot();
+            queueRepush();
+        }
+        else {
+            emit statusMessageRequested(QString("Already in the composer: %1").arg(text));
+        }
+        return;
+    }
+
+    m_activeTags << text;
+    m_activeTagSet.insert(text);
+    m_customTagFacets[text] = group->facets;
+
+    // groupFor is first-match-wins, so a broader group above this one claims
+    // the facets before it gets here. Say so rather than silently misfiling.
+    const QString lands = m_groups.groupFor(group->facets);
+    if (lands != groupName) {
+        emit statusMessageRequested(
+            QString("Added, but \"%1\" claims those facets before %2 does.")
+                .arg(lands.isEmpty() ? QStringLiteral("Uncategorized") : lands, groupName));
+    }
+    else {
+        emit statusMessageRequested(QString("Added to %1: %2").arg(groupName, text));
+    }
+
+    m_freezeNextRebuild = true;
+    captureUndoSnapshot();
+    queueRepush();
 }
 
 // ---- Groups display
@@ -1779,6 +2032,23 @@ void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)
                              QStringList& navNames) {
         auto* header = new QLabel(displayName);
         header->setObjectName("ComposerGroupHeader");
+        header->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(header, &QWidget::customContextMenuRequested, this,
+                [this, header, displayName](const QPoint& pos) {
+                    QMenu menu;
+                    // Uncategorized and Deactivated are synthetic - no facets
+                    // to inherit, so only the full list applies there.
+                    bool real = false;
+                    for (const TagGroup& g : m_groups.groups())
+                        if (g.name == displayName && !g.facets.isEmpty()) real = true;
+                    if (real) {
+                        menu.addAction(QString("Add tag to %1...").arg(displayName), this,
+                                       [this, displayName]() { promptAddCustomTag(displayName); });
+                        menu.addSeparator();
+                    }
+                    addCustomTagMenu(menu);
+                    menu.exec(header->mapToGlobal(pos));
+                });
         m_groupsLayout->addWidget(header);
         m_groupHeaders[displayName] = header;
         navNames << displayName;
@@ -1892,6 +2162,8 @@ void PromptComposerPage::replaceTagVariable(const QString& oldKey, const QString
         m_activeTagSet.insert(newKey);
         // Migrate weight so the variable swap doesn't silently drop it.
         if (m_tagWeights.contains(oldKey)) m_tagWeights[newKey] = m_tagWeights.take(oldKey);
+        if (m_customTagFacets.contains(oldKey))
+            m_customTagFacets[newKey] = m_customTagFacets.take(oldKey);
     }
     m_deactivatedTags.remove(oldKey);
     renamePushTag(oldKey, collide ? QString() : newKey);
@@ -1972,7 +2244,9 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
         // Danbooru-style autocomplete popup on the inline edit. Picking a
         // suggestion sets the text and clears focus, so the rename below
         // runs unchanged.
-        if (m_danbooruIndex) new TagLineAutocomplete(tagEdit, m_danbooruIndex, tagEdit);
+        // No suggestions on custom tags - free text, not vocabulary.
+        if (m_danbooruIndex && !m_customTagFacets.contains(activeKey))
+            new TagLineAutocomplete(tagEdit, m_danbooruIndex, tagEdit);
         connect(tagEdit, &QLineEdit::editingFinished, this, [this, tagEdit]() {
             const QString oldTag = tagEdit->property("_tag").toString();
             const QString newTag = tagEdit->text().trimmed();
@@ -1992,6 +2266,8 @@ QWidget* PromptComposerPage::makeTagRow(const PipelineTag& pt)
                 m_activeTagSet.insert(newTag);
                 // Migrate weight so the rename doesn't silently drop it.
                 if (m_tagWeights.contains(oldTag)) m_tagWeights[newTag] = m_tagWeights.take(oldTag);
+                if (m_customTagFacets.contains(oldTag))
+                    m_customTagFacets[newTag] = m_customTagFacets.take(oldTag);
             }
             renamePushTag(oldTag, collide ? QString() : newTag);
             tagEdit->setProperty("_tag", newTag);

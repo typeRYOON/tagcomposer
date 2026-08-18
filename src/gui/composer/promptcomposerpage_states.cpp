@@ -4,17 +4,24 @@
 #include <gui/composer/promptcomposerpage.h>
 #include <gui/composer/statesgridview.h>
 #include <core/entrymodel.h>
+#include <core/profileindex.h>
 #include <utils/appconfig.h>
+#include <utils/pngtext.h>
 #include <QDateTime>
 #include <QDir>
+#include <QDragEnterEvent>
 #include <QFile>
+#include <QFileInfo>
 #include <QInputDialog>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMimeData>
 #include <QSet>
+#include <QUrl>
 
 using namespace core;
 using namespace utils;
@@ -60,6 +67,7 @@ void PromptComposerPage::captureCurrentState(core::SavedState& state) const
 
     // Convert runtime keys to stable (uuid, imageFileName).
     state.activePushes = dumpActivePushes();
+    state.customTagFacets = m_customTagFacets;
 
     state.ruleStates.clear();
     state.ruleArguments.clear();
@@ -93,6 +101,14 @@ void PromptComposerPage::captureCurrentState(core::SavedState& state) const
     }
 
     state.activeLoraUuids = m_activeLoraUuids;
+
+    // Profile stamp: names for the UI plus the resolved order/format list, so
+    // the state replays identically after the profile is edited or deleted.
+    state.profilesStamped = true;
+    state.groupProfileName = m_profiles ? m_profiles->activeGroup() : QString();
+    state.groupOrder = core::groupNames(m_groups);
+    state.formatProfileName = m_profiles ? m_profiles->activeFormat() : QString();
+    state.facetFormats = m_facetFormats;
 }
 
 core::SavedState PromptComposerPage::currentSnapshot() const
@@ -198,6 +214,7 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     for (const auto& t : m_activeTags)
         m_activeTagSet.insert(t);
     m_tagWeights = state.tagWeights;
+    m_customTagFacets = state.customTagFacets;
     m_deactivatedTags = state.deactivatedTags;
     m_deactivatedCategory = state.deactivatedCategory;
 
@@ -207,19 +224,34 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
     emit loraUuidsRestored(m_activeLoraUuids);
 
     // Bring back any rules the state knows about but the local rules.fct
-    // doesn't (match by uuid). Existing-uuid rules are left untouched - the
-    // local definition wins.
+    // doesn't (match by uuid). Existing-uuid rules are normally left untouched
+    // for behavior fields (only enabled + action.arguments get refreshed by
+    // the next loop). When m_forceOverwriteRulesOnStateLoad is on the
+    // snapshot's match/action/force are copied over too. name is left local -
+    // it's the rule's display identity keyed by uuid.
     int rulesAdded = 0;
+    int rulesOverwritten = 0;
     {
-        QSet<QString> existing;
-        for (const auto& r : m_rules->rules())
-            existing.insert(r.uuid);
+        QHash<QString, int> existingIdx;
+        for (int i = 0; i < m_rules->rules().size(); ++i)
+            existingIdx.insert(m_rules->rules()[i].uuid, i);
         for (const QJsonValue& v : state.rulesSnapshot) {
             const core::Rule restored = core::RuleEngine::ruleFromJson(v.toObject());
             if (restored.uuid.isEmpty()) continue;
-            if (existing.contains(restored.uuid)) continue;
+            auto it = existingIdx.constFind(restored.uuid);
+            if (it != existingIdx.constEnd()) {
+                if (m_forceOverwriteRulesOnStateLoad) {
+                    core::Rule& dst = m_rules->rules()[it.value()];
+                    // Preserve uuid + name; enabled is set by the next loop.
+                    dst.force = restored.force;
+                    dst.match = restored.match;
+                    dst.action = restored.action;
+                    ++rulesOverwritten;
+                }
+                continue;
+            }
+            existingIdx.insert(restored.uuid, m_rules->rules().size());
             m_rules->rules().append(restored);
-            existing.insert(restored.uuid);
             ++rulesAdded;
         }
     }
@@ -308,6 +340,9 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         emit workflowVarsChanged();
     }
 
+    // No refresh here - the repush below redraws with the restored ordering.
+    applyProfileStamp(state, false);
+
     repush();
 
     QStringList warnings;
@@ -319,6 +354,10 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
         warnings << QString("appended %1 rule%2 from state")
                         .arg(rulesAdded)
                         .arg(rulesAdded == 1 ? "" : "s");
+    if (rulesOverwritten > 0)
+        warnings << QString("overwrote %1 rule%2 from state")
+                        .arg(rulesOverwritten)
+                        .arg(rulesOverwritten == 1 ? "" : "s");
 
     // Undo/redo are silent and manage stacks externally.
     if (m_suppressUndoCapture) return;
@@ -330,6 +369,64 @@ void PromptComposerPage::restoreState(const core::SavedState& state)
             QString("Restored: %1  (%2)").arg(state.name, warnings.join(", ")));
 
     rebaselineUndo();
+}
+
+// ---- Baked-state image drops
+// Outputs queued by the app carry the composer snapshot in a
+// "tagcomposer_state" PNG text chunk (AppMainWindow::recordAndQueue ->
+// extra_data.extra_pnginfo -> save node's embed_workflow). Dropping such
+// an image anywhere on the page restores that state, mirroring ComfyUI's
+// drop-a-workflow-image behavior.
+
+// Single local .png, else empty. Child widgets with their own drop
+// handling (states grid tiles, workflow list) still win - the page only
+// sees drags no child accepted.
+static QString bakedPngFromMime(const QMimeData* mime)
+{
+    if (!mime || !mime->hasUrls()) return {};
+    const QList<QUrl> urls = mime->urls();
+    if (urls.size() != 1) return {};
+    const QString path = urls.first().toLocalFile();
+    return path.endsWith(".png", Qt::CaseInsensitive) ? path : QString();
+}
+
+void PromptComposerPage::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (bakedPngFromMime(event->mimeData()).isEmpty()) {
+        QWidget::dragEnterEvent(event);
+        return;
+    }
+    event->acceptProposedAction();
+}
+
+void PromptComposerPage::dropEvent(QDropEvent* event)
+{
+    const QString path = bakedPngFromMime(event->mimeData());
+    if (path.isEmpty()) {
+        QWidget::dropEvent(event);
+        return;
+    }
+    event->acceptProposedAction();
+
+    const QString json = utils::readPngTextChunk(path, "tagcomposer_state");
+    if (json.isEmpty()) {
+        emit statusMessageRequested(
+            QString("No baked composer state in %1").arg(QFileInfo(path).fileName()));
+        return;
+    }
+    const QJsonObject obj = QJsonDocument::fromJson(json.toUtf8()).object();
+    if (obj.isEmpty()) {
+        emit statusMessageRequested("Baked composer state is unreadable - ignored");
+        return;
+    }
+
+    core::SavedState state = core::SavedState::fromJson(obj);
+    if (state.name.isEmpty()) state.name = QFileInfo(path).completeBaseName();
+    restoreState(state);
+
+    // Pin the dropped image as the preview so the load is visible.
+    QImage img(path);
+    if (!img.isNull()) setPreviewImage(img);
 }
 
 } // namespace gui

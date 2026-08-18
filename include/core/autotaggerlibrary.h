@@ -5,6 +5,7 @@
 #include <QList>
 #include <map>
 #include <memory>
+#include <optional>
 
 namespace core {
 
@@ -36,7 +37,10 @@ private:
     // std::map: QHash needs copyable value type, unique_ptr is move-only.
     std::map<QString, std::unique_ptr<AutoTaggerModel>> m_loaded;
 
-    Ort::Env m_env{ORT_LOGGING_LEVEL_ERROR, "tagcomposer"};
+    // Created on first model load. Constructing it initialises the ONNX
+    // runtime (and pulls in onnxruntime.dll), which startup shouldn't pay for
+    // when nothing has asked for a tagger yet.
+    std::optional<Ort::Env> m_env;
 };
 
 } // namespace core

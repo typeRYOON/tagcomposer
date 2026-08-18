@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QThread>
 #include <QImage>
+#include <QJsonObject>
 #include <QString>
 #include <QNetworkAccessManager>
 #include <functional>
@@ -37,7 +38,9 @@ public:
 
     void interrupt();
     void clearPending();
-    void queuePrompt(const QString& workflowJson);
+    // extraPnginfo (when non-empty) rides extra_data.extra_pnginfo; save
+    // nodes with embed_workflow write each key as a PNG text chunk.
+    void queuePrompt(const QString& workflowJson, const QJsonObject& extraPnginfo = {});
     // POST /free unload_models so Windows releases the .safetensors handle.
     void freeMemory(std::function<void(bool ok, QString error)> cb);
 

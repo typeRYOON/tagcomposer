@@ -134,6 +134,12 @@ A tag like `arms behind back` (with `rActionPose, Arms`) goes to `Action/Pose/Ar
 - **Leaf facets can be reused across routes.** `Color` is useful under both `rBody` (hair color, eye color) and `rEnvironment` (background color), and that's fine - `Color` alone never names a group, it always co-occurs with a routing facet that does.
 - **The facet schema lives in a different file.** Group definitions reference facet names but don't declare them - the canonical list of allowed facet names is `data/system/facets.fct`. If a group references a facet that isn't in the schema, no tag will ever carry it and the group is silently dead. The [[Facet Editor]] purge action drops orphaned facets from tag definitions but doesn't touch `groups.fct`.
 
+## Group profiles (reordering without editing this file)
+
+`groups.fct` is the single definition of what a group *is*. If you want the same groups in a different **order** - because a different model convention wants `Body` before `Style`, say - don't rewrite this file: define a *group profile* in `data/system/profiles.fct` and switch it from the composer's PROFILES section. A profile is a named ordering and nothing else; it can name a subset, and the groups it leaves out keep their `groups.fct` order behind the named ones.
+
+Because matching is first-match-wins, reordering also changes *which* group claims a tag - a profile that hoists `Body` above `Body/Hair` makes `Body/Hair` unreachable, and the app warns about that on switch. See [[Tag Composer]] for the file grammar and the format-profile half.
+
 ## Reloading
 
 There's no in-app reload button for `groups.fct` - the file is read once at app start. To pick up edits:

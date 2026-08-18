@@ -145,3 +145,21 @@ target_link_libraries(${PROJECT_NAME}
         ${OpenCV_LIBS}
         ${ONNXRUNTIME_LIB}
 )
+
+if (MSVC)
+    # opencv_world (64 MB) and onnxruntime (14 MB) are statically imported but
+    # only reached by the phash / tagger / clip-editor paths, so every launch
+    # pays their load + static-init cost before main() runs. Delay-loading
+    # moves that to the first actual call. Every import the exe takes from both
+    # DLLs is a function (checked with dumpbin -imports); data imports can't be
+    # delay-loaded, so if that ever changes the link fails with LNK1194 - turn
+    # this option off in that case.
+    option(TAGCOMPOSER_DELAYLOAD_HEAVY_DLLS "Delay-load opencv_world / onnxruntime" ON)
+    if (TAGCOMPOSER_DELAYLOAD_HEAVY_DLLS)
+        target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib)
+        target_link_options(${PROJECT_NAME} PRIVATE
+            "/DELAYLOAD:opencv_world4120$<$<CONFIG:Debug>:d>.dll"
+            "/DELAYLOAD:onnxruntime.dll"
+        )
+    endif()
+endif()

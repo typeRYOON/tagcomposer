@@ -14,6 +14,7 @@
 #include <QHash>
 #include <QPixmap>
 #include <QNetworkAccessManager>
+#include <QTextBrowser>
 #include <functional>
 
 QT_BEGIN_NAMESPACE
@@ -85,6 +86,9 @@ private:
     void fetchPreviewImage(const QString& tag, const QString& imageUrl);
     void setPreviewPixmap(const QPixmap& pix);
     void clearPreview();
+    // Renders the tag's Danbooru wiki body under the preview image. Empty
+    // body hides the section.
+    void setWikiBody(const QString& body);
 
     core::FacetIndex* m_facets;
     core::EntryModel* m_model;
@@ -120,6 +124,9 @@ private:
     QGraphicsOpacityEffect* m_previewFade = nullptr;
     QPropertyAnimation* m_previewFadeAnim = nullptr;
     QHash<QString, QPixmap> m_previewCache;
+    QLabel* m_wikiHeader = nullptr;
+    QTextBrowser* m_wikiText = nullptr;
+    QHash<QString, QString> m_wikiBodies; // tag -> raw DText, "" = no wiki page
     QHash<QString, int> m_previewPostIds; // tag -> post id (for click-through)
     int m_previewPostId = -1;
     // Bumped on every fetchPreview call. In-flight network chains capture

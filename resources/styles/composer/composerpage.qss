@@ -174,6 +174,49 @@
     border-left: 1px solid #1a1a1a;
 }
 
+#ComposerProfilesBody {
+    background: transparent;
+    border-left: 1px solid #1a1a1a;
+}
+
+#ComposerProfileLabel {
+    color: #666666;
+    font-size: 12px;
+}
+
+#ComposerProfileBox {
+    background: #141414;
+    color: #8899aa;
+    border: 1px solid #1e1e1e;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 14px;
+}
+
+#ComposerProfileBox:hover {
+    border-color: #2a2a2a;
+}
+
+#ComposerProfileBox:focus {
+    border-color: #333333;
+    color: #aabbcc;
+}
+
+/* Dropdown needs explicit styling - the platform default is unreadable here. */
+QComboBox#ComposerProfileBox::drop-down {
+    border: none;
+    width: 16px;
+}
+
+QComboBox#ComposerProfileBox QAbstractItemView {
+    background: #141414;
+    color: #cccccc;
+    border: 1px solid #222222;
+    selection-background-color: #2a2a2a;
+    selection-color: #ffffff;
+    outline: 0;
+}
+
 #ComposerHeaderRow {
     border-bottom: 1px solid #1a1a1a;
 }

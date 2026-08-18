@@ -68,10 +68,15 @@ signals:
 
 protected:
     bool eventFilter(QObject* obj, QEvent* ev) override;
+    void showEvent(QShowEvent* ev) override;
 
 private:
     core::DanbooruIndex* m_danbooruIndex = nullptr;
     utils::AppSettings* m_settings = nullptr;
+    // The settings folder is scanned (and its first image decoded) on the
+    // first show instead of in the ctor - startup shouldn't pay for a page
+    // that may never be opened.
+    bool m_pendingInitialScan = false;
 
     // ---- Left column (folder + navigation)
     QLineEdit* m_folderEdit = nullptr;

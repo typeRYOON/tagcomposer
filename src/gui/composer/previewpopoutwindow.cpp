@@ -142,6 +142,7 @@ void PreviewPopoutWindow::setActiveCount(int count)
 
 void PreviewPopoutWindow::setTempFolder(const QString& folder)
 {
+    if (m_tempLabel) m_tempLabel->setTempFolder(folder);
     if (m_tempFolder == folder) return;
     if (!m_watcher->directories().isEmpty()) m_watcher->removePaths(m_watcher->directories());
     m_tempFolder = folder;

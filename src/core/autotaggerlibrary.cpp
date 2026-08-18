@@ -29,8 +29,10 @@ AutoTaggerModel* AutoTaggerLibrary::model(const QString& name)
 
     if (!m_names.contains(name)) return nullptr;
 
+    if (!m_env) m_env.emplace(ORT_LOGGING_LEVEL_ERROR, "tagcomposer");
+
     QString err;
-    auto m = AutoTaggerModel::loadFromDir(m_env, m_root + "/" + name, &err);
+    auto m = AutoTaggerModel::loadFromDir(*m_env, m_root + "/" + name, &err);
     if (!m) {
         qWarning() << "AutoTaggerLibrary:" << name << "failed to load -" << err;
         return nullptr;

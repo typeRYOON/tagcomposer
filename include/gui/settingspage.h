@@ -69,6 +69,9 @@ private:
     QLineEdit* m_quickStyleFacet;
     QWidget* m_formatsContainer = nullptr;
 
+    // Prompt Composer section
+    QCheckBox* m_forceOverwriteRulesOnStateLoad = nullptr;
+
     // Log section
     QPlainTextEdit* m_log;
 };

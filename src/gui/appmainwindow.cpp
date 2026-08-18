@@ -25,7 +25,10 @@
 #include <gui/importdialog.h>
 #include <utils/qutils.h>
 #include <utils/appconfig.h>
+#include <utils/logger.h>
 #include <QApplication>
+#include <QDebug>
+#include <QElapsedTimer>
 #include <QEvent>
 #include <QWindowStateChangeEvent>
 #include <QDir>
@@ -34,6 +37,7 @@
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QImage>
+#include <QJsonObject>
 #include <QVBoxLayout>
 #include <QTimer>
 #include <QFutureWatcher>
@@ -47,10 +51,39 @@ using namespace utils;
 
 namespace gui {
 
-AppMainWindow::AppMainWindow(QWidget* parent)
-    : QMainWindow{parent}, m_entryModel{new core::EntryModel(this)}
+namespace {
+
+// Startup phase timings, logged as one line at the end of the ctor. The
+// Settings page log view keeps it, so "why is startup slow" is answerable
+// without a rebuild.
+class StartupTimer {
+public:
+    StartupTimer()
+    {
+        m_timer.start();
+    }
+    void mark(const char* name)
+    {
+        const qint64 now = m_timer.elapsed();
+        m_parts << QString("%1 %2ms").arg(QLatin1String(name)).arg(now - m_last);
+        m_last = now;
+    }
+    QString summary() const
+    {
+        return QString("Startup: %1ms (%2)").arg(m_timer.elapsed()).arg(m_parts.join(", "));
+    }
+
+private:
+    QElapsedTimer m_timer;
+    QStringList m_parts;
+    qint64 m_last = 0;
+};
+
+} // namespace
+
+AppMainWindow::AppMainWindow(QWidget* parent) : QMainWindow{parent}
 {
-    m_soundPlayer = new core::SoundPlayer(this);
+    StartupTimer startupTimer;
 
     setWindowTitle("Tag Composer");
     setWindowOpacity(0.0);
@@ -61,6 +94,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
 
     // ---- Load settings
     m_settings = AppSettings::load(BASE_PATH + "/" + SETTINGS_PATH);
+    m_soundPlayer = new core::SoundPlayer(this);
     m_soundPlayer->setVolume(m_settings.sfxVolume);
 
     m_lastComfyEnabled = m_settings.comfyUiEnabled;
@@ -79,14 +113,58 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     connect(m_comfyClient, &core::ComfyUiClient::disconnected, this,
             [this]() { m_uploadedThisSession.clear(); });
 
+    startupTimer.mark("settings");
+
+    // ---- Entries. Thousands of small __entry.json reads; EntryIO parses them
+    // on the thread pool, so keep this before the widget tree (nothing above
+    // needs the model) rather than in the member init list.
+    m_entryModel = new core::EntryModel(this);
+    startupTimer.mark("entries");
+
     // ---- Load pipeline data
     m_facetIndex = core::FacetIndex::loadFromFile(BASE_PATH + "/" + FACETS_PATH);
     m_facetIndex.loadDefinitionsFromFile(BASE_PATH + "/" + DEFINITIONS_PATH);
     m_ruleEngine = core::RuleEngine::loadFromFile(BASE_PATH + "/" + RULES_PATH);
-    m_tagGroupIndex = core::TagGroupIndex::loadFromFile(BASE_PATH + "/" + GROUPS_PATH);
+    m_baseGroupIndex = core::TagGroupIndex::loadFromFile(BASE_PATH + "/" + GROUPS_PATH);
     m_varIndex = core::VariableIndex::loadFromFile(BASE_PATH + "/" + VARS_PATH);
+
+    // ---- Profiles (group ordering / tag formatting presets)
+    // First run has no profiles.fct: synthesise a "Default" pair from the
+    // current groups.fct order + settings.json formats so behaviour is
+    // unchanged, and write it so the file is there to edit.
+    const QString profilesPath = BASE_PATH + "/" + PROFILES_PATH;
+    m_profiles = core::ProfileIndex::loadFromFile(profilesPath);
+    if (m_profiles.isEmpty() && !m_baseGroupIndex.groups().isEmpty()) {
+        m_profiles = core::ProfileIndex::withDefaults(m_baseGroupIndex, m_settings.facetFormats);
+        m_profiles.saveToFile(profilesPath);
+    }
+    m_tagGroupIndex = core::applyGroupOrder(m_baseGroupIndex, m_profiles.activeOrder());
+
     m_workflowManager = core::WorkflowManager::loadFromFile(BASE_PATH + "/" + WORKFLOWS_PATH);
     m_pipeline = new core::PromptPipeline(&m_facetIndex, &m_ruleEngine, &m_varIndex, this);
+
+    startupTimer.mark("indexes");
+
+    // ---- App stylesheet
+    // Set before any page exists: widgets then resolve their style during
+    // construction instead of the whole tree being repolished afterwards, and
+    // size hints computed in page constructors already use the styled fonts.
+    // app.qss sorts first so its app-wide rules act as the base.
+    {
+        QStringList qssPaths;
+        QDirIterator qssIt(":/styles", {"*.qss"}, QDir::Files, QDirIterator::Subdirectories);
+        while (qssIt.hasNext())
+            qssPaths << qssIt.next();
+        qssPaths.sort();
+
+        QString combinedQss;
+        for (const QString& path : qssPaths) {
+            QFile f(path);
+            if (f.open(QIODevice::ReadOnly)) combinedQss += QString::fromUtf8(f.readAll()) + '\n';
+        }
+        qApp->setStyleSheet(combinedQss);
+    }
+    startupTimer.mark("qss");
 
     // ---- Pages
     m_tileViewPage = new TileViewPage(m_entryModel, this);
@@ -108,9 +186,12 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_composerPage->setTempFolder(m_settings.comfyUiTempFolder);
     m_composerPage->setQuickFacets(m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet,
                                    m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);
-    m_composerPage->setFacetFormats(m_settings.facetFormats);
+    m_composerPage->setSettingsFacetFormats(m_settings.facetFormats);
+    m_composerPage->setProfiles(&m_profiles, &m_baseGroupIndex, profilesPath);
+    m_composerPage->setForceOverwriteRulesOnStateLoad(m_settings.forceOverwriteRulesOnStateLoad);
     m_tileViewPage->setQuickFacets(m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet,
                                    m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);
+    startupTimer.mark("ui:composer");
     m_facetEditorPage = new FacetEditorPage(&m_facetIndex, m_entryModel, this);
     m_facetEditorPage->setVariableIndex(&m_varIndex);
     m_facetEditorPage->setActiveTagsProvider(
@@ -130,6 +211,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_promptHistoryPage = new PromptHistoryPage(m_promptHistory, m_entryModel, m_composerPage,
                                                 m_comfyClient, this);
 
+    startupTimer.mark("ui:rest");
     m_pages = new QStackedWidget(this);
     m_pages->setObjectName("MainPages");
     m_pages->installEventFilter(this);
@@ -153,6 +235,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     m_pages->addWidget(m_datasetHelpersPage); // Page::DatasetHelpers
     m_pages->addWidget(m_wikiPage);           // Page::DanbooruWiki
     m_pages->addWidget(m_settingsPage);       // Page::Settings
+    startupTimer.mark("ui:dataset");
 
     // ---- Danmaku overlay (behind all pages)
     m_danmakuOverlay = new DanmakuOverlay(m_pages);
@@ -400,7 +483,9 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         m_composerPage->setQuickFacets(
             m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet,
             m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);
-        m_composerPage->setFacetFormats(m_settings.facetFormats);
+        m_composerPage->setSettingsFacetFormats(m_settings.facetFormats);
+        m_composerPage->setForceOverwriteRulesOnStateLoad(
+            m_settings.forceOverwriteRulesOnStateLoad);
         m_tileViewPage->setQuickFacets(
             m_settings.quickCharacterFacet, m_settings.quickCopyrightFacet,
             m_settings.quickTriggerWordFacet, m_settings.quickStyleFacet);
@@ -504,6 +589,7 @@ AppMainWindow::AppMainWindow(QWidget* parent)
             &StatusBar::showMessage);
 
     setCentralWidget(m_chrome->frame());
+    startupTimer.mark("ui");
 
     // ---- Background: load DanbooruIndex
     const QString csvPath = BASE_PATH + "/" + DANBOORU_CSV_PATH;
@@ -522,20 +608,6 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     });
     watcher->setFuture(
         QtConcurrent::run([csvPath]() { return core::DanbooruIndex::loadFromFile(csvPath); }));
-
-    // app.qss sorts first so its app-wide rules act as the base.
-    QStringList qssPaths;
-    QDirIterator qssIt(":/styles", {"*.qss"}, QDir::Files, QDirIterator::Subdirectories);
-    while (qssIt.hasNext())
-        qssPaths << qssIt.next();
-    qssPaths.sort();
-
-    QString combinedQss;
-    for (const QString& path : qssPaths) {
-        QFile f(path);
-        if (f.open(QIODevice::ReadOnly)) combinedQss += QString::fromUtf8(f.readAll()) + '\n';
-    }
-    qApp->setStyleSheet(combinedQss);
 
     // ---- Global keyboard shortcuts
     // Guard against firing while typing in a text input.
@@ -597,10 +669,21 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         m_pages->setCurrentIndex(cur < m_pages->count() - 1 ? cur + 1 : 0);
     });
 
-    QTimer::singleShot(500, this, [this]() {
+    // Show on the first event-loop turn (the window is fully built by now) and
+    // fade in. Everything that still costs real time - session restore, the
+    // ComfyUI connect, the danmaku overlay - waits one more beat so the first
+    // frame is on screen before the main thread is busy again.
+    QTimer::singleShot(0, this, [this]() {
         show();
-        propertyAnimate(this, "windowOpacity", 0.0, 1.0, 500, QEasingCurve::InOutSine);
+        propertyAnimate(this, "windowOpacity", 0.0, 1.0, 250, QEasingCurve::InOutSine);
+    });
+    QTimer::singleShot(50, this, [this]() {
+        QElapsedTimer sessionTimer;
+        sessionTimer.start();
         m_composerPage->restoreSession(BASE_PATH + "/" + SESSION_PATH);
+        const QString line = QString("Session restored in %1ms").arg(sessionTimer.elapsed());
+        Logger::instance().log(line);
+        qInfo().noquote() << line;
 
         if (m_settings.danmakuEnabled) {
             m_danmakuOverlay->setGeometry(m_pages->rect());
@@ -609,6 +692,11 @@ AppMainWindow::AppMainWindow(QWidget* parent)
         }
 
         if (m_settings.comfyUiEnabled) m_comfyClient->connectToServer();
+    });
+    // Materialising QSoundEffect pulls in the multimedia backend, so it stays
+    // off the startup path - but warm it before the first cue needs to play.
+    QTimer::singleShot(1000, this, [this]() {
+        if (m_soundPlayer) m_soundPlayer->preload();
     });
 
     // ---- Update check
@@ -646,6 +734,11 @@ AppMainWindow::AppMainWindow(QWidget* parent)
     else {
         QTimer::singleShot(2000, this, [this]() { m_updateChecker->checkNow(); });
     }
+
+    startupTimer.mark("wiring");
+    const QString summary = startupTimer.summary();
+    Logger::instance().log(summary);
+    qInfo().noquote() << summary;
 }
 
 bool AppMainWindow::eventFilter(QObject* obj, QEvent* event)
@@ -932,50 +1025,58 @@ QStringList AppMainWindow::workflowTemplateIssues(const QString& tmpl,
 void AppMainWindow::recordAndQueue(const QString& renderedJson, const QString& positivePrompt,
                                    const QList<core::LoraConfig>& healed, int batchEntryId)
 {
-    if (m_promptHistory) {
-        core::PromptRecord rec;
-        rec.queuedAt = QDateTime::currentDateTime();
-        if (const core::WorkflowFile* wf = m_workflowManager.selectedFile()) rec.workflowName = wf->name;
-        rec.positivePrompt = positivePrompt;
-        rec.renderedJson = renderedJson;
-        rec.snapshot = m_composerPage->currentSnapshot();
-        rec.lorasUsed = healed;
-        rec.batchEntryId = batchEntryId;
+    core::PromptRecord rec;
+    rec.queuedAt = QDateTime::currentDateTime();
+    if (const core::WorkflowFile* wf = m_workflowManager.selectedFile()) rec.workflowName = wf->name;
+    rec.positivePrompt = positivePrompt;
+    rec.renderedJson = renderedJson;
+    rec.snapshot = m_composerPage->currentSnapshot();
+    // Restore surfaces this name (drop-to-restore, history restore).
+    rec.snapshot.name = QString("%1 %2").arg(
+        rec.workflowName.isEmpty() ? QStringLiteral("Run") : rec.workflowName,
+        rec.queuedAt.toString("yyyy-MM-dd HH:mm:ss"));
+    rec.lorasUsed = healed;
+    rec.batchEntryId = batchEntryId;
 
-        // Batch iterations don't go through the composer's push system, so the
-        // iterated entry is absent from snapshot.activePushes AND its tags
-        // are absent from snapshot.activeTags (the batch unions them only
-        // transiently inside computePromptWithExtraTags). Synthesize the push
-        // and merge the tags so the history reflects the effective state that
-        // produced the prompt -- "Active entries" lists the entry, the row
-        // count matches reality, and restore/save-state replay the actual tag
-        // set instead of just the pre-batch composer state.
-        if (batchEntryId >= 0 && m_entryModel) {
-            if (core::Entry* e = m_entryModel->entryById(batchEntryId)) {
-                if (!e->images.isEmpty()) {
-                    core::EntryPush push;
-                    push.uuid = e->uuid;
-                    push.imageFileName = e->images[0].fileName;
-                    push.tags = m_entryModel->getTags(e->images[0].tagIds);
-                    rec.snapshot.activePushes.prepend(push);
+    // Batch iterations don't go through the composer's push system, so the
+    // iterated entry is absent from snapshot.activePushes AND its tags
+    // are absent from snapshot.activeTags (the batch unions them only
+    // transiently inside computePromptWithExtraTags). Synthesize the push
+    // and merge the tags so the history reflects the effective state that
+    // produced the prompt -- "Active entries" lists the entry, the row
+    // count matches reality, and restore/save-state replay the actual tag
+    // set instead of just the pre-batch composer state.
+    if (batchEntryId >= 0 && m_entryModel) {
+        if (core::Entry* e = m_entryModel->entryById(batchEntryId)) {
+            if (!e->images.isEmpty()) {
+                core::EntryPush push;
+                push.uuid = e->uuid;
+                push.imageFileName = e->images[0].fileName;
+                push.tags = m_entryModel->getTags(e->images[0].tagIds);
+                rec.snapshot.activePushes.prepend(push);
 
-                    // Union tags into activeTags, preserving order and skipping
-                    // duplicates already in the composer state.
-                    QSet<QString> seen(rec.snapshot.activeTags.cbegin(),
-                                       rec.snapshot.activeTags.cend());
-                    for (const QString& t : push.tags) {
-                        if (!seen.contains(t)) {
-                            rec.snapshot.activeTags << t;
-                            seen.insert(t);
-                        }
+                // Union tags into activeTags, preserving order and skipping
+                // duplicates already in the composer state.
+                QSet<QString> seen(rec.snapshot.activeTags.cbegin(),
+                                   rec.snapshot.activeTags.cend());
+                for (const QString& t : push.tags) {
+                    if (!seen.contains(t)) {
+                        rec.snapshot.activeTags << t;
+                        seen.insert(t);
                     }
                 }
             }
         }
-
-        m_promptHistory->append(std::move(rec));
     }
-    m_comfyClient->queuePrompt(renderedJson);
+
+    // Bake the effective snapshot into the output PNG (save nodes with
+    // embed_workflow write every extra_pnginfo key as a text chunk) so
+    // dropping the image back on the composer restores this exact state.
+    QJsonObject pngInfo;
+    pngInfo["tagcomposer_state"] = rec.snapshot.toJson();
+
+    if (m_promptHistory) m_promptHistory->append(std::move(rec));
+    m_comfyClient->queuePrompt(renderedJson, pngInfo);
 }
 
 // Tracking key is (uuid + editsHash) so editing forces a re-upload.

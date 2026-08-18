@@ -197,7 +197,7 @@ void ComfyUiClient::freeMemory(std::function<void(bool, QString)> cb)
     });
 }
 
-void ComfyUiClient::queuePrompt(const QString& workflowJson)
+void ComfyUiClient::queuePrompt(const QString& workflowJson, const QJsonObject& extraPnginfo)
 {
     if (!m_connected) {
         utils::Logger::instance().log("Not connected to a ComfyUI websocket.");
@@ -215,7 +215,8 @@ void ComfyUiClient::queuePrompt(const QString& workflowJson)
         return;
     }
 
-    const QJsonObject extra = extraData();
+    QJsonObject extra = extraData();
+    if (!extraPnginfo.isEmpty()) extra["extra_pnginfo"] = extraPnginfo;
     if (!extra.isEmpty()) body["extra_data"] = extra;
 
     auto* reply = m_nam->post(req, QJsonDocument(body).toJson());

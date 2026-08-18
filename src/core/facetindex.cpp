@@ -69,12 +69,15 @@ void FacetIndex::loadDefinitionsFromFile(const QString& definitionsPath)
         const QString line = raw.trimmed();
         if (line.isEmpty() || line.startsWith('#') || !line.contains('=')) continue;
 
-        // lastIndexOf so the full would-be tag is captured (and then rejected
-        // below if it contains '='); indexOf would silently truncate a tag
-        // like `foo=` to `foo` and load garbage facets.
+        // saveDefinitions writes `<tag>=<facets>` and facet names never contain
+        // '=', so the last '=' is always the separator - splitting there keeps
+        // tags that contain one (`:>=`, `= =`, `1=2`, `qi==qi`). Rejecting them
+        // instead dropped the definition on load, and the next save then erased
+        // it from disk. indexOf would truncate `foo=` to `foo` and load the
+        // rest as garbage facets.
         const int eq = line.lastIndexOf('=');
         const QString tag = line.left(eq).trimmed();
-        if (tag.isEmpty() || tag.contains('=')) continue; // '=' is reserved as the separator
+        if (tag.isEmpty()) continue;
         m_tagToFacets[tag] = splitTrimmed(line.mid(eq + 1), ',');
     }
 }

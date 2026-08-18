@@ -2,6 +2,7 @@
 #include <core/entrymodel.h>
 #include <core/danbooruindex.h>
 #include <core/facetindex.h>
+#include <core/profileindex.h>
 #include <core/ruleengine.h>
 #include <core/taggroups.h>
 #include <core/variableindex.h>
@@ -112,8 +113,8 @@ private:
     bool m_skipNextFinalLoad = false;
     bool m_skipFinalOnPendingClear = false;
 
-    core::EntryModel* m_entryModel;
-    QStackedWidget* m_pages;
+    core::EntryModel* m_entryModel = nullptr;
+    QStackedWidget* m_pages = nullptr;
 
     gui::HomePage* m_homePage = nullptr;
     core::UpdateChecker* m_updateChecker = nullptr;
@@ -148,7 +149,11 @@ private:
     // Pipeline owned here as values; PromptPipeline holds pointers to them.
     core::FacetIndex m_facetIndex;
     core::RuleEngine m_ruleEngine;
+    // m_baseGroupIndex is groups.fct as loaded; m_tagGroupIndex is the copy
+    // permuted by the active group profile (what the composer buckets with).
+    core::TagGroupIndex m_baseGroupIndex;
     core::TagGroupIndex m_tagGroupIndex;
+    core::ProfileIndex m_profiles;
     core::VariableIndex m_varIndex;
     core::WorkflowManager m_workflowManager;
     core::PromptPipeline* m_pipeline = nullptr;

@@ -52,6 +52,21 @@ A special **Deactivated** group appears at the bottom whenever you've deactivate
 
 > **Screenshot suggestion:** one category fully expanded with at least one row of each result kind (Include, Injected, Skipped/Replaced, Flagged, NoFacets, Deactivated) so the dot colors and badges show.
 
+### Custom tags (free text in a group)
+
+Right-click a **group header** for *Add tag to \<group\>...*, or right-click blank space in the groups area for an *Add tag to* submenu listing every group (that's how you reach a group with no rows yet). The prompt takes arbitrary text - a whole natural-language sentence is fine, which is what Anima-style models want.
+
+The injected text is stored as an ordinary entry in the active tag list, and the app assigns it **the facets that group requires**, so it qualifies for the group without a `tag_definitions.fct` entry. From there it is a normal tag: rules match it (`anyTag(facets: ...)` sees the injected facets), `$vars$` inside it expand, weights apply, group ordering and [[Tag Composer]] profiles position it, and format profiles wrap it if the group's facet is in the active format list.
+
+Where the facets live matters: they are **composer state**, saved into `session.json`, into each saved state, and into the baked PNG stamp - *not* into `tag_definitions.fct`. A one-off sentence has no business in the global vocabulary, and Settings' "Purge tag definitions" drops anything that isn't in the Danbooru list and isn't used by an entry, which is exactly what these look like.
+
+Notes:
+
+- The facets are a **snapshot** of the group's facet list at injection time. Editing that group in `groups.fct` afterwards doesn't retarget existing custom tags.
+- Group matching is first-match-wins, so if a broader group sits above the one you picked, it claims the facets first - the status bar says so instead of silently misfiling the text.
+- Renaming the row (inline edit) carries the facets across; deleting it, clearing the composer, or restoring another state drops them.
+- Text with commas stays one entry when injected this way; the search bar still splits on commas, so use the group menu for prose.
+
 ### Tag row anatomy
 
 Each row carries up to six visual elements; only the ones that apply are drawn:
@@ -81,6 +96,37 @@ When focus is on the groups area:
 ## Sidebar
 
 > **Screenshot suggestion:** sidebar in three states - (a) WF tab active with a workflow selected, (b) STATES tab active with a couple of saved states (one with a preview thumbnail), (c) the variables row at the bottom with one variable defined.
+
+### Profiles section
+
+Two combo boxes at the top of the sidebar, pinned above the resizable sections:
+
+- **Groups** - the active *group profile*: a named ordering of the groups already defined in `groups.fct`. It never redefines a group's name or facets, it only permutes them.
+- **Format** - the active *format profile*: a named set of per-facet tag wraps (the same `prefix + tag + suffix` mechanism as Settings' "Tag formatting"). This is what adds or removes the leading `@` on artist tags.
+
+The two are **independent axes** - any ordering pairs with any formatting - which is the point: switching between model conventions (e.g. Illustrious vs Anima) usually means changing one of them and not the other.
+
+Both live in `data/system/profiles.fct`. Header buttons: **open `profiles.fct`** in your editor, **reload** from file. There is no in-app editor; the file is the editor, same as `rules.fct`.
+
+```
+@groupprofile Anima
+    Style, Body/Hair, Body/Eyes, Body, Clothing
+@formatprofile Anima
+    rStyle = @ |
+
+active = Anima | Anima
+```
+
+Notes:
+
+- A group profile may name a **subset**. Groups it doesn't mention keep their `groups.fct` order and follow the named ones, so adding a group doesn't invalidate every profile.
+- A format line is `facet = prefix | suffix`; either side may be empty. Quote a side to keep leading/trailing spaces (`rStyle = "@ " | ""`).
+- Unknown group names are ignored on load (the group may have been renamed).
+- The active pair lives in `profiles.fct`, not `session.json`, so it survives a session reset.
+- Reordering changes **which group claims a tag**, not just where it lands in the prompt: groups match top-to-bottom, first match wins. Putting a broad group (`rBody`) above a narrow one (`rBody, Hair`) makes the narrow one unreachable - the status bar warns with `X shadows Y` when a switch produces that.
+- With no format profile active the combo shows `(settings.json)` and Settings' "Tag formatting" list is used - the legacy source still works.
+
+Saved states record both the **name** and the **resolved snapshot** of each profile, so a state saved under "Anima" replays with the `@` even after that profile is edited or deleted. When the snapshot no longer matches any profile the combo shows `Anima (from state)`. Because the snapshot rides in `SavedState`, it also travels inside baked-state PNGs.
 
 ### Rules section
 
@@ -212,6 +258,7 @@ Anything else needs a variable declared on the workflow - configured in the [[Wo
 
 - **Session save/restore** is automatic on app shutdown / startup: composer state, workflow selection, LoRA stack, and the active push set survive a restart. The file is `data/system/session.json`.
 - **Named states** (saved via the `+` button in the STATES tab, or by **Save as state** from [[Prompt History]]) are stored as `data/states/<id>/state.json` plus an optional `preview.png`. Restoring a state replaces the live composer state wholesale.
+- **Baked states in outputs**: every image queued through the app carries the queue-time composer state as a `tagcomposer_state` PNG text chunk (written by the save node when `embed_workflow` is on). Dropping such a PNG anywhere on the composer page restores that state and pins the image as the preview. See [[ComfyUI Integration]].
 
 ## Keyboard shortcuts
 

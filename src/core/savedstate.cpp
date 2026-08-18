@@ -60,6 +60,14 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
     for (const auto& v : obj["activePushes"].toArray())
         s.activePushes << EntryPush::fromJson(v.toObject());
 
+    const QJsonObject customFacets = obj["customTagFacets"].toObject();
+    for (auto it = customFacets.constBegin(); it != customFacets.constEnd(); ++it) {
+        QList<QString> facets;
+        for (const auto& f : it.value().toArray())
+            facets << f.toString();
+        if (!facets.isEmpty()) s.customTagFacets[it.key()] = facets;
+    }
+
     const QJsonObject rules = obj["ruleStates"].toObject();
     for (auto it = rules.constBegin(); it != rules.constEnd(); ++it)
         s.ruleStates[it.key()] = it.value().toBool();
@@ -111,6 +119,25 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
     s.previewImagePath = obj["previewImage"].toString();
     for (const auto& v : obj["activeLoraUuids"].toArray())
         s.activeLoraUuids << v.toString();
+
+    // Absent on legacy states; restore must not touch the live profiles then.
+    s.profilesStamped = obj.contains("groupProfile") || obj.contains("formatProfile");
+    if (s.profilesStamped) {
+        const QJsonObject gp = obj["groupProfile"].toObject();
+        s.groupProfileName = gp["name"].toString();
+        for (const auto& v : gp["order"].toArray())
+            s.groupOrder << v.toString();
+
+        const QJsonObject fp = obj["formatProfile"].toObject();
+        s.formatProfileName = fp["name"].toString();
+        for (const auto& v : fp["formats"].toArray()) {
+            const QJsonObject o = v.toObject();
+            const QString facet = o["facet"].toString().trimmed();
+            if (facet.isEmpty()) continue;
+            s.facetFormats << utils::FacetFormat{facet, o["prefix"].toString(),
+                                                 o["suffix"].toString()};
+        }
+    }
     return s;
 }
 
@@ -146,6 +173,15 @@ QJsonObject SavedState::toJson() const
         pushesArr.append(ep.toJson());
     obj["activePushes"] = pushesArr;
 
+    QJsonObject customFacetsObj;
+    for (auto it = customTagFacets.constBegin(); it != customTagFacets.constEnd(); ++it) {
+        QJsonArray arr;
+        for (const QString& f : it.value())
+            arr.append(f);
+        customFacetsObj[it.key()] = arr;
+    }
+    obj["customTagFacets"] = customFacetsObj;
+
     QJsonObject rulesObj;
     for (auto it = ruleStates.constBegin(); it != ruleStates.constEnd(); ++it)
         rulesObj[it.key()] = it.value();
@@ -178,6 +214,31 @@ QJsonObject SavedState::toJson() const
     for (const auto& uuid : activeLoraUuids)
         loraArr.append(uuid);
     obj["activeLoraUuids"] = loraArr;
+
+    // Only written when stamped, so re-saving a legacy state (saveToDir
+    // rewrites every state) doesn't turn "no opinion" into an empty stamp.
+    if (profilesStamped) {
+        QJsonArray orderArr;
+        for (const QString& name : groupOrder)
+            orderArr.append(name);
+        QJsonObject gp;
+        gp["name"] = groupProfileName;
+        gp["order"] = orderArr;
+        obj["groupProfile"] = gp;
+
+        QJsonArray fmtArr;
+        for (const utils::FacetFormat& f : facetFormats) {
+            QJsonObject o;
+            o["facet"] = f.facet;
+            o["prefix"] = f.prefix;
+            o["suffix"] = f.suffix;
+            fmtArr.append(o);
+        }
+        QJsonObject fp;
+        fp["name"] = formatProfileName;
+        fp["formats"] = fmtArr;
+        obj["formatProfile"] = fp;
+    }
     return obj;
 }
 

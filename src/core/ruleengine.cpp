@@ -193,7 +193,6 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
     bool actionSet{false};
     bool skipBlock{false};
     bool uuidsGenerated{false};
-    QSet<QString> seenNames;
     QSet<QString> seenUuids;
 
     auto finaliseRule = [&]() {
@@ -224,15 +223,9 @@ RuleEngine RuleEngine::loadFromFile(const QString& path, QStringList* errors)
                 skipBlock = true;
                 if (errors) *errors << "Rule with empty name skipped";
             }
-            else if (seenNames.contains(current.name)) {
-                skipBlock = true;
-                if (errors)
-                    *errors << QString("Duplicate rule \"%1\" skipped (first definition kept)")
-                                   .arg(current.name);
-            }
-            else {
-                seenNames.insert(current.name);
-            }
+            // Duplicate names are allowed; uuid is the identity. finaliseRule
+            // dedupes/regenerates uuids so two same-named rules survive a save/
+            // load roundtrip as long as their uuids differ.
             continue;
         }
 

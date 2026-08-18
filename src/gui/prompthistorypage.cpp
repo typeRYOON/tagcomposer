@@ -648,8 +648,13 @@ void PromptHistoryPage::doRequeue()
     // the timestamp is refreshed.
     PromptRecord replay = orig;
     replay.queuedAt = QDateTime::currentDateTime();
+    // Bake the original snapshot into the replayed output too. Copies taken
+    // before append - the prepend can reallocate and dangle `orig`.
+    QJsonObject pngInfo;
+    pngInfo["tagcomposer_state"] = replay.snapshot.toJson();
+    const QString renderedJson = replay.renderedJson;
     m_history->append(std::move(replay));
-    m_comfy->queuePrompt(orig.renderedJson);
+    m_comfy->queuePrompt(renderedJson, pngInfo);
     emit statusMessageRequested("Re-queued prompt with same seed.");
 }
 

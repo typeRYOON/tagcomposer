@@ -1,5 +1,6 @@
 #include <core/taggroups.h>
 #include <QFile>
+#include <utility>
 
 namespace core {
 
@@ -59,6 +60,11 @@ QString TagGroupIndex::groupFor(const QList<QString>& tagFacets) const
 const QList<TagGroup>& TagGroupIndex::groups() const
 {
     return m_groups;
+}
+
+void TagGroupIndex::setGroups(QList<TagGroup> groups)
+{
+    m_groups = std::move(groups);
 }
 
 } // namespace core

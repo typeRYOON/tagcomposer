@@ -465,7 +465,9 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     auto* formatsHint = new QLabel(
         "Wraps every tag whose facets include the listed facet with prefix + tag + suffix "
         "right before the prompt is built for copy/ComfyUI. Rules stack in order. "
-        "Example: facet=rStyle, prefix=@, suffix=(empty) emits \"@asanagi\".");
+        "Example: facet=rStyle, prefix=@, suffix=(empty) emits \"@asanagi\". "
+        "This list is the fallback: a format profile selected in the composer's "
+        "PROFILES section (data/system/profiles.fct) overrides it.");
     formatsHint->setObjectName("SettingsHintLabel");
     formatsHint->setWordWrap(true);
 
@@ -546,6 +548,38 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
     });
 
     bodyLayout->addWidget(facetsGroup);
+    bodyLayout->addSpacing(24);
+
+    // ---- Section: Prompt Composer
+    auto* composerHeader = new QLabel("PROMPT COMPOSER");
+    composerHeader->setObjectName("SettingsSectionHeader");
+    bodyLayout->addWidget(composerHeader);
+    bodyLayout->addSpacing(12);
+
+    auto* composerGroup = new QWidget;
+    composerGroup->setObjectName("SettingsGroup");
+    composerGroup->setAttribute(Qt::WA_StyledBackground, true);
+    auto* composerLayout = new QVBoxLayout(composerGroup);
+    composerLayout->setContentsMargins(16, 14, 16, 14);
+    composerLayout->setSpacing(8);
+
+    m_forceOverwriteRulesOnStateLoad =
+        new QCheckBox("Force overwrite rules when loading a saved state");
+    m_forceOverwriteRulesOnStateLoad->setObjectName("SettingsCheckBox");
+    m_forceOverwriteRulesOnStateLoad->setChecked(settings->forceOverwriteRulesOnStateLoad);
+    composerLayout->addWidget(m_forceOverwriteRulesOnStateLoad);
+
+    auto* forceOverwriteHint =
+        new QLabel("When loading a state, replace the match expression, action type, and "
+                   "force-fire flag of any rule already in memory (same id) with the saved "
+                   "version. Off keeps those fields local. The enabled flag and Add/Replace "
+                   "injected tags are always refreshed from the state regardless. Rule names "
+                   "are never overwritten.");
+    forceOverwriteHint->setObjectName("SettingsHintLabel");
+    forceOverwriteHint->setWordWrap(true);
+    composerLayout->addWidget(forceOverwriteHint);
+
+    bodyLayout->addWidget(composerGroup);
     bodyLayout->addSpacing(24);
 
     // ---- Section: Data (import / export)
@@ -818,6 +852,11 @@ SettingsPage::SettingsPage(utils::AppSettings* settings, QWidget* parent)
 
     connect(m_quickStyleFacet, &QLineEdit::editingFinished, this, [this]() {
         m_settings->quickStyleFacet = m_quickStyleFacet->text().trimmed();
+        emit settingsChanged();
+    });
+
+    connect(m_forceOverwriteRulesOnStateLoad, &QCheckBox::toggled, this, [this](bool on) {
+        m_settings->forceOverwriteRulesOnStateLoad = on;
         emit settingsChanged();
     });
 

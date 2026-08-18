@@ -1,5 +1,7 @@
 #pragma once
+#include <utils/appsettings.h>
 #include <QString>
+#include <QStringList>
 #include <QList>
 #include <QHash>
 #include <QSet>
@@ -29,6 +31,9 @@ struct SavedState {
     QSet<QString> deactivatedTags;
     QHash<QString, QString> deactivatedCategory; // tag -> category at deactivation
     QList<EntryPush> activePushes;               // uuid+imageIdx -> tags
+    // Facets for composer-injected custom tags (free text that qualifies for
+    // a group). Kept with the state, not in tag_definitions.fct.
+    QHash<QString, QList<QString>> customTagFacets;
     QMap<QString, bool> ruleStates;              // rule -> enabled
     QMap<QString, QList<QString>> ruleArguments; // rule -> Add/Replace args
     // Full rule definitions at capture time. On restore, any rule here whose
@@ -42,6 +47,16 @@ struct SavedState {
     QJsonArray workflowVarValues;
     QString previewImagePath;
     QList<QString> activeLoraUuids;
+
+    // Group / format profile stamp. Names are for the UI; the resolved
+    // snapshots are what restore applies, so a state still replays its
+    // original prompt after the profile is edited or deleted. False on
+    // legacy states (no stamp) - restore then leaves the live profiles alone.
+    bool profilesStamped = false;
+    QString groupProfileName;
+    QStringList groupOrder; // resolved: every group name, in order
+    QString formatProfileName;
+    QList<utils::FacetFormat> facetFormats; // resolved
 
     static SavedState fromJson(const QJsonObject& obj);
     QJsonObject toJson() const;

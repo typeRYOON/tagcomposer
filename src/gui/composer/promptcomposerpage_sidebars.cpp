@@ -1,14 +1,16 @@
-// Sidebar rebuilds (rules / vars / workflow). Each rebuild replaces its
-// container's children from the current model.
+// Sidebar rebuilds (rules / vars / workflow / profiles). Each rebuild replaces
+// its container's children from the current model.
 
 #include <gui/composer/promptcomposerpage.h>
 #include <gui/composer/workflowdroplist.h>
+#include <core/profileindex.h>
 #include <core/ruleengine.h>
 #include <core/variableindex.h>
 #include <core/workflowmanager.h>
 #include <utils/appconfig.h>
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QColor>
 #include <QCursor>
 #include <QEnterEvent>
@@ -73,7 +75,7 @@ private:
 // so the row stays QLabel-tall in display mode (QStackedWidget would have
 // inflated it to the QLineEdit's height via QStackedLayout::minimumSize).
 // onCommit returns true to accept (widget shows the new text) or false to
-// revert (duplicate/empty validation).
+// revert. Empty/no-op input is filtered in commitEdit before onCommit fires.
 class EditableRuleName : public QWidget {
 public:
     explicit EditableRuleName(const QString& full, QWidget* parent = nullptr)
@@ -271,6 +273,145 @@ void PromptComposerPage::reloadVars()
     queueRepush();
 }
 
+void PromptComposerPage::reloadProfiles()
+{
+    if (!m_profiles) return;
+    const QString path = BASE_PATH + "/" + PROFILES_PATH;
+    ProfileIndex fresh = ProfileIndex::loadFromFile(path);
+    if (fresh.isEmpty()) {
+        emit statusMessageRequested("profiles.fct defines no profiles - keeping the loaded set.");
+        return;
+    }
+    // Keep the live selection when the reloaded file still has it; otherwise
+    // the file's own active line decides.
+    const QString group = m_profiles->activeGroup();
+    const QString format = m_profiles->activeFormat();
+    *m_profiles = fresh;
+    if (m_profiles->groupProfile(group)) m_profiles->setActiveGroup(group);
+    if (m_profiles->formatProfile(format)) m_profiles->setActiveFormat(format);
+
+    m_oneOffGroupLabel.clear();
+    m_oneOffFormatLabel.clear();
+    emit statusMessageRequested(QString("Profiles reloaded - %1 group, %2 format.")
+                                    .arg(m_profiles->groupProfiles().size())
+                                    .arg(m_profiles->formatProfiles().size()));
+    applyActiveProfiles(false, true);
+    captureUndoSnapshot();
+}
+
+void PromptComposerPage::applyActiveProfiles(bool persist, bool refreshNow)
+{
+    if (!m_profiles || !m_baseGroups) return;
+
+    m_oneOffGroupLabel.clear();
+    m_oneOffFormatLabel.clear();
+
+    // No format profile active -> settings.json stays the source (legacy path).
+    const bool hasFormat = m_profiles->formatProfile(m_profiles->activeFormat()) != nullptr;
+    m_facetFormats = hasFormat ? m_profiles->activeFormats() : m_settingsFacetFormats;
+    m_groups = applyGroupOrder(*m_baseGroups, m_profiles->activeOrder());
+
+    if (persist && !m_profilesPath.isEmpty()) m_profiles->saveActiveToFile(m_profilesPath);
+
+    rebuildProfilesSidebar();
+    if (!refreshNow) return; // caller repushes (or nothing is on screen yet)
+
+    m_freezeNextRebuild = true;
+    applyTagFilter();
+
+    QString msg = QString("Profile: %1 | %2")
+                      .arg(m_profiles->activeGroup().isEmpty() ? QStringLiteral("(none)")
+                                                               : m_profiles->activeGroup(),
+                           hasFormat ? m_profiles->activeFormat() : QStringLiteral("(settings)"));
+    const QStringList shadowed = shadowedGroups(m_groups);
+    if (!shadowed.isEmpty()) {
+        msg += QString("  -  warning: %1").arg(shadowed.mid(0, 3).join("; "));
+        if (shadowed.size() > 3) msg += QString(" (+%1 more)").arg(shadowed.size() - 3);
+    }
+    emit statusMessageRequested(msg);
+}
+
+void PromptComposerPage::applyProfileStamp(const core::SavedState& state, bool refreshNow)
+{
+    // Legacy states carry no stamp - leave the live profiles alone.
+    if (!state.profilesStamped || !m_profiles || !m_baseGroups) return;
+
+    // Match by resolved payload, not just by name, so a renamed-but-identical
+    // profile still selects in the combo. Ties prefer the stamped name.
+    QString groupSel;
+    for (const GroupProfile& p : m_profiles->groupProfiles()) {
+        if (groupNames(applyGroupOrder(*m_baseGroups, p.order)) != state.groupOrder) continue;
+        if (groupSel.isEmpty() || p.name == state.groupProfileName) groupSel = p.name;
+    }
+    QString formatSel;
+    for (const FormatProfile& p : m_profiles->formatProfiles()) {
+        if (p.formats != state.facetFormats) continue;
+        if (formatSel.isEmpty() || p.name == state.formatProfileName) formatSel = p.name;
+    }
+
+    if (!groupSel.isEmpty()) m_profiles->setActiveGroup(groupSel);
+    if (!formatSel.isEmpty()) m_profiles->setActiveFormat(formatSel);
+    if ((!groupSel.isEmpty() || !formatSel.isEmpty()) && !m_profilesPath.isEmpty())
+        m_profiles->saveActiveToFile(m_profilesPath);
+
+    auto oneOff = [](const QString& name) -> QString {
+        if (name.isEmpty()) return QStringLiteral("(from state)");
+        return name + QStringLiteral(" (from state)");
+    };
+    m_oneOffGroupLabel = groupSel.isEmpty() ? oneOff(state.groupProfileName) : QString();
+    m_oneOffFormatLabel = formatSel.isEmpty() ? oneOff(state.formatProfileName) : QString();
+
+    // The snapshot wins over the named profile - a state must replay what it
+    // was saved under even after that profile was edited.
+    m_facetFormats = state.facetFormats;
+    m_groups = applyGroupOrder(*m_baseGroups, state.groupOrder);
+
+    rebuildProfilesSidebar();
+    if (refreshNow) {
+        m_freezeNextRebuild = true;
+        applyTagFilter();
+    }
+}
+
+void PromptComposerPage::rebuildProfilesSidebar()
+{
+    if (!m_groupProfileBox || !m_formatProfileBox) return;
+
+    QSignalBlocker blockGroup(m_groupProfileBox);
+    QSignalBlocker blockFormat(m_formatProfileBox);
+    m_groupProfileBox->clear();
+    m_formatProfileBox->clear();
+
+    const bool ready = (m_profiles != nullptr);
+    m_groupProfileBox->setEnabled(ready);
+    m_formatProfileBox->setEnabled(ready);
+    if (!ready) return;
+
+    for (const GroupProfile& gp : m_profiles->groupProfiles())
+        m_groupProfileBox->addItem(gp.name, gp.name);
+    for (const FormatProfile& fp : m_profiles->formatProfiles())
+        m_formatProfileBox->addItem(fp.name, fp.name);
+
+    // Items carry the profile name as data; entries with empty data (the
+    // one-off "(from state)" row and the no-profile fallback) are inert.
+    auto select = [](QComboBox* box, const QString& active, const QString& oneOff,
+                     const QString& fallback) {
+        if (oneOff.isEmpty()) {
+            const int idx = box->findData(active);
+            if (idx >= 0) {
+                box->setCurrentIndex(idx);
+                return;
+            }
+        }
+        box->addItem(oneOff.isEmpty() ? fallback : oneOff, QString());
+        box->setCurrentIndex(box->count() - 1);
+    };
+    select(m_groupProfileBox, m_profiles->activeGroup(), m_oneOffGroupLabel,
+           QStringLiteral("(groups.fct order)"));
+    select(m_formatProfileBox, m_profiles->activeFormat(), m_oneOffFormatLabel,
+           QStringLiteral("(settings.json)"));
+}
+
 void PromptComposerPage::rebuildRulesSidebar()
 {
     while (m_rulesLayout->count() > 0) {
@@ -321,8 +462,6 @@ void PromptComposerPage::rebuildRulesSidebar()
             auto* nameWidget = new EditableRuleName(rules[i].name);
             nameWidget->onCommit = [this, i](const QString& next) -> bool {
                 if (i >= m_rules->rules().size()) return false;
-                for (int j = 0; j < m_rules->rules().size(); ++j)
-                    if (j != i && m_rules->rules()[j].name == next) return false;
                 m_rules->rules()[i].name = next;
                 m_rules->saveToFile(BASE_PATH + "/" + RULES_PATH);
                 captureUndoSnapshot();
@@ -456,11 +595,6 @@ void PromptComposerPage::promptAddRule()
     if (!ok) return;
     const QString name = raw.trimmed();
     if (name.isEmpty()) return;
-    for (const auto& r : m_rules->rules())
-        if (r.name == name) {
-            emit statusMessageRequested(QString("Rule \"%1\" already exists.").arg(name));
-            return;
-        }
 
     core::Rule r;
     r.uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);

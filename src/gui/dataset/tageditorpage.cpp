@@ -384,10 +384,11 @@ TagEditorPage::TagEditorPage(core::DanbooruIndex* danbooruIndex, utils::AppSetti
     root->addWidget(middlePanel, 1);
     root->addWidget(rightPanel);
 
-    // ---- Hydrate from settings
+    // ---- Hydrate from settings. The scan (folder listing + decoding the
+    // first image) waits for the first show; see showEvent.
     if (m_settings && !m_settings->tagEditorFolder.isEmpty()) {
         m_folderEdit->setText(m_settings->tagEditorFolder);
-        rescan();
+        m_pendingInitialScan = true;
     }
 
     // ---- Wire
@@ -467,6 +468,7 @@ void TagEditorPage::setInputFolder(const QString& folder)
 {
     if (m_folderEdit) m_folderEdit->setText(folder);
     persistSettings();
+    m_pendingInitialScan = false; // scanning now; don't redo it on first show
     rescan();
 }
 
@@ -740,6 +742,14 @@ void TagEditorPage::rescalePreview()
     if (area.width() <= 0 || area.height() <= 0) return;
 
     m_focusImage->setPixmap(roundedScaled(m_focusPixmapSrc, area.width(), area.height(), 8.0));
+}
+
+void TagEditorPage::showEvent(QShowEvent* ev)
+{
+    QWidget::showEvent(ev);
+    if (!m_pendingInitialScan) return;
+    m_pendingInitialScan = false;
+    if (!m_folderEdit->text().trimmed().isEmpty()) rescan();
 }
 
 // ---- Click image to open

@@ -11,6 +11,10 @@ struct FacetFormat {
     QString facet;
     QString prefix;
     QString suffix;
+
+    // Format profiles compare whole lists to decide whether a saved state
+    // still matches the profile it names.
+    bool operator==(const FacetFormat& other) const = default;
 };
 
 struct AppSettings {
@@ -54,6 +58,14 @@ struct AppSettings {
     QString autoTagInputFolder;
     QString autoTagOutputFolder;
     QString tagEditorFolder;
+
+    // ---- Prompt Composer
+    // When loading a saved state, overwrite match expression, action (type
+    // and arguments), and force-fire flag on rules already in memory (same
+    // uuid). Default off keeps the local match/action/force; only enabled
+    // and Add/Replace arguments are refreshed. Rule name is never overwritten
+    // (rename is local to the uuid).
+    bool forceOverwriteRulesOnStateLoad = false;
 
     // ---- Auto-collect (Collector page)
     QString collectorWatchFolder;

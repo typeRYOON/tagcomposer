@@ -70,7 +70,7 @@ All POSTs target `http://<comfyUiServerAddress>/...` and carry `extra_data.api_k
 
 | Endpoint | Body | When |
 | --- | --- | --- |
-| `POST /prompt` | `{"client_id":"<uuid>", "prompt":{...workflow JSON...}, "extra_data":{...}}` | Every queued prompt (composer Run, batch run, [[Prompt History]] re-queue). The `prompt` field is the rendered JSON with all placeholders already substituted. Failed JSON parse logs and aborts. |
+| `POST /prompt` | `{"client_id":"<uuid>", "prompt":{...workflow JSON...}, "extra_data":{...}}` | Every queued prompt (composer Run, batch run, [[Prompt History]] re-queue). The `prompt` field is the rendered JSON with all placeholders already substituted. `extra_data` carries the API key plus the baked composer snapshot (see [Baked composer state](#baked-composer-state-drop-to-restore)). Failed JSON parse logs and aborts. |
 | `POST /interrupt` | `{"extra_data":{...}}` | Composer's `■` Interrupt button. Cancels the in-flight prompt. |
 | `POST /queue` | `{"clear":true, "extra_data":{...}}` | Shift-click on the Interrupt button (composer + popout). Drops the pending queue without canceling the in-flight job. |
 | `POST /free` | `{"unload_models":true, "free_memory":true, "extra_data":{...}}` | Used after specific "release the .safetensors" needs - e.g. when the app wants to overwrite a LoRA file ComfyUI has a handle on. Callback-driven so the caller can sequence its retry. |
@@ -153,6 +153,22 @@ Composer Run (`PromptComposerPage::Run` -> `runRequested` signal -> `AppMainWind
 Batch flow is the same shape but per-matched-entry, and `recordAndQueue` is called with the entry id as `batchEntryId` so [[Prompt History]] shows which entry contributed.
 
 [[Prompt History]] is the only consumer of the *rendered JSON*; its re-queue button replays the exact bytes, so the seed survives across re-queues even for Randomize / Increment vars.
+
+## Baked composer state (drop-to-restore)
+
+Every `/prompt` POST carries the queue-time composer snapshot - the same `SavedState` JSON that [[Prompt History]] records and named states persist - in `extra_data.extra_pnginfo.tagcomposer_state`. ComfyUI hands `extra_pnginfo` to any save node with a hidden `EXTRA_PNGINFO` input; WAS's **Image Save** with `embed_workflow: true` and the stock **SaveImage** node both write each key as its own PNG `tEXt` chunk. The output PNG ends up with ComfyUI's own `prompt` chunk and a `tagcomposer_state` chunk side by side.
+
+Round trip: drop such a PNG anywhere on the [[Tag Composer]] page. The app reads the chunk straight from the file (raw chunk walk, no pixel decode), rebuilds the `SavedState`, and runs the normal state-restore path - tags, weights, pushes, rules, variables, workflow selection + vars, LoRA stack, and the group / format profile stamp. The dropped image is pinned into the preview tile as feedback. This mirrors ComfyUI's drop-a-workflow-image behavior, but restores the *composer* state instead of the node graph.
+
+Notes:
+
+- **PNG only.** JPEG / WebP outputs have no text chunks; the state rides only on PNG saves.
+- **The save node controls it.** `embed_workflow: false` (or a save node without the hidden `EXTRA_PNGINFO` input) drops the state chunk - along with ComfyUI's own `prompt` chunk.
+- Re-queues from [[Prompt History]] bake the *original* record's snapshot, so a re-queued image restores the state that actually produced it.
+- Images from plain ComfyUI (no TagComposer in the loop) have no `tagcomposer_state` chunk; dropping one reports `No baked composer state in ...` and changes nothing.
+- The restore has the same semantics and warnings as clicking a state tile: a missing workflow id or missing entries degrade gracefully with a status-bar note.
+- Wildcard picks are per-run and transient, so they are not part of the restored state (same as a [[Prompt History]] restore). The exact tags that landed in the image are in the PNG's `prompt` chunk.
+- The profile stamp carries the *resolved* group order and format list, not just the profile names, so an image made under one model convention still restores that convention on a machine whose `profiles.fct` differs. Images baked before profiles existed carry no stamp and leave the active profiles alone.
 
 ## Interrupt and clear
 

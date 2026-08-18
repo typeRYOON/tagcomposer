@@ -66,6 +66,9 @@ AppSettings AppSettings::load(const QString& path)
     s.autoTagOutputFolder = autotag["outputFolder"].toString();
     s.tagEditorFolder = autotag["editorFolder"].toString();
 
+    const QJsonObject composer = root["composer"].toObject();
+    s.forceOverwriteRulesOnStateLoad = composer["forceOverwriteRulesOnStateLoad"].toBool(false);
+
     const QJsonObject collector = root["collector"].toObject();
     s.collectorWatchFolder = collector["watchFolder"].toString();
     s.collectorActiveCollection = collector["activeCollection"].toString();
@@ -126,6 +129,9 @@ void AppSettings::save(const QString& path) const
     autotag["outputFolder"] = autoTagOutputFolder;
     autotag["editorFolder"] = tagEditorFolder;
 
+    QJsonObject composer;
+    composer["forceOverwriteRulesOnStateLoad"] = forceOverwriteRulesOnStateLoad;
+
     QJsonObject collector;
     collector["watchFolder"] = collectorWatchFolder;
     collector["activeCollection"] = collectorActiveCollection;
@@ -141,6 +147,7 @@ void AppSettings::save(const QString& path) const
     root["comfyui"] = cui;
     root["facets"] = facets;
     root["autotag"] = autotag;
+    root["composer"] = composer;
     root["collector"] = collector;
     root["update"] = upd;
 

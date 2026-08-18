@@ -78,6 +78,11 @@ void StatusBar::showMessage(const QString& message)
 void StatusBar::setProgress(int step, int total)
 {
     if (step <= 0 || total <= 0) return;
+    // Cancelling mid-sample leaves preview frames in flight: they arrive
+    // after the status message that emptied the queue and would fade the bar
+    // back in on its own, with the count label already hidden. Nothing is
+    // running at that point, so drop them.
+    if (m_activeCount <= 0) return;
     m_progress->setRange(0, total);
     m_progress->setValue(qMin(step, total));
     m_progress->setFormat(QString("%1 / %2").arg(step).arg(total));
@@ -94,6 +99,7 @@ void StatusBar::clearProgress()
 
 void StatusBar::setActiveCount(int count)
 {
+    m_activeCount = count;
     m_activeLabel->setText(QString("%1 active").arg(count));
     if (count > 0) {
         fadeActiveTo(1.0);

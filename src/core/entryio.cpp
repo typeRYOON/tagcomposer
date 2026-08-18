@@ -7,23 +7,39 @@
 #include <QJsonArray>
 #include <QDir>
 #include <QFile>
+#include <QSemaphore>
+#include <QThreadPool>
+#include <atomic>
+#include <vector>
 
 using namespace utils;
 
 namespace core {
 
-std::optional<Entry> EntryIO::loadOne(const QString& entryFolder, TagIndex& tagIndex)
+namespace {
+
+// Entry with its tags still as strings. Splitting parse from interning lets
+// loadAll parse files on worker threads (TagIndex is not thread safe).
+struct ParsedEntry {
+    Entry entry; // images present, tagIds empty
+    QList<QList<QString>> imageTags;
+    bool ok = false;
+};
+
+ParsedEntry parseEntryFile(const QString& entryFolder)
 {
+    ParsedEntry out;
+
     QFile f{entryFolder + "/__entry.json"};
-    if (!f.open(QIODevice::ReadOnly)) return std::nullopt;
+    if (!f.open(QIODevice::ReadOnly)) return out;
 
     const QJsonObject obj{QJsonDocument::fromJson(f.readAll()).object()};
     if (!obj.contains("uuid") || !obj.contains("title") || !obj.contains("images") ||
         !obj.contains("creation")) {
-        return std::nullopt;
+        return out;
     }
 
-    Entry e;
+    Entry& e = out.entry;
     e.uuid = obj["uuid"].toString();
     e.title = obj["title"].toString();
     e.comment = obj["comment"].toString();
@@ -48,27 +64,88 @@ std::optional<Entry> EntryIO::loadOne(const QString& entryFolder, TagIndex& tagI
 
         ImageData imgData;
         imgData.fileName = imgObj["file"].toString();
-        for (const QJsonValueConstRef& t : imgObj["tags"].toArray()) {
-            imgData.tagIds << tagIndex.getOrCreate(normalizeTagInput(t.toString()));
-        }
+        QList<QString> tags;
+        for (const QJsonValueConstRef& t : imgObj["tags"].toArray())
+            tags << normalizeTagInput(t.toString());
         e.images << imgData;
+        out.imageTags << tags;
     }
 
-    if (!validEntry(e)) return std::nullopt;
-    return e;
+    out.ok = validEntry(e);
+    return out;
+}
+
+void internTags(ParsedEntry& parsed, TagIndex& tagIndex)
+{
+    for (int i = 0; i < parsed.entry.images.size(); ++i)
+        for (const QString& tag : parsed.imageTags[i])
+            parsed.entry.images[i].tagIds << tagIndex.getOrCreate(tag);
+}
+
+} // namespace
+
+std::optional<Entry> EntryIO::loadOne(const QString& entryFolder, TagIndex& tagIndex)
+{
+    ParsedEntry parsed = parseEntryFile(entryFolder);
+    if (!parsed.ok) return std::nullopt;
+    internTags(parsed, tagIndex);
+    return parsed.entry;
 }
 
 QList<Entry> EntryIO::loadAll(TagIndex& tagIndex, const QString& basePath)
 {
-    QList<Entry> entries;
     QDir base{basePath};
+    const QStringList dirs = base.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+
+    // Resolve paths up front: QDir caches lazily and isn't safe to share
+    // across the worker threads below.
+    QStringList paths;
+    paths.reserve(dirs.size());
+    for (const QString& dir : dirs)
+        paths << base.filePath(dir);
+
+    // Startup cost here is thousands of small file opens, so parse in parallel
+    // and intern serially (TagIndex isn't thread safe). Results stay indexed by
+    // input position, so runtime entry ids match the single-threaded load.
+    //
+    // Hand-rolled over QThreadPool rather than QtConcurrent::blockingMapped:
+    // the map machinery is a real import from Qt6Concurrent.dll, which would
+    // add a DLL to the deployment (QtConcurrent::run, used elsewhere here, is
+    // header-only and does not).
+    const int count = int(paths.size());
+    std::vector<ParsedEntry> parsed(size_t(count > 0 ? count : 0));
+    std::atomic<int> next{0};
+
+    auto drain = [&]() {
+        for (int i = next.fetch_add(1); i < count; i = next.fetch_add(1))
+            parsed[size_t(i)] = parseEntryFile(paths[i]);
+    };
+
+    QThreadPool* pool = QThreadPool::globalInstance();
+    QSemaphore finished;
+    int started = 0;
+    // tryStart (not start) so a busy pool can't leave us waiting on a task
+    // that never began; this thread drains the queue either way.
+    for (int w = 0, workers = qMin(pool->maxThreadCount(), count); w < workers; ++w) {
+        if (pool->tryStart([&drain, &finished]() {
+                drain();
+                finished.release();
+            })) {
+            ++started;
+        }
+    }
+    drain();
+    finished.acquire(started);
+
+    QList<Entry> entries;
+    entries.reserve(count);
     int32_t id{0};
 
-    for (const QString& dir : base.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-        auto e = loadOne(base.filePath(dir), tagIndex);
-        if (!e) continue;
-        e->id = id++;
-        entries << *e;
+    for (ParsedEntry& p : parsed) {
+        if (!p.ok) continue;
+        internTags(p, tagIndex);
+        p.entry.id = id++;
+        entries << std::move(p.entry);
     }
 
     return entries;

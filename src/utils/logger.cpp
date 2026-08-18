@@ -1,5 +1,6 @@
 #include <utils/logger.h>
 #include <QDateTime>
+#include <QFile>
 
 namespace utils {
 
@@ -15,6 +16,17 @@ void Logger::log(const QString& message)
     const QString entry = QDateTime::currentDateTime().toString("[hh:mm:ss]") + ":  " + message;
     m_history << entry;
     if (m_history.size() > kHistoryCap) m_history.removeFirst();
+
+    // Opt-in file sink. The Settings log view is the normal surface, but
+    // startup timings need to be readable from a script too - a GUI app has
+    // no console to log to. Unset (the default) costs one empty-string check.
+    static const QString sinkPath = qEnvironmentVariable("TAGCOMPOSER_LOG_FILE");
+    if (!sinkPath.isEmpty()) {
+        QFile f(sinkPath);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text))
+            f.write(entry.toUtf8() + '\n');
+    }
+
     emit messageLogged(entry);
 }
 
