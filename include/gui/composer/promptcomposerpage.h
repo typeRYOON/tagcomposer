@@ -185,6 +185,14 @@ private:
     void rebuildVarsSidebar();
     void rebuildProfilesSidebar();
     void reloadProfiles();
+    // Pushed-entry picker: lists every active push so a single entry's tags
+    // can be isolated (several pushed entries otherwise blur together).
+    void showPushedFilterMenu();
+    void setPushedFilter(bool on, qint64 key);
+    void updatePushedButton();
+    // Entry title for an m_activePushes key, with the image index when the
+    // entry contributed more than its first image.
+    QString pushLabel(qint64 key) const;
     // Free-text tag injected into `groupName`, carrying that group's facets so
     // it qualifies for it. Prompts for the text.
     void promptAddCustomTag(const QString& groupName);
@@ -291,6 +299,10 @@ private:
 
     QString m_filterQuery;
     bool m_undefinedOnly = false;
+    // Show only tags that arrived from entry pushes. m_pushedFilterKey < 0
+    // means every push; otherwise it's the one m_activePushes key to show.
+    bool m_pushedOnly = false;
+    qint64 m_pushedFilterKey = -1;
     bool m_repushPending = false;
     QList<QString> m_activeLoraUuids;
     QList<QString> m_activeTags;
@@ -415,6 +427,7 @@ private:
     // Category nav panel (top-right float)
     QWidget* m_categoryNav = nullptr;
     QPushButton* m_clearBtn = nullptr;
+    QPushButton* m_pushedBtn = nullptr;
     ComposerScrollArea* m_groupsScroll = nullptr;
     QMap<QString, QWidget*> m_groupHeaders; // display name -> header label
 };

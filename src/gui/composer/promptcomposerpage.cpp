@@ -12,6 +12,7 @@
 #include <utils/qutils.h>
 #include <QComboBox>
 #include <QFile>
+#include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QBoxLayout>
@@ -907,6 +908,14 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
         repush();
     });
 
+    // ---- Pushed-only filter (floating, left of Clear)
+    m_pushedBtn = new QPushButton("↧  Pushed", this);
+    m_pushedBtn->setObjectName("ComposerPushedBtn");
+    m_pushedBtn->setFixedHeight(26);
+    m_pushedBtn->setCursor(Qt::PointingHandCursor);
+    m_pushedBtn->setToolTip("Filter to one pushed entry's tags");
+    connect(m_pushedBtn, &QPushButton::clicked, this, &PromptComposerPage::showPushedFilterMenu);
+
     // ---- Preview image label (floating, bottom-right)
     static constexpr int PreviewSize = 200;
     m_previewLabel = new PreviewClickLabel(this);
@@ -1059,7 +1068,7 @@ PromptComposerPage::PromptComposerPage(PromptPipeline* pipeline, RuleEngine* rul
     rebuildProfilesSidebar();
 
     // Floats hidden together when the states grid view is active.
-    m_composerFloats = {m_previewLabel, m_controlBar, m_categoryNav, m_clearBtn};
+    m_composerFloats = {m_previewLabel, m_controlBar, m_categoryNav, m_clearBtn, m_pushedBtn};
 }
 
 int PromptComposerPage::composerStackIndex() const
@@ -1337,11 +1346,16 @@ void PromptComposerPage::repositionFloats()
         m_categoryNav->move(right - m_categoryNav->width(), marginT);
         m_categoryNav->raise();
     }
+    constexpr int btnGap = 2;
     if (m_clearBtn) {
-        constexpr int btnGap = 2;
         const int navLeft = m_categoryNav ? m_categoryNav->x() : right;
         m_clearBtn->move(navLeft - m_clearBtn->width() - btnGap, marginT);
         m_clearBtn->raise();
+    }
+    if (m_pushedBtn) {
+        const int clearLeft = m_clearBtn ? m_clearBtn->x() : right;
+        m_pushedBtn->move(clearLeft - m_pushedBtn->width() - btnGap, marginT);
+        m_pushedBtn->raise();
     }
 
     m_controlBar->move(right - m_controlBar->width(), bottom - m_controlBar->height());
@@ -1836,6 +1850,100 @@ void PromptComposerPage::onPipelineReady(QList<core::CategoryGroup> categoryGrou
     applyTagFilter();
 }
 
+// ---- Pushed-entry filter
+
+QString PromptComposerPage::pushLabel(qint64 key) const
+{
+    const int entryId = int(quint32(key >> 32));
+    const int imageIdx = int(quint32(key & 0xFFFFFFFFLL));
+    QString title;
+    if (m_entryModel) {
+        if (core::Entry* e = m_entryModel->entryById(int32_t(entryId))) title = e->title;
+    }
+    if (title.isEmpty()) title = QString("Entry %1").arg(entryId);
+    // Only disambiguate when it isn't the entry's first image.
+    if (imageIdx > 0) title += QString(" - image %1").arg(imageIdx + 1);
+    return title;
+}
+
+void PromptComposerPage::setPushedFilter(bool on, qint64 key)
+{
+    m_pushedOnly = on;
+    m_pushedFilterKey = on ? key : -1;
+    updatePushedButton();
+    m_freezeNextRebuild = true;
+    applyTagFilter();
+}
+
+void PromptComposerPage::updatePushedButton()
+{
+    if (!m_pushedBtn) return;
+
+    QString label = QStringLiteral("Pushed");
+    if (m_pushedOnly) {
+        label = (m_pushedFilterKey < 0) ? QStringLiteral("All pushed")
+                                        : pushLabel(m_pushedFilterKey);
+    }
+    // Titles can be long; the button is a float sized to its text.
+    const QFontMetrics fm(m_pushedBtn->font());
+    m_pushedBtn->setText(QString::fromUtf8("↧  ") +
+                         fm.elidedText(label, Qt::ElideRight, 150));
+    m_pushedBtn->setProperty("on", m_pushedOnly);
+    m_pushedBtn->style()->unpolish(m_pushedBtn);
+    m_pushedBtn->style()->polish(m_pushedBtn);
+    m_pushedBtn->adjustSize();
+    repositionFloats(); // width changed with the label
+}
+
+void PromptComposerPage::showPushedFilterMenu()
+{
+    if (!m_pushedBtn) return;
+
+    struct Item {
+        qint64 key;
+        QString label;
+        int count;
+    };
+    QList<Item> items;
+    for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it)
+        items << Item{it.key(), pushLabel(it.key()), int(it.value().size())};
+    // QHash order is unspecified; sort so the menu doesn't shuffle per repush.
+    std::sort(items.begin(), items.end(), [](const Item& a, const Item& b) {
+        const int c = a.label.localeAwareCompare(b.label);
+        return c != 0 ? c < 0 : a.key < b.key;
+    });
+
+    QMenu menu;
+    if (items.isEmpty()) {
+        menu.addAction("No entries pushed")->setEnabled(false);
+        menu.exec(m_pushedBtn->mapToGlobal(QPoint(0, m_pushedBtn->height())));
+        return;
+    }
+
+    QAction* allAct = menu.addAction(QString("All pushed (%1)").arg(items.size()));
+    allAct->setCheckable(true);
+    allAct->setChecked(m_pushedOnly && m_pushedFilterKey < 0);
+    menu.addSeparator();
+    for (const Item& i : items) {
+        QAction* a = menu.addAction(QString("%1  (%2)").arg(i.label).arg(i.count));
+        a->setCheckable(true);
+        a->setChecked(m_pushedOnly && m_pushedFilterKey == i.key);
+        a->setData(QVariant::fromValue(i.key));
+    }
+    menu.addSeparator();
+    QAction* clearAct = menu.addAction("Show all tags");
+    clearAct->setEnabled(m_pushedOnly);
+
+    QAction* chosen = menu.exec(m_pushedBtn->mapToGlobal(QPoint(0, m_pushedBtn->height())));
+    if (!chosen) return;
+    if (chosen == clearAct)
+        setPushedFilter(false, -1);
+    else if (chosen == allAct)
+        setPushedFilter(true, -1);
+    else
+        setPushedFilter(true, chosen->data().toLongLong());
+}
+
 // ---- Custom tags
 
 void PromptComposerPage::addCustomTagMenu(QMenu& menu)
@@ -1919,9 +2027,20 @@ void PromptComposerPage::applyTagFilter()
     // Enter fires both the repush fade and the debounce fade in sequence.
     if (m_filterDebounceTimer) m_filterDebounceTimer->stop();
 
-    if (m_filterQuery.isEmpty() && !m_undefinedOnly) {
+    if (m_filterQuery.isEmpty() && !m_undefinedOnly && !m_pushedOnly) {
         rebuildGroupsDisplay(m_lastResult);
         return;
+    }
+
+    // Union of every active push. Keyed like m_tagWeights so a $VAR$ row
+    // matches on the string that's actually in the active list.
+    QSet<QString> pushedKeys;
+    if (m_pushedOnly) {
+        for (auto it = m_activePushes.cbegin(); it != m_activePushes.cend(); ++it) {
+            if (m_pushedFilterKey >= 0 && it.key() != m_pushedFilterKey) continue;
+            for (const QString& t : it.value())
+                pushedKeys.insert(t);
+        }
     }
     auto isUndefined = [](const PipelineTag& pt) {
         return pt.result == RuleResult::NoFacets ||
@@ -1938,6 +2057,7 @@ void PromptComposerPage::applyTagFilter()
     QList<PipelineTag> filtered;
     for (const PipelineTag& pt : m_lastResult) {
         if (m_undefinedOnly && !isUndefined(pt)) continue;
+        if (m_pushedOnly && !pushedKeys.contains(weightKeyOf(pt))) continue;
         if (!m_filterQuery.isEmpty()) {
             // Substring match (case-insensitive) so "shirt" finds "black
             // shirt" - same shape as the facet editor's filter.
@@ -2011,6 +2131,20 @@ void PromptComposerPage::applyGroupsRebuild(const QList<PipelineTag>& flat)
     if (m_undefinedToggleBtn && undefTotal == 0 && m_undefinedToggleBtn->isChecked()) {
         m_undefinedToggleBtn->setChecked(false);
         return;
+    }
+
+    // No pushes left (last entry un-pushed) would strand the user on an empty
+    // view; release the filter the same way the undefined toggle does.
+    if (m_pushedBtn) {
+        const bool any = !m_activePushes.isEmpty();
+        m_pushedBtn->setEnabled(any);
+        const bool stale =
+            m_pushedOnly && (!any || (m_pushedFilterKey >= 0 &&
+                                      !m_activePushes.contains(m_pushedFilterKey)));
+        if (stale) {
+            setPushedFilter(false, -1); // re-enters through applyTagFilter
+            return;
+        }
     }
 
     if (m_undefinedToggleBtn) {
