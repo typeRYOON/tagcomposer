@@ -27,8 +27,9 @@ struct TagBucket {
 QList<TagBucket> bucketByGroup(const QList<PipelineTag>& tags, const TagGroups& groups);
 
 // Comma-joined in bucket order, reachesOutput tags only. A non-1.0 weight
-// wraps as (tag:1.5), outside any facet format.
-QString buildPromptString(const QList<TagBucket>& buckets, bool forJson,
+// wraps as (tag:1.5), outside any facet format. Not JSON-escaped; renderRun
+// does that.
+QString buildPromptString(const QList<TagBucket>& buckets,
                           const QList<FacetFormat>& formats = {});
 
 } // namespace tc

@@ -16,12 +16,37 @@ struct Visitor : Ts... {
 template <class... Ts>
 Visitor(Ts...) -> Visitor<Ts...>;
 
+// JSON rejects raw control characters, so they are escaped along with quotes
+// and backslashes.
 QString jsonStringLiteral(const QString& value)
 {
-    QString escaped = value;
-    escaped.replace(u"\\"_s, u"\\\\"_s);
-    escaped.replace(u"\""_s, u"\\\""_s);
-    return u"\""_s + escaped + u"\""_s;
+    QString out = u"\""_s;
+    for (const QChar c : value) {
+        switch (c.unicode()) {
+        case u'"':
+            out += u"\\\""_s;
+            break;
+        case u'\\':
+            out += u"\\\\"_s;
+            break;
+        case u'\n':
+            out += u"\\n"_s;
+            break;
+        case u'\r':
+            out += u"\\r"_s;
+            break;
+        case u'\t':
+            out += u"\\t"_s;
+            break;
+        default:
+            if (c.unicode() < 0x20)
+                out += u"\\u%1"_s.arg(int(c.unicode()), 4, 16, u'0');
+            else
+                out += c;
+        }
+    }
+    out += u'"';
+    return out;
 }
 
 QString loraNameToken(int slot)
@@ -45,11 +70,11 @@ QStringList pickWildcards(const Workflow& workflow, QRandomGenerator* rng)
     return picked;
 }
 
-void applyPositive(QString& json, const QString& promptForJson)
+// literal is already quoted; templates may have the token quoted or bare.
+void applyPositive(QString& json, const QString& literal)
 {
-    const QString quoted = u"\""_s + promptForJson + u"\""_s;
-    json.replace(u"\"__positive__\""_s, quoted);
-    json.replace(u"__positive__"_s, quoted);
+    json.replace(u"\"__positive__\""_s, literal);
+    json.replace(u"__positive__"_s, literal);
 }
 
 void applyLoraStack(QString& json, const QList<Lora>& loras, int slotCount)
@@ -98,8 +123,7 @@ RunRequest renderRun(const ComposerDoc& doc, const Workflow& workflow,
     const QList<TagBucket> buckets =
         ctx.groups ? bucketByGroup(tags, *ctx.groups) : QList<TagBucket>{TagBucket{{}, tags}};
 
-    req.positivePrompt = buildPromptString(buckets, false, ctx.formats);
-    const QString promptForJson = buildPromptString(buckets, true, ctx.formats);
+    req.positivePrompt = buildPromptString(buckets, ctx.formats);
 
     QString json = templateJson;
 
@@ -163,7 +187,7 @@ RunRequest renderRun(const ComposerDoc& doc, const Workflow& workflow,
         json.replace(var.placeholder, replacement);
     }
 
-    applyPositive(json, promptForJson);
+    applyPositive(json, jsonStringLiteral(req.positivePrompt));
     applyLoraStack(json, req.loraStack, ctx.loraSlots);
     req.json = json;
 

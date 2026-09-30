@@ -18,6 +18,8 @@
 #include <QFile>
 #include <QElapsedTimer>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMap>
 #include <QRandomGenerator>
 #include <QTextStream>
@@ -618,6 +620,18 @@ bool checkRun(QTextStream& out)
         + a.wildcardTags.value(0) + uR"(","lora":"None","ls":0.900000})"_s;
     expect(u"json"_s, a.json, wantJson);
 
+    // Backslashes, quotes and control characters still render valid JSON.
+    tc::Workflow escWf;
+    escWf.vars = {tc::WorkflowVar{u"__note__"_s, tc::StringVar{u"tab\there\nnext"_s}}};
+    tc::ComposerDoc escDoc;
+    escDoc.activeTags = {u"\\m/"_s, u"say \"hi\""_s};
+    const tc::RunRequest esc =
+        tc::renderRun(escDoc, escWf, uR"({"pos":__positive__,"note":__note__})"_s, ctx, nullptr);
+    const QJsonObject parsed = QJsonDocument::fromJson(esc.json.toUtf8()).object();
+    expect(u"escaped prompt"_s, esc.positivePrompt, u"\\m/, say \"hi\""_s);
+    expect(u"escaped pos"_s, parsed.value(u"pos"_s).toString(), esc.positivePrompt);
+    expect(u"escaped note"_s, parsed.value(u"note"_s).toString(), u"tab\there\nnext"_s);
+
     if (a.wildcardTags.size() != 1
         || (a.wildcardTags[0] != u"forest"_s && a.wildcardTags[0] != u"desert"_s)) {
         ++failed;
@@ -888,11 +902,9 @@ bool checkPrompt(QTextStream& out)
     for (const tc::TagBucket& b : buckets)
         names << (b.group.isEmpty() ? u"<uncategorized>"_s : b.group);
 
-    const QString plain = tc::buildPromptString(buckets, false, formats);
-    const QString json = tc::buildPromptString(buckets, true, formats);
+    const QString plain = tc::buildPromptString(buckets, formats);
 
     const QString wantPlain = u"<1girl>, (blue eyes:1.5), smile \\(happy\\)"_s;
-    const QString wantJson = u"<1girl>, (blue eyes:1.5), smile \\\\(happy\\\\)"_s;
     const QString wantBuckets = u"Subject, Eyes, <uncategorized>"_s;
 
     qsizetype failed = 0;
@@ -905,7 +917,6 @@ bool checkPrompt(QTextStream& out)
 
     expect(u"buckets"_s, names.join(u", "_s), wantBuckets);
     expect(u"plain"_s, plain, wantPlain);
-    expect(u"json"_s, json, wantJson);
 
     out << "prompt                buckets=" << buckets.size() << "\n"
         << "    " << plain << "\n"
@@ -955,7 +966,7 @@ void showRealPrompt(QTextStream& out, const QDir& dir, const QString& entryDir)
     for (const tc::TagBucket& b : buckets)
         out << "      " << (b.group.isEmpty() ? u"<uncategorized>"_s : b.group).leftJustified(24)
             << b.tags.size() << "\n";
-    out << "\n    " << tc::buildPromptString(buckets, false) << "\n";
+    out << "\n    " << tc::buildPromptString(buckets) << "\n";
 }
 
 bool checkGroups(QTextStream& out, const QDir& dir)

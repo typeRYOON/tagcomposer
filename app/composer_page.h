@@ -58,14 +58,14 @@ public:
                  WorkflowInputCache& cache, ComfyClient& comfy, PromptHistory& history,
                  QWidget* parent = nullptr);
 
-    QString currentPromptString(bool forJson) const;
+    QString currentPromptString() const;
 
     // Active tags plus tags rules injected on the last evaluation.
     QStringList currentActiveTags() const;
 
     // One-off pipeline runs that leave the document alone.
-    QString computePromptForTags(const QStringList& tags, bool forJson) const;
-    QString computePromptWithExtraTags(const QStringList& extraTags, bool forJson) const;
+    QString computePromptForTags(const QStringList& tags) const;
+    QString computePromptWithExtraTags(const QStringList& extraTags) const;
 
     int currentPromptCount() const;
 

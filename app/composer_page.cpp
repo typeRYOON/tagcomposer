@@ -766,7 +766,7 @@ void ComposerPage::buildFloats()
     m_copyBtn->setObjectName(u"ComposerCopyBtn"_s);
     m_copyBtn->setCursor(Qt::PointingHandCursor);
     connect(m_copyBtn, &QPushButton::clicked, this,
-            [this]() { QGuiApplication::clipboard()->setText(currentPromptString(false)); });
+            [this]() { QGuiApplication::clipboard()->setText(currentPromptString()); });
 
     m_undoBtn = new QPushButton(m_controlBar);
     m_undoBtn->setObjectName(u"ComposerUndoBtn"_s);
@@ -1072,9 +1072,9 @@ void ComposerPage::queueRebuild()
         Qt::QueuedConnection);
 }
 
-QString ComposerPage::currentPromptString(bool forJson) const
+QString ComposerPage::currentPromptString() const
 {
-    return buildPromptString(bucketByGroup(m_lastResult, m_groups), forJson, m_facetFormats);
+    return buildPromptString(bucketByGroup(m_lastResult, m_groups), m_facetFormats);
 }
 
 QStringList ComposerPage::currentActiveTags() const
@@ -1094,13 +1094,12 @@ QStringList ComposerPage::currentActiveTags() const
     return out;
 }
 
-QString ComposerPage::computePromptForTags(const QStringList& tags, bool forJson) const
+QString ComposerPage::computePromptForTags(const QStringList& tags) const
 {
-    return buildPromptString(bucketByGroup(evaluateTags(tags), m_groups), forJson,
-                             m_facetFormats);
+    return buildPromptString(bucketByGroup(evaluateTags(tags), m_groups), m_facetFormats);
 }
 
-QString ComposerPage::computePromptWithExtraTags(const QStringList& extraTags, bool forJson) const
+QString ComposerPage::computePromptWithExtraTags(const QStringList& extraTags) const
 {
     // The document first, then the extras, deduplicated but in order.
     QStringList merged;
@@ -1117,7 +1116,7 @@ QString ComposerPage::computePromptWithExtraTags(const QStringList& extraTags, b
         seen.insert(tag);
         merged << tag;
     }
-    return computePromptForTags(merged, forJson);
+    return computePromptForTags(merged);
 }
 
 int ComposerPage::currentPromptCount() const
@@ -1185,7 +1184,7 @@ void ComposerPage::run()
     PromptRecord record;
     record.queuedAt = QDateTime::currentDateTime();
     record.workflowName = workflow->name;
-    record.positivePrompt = currentPromptString(false);
+    record.positivePrompt = currentPromptString();
     record.renderedJson = request.json;
     record.snapshot = snapshot;
     record.lorasUsed = m_store->doc().loraStack;

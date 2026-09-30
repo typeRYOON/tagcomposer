@@ -7,16 +7,10 @@ using namespace Qt::StringLiterals;
 namespace tc {
 namespace {
 
-QString serializeForPrompt(QString tag, bool forJson)
+QString serializeForPrompt(QString tag)
 {
-    if (forJson) {
-        tag.replace(u"("_s, u"\\\\("_s);
-        tag.replace(u")"_s, u"\\\\)"_s);
-    }
-    else {
-        tag.replace(u"("_s, u"\\("_s);
-        tag.replace(u")"_s, u"\\)"_s);
-    }
+    tag.replace(u"("_s, u"\\("_s);
+    tag.replace(u")"_s, u"\\)"_s);
     tag.replace(u'_', u' ');
     return tag.toLower();
 }
@@ -60,8 +54,7 @@ QList<TagBucket> bucketByGroup(const QList<PipelineTag>& tags, const TagGroups& 
     return ordered;
 }
 
-QString buildPromptString(const QList<TagBucket>& buckets, bool forJson,
-                          const QList<FacetFormat>& formats)
+QString buildPromptString(const QList<TagBucket>& buckets, const QList<FacetFormat>& formats)
 {
     QStringList parts;
 
@@ -69,7 +62,7 @@ QString buildPromptString(const QList<TagBucket>& buckets, bool forJson,
         for (const PipelineTag& pt : b.tags) {
             if (!reachesOutput(pt.result)) continue;
 
-            const QString text = serializeForPrompt(applyFormats(pt, formats), forJson);
+            const QString text = serializeForPrompt(applyFormats(pt, formats));
             if (std::abs(pt.weight - 1.0f) < 0.0001f)
                 parts << text;
             else
