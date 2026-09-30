@@ -2,8 +2,8 @@
 #include <app/paths.h>
 #include <core/facet_schema.h>
 #include <core/rule_io.h>
-#include <QDir>
 #include <QElapsedTimer>
+#include <QFileInfo>
 
 using namespace Qt::StringLiterals;
 
@@ -31,26 +31,61 @@ QString AppData::variablesPath() const
     return dataPath(paths::kVars);
 }
 
+void AppData::loadFailed(const char* relative, const LoadError& error)
+{
+    m_problems << QString::fromLatin1(relative).section(u'/', -1) + u": "_s + error.reason;
+    trackLoad(relative, false);
+}
+
+void AppData::trackLoad(const char* relative, bool ok)
+{
+    const QString name = QString::fromLatin1(relative);
+    if (!ok && QFileInfo::exists(dataPath(relative)))
+        m_unwritable.insert(name);
+    else
+        m_unwritable.remove(name);
+}
+
+QString AppData::writeBlocked(const char* relative) const
+{
+    const QString name = QString::fromLatin1(relative);
+    if (!m_unwritable.contains(name)) return {};
+    return u"Not saved: %1 failed to load, so it is left untouched"_s.arg(
+        name.section(u'/', -1));
+}
+
 QString AppData::saveRules()
 {
+    const QString blocked = writeBlocked(paths::kRules);
+    if (!blocked.isEmpty()) return blocked;
+
     const auto written = writeRules(ruleFile, rulesPath());
     return written ? QString() : written.error().reason;
 }
 
 QString AppData::saveVariables()
 {
+    const QString blocked = writeBlocked(paths::kVars);
+    if (!blocked.isEmpty()) return blocked;
+
     const auto written = writeVariables(varsFile, variablesPath());
     return written ? QString() : written.error().reason;
 }
 
 QString AppData::saveSettings()
 {
+    const QString blocked = writeBlocked(paths::kSettings);
+    if (!blocked.isEmpty()) return blocked;
+
     const auto written = writeSettings(settings, dataPath(paths::kSettings));
     return written ? QString() : written.error().reason;
 }
 
 QString AppData::saveDefinitions()
 {
+    const QString blocked = writeBlocked(paths::kDefinitions);
+    if (!blocked.isEmpty()) return blocked;
+
     const auto written = writeTagFacets(defsFile, dataPath(paths::kDefinitions));
     return written ? QString() : written.error().reason;
 }
@@ -66,6 +101,7 @@ QString AppData::reloadSchema()
 QString AppData::reloadRules()
 {
     auto read = readRules(rulesPath());
+    trackLoad(paths::kRules, read.has_value());
     if (!read) return read.error().reason;
     ruleFile = std::move(*read);
     return {};
@@ -74,6 +110,7 @@ QString AppData::reloadRules()
 QString AppData::reloadVariables()
 {
     auto read = readVariables(variablesPath());
+    trackLoad(paths::kVars, read.has_value());
     if (!read) return read.error().reason;
     varsFile = std::move(*read);
     return {};
@@ -81,7 +118,10 @@ QString AppData::reloadVariables()
 
 QString AppData::saveWorkflows()
 {
-    const auto written = writeWorkflows(workflows, m_dataDir + u"/system/workflows.json"_s);
+    const QString blocked = writeBlocked(paths::kWorkflows);
+    if (!blocked.isEmpty()) return blocked;
+
+    const auto written = writeWorkflows(workflows, dataPath(paths::kWorkflows));
     return written ? QString() : written.error().reason;
 }
 
@@ -104,44 +144,43 @@ const QStringList& AppData::problems() const
 void AppData::load(const QString& dataDir)
 {
     m_problems.clear();
+    m_unwritable.clear();
     m_dataDir = dataDir;
 
-    const QDir system(dataDir + u"/system"_s);
-
-    if (auto read = readSettings(system.filePath(u"settings.json"_s)))
+    if (auto read = readSettings(dataPath(paths::kSettings)))
         settings = std::move(*read);
     else
-        m_problems << u"settings.json: "_s + read.error().reason;
+        loadFailed(paths::kSettings, read.error());
 
-    if (auto read = readFacetSchema(system.filePath(u"facets.fct"_s)))
+    if (auto read = readFacetSchema(dataPath(paths::kFacets)))
         schema = std::move(*read);
     else
-        m_problems << u"facets.fct: "_s + read.error().reason;
+        loadFailed(paths::kFacets, read.error());
 
-    if (auto read = readTagFacets(system.filePath(u"tag_definitions.fct"_s)))
+    if (auto read = readTagFacets(dataPath(paths::kDefinitions)))
         defsFile = std::move(*read);
     else
-        m_problems << u"tag_definitions.fct: "_s + read.error().reason;
+        loadFailed(paths::kDefinitions, read.error());
 
-    if (auto read = readRules(system.filePath(u"rules.fct"_s)))
+    if (auto read = readRules(dataPath(paths::kRules)))
         ruleFile = std::move(*read);
     else
-        m_problems << u"rules.fct: "_s + read.error().reason;
+        loadFailed(paths::kRules, read.error());
 
-    if (auto read = readVariables(system.filePath(u"vars.fct"_s)))
+    if (auto read = readVariables(dataPath(paths::kVars)))
         varsFile = std::move(*read);
     else
-        m_problems << u"vars.fct: "_s + read.error().reason;
+        loadFailed(paths::kVars, read.error());
 
-    if (auto read = readTagGroups(system.filePath(u"groups.fct"_s)))
+    if (auto read = readTagGroups(dataPath(paths::kGroups)))
         groups = std::move(read->groups);
     else
-        m_problems << u"groups.fct: "_s + read.error().reason;
+        loadFailed(paths::kGroups, read.error());
 
-    if (auto read = readWorkflows(system.filePath(u"workflows.json"_s)))
+    if (auto read = readWorkflows(dataPath(paths::kWorkflows)))
         workflows = std::move(*read);
     else
-        m_problems << u"workflows.json: "_s + read.error().reason;
+        loadFailed(paths::kWorkflows, read.error());
 
     // Optional; feeds autocomplete and tag colors.
     danbooru.load(dataPath(paths::kDanbooruCsv));

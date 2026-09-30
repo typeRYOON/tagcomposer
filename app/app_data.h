@@ -3,6 +3,7 @@
 #include <core/entry_search.h>
 #include <core/danbooru_index.h>
 #include <core/entry_store.h>
+#include <core/load_error.h>
 #include <core/rule_io.h>
 #include <core/settings.h>
 #include <core/tag_facets.h>
@@ -10,6 +11,7 @@
 #include <core/variables.h>
 #include <core/workflow_io.h>
 #include <QObject>
+#include <QSet>
 #include <QStringList>
 
 namespace tc {
@@ -69,8 +71,15 @@ signals:
     void loaded();
 
 private:
+    // A file that exists but failed to load is left untouched until it loads,
+    // so a hand edit with a typo isn't overwritten.
+    void loadFailed(const char* relative, const LoadError& error);
+    void trackLoad(const char* relative, bool ok);
+    QString writeBlocked(const char* relative) const;
+
     QString m_dataDir;
     QStringList m_problems;
+    QSet<QString> m_unwritable;
 };
 
 } // namespace tc
