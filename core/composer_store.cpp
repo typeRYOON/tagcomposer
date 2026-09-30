@@ -82,15 +82,32 @@ void ComposerStore::addTags(const QStringList& tags)
     m_doc.activeTags += toAdd;
 }
 
+void ComposerStore::eraseTag(const QString& tag)
+{
+    m_doc.activeTags.removeAll(tag);
+    m_doc.deactivated.remove(tag);
+    m_doc.weights.remove(tag);
+    m_doc.customFacets.remove(tag);
+}
+
 void ComposerStore::removeTag(const QString& tag)
 {
     if (!m_doc.activeTags.contains(tag)) return;
 
     const Edit e = beginEdit(u"removeTag"_s);
-    m_doc.activeTags.removeAll(tag);
-    m_doc.deactivated.remove(tag);
-    m_doc.weights.remove(tag);
-    m_doc.customFacets.remove(tag);
+    eraseTag(tag);
+}
+
+bool ComposerStore::dropTags(const QStringList& tags)
+{
+    bool changed = false;
+    for (const QString& tag : tags) {
+        if (!m_doc.activeTags.contains(tag)) continue;
+        eraseTag(tag);
+        changed = true;
+    }
+    if (changed) notify();
+    return changed;
 }
 
 bool ComposerStore::renameTag(const QString& from, const QString& to)

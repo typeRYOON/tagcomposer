@@ -1047,6 +1047,13 @@ void ComposerPage::refresh()
     // Evaluate now; callers read m_lastResult right away. Only widgets wait.
     m_lastResult = evaluate(doc, pipelineContext());
 
+    // Delete rules drop their tags from the document. The drop re-enters
+    // refresh() through docChanged, which finishes the update.
+    QStringList deleted;
+    for (const PipelineTag& tag : m_lastResult)
+        if (tag.result == TagResult::Deleted) deleted << documentKey(tag);
+    if (m_store->dropTags(deleted)) return;
+
     m_activeTagSet.clear();
     for (const QString& tag : doc.activeTags)
         m_activeTagSet.insert(tag);

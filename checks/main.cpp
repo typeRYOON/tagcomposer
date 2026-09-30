@@ -839,6 +839,20 @@ bool checkStore(QTextStream& out)
     store.undo();
     step(u"undo clear"_s, u"tags[a,b,y,z] off[] w[b=1.60] push[e2/1.png]"_s);
 
+    // A delete-rule drop takes no undo step, so undo reverts the add before it.
+    store.addTags({u"d"_s});
+    store.dropTags({u"d"_s});
+    step(u"drop"_s, u"tags[a,b,y,z] off[] w[b=1.60] push[e2/1.png]"_s);
+
+    store.undo();
+    step(u"undo skips drop"_s, u"tags[a,b,y,z] off[] w[b=1.60] push[e2/1.png]"_s);
+
+    const qsizetype beforeNoopDrop = changes;
+    if (store.dropTags({u"not-active"_s}) || changes != beforeNoopDrop) {
+        ++failed;
+        out << "    no-op drop FAIL  reported a change\n";
+    }
+
     // A LoRA arrives with an entry's first push, leaves with its last, and undoes
     // with the push.
     tc::ComposerStore lora;

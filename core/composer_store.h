@@ -7,8 +7,8 @@
 
 namespace tc {
 
-// Owns and mutates the composer document. Every mutator opens an Edit guard,
-// which snapshots for undo and emits docChanged.
+// Owns and mutates the composer document. Every mutator except dropTags opens
+// an Edit guard, which snapshots for undo and emits docChanged.
 class ComposerStore : public QObject {
     Q_OBJECT
 
@@ -23,6 +23,10 @@ public:
     // Active tags are skipped; deactivated ones are reactivated.
     void addTags(const QStringList& tags);
     void removeTag(const QString& tag);
+
+    // For tags a delete rule matched. Takes no undo step, so undoing the edit
+    // that brought them in still works. Returns false if none were active.
+    bool dropTags(const QStringList& tags);
 
     // Keeps position, weight, facets and pushes. If `to` is already active,
     // `from` merges into it. Returns false if nothing changed.
@@ -69,6 +73,9 @@ private:
     Edit beginEdit(const QString& kind);
     void pushUndo(const QString& kind);
     void notify();
+
+    // Removes the tag with its weight, facets and deactivation.
+    void eraseTag(const QString& tag);
 
     struct Snapshot {
         ComposerDoc doc;
