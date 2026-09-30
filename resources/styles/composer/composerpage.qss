@@ -285,24 +285,11 @@ QComboBox#ComposerProfileBox QAbstractItemView {
     color: #aa6666;
 }
 
-#ComposerRuleAddBadge {
-    color: #336644;
-    font-size: 16px;
-    font-weight: bold;
-    background: transparent;
-}
-
-#ComposerRuleReplaceBadge {
-    color: #664422;
-    font-size: 16px;
-    font-weight: bold;
-    background: transparent;
-}
-
+/* These three carry a painted icon rather than a glyph, so their color is set
+   where the icon is built (promptcomposerpage_sidebars.cpp), not here. */
+#ComposerRuleAddBadge,
+#ComposerRuleReplaceBadge,
 #ComposerRuleForceBadge {
-    color: #664422;
-    font-size: 12px;
-    font-weight: bold;
     background: transparent;
 }
 

@@ -66,11 +66,22 @@
     color: #1a1a1a;
 }
 
-#SettingsStatusDot[status="disabled"]     { color: #2a2a2a; }
-#SettingsStatusDot[status="connecting"]   { color: #886622; }
-#SettingsStatusDot[status="connected"]    { color: #336633; }
-#SettingsStatusDot[status="disconnected"] { color: #553333; }
-#SettingsStatusDot[status="error"]        { color: #883333; }
+/* Drawn as a disc here rather than as a glyph, so the state colors stay in
+   the stylesheet. */
+#SettingsStatusDot {
+    min-width: 8px;
+    max-width: 8px;
+    min-height: 8px;
+    max-height: 8px;
+    border-radius: 4px;
+    background: #2a2a2a;
+}
+
+#SettingsStatusDot[status="disabled"]     { background: #2a2a2a; }
+#SettingsStatusDot[status="connecting"]   { background: #886622; }
+#SettingsStatusDot[status="connected"]    { background: #336633; }
+#SettingsStatusDot[status="disconnected"] { background: #553333; }
+#SettingsStatusDot[status="error"]        { background: #883333; }
 
 #SettingsStatusText {
     color: #444444;

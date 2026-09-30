@@ -177,6 +177,16 @@ QComboBox#DatasetSpin QAbstractItemView {
     font-size: 14px;
 }
 
+/* Run-state disc beside DatasetStatusLabel. */
+#CollectorActiveDot {
+    min-width: 7px;
+    max-width: 7px;
+    min-height: 7px;
+    max-height: 7px;
+    border-radius: 3px;
+    background: #777777;
+}
+
 #DatasetProgressBar {
     background: #161616;
     border: 1px solid #222222;

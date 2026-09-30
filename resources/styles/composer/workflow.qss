@@ -63,7 +63,7 @@
     color: #4a4a4a;
 }
 
-/* Transparent so the danmaku overlay (behind the page stack) shows through
+/* Transparent so the page background shows through
    the gaps between tiles. */
 #StatesGrid {
     background: transparent;

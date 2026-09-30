@@ -3,8 +3,9 @@
 /out/
 /cmake-build-*/
 data/
-third_party/
 
+# Prebuilt OpenCV / ONNX Runtime, see the README
+third_party/
 
 # CMake artifacts
 CMakeUserPresets.json
@@ -21,5 +22,5 @@ CMakeFiles/
 # Qt
 *.qrc.depends
 
-# VS
+# IDE
 .vs/

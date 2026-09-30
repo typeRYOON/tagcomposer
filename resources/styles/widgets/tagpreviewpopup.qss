@@ -1,0 +1,29 @@
+/* Tag preview popup (hover on the context menu's Wiki item) */
+
+#TagPreviewPopup {
+    background: #0d0d0d;
+    border: 1px solid #262626;
+    border-radius: 6px;
+}
+
+#TagPreviewPopupTitle {
+    color: #cccccc;
+    font-size: 12px;
+    font-weight: bold;
+    background: transparent;
+}
+
+#TagPreviewPopupImage {
+    background: transparent;
+}
+
+#TagPreviewPopupStatus {
+    color: #555555;
+    font-size: 11px;
+    background: transparent;
+}
+
+#TagPreviewPopupWiki {
+    background: transparent;
+    border: none;
+}
