@@ -117,7 +117,7 @@ Common to every platform:
    git clone https://github.com/typeRYOON/tagcomposer.git
    cd tagcomposer
    ```
-2. Install **Qt 6.11 or newer**. Required modules: Core, Gui, Widgets, Network, Multimedia, Concurrent, WebSockets.
+2. Install **Qt 6.11 or newer**. Required modules: Core, Gui, Widgets, Network, Concurrent, WebSockets.
 
 ### Windows
 
@@ -133,7 +133,8 @@ OpenCV and ONNX Runtime aren't checked into the repo (their prebuilt trees come 
   ├── include/
   └── lib/
       ├── onnxruntime.dll
-      └── onnxruntime.lib
+      ├── onnxruntime.lib
+      └── onnxruntime_providers_shared.dll
   ```
 
 With those in place, install **Qt 6.11+** from the Qt Maintenance Tool if you haven't already, using the **MSVC 2022 64-bit** kit. (The OpenCV pack only ships `vc16` binaries, so the build needs MSVC, not MinGW.)
@@ -149,11 +150,7 @@ cmake --build build
 
 Adjust `CMAKE_PREFIX_PATH` to match your Qt version and kit (e.g. `C:\Qt\6.12.0\msvc2022_64`).
 
-The post-build hook copies `opencv_world4120.dll` and `onnxruntime.dll` next to the executable. Run `windeployqt6` to pull in the Qt runtime:
-
-```sh
-windeployqt6 --release --no-translations --no-quick-import --no-system-d3d-compiler --no-system-dxc-compiler --no-ffmpeg --skip-plugin-types qmltooling,multimedia,sqldrivers,assetimporters,designer,generic build/tagcomposer.exe
-```
+The post-build step copies the OpenCV and ONNX Runtime DLLs next to the executable and runs `windeployqt` to pull in the Qt runtime, so `build/tagcomposer.exe` runs as is.
 
 > [!NOTE]
 > If launch fails with `VCRUNTIME140.dll was not found` (or `MSVCP140.dll`, etc.), install Microsoft's Visual C++ Redistributable: [`vc_redist.x64.exe`](https://aka.ms/vs/17/release/vc_redist.x64.exe)
@@ -164,7 +161,7 @@ Toolchain + Qt + OpenCV from your package manager:
 
 ```sh
 sudo apt install build-essential cmake ninja-build \
-    qt6-base-dev qt6-websockets-dev qt6-multimedia-dev libqt6concurrent6 \
+    qt6-base-dev qt6-websockets-dev libqt6concurrent6 \
     libopencv-dev
 ```
 
@@ -187,7 +184,7 @@ cmake --build build
 ./build/tagcomposer
 ```
 
-The post-build hook copies the `libonnxruntime*` files next to the executable, and `INSTALL_RPATH=$ORIGIN` is set so the runtime linker finds them without `LD_LIBRARY_PATH`. For redistribution beyond running out of the build tree, [`linuxdeployqt`](https://github.com/probonopd/linuxdeployqt) or AppImage / flatpak / `.deb` are the usual paths.
+CMake's build-tree RPATH points at `third_party/onnxruntime/lib`, so the binary runs from the build tree without `LD_LIBRARY_PATH`. For redistribution beyond that, [`linuxdeployqt`](https://github.com/probonopd/linuxdeployqt) or AppImage / flatpak / `.deb` are the usual paths.
 
 ### macOS
 
@@ -210,17 +207,10 @@ Build (point CMake at the Homebrew Qt prefix):
 export CMAKE_PREFIX_PATH="$(brew --prefix qt)"
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-open build/tagcomposer.app
+./build/tagcomposer
 ```
 
-The CMakeLists already sets `MACOSX_BUNDLE TRUE`, so the output is a `.app` bundle. The dylib lands in `Contents/Frameworks/` and the rpath is wired up so the bundle is self-contained for local runs. For redistribution:
-
-```sh
-macdeployqt build/tagcomposer.app -dmg
-```
-
-> [!NOTE]
-> Codesigning and notarization need an Apple Developer account. Without them, first-time launch on someone else's Mac requires right-click → Open. Out of scope for this README.
+The output is a plain executable, not a `.app` bundle. Bundling for redistribution isn't set up yet.
 
 ### Cross-platform caveats
 
@@ -304,10 +294,10 @@ data/
 └── system/
     ├── cluster_filters.fct       facet rule sets for dataset-helper tag clustering
     ├── danbooru.csv              danbooru tag list (search-bar autocomplete)
-    ├── danmaku.txt               lines for the optional danmaku overlay
     ├── facets.fct                @category schema: facet names grouped into categories
-    ├── groups.fct                @category blocks defining tag groups (composer category nav)
+    ├── groups.fct                @group blocks defining tag groups (composer category nav)
     ├── latent_sizes.txt          preset list for the LatentSize variable type
+    ├── profiles.fct              named group orders and facet format sets
     ├── rules.fct                 rule engine: match expressions + actions
     ├── session.json              last-session restore: composer + LoRA state on app close
     ├── settings.json             user preferences, ComfyUI host, paths
@@ -401,8 +391,8 @@ ComfyUI is the only backend wired up so far. If you'd like to see Forge, Auto111
 
 ## Dependencies
 
-- [`Qt 6`](https://www.qt.io/product/qt6) — Core, Gui, Widgets, Network, Concurrent
-- [`OpenCV 4`](https://opencv.org/) — clip editor: flood-fill and mask ops
+- [`Qt 6`](https://www.qt.io/product/qt6) — Core, Gui, Widgets, Network, Concurrent, WebSockets
+- [`OpenCV 4`](https://opencv.org/) — auto-tagger and collector: image preprocessing and pHash dedupe
 - [`ONNX Runtime`](https://onnxruntime.ai/) — auto-tagger: ONNX session for the tagging model
 - [`ComfyUI`](https://github.com/comfyanonymous/ComfyUI) — runtime: TagComposer connects to a running instance over HTTP
 
