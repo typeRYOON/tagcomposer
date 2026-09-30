@@ -124,8 +124,7 @@ TagWikiPage::TagWikiPage(QWidget* parent)
     m_thumbFadeTimer->setInterval(25);
     connect(m_thumbFadeTimer, &QTimer::timeout, this, &TagWikiPage::onThumbFadeTick);
 
-    // Four requests a second. Danbooru throttles bursts, and an article with
-    // a large gallery would otherwise fire a hundred at once.
+    // Four requests a second; Danbooru throttles bursts.
     m_thumbFetchTimer = new QTimer(this);
     m_thumbFetchTimer->setInterval(250);
     connect(m_thumbFetchTimer, &QTimer::timeout, this, &TagWikiPage::processThumbFetchQueue);
@@ -137,8 +136,7 @@ TagWikiPage::TagWikiPage(QWidget* parent)
     contentLayout->addWidget(header);
     contentLayout->addWidget(m_browser, 1);
 
-    // Loading is deliberately blank: the search bar is hint enough, and a
-    // spinner would flash on every cached lookup.
+    // Blank while loading; a spinner would flash on cached lookups.
     auto* loadingLabel = new QLabel;
     loadingLabel->setObjectName(u"WikiStatusLabel"_s);
     loadingLabel->setAlignment(Qt::AlignCenter);
@@ -152,8 +150,7 @@ TagWikiPage::TagWikiPage(QWidget* parent)
     m_mainStack->addWidget(content);       // 1
     m_mainStack->addWidget(notFoundLabel); // 2
 
-    // One effect on the stack, so all three children share an opacity and a
-    // transition between them cannot cross-fade against itself.
+    // One effect for the whole stack, so the children share the fade.
     m_fadeEffect = new QGraphicsOpacityEffect(m_mainStack);
     m_fadeEffect->setOpacity(1.0);
     m_mainStack->setGraphicsEffect(m_fadeEffect);
@@ -239,8 +236,7 @@ void TagWikiPage::setIndex(const DanbooruIndex* index)
 void TagWikiPage::lookupTag(const QString& tag)
 {
     if (tag == m_currentTag && m_mainStack->currentIndex() == 1) {
-        // Even a no-op has to release a fade already in flight, or the page
-        // is left sitting at zero opacity.
+        // Still finish a pending fade, or the page stays invisible.
         finishPendingFadeIn();
         return;
     }
@@ -318,9 +314,8 @@ void TagWikiPage::smoothScrollTo(int target)
 
 void TagWikiPage::smoothScrollToAnchor(const QString& anchor)
 {
-    // QTextBrowser will not report an anchor's position, so this jumps to it,
-    // reads the value, snaps back and animates. The snap happens before any
-    // paint, so it is never visible.
+    // QTextBrowser won't report anchor positions: jump, read, snap back (before
+    // any paint) and animate.
     QScrollBar* bar = m_browser->verticalScrollBar();
     const int from = bar->value();
 
@@ -361,7 +356,7 @@ void TagWikiPage::fetchWikiPage(const QString& tag)
         const QByteArray data = reply->readAll();
         m_wikiCache[tag] = data;
 
-        // The user may have navigated on while this was in flight.
+        // The user may have moved on.
         if (tag != m_currentTag) return;
 
         const QJsonDocument doc = QJsonDocument::fromJson(data);
@@ -395,9 +390,7 @@ void TagWikiPage::downloadThumbAndFade(const QString& imageUrl, const QString& r
                 QPixmap image;
                 if (!image.loadFromData(reply->readAll()) || image.isNull()) return;
 
-                // Padded onto a fixed canvas, because the <img> is sized to
-                // those dimensions and would otherwise stretch a non-square
-                // thumbnail.
+                // Pad to the <img> size so non-square thumbnails don't stretch.
                 const QPixmap scaled = image.scaled(kThumbWidth, kThumbHeight,
                                                     Qt::KeepAspectRatio,
                                                     Qt::SmoothTransformation);
@@ -509,8 +502,7 @@ void TagWikiPage::showNotFound(const QString& tag)
 void TagWikiPage::displayContent(const QString& title, const QStringList& otherNames,
                                  const QString& body)
 {
-    // Fades and fetches from the previous article point at resource urls the
-    // document about to be installed does not have.
+    // Drop the previous article's fades and fetches.
     m_pendingFades.clear();
     m_thumbFadeTimer->stop();
     m_thumbFetchQueue.clear();
@@ -529,8 +521,7 @@ void TagWikiPage::displayContent(const QString& title, const QStringList& otherN
     QList<int> assetIds;
     const QString html = buildDocument(body, postIds, assetIds);
 
-    // A transparent placeholder stops the broken-image glyph flashing and
-    // pins the layout for the eventual fade-in.
+    // Transparent placeholders avoid the broken-image glyph and hold the layout.
     QPixmap placeholder(kThumbWidth, kThumbHeight);
     placeholder.fill(Qt::transparent);
 
@@ -567,8 +558,7 @@ void TagWikiPage::displayContent(const QString& title, const QStringList& otherN
 bool TagWikiPage::eventFilter(QObject* watched, QEvent* event)
 {
     if (watched == m_browser && event->type() == QEvent::Resize) {
-        // The document's lazy re-flow can leave image cells overlapping text
-        // after a width change, so a full re-layout is forced.
+        // Force a full re-layout; lazy re-flow can overlap image cells after a resize.
         if (QTextDocument* doc = m_browser->document())
             doc->markContentsDirty(0, doc->characterCount());
     }
@@ -585,8 +575,7 @@ bool TagWikiPage::eventFilter(QObject* watched, QEvent* event)
     const int notches = wheel->angleDelta().y() / 120;
     if (notches == 0) return false;
 
-    // Based on the in-flight target, so fast notches stack rather than each
-    // restarting from where the view happens to be.
+    // Stack fast notches on the in-flight target.
     QScrollBar* bar = m_browser->verticalScrollBar();
     const int base = m_scrollAnim->state() == QAbstractAnimation::Running
         ? m_scrollAnim->endValue().toInt()
@@ -639,7 +628,7 @@ void TagWikiPage::onThumbFadeTick()
         if (fade.step >= totalSteps) m_pendingFades.removeAt(i);
     }
 
-    // One re-layout for the whole batch, however many thumbnails moved.
+    // One re-layout per tick.
     if (any) {
         m_browser->document()->markContentsDirty(0, m_browser->document()->characterCount());
         m_browser->viewport()->update();
@@ -719,10 +708,8 @@ void TagWikiPage::onAnchorClicked(const QUrl& url)
         return;
     }
 
-    // A same-page anchor, such as a table-of-contents jump. The href starts
-    // with '#', but Qt resolves it against the document's empty source and can
-    // leave a scheme on it, so this keys off the fragment rather than gating
-    // on the scheme.
+    // Same-page anchor (TOC jump). Keyed off the fragment, since Qt may leave a
+    // scheme on it.
     if (!url.fragment().isEmpty()) {
         smoothScrollToAnchor(url.fragment());
         return;
@@ -734,8 +721,6 @@ void TagWikiPage::onAnchorClicked(const QUrl& url)
 QString TagWikiPage::buildDocument(const QString& dtext, QList<int>& outPostIds,
                                    QList<int>& outAssetIds) const
 {
-    // The markup conversion is shared with the facet editor's rail; only this
-    // wrapper is page-specific.
     const QString body =
         dtextToHtml(dtext, &outPostIds, &outAssetIds, kThumbWidth, kThumbHeight);
 
@@ -765,8 +750,7 @@ QString TagWikiPage::buildDocument(const QString& dtext, QList<int>& outPostIds,
           ".wsp{color:#555;}"
           "</style>"_s;
 
-    // The body is centred by a three-cell table: QTextBrowser has no usable
-    // max-width, so a fixed middle column is what keeps long lines readable.
+    // Centered by a three-cell table; QTextBrowser has no usable max-width.
     return u"<html><head>"_s + css
         + u"</head><body><table width='100%' cellspacing='0' cellpadding='0'><tr><td></td>"
           "<td width='800' style='padding:16px 8px;'>"_s

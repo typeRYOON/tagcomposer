@@ -14,29 +14,26 @@ struct Variable {
     bool operator==(const Variable&) const = default;
 };
 
-// vars.fct: one `$NAME$ = value` per line. Order is the file's order and is
-// preserved on write, since the composer sidebar lets you arrange them.
+// vars.fct: one `$NAME$ = value` per line, order preserved.
 class Variables {
 public:
     QString value(const QString& name) const;
     bool isDefined(const QString& name) const;
-    // Appends when the name is new, so this is also how one is added.
+    // Appends when the name is new.
     void set(const QString& name, const QString& value);
     bool remove(const QString& name);
     void setAll(QList<Variable> vars);
     const QList<Variable>& all() const;
 
-    // Substitutes every $NAME$. A name that resolves to nothing takes an
-    // adjacent space or hyphen with it, so "blue $CC$ eyes" becomes
-    // "blue eyes" rather than "blue  eyes".
+    // Substitutes every $NAME$. An empty value also eats one adjacent space or
+    // hyphen: "blue $CC$ eyes" -> "blue eyes".
     QString expand(const QString& tag) const;
 
 private:
     QList<Variable> m_vars;
 };
 
-// header holds the file's leading comment and blank lines verbatim. Definitions
-// are regenerated on write, so a comment between two of them is not kept.
+// Definitions are regenerated on write; only the leading comment block is kept.
 struct VariablesFile {
     Variables vars;
     QStringList header;
@@ -50,12 +47,10 @@ std::expected<void, LoadError> writeVariables(const VariablesFile& file, const Q
 
 bool hasVariable(const QString& tag);
 
-// Removes every $NAME$ token without consulting any definitions. Used as a
-// display fallback and to find a tag's facets by its pre-expansion name.
+// Removes every $NAME$ token, ignoring definitions.
 QString stripVariables(const QString& tag);
 
-// Every $NAME$ token in `tags` that vars.fct does not define. Expansion strips
-// those silently, so this is how a typo becomes visible.
+// $NAME$ tokens vars.fct doesn't define; expansion would drop them silently.
 struct VarIssue {
     QString tag;
     QString name;

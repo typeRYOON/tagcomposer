@@ -9,8 +9,7 @@ inline constexpr const char* kAppId = "com.ryoon.TagComposer";
 inline constexpr const char* kOrganizationName = "Ryoon";
 inline constexpr const char* kDiscordInviteUrl = "https://discord.gg/4jgC8C9Ku8";
 
-// Paths under the data dir. AppData resolves them; these are the names so a
-// page that wants to open one in an editor does not spell it out again.
+// Relative to the data dir.
 namespace paths {
 
 inline constexpr const char* kDanbooruCsv = "system/danbooru.csv";

@@ -7,7 +7,7 @@ namespace tc {
 enum class TagResult {
     Include,
     Skipped,
-    Replaced,    // paired with an Injected entry carrying the new tag
+    Replaced,    // paired with an Injected tag
     Injected,    // added by Add or Replace
     Flagged,
     NoFacets,    // no definition, rules never see it
@@ -15,8 +15,7 @@ enum class TagResult {
     Deleted,     // composer drops it from the active set
 };
 
-// The results that reach the prompt. Also what "already present" means when a
-// rule would inject a tag the list already carries.
+// Results that reach the prompt.
 constexpr bool reachesOutput(TagResult r)
 {
     return r == TagResult::Include || r == TagResult::Injected || r == TagResult::NoFacets;
@@ -24,14 +23,12 @@ constexpr bool reachesOutput(TagResult r)
 
 struct PipelineTag;
 
-// The activeTags string a pipeline tag came from: its pre-expansion form when
-// it has one. Weights, deactivation and custom facets all key on this, so a
-// tag's weight survives a change to the variable inside it.
+// The activeTags key: the pre-expansion text when there is one.
 QString documentKey(const PipelineTag& tag);
 
 struct PipelineTag {
     QString tag;
-    QString sourceTag; // pre-variable-expansion form, empty when none
+    QString sourceTag; // pre-expansion text, or empty
     QStringList facets;
     TagResult result = TagResult::Include;
     QString ruleSource;

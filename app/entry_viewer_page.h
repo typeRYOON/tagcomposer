@@ -15,8 +15,7 @@ class DanbooruIndex;
 class EntryPanel;
 class EntryView;
 
-// The entry library: a query box over the grid, with the detail panel beside
-// it. Every store is borrowed from AppData, so nothing here loads or owns.
+// The entry library: query box, tile grid and detail panel.
 class EntryViewerPage : public QWidget {
     Q_OBJECT
 
@@ -25,14 +24,13 @@ public:
                     const Settings& settings, ComfyClient& comfy, QWidget* parent = nullptr);
 
 public slots:
-    // Tile appearance comes from settings, which land after construction.
+    // Re-reads tile appearance from settings.
     void applySettings();
 
-    // Selects one entry, clearing the filter first so it is definitely in
-    // the result set. Used when another page links to an entry.
+    // Clears the filter, then selects the entry.
     void showEntry(const QString& uuid);
 
-    // Arrives with the library, and the panel colours its tags by it.
+    // For tag colors in the panel.
     void setDanbooruIndex(const DanbooruIndex* index);
 
 signals:
@@ -54,8 +52,7 @@ private:
     EntryView* m_view = nullptr;
     EntryPanel* m_panel = nullptr;
 
-    // Typing is cheap to search but expensive to re-bake tiles for, so the
-    // query waits for a pause rather than firing per keystroke.
+    // Waits for a typing pause; re-baking tiles is expensive.
     QTimer* m_debounce = nullptr;
 };
 

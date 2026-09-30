@@ -42,7 +42,7 @@ qsizetype barOutsideQuotes(const QString& text)
     return -1;
 }
 
-// Trims, then strips one layer of quotes so deliberate spaces survive.
+// Trims, then strips one layer of quotes.
 QString unquote(const QString& raw)
 {
     const QString trimmed = raw.trimmed();
@@ -193,15 +193,14 @@ void ProfileIndex::saveToFile(const QString& path) const
     for (const GroupProfile& profile : m_groupProfiles) {
         out << "@groupprofile " << profile.name << "\n";
 
-        // Wrapped so a forty-group order stays readable; the parser takes
-        // every body line of the block.
+        // Wrap long orders; the parser reads every body line.
         QString row;
         for (qsizetype i = 0; i < profile.order.size(); ++i) {
             const bool last = i + 1 == profile.order.size();
             row += profile.order[i];
             if (!last) row += u", "_s;
             if (!last && row.size() < 64) continue;
-            out << "    " << row.trimmed() << "\n"; // trimmed drops a trailing comma-space
+            out << "    " << row.trimmed() << "\n";
             row.clear();
         }
         out << "\n";
@@ -212,7 +211,7 @@ void ProfileIndex::saveToFile(const QString& path) const
         for (const FacetFormat& format : profile.formats) {
             const QString row = u"%1 = %2 | %3"_s.arg(
                 format.facet, quoteIfNeeded(format.prefix), quoteIfNeeded(format.suffix));
-            out << "    " << row.trimmed() << "\n"; // an empty suffix ends at the bar
+            out << "    " << row.trimmed() << "\n";
         }
         out << "\n";
     }
@@ -230,7 +229,7 @@ void ProfileIndex::saveActiveToFile(const QString& path) const
     QStringList lines = QString::fromUtf8(input.readAll()).split(u'\n');
     input.close();
 
-    // A hand-edited profiles.fct may be CRLF, so keep whatever it uses.
+    // Keep CRLF if the file uses it.
     QString replacement = u"active = %1 | %2"_s.arg(m_activeGroup, m_activeFormat);
     if (!lines.isEmpty() && lines.first().endsWith(u'\r')) replacement += u'\r';
 

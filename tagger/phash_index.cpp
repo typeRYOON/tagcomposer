@@ -14,8 +14,7 @@ namespace {
 
 constexpr const char* kIndexFile = "__hashes.json";
 
-// Stored as 16 hex characters rather than a number: QJsonValue holds a double,
-// which cannot carry a 64-bit hash without rounding past 2^53.
+// Hex string: a JSON double can't hold 64 bits.
 QString toHex(uint64_t hash)
 {
     return u"%1"_s.arg(hash, 16, 16, QChar(u'0'));
@@ -98,7 +97,7 @@ PHashIndex::Match PHashIndex::findNearest(uint64_t hash, int threshold) const
         best.filename = it.key();
         best.distance = distance;
 
-        // Byte-identical, so nothing later can beat it.
+        // Can't beat an exact match.
         if (distance == 0) break;
     }
 

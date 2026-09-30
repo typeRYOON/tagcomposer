@@ -135,7 +135,7 @@ SettingsPage::SettingsPage(Settings& settings, AppData& data, QWidget* parent)
     bodyLayout->setContentsMargins(32, 24, 32, 12);
     bodyLayout->setSpacing(0);
 
-    // ================= APPEARANCE =================
+    // ---- Appearance
     bodyLayout->addWidget(sectionHeader(u"APPEARANCE"_s));
     bodyLayout->addSpacing(12);
 
@@ -169,7 +169,7 @@ SettingsPage::SettingsPage(Settings& settings, AppData& data, QWidget* parent)
     m_tileTitleColor->setFixedSize(110, 32);
     m_tileTitleColor->setCursor(Qt::PointingHandCursor);
 
-    // The swatch is its own colour, so it cannot come from the stylesheet.
+    // Inline style: the swatch shows the chosen color.
     auto applyTitleSwatch = [this]() {
         const QColor colour(m_settings->tileTitleColor);
         const bool dark = colour.isValid()
@@ -191,7 +191,7 @@ SettingsPage::SettingsPage(Settings& settings, AppData& data, QWidget* parent)
         auto* picker =
             new QColorDialog(initial.isValid() ? initial : Qt::white, wrapper.contentArea());
         picker->setOptions(QColorDialog::DontUseNativeDialog | QColorDialog::NoButtons);
-        picker->setWindowFlags(Qt::Widget); // embed, do not open a second window
+        picker->setWindowFlags(Qt::Widget); // embedded, not a separate window
         picker->setSizeGripEnabled(false);
 
         auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
@@ -249,7 +249,7 @@ SettingsPage::SettingsPage(Settings& settings, AppData& data, QWidget* parent)
     bodyLayout->addWidget(appearanceGroup);
     bodyLayout->addSpacing(24);
 
-    // ================= BACKENDS =================
+    // ---- Backends
     bodyLayout->addWidget(sectionHeader(u"BACKENDS"_s));
     bodyLayout->addSpacing(12);
 
@@ -387,7 +387,7 @@ SettingsPage::SettingsPage(Settings& settings, AppData& data, QWidget* parent)
     bodyLayout->addWidget(comfyGroup);
     bodyLayout->addSpacing(24);
 
-    // ================= FACETS =================
+    // ---- Facets
     bodyLayout->addWidget(sectionHeader(u"FACETS"_s));
     bodyLayout->addSpacing(12);
 
@@ -482,7 +482,7 @@ SettingsPage::SettingsPage(Settings& settings, AppData& data, QWidget* parent)
     bodyLayout->addWidget(facetsGroup);
     bodyLayout->addSpacing(24);
 
-    // ================= PROMPT COMPOSER =================
+    // ---- Prompt composer
     bodyLayout->addWidget(sectionHeader(u"PROMPT COMPOSER"_s));
     bodyLayout->addSpacing(12);
 
@@ -505,7 +505,7 @@ SettingsPage::SettingsPage(Settings& settings, AppData& data, QWidget* parent)
     bodyLayout->addWidget(composerGroup);
     bodyLayout->addSpacing(24);
 
-    // ================= DATA =================
+    // ---- Data
     bodyLayout->addWidget(sectionHeader(u"DATA"_s));
     bodyLayout->addSpacing(12);
 
@@ -535,7 +535,7 @@ SettingsPage::SettingsPage(Settings& settings, AppData& data, QWidget* parent)
     bodyLayout->addWidget(dataGroup);
     bodyLayout->addSpacing(24);
 
-    // ================= INPUT IMAGES =================
+    // ---- Input images
     bodyLayout->addWidget(sectionHeader(u"INPUT IMAGES"_s));
     bodyLayout->addSpacing(12);
 
@@ -561,7 +561,7 @@ SettingsPage::SettingsPage(Settings& settings, AppData& data, QWidget* parent)
     bodyLayout->addWidget(inputsGroup);
     bodyLayout->addSpacing(24);
 
-    // ================= LOG =================
+    // ---- Log
     bodyLayout->addWidget(sectionHeader(u"LOG"_s));
     bodyLayout->addSpacing(12);
 
@@ -643,8 +643,7 @@ SettingsPage::SettingsPage(Settings& settings, AppData& data, QWidget* parent)
         emit settingsChanged();
     });
     connect(outputBrowse, &QPushButton::clicked, this, [this]() {
-        // Date tokens are not a real path, so browse from the part before one
-        // and put the token back afterwards.
+        // Browse from the part before a {date} token, then re-append the token.
         const QString raw = m_outputFolder->text().trimmed();
         const QString startDir = raw.section(u'{', 0, 0).trimmed();
         const QString dir = QFileDialog::getExistingDirectory(
@@ -719,8 +718,7 @@ SettingsPage::SettingsPage(Settings& settings, AppData& data, QWidget* parent)
         emit settingsChanged();
     });
 
-    // Empty hides the matching menu item. The placeholder is a suggestion,
-    // never a fallback value.
+    // Empty hides the menu item; the placeholder is only a suggestion.
     connect(m_quickCharFacet, &QLineEdit::editingFinished, this, [this]() {
         m_settings->quickCharacterFacet = m_quickCharFacet->text().trimmed();
         emit settingsChanged();
@@ -753,8 +751,7 @@ void SettingsPage::reload()
 {
     const Settings& s = *m_settings;
 
-    // Blocked throughout: every one of these setters would otherwise write the
-    // value straight back and emit settingsChanged.
+    // Blocked so loading doesn't write back and emit settingsChanged.
     const QSignalBlocker b2(m_tileGradStart);
     const QSignalBlocker b3(m_tileGradAlpha);
     const QSignalBlocker b4(m_sfxVolume);
@@ -834,7 +831,7 @@ void SettingsPage::onComfyToggled(bool enabled)
         m_statusText->setText(u"disabled"_s);
     }
 
-    // A property change alone does not re-run the stylesheet.
+    // Re-polish so the QSS picks up the property.
     m_statusDot->style()->unpolish(m_statusDot);
     m_statusDot->style()->polish(m_statusDot);
 
@@ -919,7 +916,7 @@ QWidget* SettingsPage::makeFacetFormatRow(int index, bool isAddRow)
         connect(suffixEdit, &QLineEdit::returnPressed, this, commitAdd);
         connect(actionBtn, &QPushButton::clicked, this, commitAdd);
     } else {
-        // Clearing the facet name is how a row is deleted by keyboard.
+        // Clearing the facet name deletes the row.
         auto commitEdit = [this, index, facetEdit, prefixEdit, suffixEdit]() {
             if (index >= int(m_settings->facetFormats.size())) return;
             const QString facet = facetEdit->text().trimmed();

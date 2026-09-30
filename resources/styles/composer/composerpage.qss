@@ -1,4 +1,4 @@
-/* ── PromptComposerPage ───────────────────────────────────────────────────── */
+/* PromptComposerPage */
 
 #PromptComposerPage {
     background: transparent;
@@ -285,8 +285,7 @@ QComboBox#ComposerProfileBox QAbstractItemView {
     color: #aa6666;
 }
 
-/* These three carry a painted icon rather than a glyph, so their color is set
-   where the icon is built (promptcomposerpage_sidebars.cpp), not here. */
+/* Painted icons; their colors are set in C++ where the icon is built. */
 #ComposerRuleAddBadge,
 #ComposerRuleReplaceBadge,
 #ComposerRuleForceBadge {

@@ -30,10 +30,8 @@ class TagLineAutocomplete;
 class TagPreviewFetcher;
 class TagPreviewPopup;
 
-// Pulls a character's posts from Danbooru and ranks the tags that co-occur
-// with them by PMI, which is what separates "what this character looks like"
-// from "what anime art looks like". The thresholds re-apply without
-// re-fetching, so tuning a cluster costs nothing.
+// Fetches a character's Danbooru posts and ranks co-occurring tags by PMI.
+// Thresholds re-apply without re-fetching.
 class TagClusterPage : public QWidget {
     Q_OBJECT
 
@@ -41,17 +39,14 @@ public:
     TagClusterPage(const TagFacets& facets, const QString& filtersPath,
                    QWidget* parent = nullptr);
 
-    // The PMI baseline is the index's per-tag post counts, so until this
-    // arrives there is nothing to score against and the results stay empty.
+    // The baseline post counts for PMI; results stay empty without it.
     void setDanbooruIndex(const DanbooruIndex* index);
 
-    // Quick-add entries for the row menu, named as in the composer. An empty
-    // string leaves that entry out.
+    // Row-menu quick-add facets; empty strings are omitted.
     void setQuickFacets(const QString& character, const QString& copyright,
                         const QString& triggerWord, const QString& style);
 
-    // The facet definitions changed under us, so the badges and the facet
-    // filter both need another pass. A no-op before the first fetch.
+    // Re-applies facet badges and the filter after definitions change.
     void refreshFacets();
 
 signals:
@@ -139,17 +134,14 @@ private:
     int m_currentPage = 0;
     int m_pageTarget = 0;
 
-    // Bumped on every fetch and on cancel. An in-flight reply or a pending
-    // inter-page timer captured the old value and bails when it no longer
-    // matches, which is what makes cancel immediate.
+    // Bumped on fetch and cancel; stale replies and timers bail.
     int m_generation = 0;
 
     QString m_targetTag;
     bool m_fetchedSolo = false;
     bool m_fetchedSingleChar = false;
 
-    // Document frequency: a post lists each general tag once, so the value is
-    // how many of this character's posts carry the tag.
+    // Per tag: how many of the character's posts carry it.
     QHash<QString, int> m_tagCounts;
     QHash<QString, int> m_copyrightCounts;
     int m_usedPosts = 0;    // posts that contributed to m_tagCounts
@@ -169,7 +161,7 @@ private:
     QString m_quickTrigger;
     QString m_quickStyle;
 
-    // A slider drag would otherwise rebuild every row many times a second.
+    // Debounces slider drags.
     QTimer* m_recomputeTimer = nullptr;
 };
 

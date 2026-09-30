@@ -8,8 +8,7 @@ class QLabel;
 
 namespace tc {
 
-// A navbar button. The icon is tinted by state, and the three tints are
-// rendered once on assignment rather than on every paint.
+// Navbar button with per-state icon tints, rendered once.
 class NavButton : public QPushButton {
     Q_OBJECT
 
@@ -34,8 +33,7 @@ private:
     QPixmap m_active;
 };
 
-// Builds its buttons from kPages. The hover tooltip is parented to a widget
-// outside the bar so it can extend past the bar's narrow width.
+// Buttons come from kPages. The tooltip lives outside the bar so it can overhang.
 class NavBar : public QWidget {
     Q_OBJECT
 

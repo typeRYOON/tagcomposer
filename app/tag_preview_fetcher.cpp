@@ -28,8 +28,7 @@ QNetworkRequest jsonRequest(const QUrl& url)
     return request;
 }
 
-// Skips formats with no still frame to show, and falls back to the thumbnail
-// when the large render is missing.
+// Skip video/archive formats; fall back to the thumbnail URL.
 QString pickPreviewUrl(const QJsonObject& post)
 {
     static const QStringList nonImage = {u"mp4"_s, u"webm"_s, u"zip"_s, u"mov"_s, u"swf"_s};
@@ -102,7 +101,7 @@ void TagPreviewFetcher::fetch(const QString& tag)
 
     emit loading(tag);
 
-    // Step one: the wiki page, looking for its first "!post #N".
+    // The wiki page first, for its first "!post #N".
     const QByteArray encoded = QUrl::toPercentEncoding(serializeTag(tag));
     const QUrl url(u"https://danbooru.donmai.us/wiki_pages/%1.json"_s.arg(
         QString::fromLatin1(encoded)));
@@ -112,7 +111,7 @@ void TagPreviewFetcher::fetch(const QString& tag)
         reply->deleteLater();
         if (generation != m_generation) return;
 
-        // A 404 only means the tag has no wiki page; the search still runs.
+        // A 404 just means no wiki page.
         const QJsonDocument doc = reply->error() == QNetworkReply::NoError
             ? QJsonDocument::fromJson(reply->readAll())
             : QJsonDocument();

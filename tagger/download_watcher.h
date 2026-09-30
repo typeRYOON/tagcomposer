@@ -7,12 +7,8 @@ class QTimer;
 
 namespace tc {
 
-// Watches a download folder, and for each image that turns up either moves it
-// into the collection as "NNNNN.<ext>" or recycles it as a near-duplicate of
-// something already there.
-//
-// One instance at a time: two watchers over the same folder race each other
-// for the same files.
+// Watches a download folder: new images move into the collection as NNNNN.<ext>,
+// near-duplicates go to the recycle bin. Run one watcher per folder.
 class DownloadWatcher : public QObject {
     Q_OBJECT
 

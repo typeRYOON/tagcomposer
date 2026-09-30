@@ -21,12 +21,8 @@ class QWheelEvent;
 
 namespace tc {
 
-// The tile grid for saved states. Built on the same custom paint pipeline as
-// the entry view, so it gets the same smooth scroll, hover fade, centred
-// layout and async tile cache without the icon-mode quirks of a list widget.
-//
-// It never owns the states: the composer owns the StateManager, and the
-// pointer handed in has to outlive the view.
+// Saved-state tile grid, painted like the entry view: smooth scroll, hover,
+// async tile cache. Doesn't own the states; the list must outlive the view.
 class StatesGridView : public QWidget {
     Q_OBJECT
 
@@ -36,13 +32,11 @@ public:
     void setStates(const QList<SavedState>* states);
     void setFilter(const QString& filter);
 
-    // Tile composition, mirrored from settings.
     void setTileGradient(qreal start, int alpha);
     void setTileTitleColor(const QColor& color);
     void setTileSize(int side);
 
-    // Drops one tile's render so the next paint re-bakes it. Used after a
-    // rename or a preview drop.
+    // Re-bake one tile on the next paint (after a rename or preview drop).
     void invalidateTile(const QString& id);
     void clearTileCache();
 
@@ -92,8 +86,7 @@ private:
     int m_offsetX = 0;
     int m_totalHeight = 0;
 
-    // Pixel-smooth scroll: the target is what the wheel moves, and the actual
-    // eases toward it on every animation tick.
+    // The wheel moves the target; actual eases toward it.
     qreal m_scrollTarget = 0.0;
     qreal m_scrollActual = 0.0;
 
@@ -102,8 +95,7 @@ private:
     QPoint m_pressPos;
     int m_pressedVisible = -1;
 
-    // m_pending guards against queueing the same tile twice, and the
-    // generation counter drops a stale callback after a re-layout.
+    // m_pending avoids double-queueing; m_generation drops stale results.
     QCache<QString, QPixmap> m_pixmapCache;
     QSet<QString> m_pending;
     mutable QMutex m_cacheMutex;

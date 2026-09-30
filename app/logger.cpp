@@ -25,7 +25,6 @@ void Logger::log(const QString& message)
     m_history << entry;
     if (m_history.size() > kHistoryCap) m_history.removeFirst();
 
-    // Read once: unset costs one empty check per call.
     static const QString sinkPath = qEnvironmentVariable("TAGCOMPOSER_LOG_FILE");
     if (!sinkPath.isEmpty()) {
         QFile file(sinkPath);

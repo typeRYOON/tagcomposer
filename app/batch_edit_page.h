@@ -13,17 +13,15 @@ namespace tc {
 
 struct Settings;
 
-// Bulk in-place edits over a folder of image + .txt sidecar pairs. The edits
-// run in a fixed order -- remove named, remove first, prepend, append -- so a
-// tag removed here cannot come back through a later step. Logging frequencies
-// is read-only. There is no undo: this writes to the source files.
+// Bulk in-place edits of .txt sidecars: remove named, remove first, prepend,
+// append, in that order. No undo; this writes the source files.
 class BatchEditPage : public QWidget {
     Q_OBJECT
 
 public:
     explicit BatchEditPage(Settings& settings, QWidget* parent = nullptr);
 
-    // The handoff from another tab, which has already picked the folder.
+    // Handoff from another tab.
     void setInputFolder(const QString& folder);
 
 private:

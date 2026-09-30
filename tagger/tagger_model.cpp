@@ -14,8 +14,7 @@ using namespace Qt::StringLiterals;
 namespace tc {
 namespace {
 
-// Kept below the threshold and shown dimmed, so a tag that only just missed is
-// one click away instead of invisible.
+// Below-threshold tags to show dimmed.
 constexpr int kNearMissCount = 50;
 
 constexpr int kRatingCategory = 9;
@@ -70,8 +69,7 @@ bool TaggerModel::readConfig(const QString& path, QString* error)
     const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
     const QJsonObject pretrained = root[u"pretrained_cfg"_s].toObject();
 
-    // [C, H, W]. Only a fallback: initSession overrides these whenever the
-    // session reports a concrete size.
+    // [C, H, W]; initSession prefers the session's own size.
     const QJsonArray size = pretrained[u"input_size"_s].toArray();
     if (size.size() == 3) {
         m_height = size[1].toInt(m_height);
@@ -98,8 +96,7 @@ bool TaggerModel::readTags(const QString& path, QString* error)
 
     file.readLine(); // header: tag_id,name,category,count
 
-    // The row index is the output index, so a skipped row would shift every
-    // tag after it onto the wrong logit. Rows are counted, not appended.
+    // The row index is the output index.
     int row = 0;
     while (!file.atEnd()) {
         const QString line = QString::fromUtf8(file.readLine()).trimmed();
@@ -140,17 +137,13 @@ bool TaggerModel::initSession(Ort::Env& env, const QString& path, QString* error
 #endif
         m_session = std::make_unique<Ort::Session>(env, nativePath.c_str(), m_sessionOptions);
 
-        // Copied out because Run() takes a const char* that has to outlive the
-        // allocator's own handle.
         Ort::AllocatorWithDefaultOptions allocator;
         m_inputName = m_session->GetInputNameAllocated(0, allocator).get();
         m_outputName = m_session->GetOutputNameAllocated(0, allocator).get();
 
         const auto shape = m_session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
         if (shape.size() == 4) {
-            // Whichever dimension is 3 is the channel dimension, and that is
-            // what names the layout. A dynamic dim comes back negative, and
-            // those keep the config.json value.
+            // The dim that is 3 is channels. Dynamic dims (negative) keep the config values.
             if (shape[1] == 3) {
                 m_layout = Layout::NCHW;
                 if (shape[2] > 0) m_height = int(shape[2]);
@@ -172,8 +165,7 @@ bool TaggerModel::initSession(Ort::Env& env, const QString& path, QString* error
 
 std::vector<float> TaggerModel::preprocess(const QString& imagePath) const
 {
-    // Decoded from a buffer rather than by path: cv::imread takes a local
-    // 8-bit path and loses any non-ASCII directory on Windows.
+    // Not cv::imread: it fails on non-ASCII paths on Windows.
     QFile file(imagePath);
     if (!file.open(QIODevice::ReadOnly)) return {};
 
@@ -183,8 +175,7 @@ std::vector<float> TaggerModel::preprocess(const QString& imagePath) const
                      cv::IMREAD_UNCHANGED);
     if (image.empty()) return {};
 
-    // Everything ends up 8-bit and 3-channel: greyscale expands, alpha is
-    // dropped, and 16-bit is scaled down.
+    // Normalize to 8-bit, 3-channel.
     if (image.channels() == 1) {
         cv::cvtColor(image, image, cv::COLOR_GRAY2RGB);
     }
@@ -202,8 +193,7 @@ std::vector<float> TaggerModel::preprocess(const QString& imagePath) const
         image = eightBit;
     }
 
-    // Padded to a square with white before the resize, so the aspect ratio
-    // survives: squashing a tall image changes what the model sees.
+    // Pad to a white square to keep the aspect ratio.
     const int width = image.cols;
     const int height = image.rows;
     const int side = std::max(width, height);
@@ -214,8 +204,7 @@ std::vector<float> TaggerModel::preprocess(const QString& imagePath) const
     cv::Mat resized;
     cv::resize(square, resized, cv::Size(m_width, m_height), 0, 0, cv::INTER_CUBIC);
 
-    // Left as raw [0, 255] BGR. This model family has mean and std baked into
-    // the graph, and normalising here as well collapses the activations.
+    // Raw [0, 255] BGR; the graph normalizes.
     cv::Mat asFloat;
     resized.convertTo(asFloat, CV_32F);
 
@@ -269,12 +258,10 @@ TaggerResult TaggerModel::interpret(const float* output, int64_t size, float thr
 {
     TaggerResult result;
 
-    // A model whose tags.csv and graph disagree would otherwise read past the
-    // end of one of them.
+    // Guard against tags.csv and the graph disagreeing.
     const int64_t count = std::min<int64_t>(m_tagInfo.size(), size);
 
-    // Exactly one rating applies, so it is the argmax over that subset rather
-    // than anything the threshold gets a say in.
+    // The rating is the argmax over rating rows, regardless of threshold.
     int bestRating = -1;
     float bestScore = -1.0f;
     for (const int index : m_ratingIndices) {
@@ -301,8 +288,6 @@ TaggerResult TaggerModel::interpret(const float* output, int64_t size, float thr
     auto byScore = [](const TaggerPrediction& a, const TaggerPrediction& b) { return a.score > b.score; };
     std::sort(result.tags.begin(), result.tags.end(), byScore);
 
-    // Only the top of `below` is wanted and it holds thousands of entries, so
-    // a full sort would be work thrown away.
     if (below.size() > kNearMissCount) {
         std::partial_sort(below.begin(), below.begin() + kNearMissCount, below.end(), byScore);
         below.resize(kNearMissCount);

@@ -21,8 +21,7 @@ constexpr auto kIndexFile = "_index.json";
 WorkflowInputCache::WorkflowInputCache(const QString& cacheDir, QObject* parent)
     : QObject(parent), m_cacheDir(cacheDir)
 {
-    // No mkpath here: creating the folder just to look at it is what left an
-    // empty data tree beside the executable. importFromFile makes it.
+    // No mkpath; importFromFile creates the folder.
     readIndex();
 }
 
@@ -46,7 +45,7 @@ QString WorkflowInputCache::importFromFile(const QString& sourcePath)
     reader.setAutoTransform(true);
     if (!reader.read(&image) || image.isNull()) return {};
 
-    // ARGB throughout so a mask round-trips without loss.
+    // ARGB so masks round-trip.
     if (image.format() != QImage::Format_ARGB32)
         image = image.convertToFormat(QImage::Format_ARGB32);
 
@@ -74,7 +73,7 @@ void WorkflowInputCache::remove(const QString& uuid)
 bool WorkflowInputCache::has(const QString& uuid) const
 {
     if (uuid.isEmpty() || !m_byUuid.contains(uuid)) return false;
-    // The index drifts when a file is deleted behind our back.
+    // The file may have been deleted externally.
     return QFile::exists(localPath(uuid));
 }
 
@@ -144,10 +143,8 @@ QString WorkflowInputCache::resolveEdited(const QString& uuid, const ImageEdits&
     QRect crop = edits.cropRect.intersected(image.rect());
     if (crop.isEmpty()) crop = image.rect();
 
-    // ComfyUI's LoadImage reads RGB as IMAGE and (1 - alpha) as MASK.
-    //   trimToCrop: the output is the crop at full alpha, no mask.
-    //   otherwise:  source-sized, with alpha carrying the painted mask, or
-    //               the crop rect when no mask was painted.
+    // LoadImage reads RGB as IMAGE and (1 - alpha) as MASK. trimToCrop: the crop at
+    // full alpha. Otherwise source-sized, alpha from the mask (or the crop rect).
     QImage out = edits.trimToCrop ? image.copy(crop) : image.copy();
     if (out.format() != QImage::Format_ARGB32)
         out = out.convertToFormat(QImage::Format_ARGB32);

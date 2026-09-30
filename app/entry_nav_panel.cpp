@@ -28,8 +28,7 @@ EntryNavPanel::EntryNavPanel(QWidget* parent) : QWidget(parent)
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
 
-    // The caption keeps its own style; the icon rides beside it as a pixmap,
-    // which no colour rule can reach.
+    // Painted icon beside the caption; QSS can't recolor it.
     auto* handleRow = new QWidget(this);
     handleRow->setFixedHeight(26);
 
@@ -62,7 +61,7 @@ EntryNavPanel::EntryNavPanel(QWidget* parent) : QWidget(parent)
     m_animation->setEasingCurve(QEasingCurve::InOutQuad);
     m_animation->setDuration(160);
 
-    // The panel tracks the list as it grows, so it never clips its own rows.
+    // Resize with the list so rows aren't clipped.
     connect(m_animation, &QPropertyAnimation::valueChanged, m_listFrame,
             [this](const QVariant&) { adjustSize(); });
 }
@@ -88,8 +87,7 @@ void EntryNavPanel::setEntries(const QList<QPair<QString, int>>& items)
         m_listLayout->addWidget(button);
     }
 
-    // Capped: a hundred pushed entries would otherwise make a panel taller
-    // than the window.
+    // Capped so a long list can't outgrow the window.
     m_fullHeight =
         items.isEmpty() ? 0 : std::min(int(items.size()) * kRowHeight + 4, kMaxHeight);
     if (m_listFrame->maximumHeight() > 0) m_listFrame->setMaximumHeight(m_fullHeight);

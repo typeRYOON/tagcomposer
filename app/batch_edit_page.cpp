@@ -33,8 +33,7 @@ constexpr int kPanelWidth = 380;
 constexpr int kRowHeight = 40;
 constexpr int kHeaderHeight = 50;
 
-// How often the progress bar is allowed to reach the screen. Repainting per
-// file on a folder of thousands costs more than the edits do.
+// Pump events every N files; repainting per file costs more than the edits.
 constexpr int kPumpEvery = 32;
 
 QWidget* sectionHeader(const QString& title)
@@ -185,7 +184,7 @@ BatchEditPage::BatchEditPage(Settings& settings, QWidget* parent)
         leftLayout->addWidget(row);
     }
 
-    // Laid out in the order they run, so the panel reads as the sequence.
+    // In run order.
     leftLayout->addLayout(folderRow);
     leftLayout->addWidget(m_recursive);
     leftLayout->addSpacing(10);
@@ -247,8 +246,7 @@ BatchEditPage::BatchEditPage(Settings& settings, QWidget* parent)
     root->addWidget(left);
     root->addWidget(right, 1);
 
-    // An input whose box is unchecked is not read on Run, and greying it says
-    // so before the user types into it.
+    // Inputs are only enabled with their checkbox.
     auto bindEnable = [this](QCheckBox* box, QLineEdit* edit) {
         edit->setEnabled(box->isChecked());
         connect(box, &QCheckBox::toggled, edit, [edit](bool on) { edit->setEnabled(on); });
@@ -257,8 +255,7 @@ BatchEditPage::BatchEditPage(Settings& settings, QWidget* parent)
     bindEnable(m_prepend, m_prependInput);
     bindEnable(m_append, m_appendInput);
 
-    // Same folder slot as the tag editor: same kind of folder, and moving
-    // between the two tabs should not mean typing the path twice.
+    // Shares the tag editor's folder setting.
     if (!m_settings->tagEditorFolder.isEmpty())
         m_folderEdit->setText(m_settings->tagEditorFolder);
 
@@ -292,8 +289,7 @@ void BatchEditPage::run()
         return;
     }
 
-    // Read the whole configuration up front. The loop pumps events, so a box
-    // toggled mid-run must not change what the rest of the files get.
+    // Read the options up front; the loop pumps events.
     const bool doRemoveTag = m_removeTag->isChecked();
     const QString removeTag = m_removeTagInput->text().trimmed();
     const bool doRemoveFirst = m_removeFirst->isChecked();
@@ -309,8 +305,7 @@ void BatchEditPage::run()
         return;
     }
 
-    // Found through the images, not by listing .txt: a text file with no
-    // image beside it is not ours to rewrite.
+    // Only sidecars of images; other .txt files are left alone.
     QStringList sidecars;
     {
         const QDirIterator::IteratorFlags flags = m_recursive->isChecked()
@@ -360,8 +355,7 @@ void BatchEditPage::run()
             if (doPrepend && !prependTag.isEmpty()) tags.prepend(prependTag);
             if (doAppend && !appendTag.isEmpty()) tags.append(appendTag);
 
-            // Nothing changed, so nothing is written: an untouched file keeps
-            // its modification time.
+            // Unchanged files aren't rewritten.
             if (tags == original) continue;
 
             QFile out(path);
@@ -383,14 +377,12 @@ void BatchEditPage::run()
         }
     }
     else {
-        // Nothing to step through, and a bar sitting at zero while the tally
-        // below runs reads as stuck.
+        // No edit pass; fill the bar.
         m_progress->setValue(int(sidecars.size()));
     }
 
     if (doLogFrequencies) {
-        // Re-read rather than tally during the edit pass: the counts should
-        // describe the files as they now stand, edits included.
+        // Re-read so the counts include the edits.
         QHash<QString, int> frequencies;
         for (const QString& path : sidecars) {
             QFile file(path);
@@ -404,8 +396,7 @@ void BatchEditPage::run()
         for (auto it = frequencies.cbegin(); it != frequencies.cend(); ++it)
             sorted.append({it.key(), it.value()});
 
-        // Alphabetical within a count, so two runs over the same folder print
-        // the same thing.
+        // Alphabetical within a count, for stable output.
         std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) {
             if (a.second != b.second) return a.second > b.second;
             return a.first < b.first;

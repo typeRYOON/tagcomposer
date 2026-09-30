@@ -17,13 +17,8 @@ class EntryNavPanel;
 
 class EntryStore;
 
-// The tile grid: custom-painted, smooth-scrolled, with tiles baked off the
-// UI thread into an LRU cache.
-//
-// It is given a list of uuids to show and looks each entry up as it draws, so
-// a result list cannot go stale. The cache is keyed by uuid too, which means a
-// re-query keeps every tile it already had warm and a load that lands after
-// the list changed is harmless rather than needing a generation counter.
+// Custom-painted, smooth-scrolling tile grid. Tiles bake on worker threads into
+// an LRU cache keyed by uuid, so a re-query keeps warm tiles.
 class EntryView : public QWidget {
     Q_OBJECT
 
@@ -33,36 +28,31 @@ public:
     void setEntries(const QStringList& uuids);
     void setSelected(const QString& uuid);
 
-    // The uuids currently pushed to the composer; the nav float lists them.
+    // Pushed to the composer; listed in the nav float.
     void setActiveEntries(const QSet<QString>& uuids);
 
-    // The entries whose LoRA is in the composer's stack; drawn as an inner
-    // ring, with an unused one showing only a corner dot.
+    // Entries whose LoRA is in the composer's stack.
     void setActiveLoras(const QSet<QString>& uuids);
 
-    // Brings one entry into view by uuid; does nothing when it is not in the
-    // current result set.
     void scrollToUuid(const QString& uuid);
     QString selected() const;
 
-    // Applied to tiles as they bake, so changing either clears the cache.
+    // Changing either clears the tile cache.
     void setTileGradient(qreal start, int alpha);
     void setTileTitleColor(const QColor& colour);
 
 signals:
     void entryClicked(const QString& uuid);
 
-    // Only for a pointer selection. Arrow navigation deliberately does not
-    // emit it, so the grid keeps focus for a chained press.
+    // Mouse selection only; arrow keys don't emit it.
     void entryClickedByPointer(const QString& uuid);
 
-    // The tile menu's LoRA item; the page owns the stack.
     void loraToggled(const QString& uuid);
 
-    // Enter on the selected tile: the page toggles it in the composer.
+    // Enter on the selected tile.
     void entryActivated(const QString& uuid);
 
-    // Tab with the grid focused: the page parks focus in its search bar.
+    // Tab from the grid.
     void focusFilterRequested();
 
 protected:
@@ -111,14 +101,13 @@ private:
     int m_hoverIndex = -1;
     QString m_selected;
 
-    // Click versus drag: a press records state, a move past the drag
-    // threshold promotes to a drag, and a release without one is a click.
+    // A press becomes a drag past the drag threshold; otherwise it's a click.
     bool m_pressed = false;
     bool m_dragging = false;
     QPoint m_pressPos;
     qreal m_pressScroll = 0.0;
 
-    // Sampled during a drag; left set on release so the tick decays it.
+    // Kept after release; the tick decays it.
     qreal m_flingVelocity = 0.0;
     qint64 m_lastMoveTime = 0;
     QPoint m_lastMovePos;
@@ -127,8 +116,7 @@ private:
     QSet<QString> m_baking;
     mutable QMutex m_tileMutex;
 
-    // Resolved on the UI thread: bakeTile runs on a worker, and QApplication
-    // font lookups are not safe to make from one.
+    // Resolved on the UI thread; bakeTile runs on workers.
     QFont m_tileFont;
 
     QPixmap m_placeholder;

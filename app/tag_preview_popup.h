@@ -13,22 +13,16 @@ namespace tc {
 
 class TagPreviewFetcher;
 
-// The Danbooru image and wiki text for one tag, shown beside an open menu
-// while the pointer rests on its Wiki item. Same content as the facet
-// editor's rail, in a tooltip-class window so the menu keeps its grab and
-// stays open.
-//
-// Read-only by construction: a menu owns the mouse for as long as this is up,
-// so nothing here can be clicked or scrolled. A long wiki body is clipped
-// rather than scrolled, which is what a peek wants.
+// Danbooru image and wiki text for a tag, shown beside an open menu while its
+// Wiki item is highlighted. A tooltip-class window, so the menu keeps its grab
+// (and this can't be clicked or scrolled).
 class TagPreviewPopup : public QWidget {
     Q_OBJECT
 
 public:
     explicit TagPreviewPopup(QWidget* parent = nullptr);
 
-    // Arms the hover delay. `anchor` is the menu's geometry in global
-    // coordinates; the popup lands beside it and flips side at a screen edge.
+    // anchor: the menu's global geometry; the popup sits beside it.
     void scheduleShow(const QString& tag, const QRect& anchor);
 
     // Cancels a pending show and hides an open one.
@@ -49,10 +43,8 @@ private:
     QRect m_anchor;
 };
 
-// Ties the peek to `menu`'s highlighted item: up while `wikiAction` is the
-// highlight, gone for anything else. QMenu::hovered covers keyboard travel
-// too, so arrowing onto the item behaves like pointing at it. The caller
-// dismisses the popup once exec() returns.
+// Shows the peek while wikiAction is highlighted (mouse or keyboard). Call
+// popup->dismiss() after exec().
 void installWikiPeek(QMenu& menu, QAction* wikiAction, const QString& tag,
                      TagPreviewPopup* popup);
 

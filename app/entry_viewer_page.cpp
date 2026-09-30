@@ -58,18 +58,15 @@ EntryViewerPage::EntryViewerPage(EntryStore& store, EntrySearch& search,
     connect(m_view, &EntryView::entryClicked, this, &EntryViewerPage::entrySelected);
     connect(m_view, &EntryView::entryClicked, m_panel, &EntryPanel::setEntry);
 
-    // Only a pointer selection parks focus in the panel's tag input; arrow
-    // navigation leaves focus on the grid.
+    // Clicks focus the tag input; arrow keys keep focus on the grid.
     connect(m_view, &EntryView::entryClickedByPointer, m_panel, &EntryPanel::focusTagInput);
 
-    // Enter selects the tile in the panel first, so the toggle acts on it
-    // even when the selection moved by keyboard alone.
+    // Enter toggles the push for the selected tile.
     connect(m_view, &EntryView::entryActivated, this, [this](const QString& uuid) {
         m_panel->setEntry(uuid);
         m_panel->toggleComposerPush();
     });
-    // Coming the other way: a grid key pressed in the panel moves focus to
-    // the grid and replays it, so the same press also does the step.
+    // Grid keys pressed in the panel move focus to the grid and replay there.
     connect(m_panel, &EntryPanel::gridNavRequested, this, [this](int key) {
         m_view->setFocus(Qt::OtherFocusReason);
         QKeyEvent replay(QEvent::KeyPress, key, Qt::NoModifier);
@@ -81,8 +78,7 @@ EntryViewerPage::EntryViewerPage(EntryStore& store, EntrySearch& search,
     connect(m_panel, &EntryPanel::statusMessage, this, &EntryViewerPage::statusMessage);
     connect(m_panel, &EntryPanel::entryDeleted, this, [this]() { m_view->setSelected(QString()); });
 
-    // The nav float and the tile rings both list what the document holds, so
-    // they follow it rather than tracking their own copy.
+    // Tile rings and the nav float follow the composer document.
     auto syncActive = [this, &composer]() {
         QSet<QString> pushed;
         for (const EntryPush& push : composer.doc().pushes)
@@ -102,8 +98,7 @@ EntryViewerPage::EntryViewerPage(EntryStore& store, EntrySearch& search,
     connect(&composer, &ComposerStore::docChanged, this, syncActive);
     syncActive();
 
-    // The tile menu's LoRA item: order matters in the stack, so a new one is
-    // appended and a removed one taken out in place.
+    // Tile menu LoRA toggle: append, or remove in place to keep stack order.
     connect(m_view, &EntryView::loraToggled, this, [this, &composer](const QString& uuid) {
         const Entry* entry = m_store->find(uuid);
         if (!entry || !entry->lora) return;
@@ -123,8 +118,7 @@ EntryViewerPage::EntryViewerPage(EntryStore& store, EntrySearch& search,
         composer.setLoraStack(std::move(stack));
     });
 
-    // A tag edit elsewhere changes what a query matches, and a reload
-    // replaces the library outright, so both re-run it.
+    // Library changes can change what the query matches.
     connect(m_store, &EntryStore::reloaded, this, &EntryViewerPage::runQuery);
     connect(m_store, &EntryStore::entryChanged, this, [this]() { m_debounce->start(); });
     connect(m_store, &EntryStore::entryRemoved, this, [this]() { m_debounce->start(); });
@@ -137,7 +131,7 @@ void EntryViewerPage::applySettings()
 {
     m_view->setTileGradient(m_settings->tileGradientStart, m_settings->tileGradientAlpha);
     m_view->setTileTitleColor(QColor(m_settings->tileTitleColor));
-    m_panel->applySettings(); // the LoRA roots live in settings too
+    m_panel->applySettings();
 }
 
 void EntryViewerPage::setDanbooruIndex(const DanbooruIndex* index)
@@ -147,8 +141,6 @@ void EntryViewerPage::setDanbooruIndex(const DanbooruIndex* index)
 
 void EntryViewerPage::showEntry(const QString& uuid)
 {
-    // The active query would usually exclude whatever was linked to, so it
-    // is cleared first and the grid rebuilt before selecting.
     if (!m_query->text().isEmpty()) {
         const QSignalBlocker block(m_query);
         m_query->clear();
@@ -171,9 +163,7 @@ bool EntryViewerPage::eventFilter(QObject* watched, QEvent* event)
     if (watched != m_query || event->type() != QEvent::KeyPress)
         return QWidget::eventFilter(watched, event);
 
-    // Down from the filter drops into the grid and replays the key, so the
-    // same press also makes the first selection - the mirror of the panel
-    // handoff above.
+    // Down moves focus into the grid and replays the key there.
     if (static_cast<QKeyEvent*>(event)->key() != Qt::Key_Down)
         return QWidget::eventFilter(watched, event);
 

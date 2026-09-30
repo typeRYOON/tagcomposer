@@ -38,12 +38,10 @@ constexpr int kParamsWidth = 380;
 constexpr int kPreviewWidth = 420;
 constexpr int kHeaderHeight = 50;
 
-// #SearchBar is 16px with 6 above and below, and anything shorter clips the
-// descenders. The browse button matches so the row lines up.
+// Tall enough for #SearchBar's padding; the browse button matches.
 constexpr int kRowHeight = 40;
 
-// The slider holds hundredths: a threshold is 0.00 to 1.00, and a
-// QDoubleSpinBox steps awkwardly over that range.
+// Hundredths of the 0-1 threshold.
 constexpr int kThresholdMin = 0;
 constexpr int kThresholdMax = 100;
 
@@ -115,8 +113,7 @@ AutoTagPage::AutoTagPage(TaggerLibrary& library, Settings& settings, QWidget* pa
     paramsLayout->setContentsMargins(12, 12, 12, 12);
     paramsLayout->setSpacing(8);
 
-    // A label with an "open in file manager" button beside it, for the two
-    // folder fields.
+    // Label plus an "open in file manager" button.
     auto folderLabel = [this](const QString& text, QLineEdit* edit) {
         auto* row = new QWidget;
         auto* layout = new QHBoxLayout(row);
@@ -278,7 +275,6 @@ AutoTagPage::AutoTagPage(TaggerLibrary& library, Settings& settings, QWidget* pa
     resultsLayout->setContentsMargins(12, 12, 12, 12);
     resultsLayout->setSpacing(8);
 
-    // Left blank before a run: the centred placeholder carries the prompt.
     m_status = new QLabel;
     m_status->setObjectName(u"DatasetStatusLabel"_s);
 
@@ -409,8 +405,7 @@ AutoTagPage::AutoTagPage(TaggerLibrary& library, Settings& settings, QWidget* pa
         if (!folder.isEmpty()) emit sendToBatchEditRequested(folder);
     });
 
-    // Both handoffs pass the output folder, so neither means anything until
-    // there is one.
+    // Handoffs need an output folder.
     auto syncSendButtons = [this]() {
         const bool ready = !m_outputEdit->text().trimmed().isEmpty();
         m_sendToEditor->setEnabled(ready);
@@ -455,8 +450,7 @@ void AutoTagPage::refreshModels()
     m_models->clear();
     m_models->addItems(m_library->availableModels());
 
-    // Kept on the same model when it is still there, so a rescan does not
-    // silently change what Run would use.
+    // Keep the selection across rescans.
     if (const int at = m_models->findText(previous); at >= 0) m_models->setCurrentIndex(at);
 }
 
@@ -470,8 +464,7 @@ void AutoTagPage::showEmptyState(const QString& message)
 
 void AutoTagPage::run()
 {
-    // Model folders can appear or disappear while the app is open, and Run is
-    // the moment it matters.
+    // Pick up model folders added since the last scan.
     m_library->rescan();
     refreshModels();
 
@@ -542,16 +535,14 @@ void AutoTagPage::onImageTagged(const QString& relativePath, const TaggerResult&
 {
     m_tagged.insert(relativePath, result);
 
-    // The first row is what turns the placeholder into a list, so results
-    // start appearing rather than waiting for the run to end.
+    // Swap in the list on the first result.
     if (m_results->count() == 0 && m_emptyState->isVisible()) showEmptyState(QString());
 
     auto* item = new QListWidgetItem(
         u"%1   (%2 tags)"_s.arg(relativePath).arg(result.tags.size()), m_results);
     item->setData(Qt::UserRole, relativePath);
 
-    // Following the newest row means the preview tracks the run, which is the
-    // only way to notice a bad threshold before the batch finishes.
+    // Follow the newest row so the preview tracks the run.
     m_results->setCurrentItem(item);
     m_results->scrollToItem(item);
 }
@@ -573,8 +564,7 @@ void AutoTagPage::onFinished(bool cancelled)
         cancelled ? u"Cancelled - %1 done."_s.arg(m_tagged.size())
                   : u"Done - %1 tagged, %2 failed."_s.arg(m_tagged.size()).arg(m_failed.size()));
 
-    // Nothing landed at all, so the list has nothing to show and the
-    // placeholder has to come back with a reason.
+    // Nothing landed; show why.
     if (m_results->count() > 0) return;
     showEmptyState(cancelled ? u"Cancelled before any image was tagged."_s
                              : u"No images found in the input folder."_s);
@@ -618,8 +608,7 @@ void AutoTagPage::showFocused()
             u"%1   %2"_s.arg(prediction.tag, QString::number(prediction.score, 'f', 2)),
             m_focusTags);
 
-    // What just missed, dimmed and unselectable: it says what lowering the
-    // threshold would bring in, without being mistaken for a written tag.
+    // Near misses, dimmed and unselectable.
     for (const TaggerPrediction& prediction : result.nearMisses) {
         auto* item = new QListWidgetItem(
             u"%1   %2"_s.arg(prediction.tag, QString::number(prediction.score, 'f', 2)),
@@ -634,8 +623,7 @@ void AutoTagPage::setRunning(bool running)
     m_runBtn->setEnabled(!running);
     m_cancelBtn->setEnabled(running);
 
-    // Everything the run was started with is locked: changing one mid-batch
-    // would leave half the folder tagged under different settings.
+    // Lock the run's inputs while it runs.
     m_models->setEnabled(!running);
     m_inputEdit->setEnabled(!running);
     m_inputBrowse->setEnabled(!running);
@@ -669,8 +657,7 @@ void AutoTagPage::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
 
-    // Models added or removed from outside the app show up here rather than
-    // only at the next launch.
+    // Pick up model folders changed outside the app.
     m_library->rescan();
     refreshModels();
 }

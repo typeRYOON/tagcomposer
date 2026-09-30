@@ -9,12 +9,7 @@ class QTimer;
 
 namespace tc {
 
-// The bottom info bar: a message that clears itself, a queue count, and a
-// progress bar. Both the count and the bar fade rather than popping.
-//
-// It is told things; it does not fetch them. The old one connected itself to
-// a global Logger singleton in its constructor, which made the bar impossible
-// to use without that singleton existing.
+// Bottom bar: a self-clearing message, the queue count and a progress bar.
 class StatusBar : public QWidget {
     Q_OBJECT
 
@@ -24,8 +19,7 @@ public:
 public slots:
     void showMessage(const QString& message);
 
-    // Ignored unless something is queued, so a preview frame arriving after
-    // the queue drained cannot fade the bar back in on its own.
+    // Ignored while nothing is queued, so a late preview frame can't show it.
     void setProgress(int step, int total);
     void clearProgress();
 

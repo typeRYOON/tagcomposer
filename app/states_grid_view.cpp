@@ -28,10 +28,7 @@ using namespace Qt::StringLiterals;
 namespace tc {
 namespace {
 
-// The same tile recipe the entry view uses: a rounded, letterboxed image with
-// a fade to black at the bottom and the title over it. The dark backdrop
-// matches the preview chrome, so an empty or portrait tile still looks
-// deliberate.
+// Same tile recipe as the entry view, letterboxed on a dark backdrop.
 QImage composeTile(const QImage& source, const QString& name, int side, qreal gradientStart,
                    int gradientAlpha, const QColor& titleColor)
 {
@@ -103,11 +100,9 @@ StatesGridView::StatesGridView(QWidget* parent) : QWidget(parent)
 
     m_pixmapCache.setMaxCost(200);
 
-    // Drives the scroll easing and the tile fades, and calls update() every
-    // tick unconditionally. That unconditional update is what makes the
-    // parent stack's opacity effect actually repaint across a re-show; Qt's
-    // own propagation through the effect chain is not reliable here. The
-    // timer only runs while the view is visible.
+    // Scroll easing and fades. Updates every tick on purpose: the parent's opacity
+    // effect doesn't reliably repaint after a re-show otherwise. Runs only while
+    // visible.
     m_animTimer = new QTimer(this);
     m_animTimer->setInterval(16);
     connect(m_animTimer, &QTimer::timeout, this, [this]() {
@@ -143,8 +138,7 @@ void StatesGridView::setFilter(const QString& filter)
     recomputeVisible();
     recomputeLayout();
 
-    // Every filter change replays the fade, which matches the entry view.
-    // The pixmap cache is kept: only the animation restarts.
+    // Replay the fade on filter changes; the cache is kept.
     if (m_states)
         for (int index : m_visible)
             m_fadeIn[(*m_states)[index].id] = 0.0;
@@ -245,7 +239,7 @@ int StatesGridView::indexAtPoint(QPoint point) const
     const int row = relativeY / stride;
     if (column >= m_columns) return -1;
 
-    // The gap to a tile's right and below it is not the tile.
+    // Gaps between tiles don't count.
     if (relativeX - column * stride >= m_tileSide) return -1;
     if (relativeY - row * stride >= m_tileSide) return -1;
 
@@ -310,7 +304,6 @@ void StatesGridView::paintEvent(QPaintEvent*)
 
     painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
 
-    // Only the rows at least partly in the viewport are painted.
     const int stride = std::max(1, m_tileSide + m_spacing);
     const int firstRow = std::max(0, (int(m_scrollActual) - kPadV) / stride);
     const int maxRow = int((m_visible.size() - 1) / std::max(1, m_columns));
@@ -423,7 +416,7 @@ void StatesGridView::mouseReleaseEvent(QMouseEvent* event)
     m_pressedVisible = -1;
     if (!wasPressed) return;
 
-    // It is a click only when the release lands on the tile that was pressed.
+    // A click needs press and release on the same tile.
     const QPoint point = event->position().toPoint();
     for (int visible = 0; visible < int(m_visible.size()); ++visible) {
         if (!tileRect(visible).contains(point)) continue;
@@ -482,7 +475,6 @@ void StatesGridView::dropEvent(QDropEvent* event)
 
 void StatesGridView::hideEvent(QHideEvent* event)
 {
-    // Nothing paints while hidden, so the per-tick cost is pure waste.
     m_animTimer->stop();
     QWidget::hideEvent(event);
 }
@@ -491,8 +483,7 @@ void StatesGridView::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
 
-    // Started unconditionally, with an immediate update, so the opacity
-    // effect has a fresh dirty marker on the first frame after a re-show.
+    // Immediate update so the opacity effect repaints after a re-show.
     m_animTimer->start();
     update();
 }

@@ -1,6 +1,5 @@
-// Construction, layout, floats and the run path. The tag list lives in
-// composer_page_tags.cpp, the sidebar in composer_page_sidebar.cpp, and
-// states, sessions and PNG drops in composer_page_states.cpp.
+// Construction, floats and the run path. See also composer_page_tags.cpp,
+// composer_page_sidebar.cpp and composer_page_states.cpp.
 
 #include <app/composer_page.h>
 #include <app/app_data.h>
@@ -60,11 +59,7 @@ using namespace Qt::StringLiterals;
 namespace tc {
 namespace {
 
-// True when the two documents differ in nothing but their weights.
-//
-// Compared by rewriting one field rather than field by field, so a field
-// added to ComposerDoc later is caught here instead of being silently
-// treated as "weights only".
+// True when only the weights differ. Compares whole docs so new fields count.
 bool weightsOnlyChange(const ComposerDoc& from, const ComposerDoc& to)
 {
     if (from.weights == to.weights) return false;
@@ -80,12 +75,7 @@ QString nameOne(const QString& verb, const QStringList& items)
     return u"%1 %2 tags"_s.arg(verb).arg(items.size());
 }
 
-// What changed between two documents, so undo and redo can say what they
-// actually did.
-//
-// Read off the documents rather than a label recorded at each edit site: the
-// store's edit kinds exist to drive coalescing, and "push" or "weight" does
-// not name the tag. Ordered most specific first, and the first hit wins.
+// Describes what changed, for undo/redo messages. First match wins.
 QString describeChange(const ComposerDoc& from, const ComposerDoc& to)
 {
     const QSet<QString> fromTags(from.activeTags.cbegin(), from.activeTags.cend());
@@ -127,8 +117,7 @@ QString describeChange(const ComposerDoc& from, const ComposerDoc& to)
     return u"changes"_s;
 }
 
-// `path/{yyyy-MM-dd}/...` resolved against today; returned as-is with no
-// braces in it.
+// Resolves one {date format} in a path against today.
 QString resolveDatePattern(const QString& pattern)
 {
     if (pattern.isEmpty()) return {};
@@ -198,11 +187,10 @@ ComposerPage::ComposerPage(ComposerStore& store, AppData& data, EntryStore& entr
     setObjectName(u"PromptComposerPage"_s);
     setAttribute(Qt::WA_StyledBackground, true);
 
-    // Focusable so Escape from the search bar can land here when the groups
-    // scroll is not showing.
+    // So Escape from the search bar has somewhere to land.
     setFocusPolicy(Qt::StrongFocus);
 
-    // A PNG carrying a baked state restores it; see dropEvent.
+    // Dropping a PNG with a baked state restores it.
     setAcceptDrops(true);
 
     QWidget* centre = buildCentre();
@@ -222,16 +210,12 @@ ComposerPage::ComposerPage(ComposerStore& store, AppData& data, EntryStore& entr
         if (m_redoBtn) m_redoBtn->setEnabled(redo);
     });
 
-    //connect(m_comfy, &ComfyClient::queued, this, [this](const QString& id, int number) {
-    //    emit statusMessage(u"Queued as #%1  (%2)"_s.arg(number).arg(id.left(8)));
-    //});
     connect(m_comfy, &ComfyClient::failed, this,
             [this](const QString& reason) { emit statusMessage(reason); });
     connect(m_comfy, &ComfyClient::acknowledged, this,
             [this](const QString& what) { emit statusMessage(what + u" sent"_s); });
 
-    // Only the parts that do not depend on the data dir; reloadAll() does the
-    // rest once AppData has actually read it.
+    // The rest waits for reloadAll().
     rebuildWorkflowList();
     rebuildStatesList();
     refresh();
@@ -246,8 +230,7 @@ void ComposerPage::reloadAll()
     rebuildWorkflowList();
     rebuildStatesList();
 
-    // Read only: StateManager::saveToDir makes the folder when a state is
-    // actually saved, so a fresh data dir stays untouched until then.
+    // Doesn't create the folder; saving does.
     m_statesDir = m_data->dataPath(paths::kStatesDir);
     m_stateManager = StateManager::loadFromDir(m_statesDir);
     if (m_statesGrid) m_statesGrid->setStates(&m_stateManager.states());
@@ -265,7 +248,7 @@ QWidget* ComposerPage::buildCentre()
     m_filterDebounce->setSingleShot(true);
     m_filterDebounce->setInterval(180);
     connect(m_filterDebounce, &QTimer::timeout, this, [this]() {
-        m_freezeNextRebuild = true; // routes the rebuild through the fade
+        m_freezeNextRebuild = true; // fade the rebuild
         applyTagFilter();
     });
 
@@ -275,8 +258,7 @@ QWidget* ComposerPage::buildCentre()
     });
 
     connect(m_searchBar, &TagSearchBar::tagAdded, this, [this](const QString& tag) {
-        // A paste can arrive comma-joined even though the search bar usually
-        // emits one signal per tag.
+        // A paste may arrive comma-joined.
         QStringList parts;
         if (tag.contains(u','))
             parts = tag.split(u',', Qt::SkipEmptyParts);
@@ -294,9 +276,7 @@ QWidget* ComposerPage::buildCentre()
         m_store->addTags(clean);
     });
 
-    // A tag that is already active arrives here instead. Re-entering one that
-    // is sitting deactivated is a request to bring it back; only a manual
-    // deactivation lives in the document, so a rule-driven skip is unaffected.
+    // Re-entering a deactivated tag reactivates it.
     connect(m_searchBar, &TagSearchBar::tagAlreadyPresent, this, [this](const QString& tag) {
         if (!m_store->doc().deactivated.contains(tag)) return;
         m_freezeNextRebuild = true;
@@ -313,8 +293,7 @@ QWidget* ComposerPage::buildCentre()
     });
 
     connect(m_searchBar, &TagSearchBar::escapePressed, this, [this]() {
-        // The groups scroll is preferred so the arrow keys keep working, but
-        // the page itself takes it when the empty hint is up.
+        // Prefer the list so arrow keys work; the page takes focus when it's hidden.
         QWidget* target = (m_groupsScroll && m_groupsScroll->isVisible())
             ? static_cast<QWidget*>(m_groupsScroll)
             : static_cast<QWidget*>(this);
@@ -352,8 +331,7 @@ QWidget* ComposerPage::buildCentre()
     connect(m_groupsScroll, &ComposerScrollArea::clearPendingRequested, m_comfy,
             &ComfyClient::clearPending);
 
-    // Tab from inside the list goes to the search bar rather than walking the
-    // tag rows one by one.
+    // Tab from the list jumps to the search bar.
     auto* tabToSearch = new QShortcut(QKeySequence(Qt::Key_Tab), m_groupsScroll);
     tabToSearch->setContext(Qt::WidgetWithChildrenShortcut);
     connect(tabToSearch, &QShortcut::activated, this,
@@ -381,7 +359,7 @@ QWidget* ComposerPage::buildCentre()
     m_mainStackFade->setDuration(180);
     m_mainStackFade->setEasingCurve(QEasingCurve::InOutSine);
 
-    // ---- The states grid, which takes over the centre when toggled on
+    // ---- States grid (replaces the tag list when toggled)
     m_statesGrid = new StatesGridView;
     m_statesGrid->setObjectName(u"StatesGrid"_s);
     m_statesGrid->setStates(&m_stateManager.states());
@@ -405,8 +383,7 @@ QWidget* ComposerPage::buildCentre()
                     && QFile::exists(state.previewImagePath))
                     QFile::remove(state.previewImagePath);
 
-                // Capped on the way in: the tile thumbnails are downscaled
-                // from this, and a 4k drop would sit on disk forever.
+                // Cap the stored preview size.
                 QImage image(sourcePath);
                 const QString destination = stateDir + u"/preview.png"_s;
                 if (image.isNull()) {
@@ -484,7 +461,6 @@ QWidget* ComposerPage::buildCentre()
     statesLayout->setContentsMargins(0, 0, 0, 0);
     statesLayout->setSpacing(0);
 
-    // Edge to edge, like the composer's own search bar.
     m_statesFilter = new QLineEdit;
     m_statesFilter->setObjectName(u"TagSearchInput"_s);
     m_statesFilter->setPlaceholderText(u"Filter states..."_s);
@@ -498,8 +474,7 @@ QWidget* ComposerPage::buildCentre()
     m_statesEmptyHint->hide();
     statesLayout->addWidget(m_statesEmptyHint, 1);
 
-    // Same 180ms cadence as the tag filter, so typing does not re-bake tiles
-    // on every keystroke.
+    // Debounced so typing doesn't re-bake tiles per keystroke.
     auto* statesFilterDebounce = new QTimer(this);
     statesFilterDebounce->setSingleShot(true);
     statesFilterDebounce->setInterval(180);
@@ -516,8 +491,7 @@ QWidget* ComposerPage::buildCentre()
     contentLayout->addWidget(m_searchBar);
     contentLayout->addWidget(m_mainStack, 1);
 
-    // The background sits in its own stacked layer so it paints behind the
-    // content without becoming its parent.
+    // Background in its own stacked layer, behind the content.
     auto* background = new QWidget;
     background->setObjectName(u"ComposerCenterBg"_s);
 
@@ -650,7 +624,7 @@ QWidget* ComposerPage::buildSidebar()
     QWidget* varsSection = stackSection(
         sectionHeader(u"VARIABLES"_s, {varsOpen, varsReload}, QMargins(12, 8, 8, 6)), varsScroll);
 
-    // Rules absorbs the leftover space; the other two hold their dragged size.
+    // Rules takes the leftover space.
     auto* split = new QSplitter(Qt::Vertical);
     split->setObjectName(u"ComposerSidebarSplit"_s);
     split->setHandleWidth(5);
@@ -664,8 +638,6 @@ QWidget* ComposerPage::buildSidebar()
     split->setSizes({400, 240, 200});
 
     // ---- PROFILES, pinned above the splitter
-    // It is a mode switch for everything below it, and two combo rows have no
-    // reason to be resizable.
     QPushButton* profilesOpen =
         sidebarButton(icons::openExternal(), u"Open profiles.fct in editor"_s);
     connect(profilesOpen, &QPushButton::clicked, this,
@@ -711,9 +683,8 @@ QWidget* ComposerPage::buildSidebar()
     QWidget* profilesSection =
         stackSection(sectionHeader(u"PROFILES"_s, {profilesOpen, profilesReload}), profilesBody);
 
-    // activated, not currentIndexChanged, so a rebuild does not re-enter.
-    // An item carries its profile name as data; the one-off "(from state)"
-    // row carries an empty name and is inert.
+    // activated, not currentIndexChanged, so rebuilds don't re-enter. The
+    // "(from state)" row has no name and does nothing.
     connect(m_groupProfileBox, &QComboBox::activated, this, [this](int index) {
         const QString name = m_groupProfileBox->itemData(index).toString();
         if (name.isEmpty() || name == m_profiles.activeGroup()) return;
@@ -731,8 +702,7 @@ QWidget* ComposerPage::buildSidebar()
     sidebar->setObjectName(u"ComposerSidebar"_s);
     sidebar->setFixedWidth(330);
 
-    // ClickFocus so a click on blank space lands here; the event filter then
-    // redirects Tab to the search bar.
+    // ClickFocus so blank-space clicks land here; eventFilter sends Tab onward.
     sidebar->setFocusPolicy(Qt::ClickFocus);
     sidebar->installEventFilter(this);
 
@@ -767,7 +737,7 @@ void ComposerPage::buildFloats()
         report(m_data->saveRules());
         rebuildRulesSidebar();
 
-        m_store->clear(); // tags, pushes, weights and the LoRA stack in one edit
+        m_store->clear(); // one undoable edit
         emit pushesChanged();
     });
 
@@ -871,8 +841,7 @@ void ComposerPage::buildFloats()
     barLayout->addWidget(m_interruptBtn);
     m_controlBar->adjustSize();
 
-    // Starts at zero so the first preview fades in; opening the popout drives
-    // it the other way.
+    // Starts at zero so the first preview fades in.
     m_previewInsetFx = new QGraphicsOpacityEffect(m_previewLabel);
     m_previewInsetFx->setOpacity(0.0);
     m_previewLabel->setGraphicsEffect(m_previewInsetFx);
@@ -883,8 +852,7 @@ void ComposerPage::buildFloats()
 
     connect(m_previewLabel, &PreviewClickLabel::clicked, this, [this]() {
         if (!m_popout) {
-            // A null parent makes it a real top level, which window managers
-            // and tiling tools treat properly.
+            // No parent: a real top-level window.
             m_popout = new PreviewPopoutWindow(nullptr);
             m_popout->setAttribute(Qt::WA_DeleteOnClose);
             m_popout->installEventFilter(this);
@@ -892,8 +860,7 @@ void ComposerPage::buildFloats()
             connect(m_popout, &QObject::destroyed, this, [this]() {
                 m_popout = nullptr;
                 m_previewLabel->setAttribute(Qt::WA_TransparentForMouseEvents, false);
-                // Nothing ever showed means nothing to fade back to;
-                // setPreviewImage reveals the inset when content arrives.
+                // Only fade back if something was showing.
                 if (m_previewLabel->isVisible()) fadePreviewInset(1.0);
             });
 
@@ -909,8 +876,7 @@ void ComposerPage::buildFloats()
                     &ComfyClient::clearPending);
         }
 
-        // Re-pushed on every open: a {yyyy-MM-dd} pattern goes stale once the
-        // app has been left running past midnight.
+        // Re-resolved per open, in case the date changed.
         if (!m_tempFolder.isEmpty()) m_popout->setTempFolder(m_tempFolder);
         if (!m_outputFolderPattern.isEmpty())
             m_popout->setOutputFolder(resolveDatePattern(m_outputFolderPattern));
@@ -920,10 +886,9 @@ void ComposerPage::buildFloats()
         m_popout->raise();
         m_popout->activateWindow();
 
-        fadePreviewInset(0.0); // the popout has taken over
+        fadePreviewInset(0.0);
 
-        // Invisible but still hit-testing, so clicks and the wheel have to be
-        // let through to the weight spins underneath.
+        // Let clicks through the invisible inset to the rows underneath.
         m_previewLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     });
 
@@ -949,8 +914,7 @@ void ComposerPage::applySettings()
     }
     if (m_searchBar) m_searchBar->setIndex(&m_data->danbooru);
 
-    // settings.json is only the fallback: an active format profile or a
-    // state's one-off stamp outranks it.
+    // settings.json formats apply only without a profile or state stamp.
     if (m_oneOffFormatLabel.isEmpty() && !m_profiles.formatProfile(m_profiles.activeFormat()))
         m_facetFormats = settings.facetFormats;
 }
@@ -961,10 +925,8 @@ void ComposerPage::reloadProfiles()
     ProfileIndex fresh = ProfileIndex::loadFromFile(path);
 
     if (fresh.isEmpty()) {
-        // First run has no file. Seed one from the live groups and formats so
-        // behaviour is unchanged and the file is there to edit.
-        // Seeding from an empty group list would write a useless Default and
-        // overwrite nothing useful, so it waits for real groups.
+        // First run: seed profiles.fct from the live groups and formats, once groups
+        // exist.
         if (m_profiles.isEmpty() && !m_data->groups.all().isEmpty()) {
             m_profiles = ProfileIndex::withDefaults(m_data->groups, m_data->settings.facetFormats);
             m_profiles.saveToFile(path);
@@ -978,8 +940,7 @@ void ComposerPage::reloadProfiles()
             return;
         }
     } else {
-        // The live selection wins when the reloaded file still has it;
-        // otherwise the file's own active line decides.
+        // Keep the live selection if the file still has it.
         const QString group = m_profiles.activeGroup();
         const QString format = m_profiles.activeFormat();
         m_profiles = std::move(fresh);
@@ -1001,7 +962,6 @@ void ComposerPage::applyActiveProfiles(bool persist, bool refreshNow)
     m_oneOffGroupLabel.clear();
     m_oneOffFormatLabel.clear();
 
-    // With no format profile active, settings.json stays the source.
     const bool hasFormat = m_profiles.formatProfile(m_profiles.activeFormat()) != nullptr;
     m_facetFormats = hasFormat ? m_profiles.activeFormats() : m_data->settings.facetFormats;
     m_groups = applyGroupOrder(m_data->groups, m_profiles.activeOrder());
@@ -1018,8 +978,7 @@ void ComposerPage::applyActiveProfiles(bool persist, bool refreshNow)
         m_profiles.activeGroup().isEmpty() ? u"(none)"_s : m_profiles.activeGroup(),
         hasFormat ? m_profiles.activeFormat() : u"(settings)"_s);
 
-    // Reordering can make a narrow group unreachable, which is worth saying
-    // out loud rather than leaving as a silent empty section.
+    // Warn when reordering makes a group unreachable.
     const QList<GroupShadow> shadows = shadowedGroups(m_groups);
     if (!shadows.isEmpty()) {
         QStringList named;
@@ -1054,8 +1013,7 @@ void ComposerPage::undo()
         return;
     }
 
-    // Described from the restored state towards the one being left, so the
-    // line names what the undone action had done rather than its inverse.
+    // Describe the undone action, not its inverse.
     const ComposerDoc before = m_store->doc();
     m_store->undo();
     emit statusMessage(u"Undo: %1"_s.arg(describeChange(m_store->doc(), before)));
@@ -1077,11 +1035,8 @@ void ComposerPage::refresh()
 {
     const ComposerDoc& doc = m_store->doc();
 
-    // A weight typed or spun into a row cannot move a tag between groups or
-    // change what the rules make of it, so the cached result is patched and
-    // the list left alone. The old page did the same, and for a harder reason
-    // than economy: a rebuild destroys the spin box being used, which drops
-    // the drag and takes the focus with it.
+    // A weight change from a row's spin box patches the cached result instead of
+    // rebuilding, which would destroy the spin box mid-drag.
     if (m_weightFromSpin && weightsOnlyChange(m_lastDoc, doc)) {
         for (PipelineTag& tag : m_lastResult)
             tag.weight = doc.weights.value(documentKey(tag), 1.0f);
@@ -1089,8 +1044,7 @@ void ComposerPage::refresh()
         return;
     }
 
-    // Evaluated now, because callers read m_lastResult straight after a
-    // change; only the widgets wait.
+    // Evaluate now; callers read m_lastResult right away. Only widgets wait.
     m_lastResult = evaluate(doc, pipelineContext());
 
     m_activeTagSet.clear();
@@ -1101,14 +1055,8 @@ void ComposerPage::refresh()
     queueRebuild();
 }
 
-// Rebuilding tears down every row, and this is reached from inside a row's
-// own handler: the remove button's click, a context menu on a row, a tag
-// renamed in place. Deleting that widget while its signal is still unwinding
-// is what makes add and remove glitch. Queued, the rebuild happens once the
-// stack is clear.
-//
-// The pending flag also collapses a burst: one action that makes several
-// edits gets one rebuild, not one per edit.
+// Rebuilds destroy every row, and this is often reached from a row's own
+// handler, so it runs on the next event-loop turn. Bursts collapse into one.
 void ComposerPage::queueRebuild()
 {
     if (m_rebuildPending) return;
@@ -1131,8 +1079,7 @@ QString ComposerPage::currentPromptString(bool forJson) const
 
 QStringList ComposerPage::currentActiveTags() const
 {
-    // A custom tag carries its facets in the document on purpose, so the
-    // facet editor should not list it as needing triage.
+    // Custom-faceted tags don't need triage.
     QStringList out;
     const ComposerDoc& doc = m_store->doc();
     for (const QString& tag : doc.activeTags)
@@ -1228,17 +1175,13 @@ void ComposerPage::run()
     const RunRequest request = renderRun(m_store->doc(), *workflow, templateJson, context,
                                          QRandomGenerator::global());
 
-    // The snapshot rides along as extra_pnginfo, so a save node with
-    // embed_workflow writes it into the PNG as a text chunk. Dropping that
-    // image back on this page restores the state that produced it.
+    // Baked into the PNG via extra_pnginfo; dropping the image here restores it.
     const SavedState snapshot = currentSnapshot();
 
     QJsonObject bakedState;
     bakedState[u"tagcomposer_state"_s] = snapshot.toJson();
     m_comfy->queue(request.json, bakedState);
 
-    // Logged after it actually went out, so the history only ever lists real
-    // pushes rather than attempts.
     PromptRecord record;
     record.queuedAt = QDateTime::currentDateTime();
     record.workflowName = workflow->name;
@@ -1248,8 +1191,7 @@ void ComposerPage::run()
     record.lorasUsed = m_store->doc().loraStack;
     m_history->append(std::move(record));
 
-    // The advanced seed is stored only now, after the job has actually gone
-    // out, so a blocked or failed run never burns one.
+    // Store advanced seeds only after queueing, so a blocked run doesn't burn one.
     for (const SeedAdvance& advance : request.nextSeeds) {
         for (WorkflowVar& var : m_data->workflows.workflows[m_data->workflows.selectedIndex].vars) {
             if (var.placeholder != advance.placeholder) continue;
@@ -1269,14 +1211,13 @@ void ComposerPage::setPreviewImage(const QImage& image)
 
     m_currentPixmap = QPixmap::fromImage(image);
 
-    // A hardcoded size: size() is 0x0 before the first layout pass.
+    // Fixed size; size() is 0x0 before the first layout.
     m_previewLabel->setPixmap(
         m_currentPixmap.scaled(QSize(200, 200), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
     const bool popoutOpen = m_popout && m_popout->isVisible();
 
-    // The inset only shows in composer view. The pixmap is still kept, so
-    // toggling back out of the states grid shows the latest image.
+    // Only in composer view; the pixmap is kept for when it returns.
     if (!popoutOpen && !m_statesViewActive) {
         m_previewLabel->show();
         m_previewLabel->raise();
@@ -1343,14 +1284,11 @@ void ComposerPage::repositionFloats()
     m_controlBar->move(right - m_controlBar->width(), bottom - m_controlBar->height());
     bottom -= m_controlBar->height() + gap;
 
-    // Positioned even while hidden: skipping it would leave the label at a
-    // stale pre-resize spot the next time it is revealed.
+    // Positioned even while hidden so it reappears in the right place.
     m_previewLabel->move(right - m_previewLabel->width(),
                          bottom - m_previewLabel->height());
 
-    // The floats cover the bottom right of the list, which is exactly where
-    // each row's weight box and remove button sit. The list is padded by as
-    // much as they cover so the last rows can still be scrolled clear.
+    // Pad the list so its last rows can scroll clear of the floats.
     if (!m_groupsLayout || !m_groupsScroll) return;
 
     const QWidget* topFloat = nullptr;
@@ -1382,7 +1320,7 @@ void ComposerPage::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
     repositionFloats();
-    // The workflow editor may have reordered things while this was hidden.
+    // The workflow editor may have changed the list.
     rebuildWorkflowList();
 }
 
@@ -1418,9 +1356,7 @@ TagPreviewPopup* ComposerPage::tagPreviewPopup()
 
 bool ComposerPage::eventFilter(QObject* watched, QEvent* event)
 {
-    // Tab from a blank part of the sidebar goes to the search bar, or to the
-    // states filter when that view is open. Installed on the sidebar plus the
-    // wheel-focus children that grab the click before it gets there.
+    // Tab from the sidebar goes to the search bar (or the states filter).
     if (event->type() == QEvent::KeyPress && m_sidebar) {
         auto* key = static_cast<QKeyEvent*>(event);
         if (key->key() == Qt::Key_Tab && key->modifiers() == Qt::NoModifier) {
@@ -1455,7 +1391,7 @@ bool ComposerPage::eventFilter(QObject* watched, QEvent* event)
         const bool haveRow =
             m_selectedRowIndex >= 0 && m_selectedRowIndex < m_tagRowWidgets.size();
 
-        // Delete on the selected row removes it, the same as its own button.
+        // Delete removes the selected row.
         if (modifiers == Qt::NoModifier && key->key() == Qt::Key_Delete && haveRow) {
             QLineEdit* edit = m_tagRowWidgets[m_selectedRowIndex]->findChild<QLineEdit*>();
             const QString activeKey = edit ? edit->property("_tag").toString() : QString();
@@ -1465,10 +1401,8 @@ bool ComposerPage::eventFilter(QObject* watched, QEvent* event)
             }
         }
 
-        // Type to edit: a printable character or backspace on the focused
-        // list moves focus into the selected row's edit and replays the key.
-        // Skipped with modifiers held, so Ctrl+C and the run shortcuts still
-        // reach their handlers.
+        // Type to edit: printable keys and Backspace go to the selected row's edit.
+        // Not with modifiers, so shortcuts still work.
         const bool printable = !key->text().isEmpty() && key->text()[0].isPrint();
         const bool editing = key->key() == Qt::Key_Backspace;
         if (modifiers == Qt::NoModifier && (printable || editing) && haveRow) {
@@ -1491,8 +1425,7 @@ bool ComposerPage::eventFilter(QObject* watched, QEvent* event)
             m_previewLabel->hide();
             repositionFloats();
         } else if (event->type() == QEvent::Hide) {
-            // The states view hides every float, so the inset must not come
-            // back on top of the tile grid.
+            // Not over the states grid.
             if (!m_currentPixmap.isNull() && !m_statesViewActive) {
                 m_previewLabel->show();
                 repositionFloats();

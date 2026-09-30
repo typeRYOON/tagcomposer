@@ -7,14 +7,9 @@
 
 namespace tc {
 
-// One physical line. A comment or blank line is trivia: only raw is set.
-// A "key = value" line puts the value in values[0], unsplit; anything else is
-// a comma list. Wrapped lists stay one FctLine per source line, so a schema
-// that wants the whole list concatenates across them.
-//
-// raw is the verbatim source. The writer emits it as-is, which is what keeps
-// an untouched file byte-identical. Clear raw after editing key or values and
-// the writer regenerates that line instead.
+// One physical line. Comments and blanks are trivia (raw only). "key = value"
+// keeps the value unsplit in values[0]; other lines are comma lists. The writer
+// emits raw verbatim; clear it after an edit to regenerate the line.
 struct FctLine {
     QString key;
     QStringList values;
@@ -22,8 +17,7 @@ struct FctLine {
     bool trivia = false;
 };
 
-// kind is empty for the implicit run of lines before the first @block.
-// A block owns every line up to the next @block, trailing comments included.
+// kind is empty for lines before the first @block.
 struct FctBlock {
     QString kind;
     QString name;

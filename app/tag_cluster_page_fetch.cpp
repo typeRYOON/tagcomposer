@@ -1,5 +1,4 @@
-// The fetch pipeline and the scoring pass. Split from the construction half
-// in tag_cluster_page.cpp, which is all widgets.
+// Fetching and scoring; the widgets are in tag_cluster_page.cpp.
 #include <app/tag_cluster_page.h>
 #include <app/icons.h>
 #include <app/tag_preview_fetcher.h>
@@ -43,8 +42,7 @@ constexpr double kDanbooruTotalPosts = 9000000.0;
 constexpr qint64 kGlobalCountFloor = 20;
 constexpr int kPostsPerPage = 200;
 
-// Danbooru asks for a gap between requests. Anything faster gets throttled
-// anyway, so waiting is not a cost.
+// Pause between pages; Danbooru throttles faster clients.
 constexpr int kInterPageDelayMs = 500;
 
 QString promptForm(const QString& tag);
@@ -62,8 +60,7 @@ void TagClusterPage::startFetch()
     const QString raw = m_tagInput->text().trimmed();
     if (raw.isEmpty()) return;
 
-    // A tag pasted out of a prompt carries the composer's backslash escapes
-    // and spaces; Danbooru wants neither.
+    // Strip prompt escapes and use underscores for Danbooru.
     QString target = raw;
     target.remove(u'\\');
     target.replace(u' ', u'_');
@@ -93,7 +90,6 @@ void TagClusterPage::startFetch()
     setStatus(u"Fetching posts..."_s);
     m_emptyLabel->setText(u"Fetching..."_s);
 
-    // Independent of the page pipeline, so it is not worth blocking on.
     clearPreview();
     m_previewForTag = m_targetTag;
     m_preview->fetch(m_targetTag);
@@ -105,16 +101,14 @@ void TagClusterPage::cancelFetch()
 {
     if (!m_fetching) return;
 
-    // Any reply in flight, and any pending inter-page timer, captured the old
-    // generation and will drop out on their own.
+    // In-flight replies and timers see the new generation and bail.
     ++m_generation;
     if (m_pageReply) {
         m_pageReply->abort();
         m_pageReply = nullptr;
     }
 
-    // Score whatever was collected: a partial sample is still a sample, and
-    // the thresholds can be tuned against it without re-fetching.
+    // Score the partial sample.
     finishFetch();
 
     if (m_usedPosts > 0) {
@@ -173,8 +167,7 @@ void TagClusterPage::fetchNextPage(int generation)
 
         setProgress(std::min(m_currentPage, m_pageTarget), m_pageTarget);
 
-        // An empty page means the character has fewer posts than asked for,
-        // which is a normal finish rather than an error.
+        // An empty page just means fewer posts than requested.
         if (posts.isEmpty() || m_currentPage >= m_pageTarget) {
             finishFetch();
             return;
@@ -190,16 +183,14 @@ void TagClusterPage::processPage(const QJsonArray& posts)
         const QJsonObject post = value.toObject();
         ++m_fetchedPosts;
 
-        // An alt-form post lists the base character and every variant, and
-        // their outfits pull the cluster off-model.
+        // Multi-character posts pull in other outfits.
         if (m_fetchedSingleChar) {
             const QStringList characters =
                 post[u"tag_string_character"_s].toString().split(u' ', Qt::SkipEmptyParts);
             if (characters.size() != 1) continue;
         }
 
-        // One increment per post, not per occurrence: this is a document
-        // frequency, and a post lists each general tag once.
+        // Document frequency: one count per post.
         for (const QString& tag :
              post[u"tag_string_general"_s].toString().split(u' ', Qt::SkipEmptyParts))
             ++m_tagCounts[tag];
@@ -217,8 +208,7 @@ void TagClusterPage::finishFetch()
     setFetchRunning(false);
     m_dataReady = true;
 
-    // Once per fetch, not per recompute: the sample does not change under the
-    // sliders.
+    // The most common copyright, once per fetch.
     m_copyright = u"No Copyright"_s;
     int best = 0;
     for (auto it = m_copyrightCounts.cbegin(); it != m_copyrightCounts.cend(); ++it) {
@@ -261,17 +251,14 @@ void TagClusterPage::recompute()
     const ClusterFilter filter = filterFromEditor();
     const double minPmi = m_minPmi->value() / 100.0;
 
-    // The slider is a share of this fetch's posts, resolved here to a count.
-    // Zero means no floor: every tag in the map has a count of at least one.
+    // The slider is a share of the fetched posts.
     const int minCount = qRound(m_minPct->value() / 1000.0 * m_usedPosts);
 
     struct Scored {
         QString tag;
         double pmi;
 
-        // PMI scaled by sqrt(frequency), so a tag that is both common and
-        // distinctive outranks one that is distinctive only because it is
-        // rare. Used to break ties, not to order the list.
+        // PMI * sqrt(frequency), for tie-breaks.
         double weight;
     };
     QList<Scored> scored;
@@ -281,17 +268,14 @@ void TagClusterPage::recompute()
         const int count = it.value();
         if (count < minCount) continue;
 
-        // Both indexes key on the space form; the wire form has underscores.
-        // A tag with no facets still reaches keep(), which is what makes
-        // blacklist keep it and whitelist drop it.
+        // The indexes key on the space form.
         const QString lookup = normalizeTag(tag);
         if (!filter.keep(m_facets->facetsFor(lookup))) continue;
 
         const qint64 globalCount = m_danbooru->tagCount(lookup);
         if (globalCount < kGlobalCountFloor) continue;
 
-        // Document-level PMI: how much likelier this tag is in the character's
-        // posts than in the corpus at large.
+        // Document-level PMI against the whole corpus.
         const double pInCluster = double(count) / double(m_usedPosts);
         const double pInCorpus = double(globalCount) / kDanbooruTotalPosts;
         const double pmi = std::log(pInCluster / pInCorpus);
@@ -300,8 +284,7 @@ void TagClusterPage::recompute()
         scored.append({tag, pmi, pmi * std::sqrt(pInCluster)});
     }
 
-    // Ordered by raw PMI so the list matches the score column the slider acts
-    // on; the weight only settles ties.
+    // By raw PMI, matching the slider and the score column.
     std::sort(scored.begin(), scored.end(), [](const Scored& a, const Scored& b) {
         if (a.pmi != b.pmi) return a.pmi > b.pmi;
         return a.weight > b.weight;
@@ -355,9 +338,7 @@ void TagClusterPage::markStale()
 
 void TagClusterPage::clearResultRows()
 {
-    // Deleted outright rather than deleteLater: a fast recompute would
-    // otherwise stack the old rows behind the new ones until the event loop
-    // caught up, and the layout would reflow around both.
+    // delete, not deleteLater, so old rows don't linger during fast recomputes.
     while (m_resultsLayout->count() > 1) {
         QLayoutItem* item = m_resultsLayout->takeAt(0);
         delete item->widget();
@@ -382,22 +363,19 @@ QWidget* TagClusterPage::makeResultRow(const QString& tag, double pmi, qsizetype
     icons::applyStates(remove, icons::close, 9, QColor(0x3a, 0x3a, 0x3a),
                        QColor(0xcc, 0x33, 0x33));
 
-    // Held in the wire form for the API and the lookups, shown in the space
-    // form like everywhere else in the app.
+    // Stored in Danbooru form, shown in space form.
     const QString display = normalizeTag(tag);
 
     auto* label = new QLabel(display, row);
     label->setObjectName(u"DatasetResultTag"_s);
 
-    // The same badge the composer and the entry panel use for a tag with no
-    // facets defined.
+    // Undefined-facets badge.
     auto* badge = new QLabel(u"?"_s, row);
     badge->setObjectName(u"TagNoFacetBadge"_s);
     badge->setAttribute(Qt::WA_StyledBackground, true);
     badge->setVisible(!m_facets->isDefined(display));
 
-    // The raw PMI, not the tie-break weight: the slider is in these units, so
-    // the column has to be what it compares against.
+    // Raw PMI, in the slider's units.
     auto* score = new QLabel(QString::number(pmi, 'f', 2), row);
     score->setObjectName(u"DatasetResultScore"_s);
     score->setAlignment(Qt::AlignRight | Qt::AlignVCenter);

@@ -4,9 +4,7 @@
 
 namespace tc {
 
-// The entry's image slot: shows the current image, accepts a dropped one, and
-// opens the file in the system viewer on click. Drawn rather than styled so
-// the rounded clip and the empty-state dashes match the tiles.
+// The entry image slot: shows the image, accepts drops, opens it on click.
 class ImageDropper : public QLabel {
     Q_OBJECT
 

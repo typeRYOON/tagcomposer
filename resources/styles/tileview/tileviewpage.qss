@@ -1,4 +1,4 @@
-/* ── TileViewPage ─────────────────────────────────────────────────────────── */
+/* TileViewPage */
 
 /* #SearchBar base in app.qss. */
 #SearchBar:focus {

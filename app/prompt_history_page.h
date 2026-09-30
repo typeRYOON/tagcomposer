@@ -20,10 +20,8 @@ class ComposerPage;
 class EntryStore;
 class PromptHistory;
 
-// The session log of every prompt pushed to ComfyUI. The list on the left is
-// newest first; the pane on the right shows the selected record's snapshot
-// with three actions: re-queue it verbatim (same seed), save the snapshot as
-// a composer state, or restore it into the composer and switch pages.
+// The session's queued prompts, newest first, with re-queue (same seed), save
+// as state, and restore to the composer.
 class PromptHistoryPage : public QWidget {
     Q_OBJECT
 
@@ -35,8 +33,7 @@ signals:
     void statusMessage(const QString& message);
     void switchToComposerRequested();
 
-    // A click on an active-entry tile: the shell opens the entry viewer and
-    // selects that entry.
+    // From an entry tile click.
     void openEntryRequested(const QString& uuid);
 
 protected:
@@ -52,19 +49,15 @@ private:
     void doSaveState();
     void doRestore();
 
-    // The index into the history that the selected row refers to. The row
-    // carries it in UserRole, so a prepend or a clear cannot desync it.
+    // The history index stored in the selected row's UserRole.
     int selectedRecordIndex() const;
 
-    // Tiles decode on a worker pool: a record with many entries used to block
-    // the UI while every image was read synchronously. Keyed "uuid|fileName",
-    // so the same image shared across records decodes once.
+    // Thumbnails decode on a worker pool, cached by "uuid|fileName".
     QWidget* buildEntryTile(const QString& uuid, const QString& imageFile, qsizetype tagCount,
                             QWidget* parent);
     void requestThumb(const QString& key, const QString& absolutePath);
 
-    // The tile grid reflows on every viewport resize, so a splitter drag
-    // refills the row rather than leaving a ragged edge.
+    // Reflowed on viewport resize.
     int computeTileColumns() const;
     void layoutTileGrid(int columns);
 

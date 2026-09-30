@@ -4,11 +4,8 @@
 
 namespace tc {
 
-// 64-bit perceptual hash: grayscale, 32x32, DCT, keep the top-left 8x8, then
-// threshold against its median. Two visually similar images differ in only a
-// few bits, which is what makes near-duplicate detection cheap.
-//
-// Returns 0 when the image cannot be decoded. A real hash is never 0.
+// 64-bit DCT perceptual hash: 32x32 gray, top-left 8x8, median threshold.
+// Returns 0 if the image can't be decoded.
 uint64_t phashFile(const QString& imagePath);
 
 // Bits that differ. Near-duplicates usually land within 3 to 6.

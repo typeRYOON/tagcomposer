@@ -42,8 +42,7 @@ WindowChrome::WindowChrome(QWidget* host, Options options)
     layout->addWidget(m_titleBar);
     layout->addWidget(m_body, 1);
 
-    // Hit ring over the frame. The inner area is masked out so clicks there
-    // fall through to the content.
+    // Edge hit ring; the masked-out middle passes clicks through.
     m_resizeOverlay = new QWidget(m_frame);
     m_resizeOverlay->setObjectName(u"ResizeOverlay"_s);
     m_resizeOverlay->setAttribute(Qt::WA_NoSystemBackground);
@@ -57,7 +56,7 @@ WindowChrome::WindowChrome(QWidget* host, Options options)
     connect(m_dragGuard, &QTimer::timeout, this, [this]() {
         if (!m_dragEdges) return;
         if (QApplication::mouseButtons() & Qt::LeftButton) return;
-        // Revert rather than commit: the user was not dragging when this fired.
+        // The release was missed; revert.
         endResizeDrag(m_dragStartGlobal);
     });
 }
@@ -156,8 +155,7 @@ bool WindowChrome::eventFilter(QObject* obj, QEvent* event)
 
 void WindowChrome::beginResizeDrag(Qt::Edges edges, const QPoint& globalStart)
 {
-    // A second press while a drag is live would stack another override cursor
-    // and reset the start geometry. The guard timer cleans up a stale drag.
+    // Ignore a second press mid-drag; the guard timer ends stale drags.
     if (m_dragEdges) return;
 
     m_dragEdges = edges;
@@ -169,8 +167,7 @@ void WindowChrome::beginResizeDrag(Qt::Edges edges, const QPoint& globalStart)
     m_resizeOutline->show();
     m_resizeOutline->raise();
 
-    // App-wide, because the cursor leaves the overlay as soon as the user
-    // pulls past the old edge.
+    // App-wide: the cursor leaves the overlay mid-drag.
     QApplication::setOverrideCursor(QCursor(cursorForEdges(edges)));
     if (m_options.modalGrab) m_resizeOverlay->grabMouse();
 

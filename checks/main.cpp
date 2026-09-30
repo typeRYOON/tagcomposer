@@ -261,9 +261,7 @@ bool checkPipeline(QTextStream& out)
         {u"blue eyes"_s, tc::TagResult::Include, 0.8f},
         {u"undefined tag"_s, tc::TagResult::NoFacets, 1.0f},
         {u"muted"_s, tc::TagResult::Deactivated, 1.0f},
-        // Deactivated, so it keeps its raw text instead of expanding to
-        // "blue muted": the page styles a row carrying a sourceTag as a
-        // variable, which is bright, and a muted row has to read as muted.
+        // Deactivated rows keep their raw text (no sourceTag).
         {u"$color$ muted"_s, tc::TagResult::Deactivated, 1.0f},
     };
 
@@ -316,8 +314,7 @@ bool entryHasTerm(const tc::Entry& e, const tc::TagTerm& term)
     return false;
 }
 
-// Independent reference for the tag clauses only, so the inverted index has
-// something to be wrong against.
+// Brute-force reference for the tag clauses, to check the inverted index.
 QStringList bruteForceTagSearch(const QList<tc::Entry>& entries, const tc::EntryQuery& query)
 {
     QList<const tc::Entry*> matched;
@@ -384,8 +381,7 @@ bool checkSearch(QTextStream& out)
         return store.add(std::move(e));
     };
 
-    // Distinct creation times: the default sort is newest first, and a tie
-    // would leave the expected order depending on insertion order instead.
+    // Distinct creation times so the default sort is deterministic.
     const QString a =
         makeEntry(u"Alpha"_s, {u"blue eyes"_s, u"blonde hair"_s, u"hat"_s}, 1, true, u"note"_s, 100);
     const QString b =
@@ -684,7 +680,7 @@ bool checkSettings(QTextStream& out, const QDir& dir)
         << "    reparse         " << (structural ? "identical" : "DIFFERS") << "\n";
     if (!same) reportDiff(out, before, after);
 
-    // A missing file must read as defaults rather than fail: first run has none.
+    // A missing file reads as defaults.
     const std::expected<tc::Settings, tc::LoadError> absent =
         tc::readSettings(QDir::temp().filePath(u"tc_no_such_settings.json"_s));
     const bool defaulted = absent && *absent == tc::Settings{};
@@ -829,8 +825,8 @@ bool checkStore(QTextStream& out)
     store.undo();
     step(u"undo clear"_s, u"tags[a,b,y,z] off[] w[b=1.60] push[e2/1.png]"_s);
 
-    // A LoRA rides with its entry's pushes: it arrives with the first and
-    // leaves only with the last, and it shares the push's undo step.
+    // A LoRA arrives with an entry's first push, leaves with its last, and undoes
+    // with the push.
     tc::ComposerStore lora;
     const tc::Lora l1{u"primary"_s, u"a.safetensors"_s, u"sha-a"_s, 1.0, 1.0};
     auto loraCase = [&](const QString& name, qsizetype want) {
@@ -1034,8 +1030,7 @@ bool checkVariables(QTextStream& out, const QDir& dir)
     out << "    bytes           " << (same ? "identical" : "DIFFER") << "\n";
     if (!same) reportDiff(out, before, after);
 
-    // The sidebar writes an edited file, not the one it read, so check that an
-    // add and a remove survive the trip.
+    // An edited file must survive a write and re-read.
     bool editOk = false;
     {
         tc::VariablesFile edited = *vf;

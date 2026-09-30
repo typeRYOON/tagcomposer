@@ -3,10 +3,7 @@
 
 namespace tc {
 
-// The one list. The stack's order, the navbar's buttons and the window title
-// all read from kPages, so they cannot drift apart. The old tree kept three
-// separate lists plus a fourth switch for titles, behind a comment warning
-// that adding a page meant editing all of them.
+// The page stack, navbar and window title all read kPages.
 enum class Page {
     Home,
     EntryViewer,

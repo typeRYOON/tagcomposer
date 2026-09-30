@@ -7,8 +7,7 @@
 namespace tc {
 namespace {
 
-// Byte-for-byte the reference phash.cc recipe, so hashes stay comparable with
-// the ones the old tool wrote.
+// Matches the reference phash.cc recipe, so stored hashes stay comparable.
 uint64_t phashOf(const cv::Mat& input)
 {
     if (input.empty()) return 0;
@@ -33,9 +32,7 @@ uint64_t phashOf(const cv::Mat& input)
     cv::dct(resized, transformed);
     const cv::Mat low = transformed(cv::Rect(0, 0, 8, 8)).clone();
 
-    // [0,0] is the DC term and dwarfs the rest, so it is left out of the
-    // median -- including it would push the threshold past almost every
-    // coefficient and flatten the hash.
+    // Leave the DC term out of the median; it dwarfs the rest.
     std::vector<float> values;
     values.reserve(63);
     for (int i = 0; i < 8; ++i)
@@ -58,8 +55,7 @@ uint64_t phashOf(const cv::Mat& input)
 
 uint64_t phashFile(const QString& imagePath)
 {
-    // Read and decode by hand rather than cv::imread: imread takes a local
-    // 8-bit path, which loses any non-ASCII directory on Windows.
+    // Not cv::imread: it takes an 8-bit path and fails on non-ASCII paths on Windows.
     QFile file(imagePath);
     if (!file.open(QIODevice::ReadOnly)) return 0;
 

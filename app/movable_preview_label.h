@@ -7,14 +7,8 @@
 
 namespace tc {
 
-// The preview tile in the popout window: shows an image, and can be moved,
-// resized and dragged out of.
-//
-// Left click, on the image or on the corner grip without dragging, opens the
-// newest image in the output folder, falling back to the shown file. Left
-// press and drag starts a copy-style URL drag of the shown file, so it can be
-// dropped onto an image slot. Right drag moves the label inside its bounds,
-// and a left drag from the corner grip resizes it.
+// The popout's preview tile. Click opens the newest output image, left drag
+// drags the file out, right drag moves it, the corner grip resizes.
 class MovablePreviewLabel : public QLabel {
     Q_OBJECT
 
@@ -24,23 +18,18 @@ public:
     void setFilePath(const QString& path);
     void setSourcePixmap(const QPixmap& pixmap);
 
-    // Where finished images land. A click opens the newest image under it,
-    // recursively, rather than the frame currently on screen.
+    // A click opens the newest image under this folder (recursive).
     void setOutputFolder(const QString& path);
 
-    // Where the shown preview frames come from. Only the folder button's
-    // fallback, for when the output folder is unset or does not exist yet.
+    // Folder-button fallback when the output folder is missing.
     void setTempFolder(const QString& path);
 
-    // The bounds, in parent coordinates, that a move or resize is held
-    // inside. Defaults to the parent's rect.
+    // Move/resize limits in parent coordinates; defaults to the parent rect.
     void setMovableBounds(const QRect& bounds);
     bool isUserPlaced() const;
     void clampToBounds();
 
-    // Places the label at the bottom left of its bounds, sized to the source
-    // pixmap's aspect ratio, or square when there is none. Does nothing once
-    // the user has moved or resized it by hand.
+    // Bottom-left, sized to the pixmap's aspect; no-op once the user placed it.
     void autoFit();
 
 protected:
@@ -55,8 +44,7 @@ protected:
 private:
     void updateScaled();
 
-    // The newest image in the output folder, else the shown file. An empty
-    // target does nothing.
+    // Newest output image, else the shown file.
     void openPreferredTarget() const;
 
     // The output folder, else the temp folder, skipping either if missing.
@@ -76,8 +64,7 @@ private:
     QPoint m_pressPos;
     bool m_dragInFlight = false;
 
-    // The press landed on the folder button, so the release opens the folder
-    // and must not fall through to opening the image.
+    // The press started on the folder button.
     bool m_pressOnFolderButton = false;
 
     enum class Mode { Idle, Moving, Resizing };

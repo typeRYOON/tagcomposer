@@ -11,8 +11,7 @@ class QPushButton;
 
 namespace tc {
 
-// The entry panel's LoRA slot: a label that also takes a dropped model file,
-// opens a file dialog on click, and raises the slot's context menu.
+// The entry panel's LoRA slot: accepts a dropped model file, browses on click.
 class LoraDropZone : public QLabel {
     Q_OBJECT
 
@@ -29,8 +28,7 @@ protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
 };
 
-// What a .safetensors file says about itself: the training metadata in its
-// header, plus the tag frequency table, filterable and copyable.
+// A .safetensors file's training metadata and tag frequencies.
 class LoraInfoDialog : public ChromedDialog {
     Q_OBJECT
 
@@ -38,8 +36,7 @@ public:
     explicit LoraInfoDialog(const QString& path, QWidget* parent = nullptr);
 };
 
-// Shown for a LoRA dropped from outside the configured roots: the user picks
-// a relative path under the primary folder and the file moves there.
+// Picks a path under the primary LoRA folder for a file from outside the roots.
 class LoraImportDialog : public ChromedDialog {
     Q_OBJECT
 

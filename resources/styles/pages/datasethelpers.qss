@@ -1,4 +1,4 @@
-/* ── DatasetHelpersPage ───────────────────────────────────────────────────── */
+/* DatasetHelpersPage */
 
 #DatasetHelpersPage {
     background: transparent;
@@ -141,8 +141,7 @@ QComboBox#DatasetSpin QAbstractItemView {
     border-color: #1a1a1a;
 }
 
-/* Secondary button sitting next to #DatasetRunBtn (e.g. the Tag Cluster
-   Cancel button) - same box metrics so the two line up, neutral palette. */
+/* Secondary button beside #DatasetRunBtn: same box metrics, neutral palette. */
 #DatasetCancelBtn {
     background: #1a1a1a;
     color: #999999;

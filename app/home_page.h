@@ -7,15 +7,14 @@ namespace tc {
 
 class ShinyLogo;
 
-// Logo, an optional update notice, and the author mark. The update notice is
-// hidden until setUpdateAvailable is called with a version.
+// Logo, optional update notice and author mark.
 class HomePage : public QWidget {
     Q_OBJECT
 
 public:
     explicit HomePage(QWidget* parent = nullptr);
 
-    // An empty version hides the notice again.
+    // An empty version hides the notice.
     void setUpdateAvailable(const QString& version, const QString& releaseUrl);
 
 protected:

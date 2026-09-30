@@ -10,24 +10,20 @@ namespace tc {
 
 struct PromptRecord {
     QDateTime queuedAt;
-    QString workflowName;   // the label the list row shows
-    QString positivePrompt; // the post-pipeline string actually sent
+    QString workflowName;
+    QString positivePrompt; // post-pipeline, as sent
 
-    // The final JSON. A re-queue replays this verbatim, which is what keeps
-    // the seed identical rather than rolling a new one.
+    // Replayed verbatim on re-queue, so the seed stays the same.
     QString renderedJson;
 
-    // The composer and workflow state at queue time, which is what
-    // save-as-state and restore-to-composer work from.
+    // Composer and workflow state at queue time.
     SavedState snapshot;
 
-    QList<Lora> lorasUsed; // the stack as ComfyUI received it
+    QList<Lora> lorasUsed;
     QString batchEntryUuid; // empty for a composer run
 };
 
-// A session-only log of everything pushed to ComfyUI. The shell appends one
-// record per queue so the history page can inspect, replay or restore each
-// push without polling anything. Newest first.
+// Session-only log of queued prompts, newest first.
 class PromptHistory : public QObject {
     Q_OBJECT
 
@@ -40,7 +36,7 @@ public:
     void clear();
 
 signals:
-    void recordAdded(int index); // always 0, since records are prepended
+    void recordAdded(int index); // always 0; newest first
     void cleared();
 
 private:

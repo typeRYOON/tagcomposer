@@ -21,10 +21,8 @@ class BatchTagger;
 struct Settings;
 class TaggerLibrary;
 
-// Runs a tagger model over a folder and writes a .txt beside each image.
-// Inference lives on a worker thread inside BatchTagger; this page drives it
-// and shows what came back, including the tags that just missed the
-// threshold, so the slider can be judged without another run.
+// Runs a tagger model over a folder, writing a .txt beside each image. Shows
+// each result, including near misses, so the threshold can be judged.
 class AutoTagPage : public QWidget {
     Q_OBJECT
 
@@ -32,10 +30,9 @@ public:
     AutoTagPage(TaggerLibrary& library, Settings& settings, QWidget* parent = nullptr);
     ~AutoTagPage() override;
 
-    // Re-reads the model folders.
     void refreshModels();
 
-    // The handoff from the collector, which has already picked the folder.
+    // Handoff from the collector.
     void setInputFolder(const QString& folder);
 
 signals:
@@ -59,7 +56,7 @@ private:
     void setRunning(bool running);
     void persistSettings();
 
-    // An empty message shows the results list instead.
+    // An empty message shows the results list.
     void showEmptyState(const QString& message);
 
     TaggerLibrary* m_library = nullptr;
@@ -92,9 +89,9 @@ private:
     QListWidget* m_focusTags = nullptr;
     QString m_focused;
 
-    // Kept so clicking back through the list costs nothing.
+    // Cached for clicking back through the list.
     QHash<QString, TaggerResult> m_tagged;
-    QHash<QString, QString> m_failed; // relative path to reason
+    QHash<QString, QString> m_failed; // relative path -> reason
 };
 
 } // namespace tc

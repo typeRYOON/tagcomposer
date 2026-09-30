@@ -7,9 +7,8 @@
 
 namespace tc {
 
-// Owns the composer document and is the only thing that mutates it. Every
-// mutator opens an Edit guard, which snapshots for undo on the way in and
-// emits on the way out, so a new mutator cannot forget either half.
+// Owns and mutates the composer document. Every mutator opens an Edit guard,
+// which snapshots for undo and emits docChanged.
 class ComposerStore : public QObject {
     Q_OBJECT
 
@@ -18,17 +17,15 @@ public:
 
     const ComposerDoc& doc() const;
 
-    // Replaces the document wholesale and drops both undo stacks.
+    // Replaces the document and clears undo/redo.
     void reset(ComposerDoc doc);
 
-    // Already-active tags are skipped; an active but deactivated one is reactivated.
+    // Active tags are skipped; deactivated ones are reactivated.
     void addTags(const QStringList& tags);
     void removeTag(const QString& tag);
 
-    // Keeps the tag's place in the list and carries its weight, custom facets
-    // and push claims across. When `to` is already active the rename collapses
-    // into it instead of duplicating: `from` is dropped and the survivor keeps
-    // its own weight. Returns false when nothing changed.
+    // Keeps position, weight, facets and pushes. If `to` is already active,
+    // `from` merges into it. Returns false if nothing changed.
     bool renameTag(const QString& from, const QString& to);
 
     void setDeactivated(const QString& tag, bool on);
@@ -37,10 +34,8 @@ public:
     void clearWeight(const QString& tag);
     void setCustomFacets(const QString& tag, const QStringList& facets);
 
-    // A push can carry the source entry's LoRA, which then rides with it:
-    // pushing activates it, unpushing drops it once no other image of that
-    // same entry is still pushed. Both happen inside the push's own edit, so
-    // one undo takes the tags and the LoRA back together.
+    // The entry's LoRA rides with a push: activated on push, dropped when no
+    // image of that entry is still pushed. One undo reverts both.
     void push(const EntryPush& push, const std::optional<Lora>& lora = std::nullopt);
     void unpush(const QString& entryUuid, const QString& imageFile,
                 const QString& loraSha = QString());
@@ -59,8 +54,7 @@ signals:
     void undoStateChanged(bool canUndo, bool canRedo);
 
 private:
-    // Snapshots on construction and notifies on destruction.
-    // Callers hold it by value via guaranteed elision.
+    // RAII: snapshots on construction, notifies on destruction.
     class Edit {
     public:
         Edit(ComposerStore* store, const QString& kind);
@@ -86,9 +80,7 @@ private:
     QList<Snapshot> m_undo;
     QList<Snapshot> m_redo;
 
-    // A burst of the same edit kind inside this window keeps the one snapshot
-    // taken before the burst began, so undoing a slider drag lands before it
-    // rather than one step into it.
+    // Same-kind edits within this window share one undo step (e.g. a slider drag).
     static constexpr qint64 kCoalesceMs = 800;
     static constexpr qsizetype kUndoCap = 50;
 };

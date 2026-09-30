@@ -66,8 +66,7 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
 
     m_imageLabel = new ScaledImageLabel(this);
 
-    // A non-modal top level, so the implicit grab works and the chrome needs
-    // no explicit one.
+    // Non-modal, so no explicit mouse grab is needed.
     m_chrome = new WindowChrome(this);
     m_statusBar = new StatusBar(this);
 
@@ -106,12 +105,11 @@ PreviewPopoutWindow::PreviewPopoutWindow(QWidget* parent)
             m_tempLabel->show();
             m_tempLabel->raise();
         }
-        // A directory change during the load bailed out early, so re-check.
+        // Re-check in case the folder changed during the load.
         m_debounce->start();
     });
 
-    // Window-scoped, so this window owns its own copy and there is no clash
-    // with the main window's identical bindings.
+    // Window-scoped, so they don't clash with the main window's bindings.
     auto addShortcut = [this](const QString& sequence, auto handler) {
         auto* action = new QAction(this);
         action->setShortcut(QKeySequence(sequence));
@@ -179,8 +177,7 @@ void PreviewPopoutWindow::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event);
     constexpr int margin = 12;
 
-    // The inset lives inside the frame, below the titlebar and above the
-    // status bar, with a margin so it cannot kiss an edge or cover the text.
+    // Keep the inset between the titlebar and the status bar, with a margin.
     constexpr int inset = chrome::kResizeBorder + margin;
     QRect bounds(inset, inset, width() - 2 * inset, height() - 2 * inset);
 
@@ -199,8 +196,7 @@ void PreviewPopoutWindow::resizeEvent(QResizeEvent* event)
     if (!m_tempLabel->isUserPlaced()) {
         m_tempLabel->autoFit();
     } else {
-        // Re-anchored to the bottom left at the user's own size. Clamping
-        // alone would strand it mid-window when the popout grows.
+        // Re-anchor bottom-left at the user's size, or it strands mid-window on growth.
         QSize wanted = m_tempLabel->size();
         wanted.setWidth(qMin(wanted.width(), bounds.width()));
         wanted.setHeight(qMin(wanted.height(), bounds.height()));
@@ -221,7 +217,6 @@ void PreviewPopoutWindow::showEvent(QShowEvent* event)
 
 void PreviewPopoutWindow::keyPressEvent(QKeyEvent* event)
 {
-    // Only reached when no focused child consumed it first.
     if (event->key() == Qt::Key_Escape && isFullScreen()) {
         QPropertyAnimation* out = propertyAnimate(this, "windowOpacity", windowOpacity(), 0.0,
                                                   200, QEasingCurve::InOutSine);
@@ -253,8 +248,7 @@ void PreviewPopoutWindow::changeEvent(QEvent* event)
 
 void PreviewPopoutWindow::closeEvent(QCloseEvent* event)
 {
-    // Two passes: the first swallows the close and fades, the second lets it
-    // through.
+    // First pass fades out; the second closes.
     if (m_closing) {
         event->accept();
         return;
@@ -282,8 +276,7 @@ void PreviewPopoutWindow::loadNewestTempImage()
 
     const QString newestPath = newest->absoluteFilePath();
 
-    // The finished handler restarts the debounce as a backstop, so the same
-    // path can arrive twice; decoding it again would be pure waste.
+    // Skip a path already loaded.
     if (newestPath == m_lastTempPath) return;
     if (m_loadWatcher->isRunning()) return;
 

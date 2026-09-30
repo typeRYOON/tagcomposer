@@ -14,9 +14,7 @@ using namespace Qt::StringLiterals;
 
 namespace {
 
-// Registers the bundled font and makes it the application default. Without
-// this every `font-family` in the stylesheets silently falls back, which is
-// not a visible failure so much as a subtly wrong-looking one.
+// Registers the bundled font as the app default; the stylesheets rely on it.
 void loadApplicationFont()
 {
     const int id = QFontDatabase::addApplicationFont(
@@ -34,11 +32,7 @@ void loadApplicationFont()
     QApplication::setFont(font);
 }
 
-// Every .qss under :/styles, not a hand-kept list: a sheet added to the
-// bundle and forgotten here is invisible, and the page it belongs to just
-// looks unstyled with nothing to say why.
-//
-// Sorted, so app.qss comes first and its app-wide rules act as the base.
+// Every .qss under :/styles, sorted so app.qss comes first as the base.
 QString loadStyleSheet()
 {
     QStringList paths;
@@ -64,9 +58,7 @@ QString loadStyleSheet()
 
 } // namespace
 
-// Qt paints a dotted rectangle on whatever Tab lands on. It ignores the
-// stylesheet, sits on top of the styled borders, and is the one piece of the
-// platform look the theme cannot reach, so it is dropped at the style level.
+// Drops the dotted focus rectangle, which stylesheets can't reach.
 class NoFocusRectStyle : public QProxyStyle {
 public:
     using QProxyStyle::QProxyStyle;
@@ -90,9 +82,7 @@ int main(int argc, char** argv)
     loadApplicationFont();
     app.setStyleSheet(loadStyleSheet());
 
-    // Beside the executable, not the working directory: launching from a
-    // shortcut or a debugger sets cwd to somewhere unrelated, and defaulting
-    // to cwd/data quietly opens an empty library instead of the real one.
+    // Default to data/ beside the executable, not the working directory.
     const QStringList args = QApplication::arguments();
     const QString dataDir =
         args.size() >= 2 ? args[1] : QApplication::applicationDirPath() + u"/data"_s;

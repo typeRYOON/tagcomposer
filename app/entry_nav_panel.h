@@ -9,12 +9,8 @@ class QVBoxLayout;
 
 namespace tc {
 
-// The float in the entry grid's top right: a handle that expands on hover
-// into the list of entries currently pushed to the composer. Clicking one
-// scrolls the grid to it.
-//
-// The same shape as the composer's CategoryNavPanel, but listing entries
-// rather than groups, and with its own styling.
+// Hover-expanding list of entries pushed to the composer; a click scrolls the
+// grid to one. Mirrors CategoryNavPanel.
 class EntryNavPanel : public QWidget {
     Q_OBJECT
 
@@ -23,7 +19,7 @@ public:
 
     std::function<void(int)> onEntryClicked;
 
-    // Each item is a display title and the grid index to scroll to.
+    // (title, grid index) pairs.
     void setEntries(const QList<QPair<QString, int>>& items);
 
 protected:

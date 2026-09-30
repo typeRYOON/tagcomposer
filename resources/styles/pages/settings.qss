@@ -1,4 +1,4 @@
-/* ── SettingsPage ─────────────────────────────────────────────────────────── */
+/* SettingsPage */
 
 #SettingsPage, #SettingsBody, #SettingsScroll {
     background: transparent;
@@ -66,8 +66,7 @@
     color: #1a1a1a;
 }
 
-/* Drawn as a disc here rather than as a glyph, so the state colors stay in
-   the stylesheet. */
+/* A disc, so the state colors stay in the stylesheet. */
 #SettingsStatusDot {
     min-width: 8px;
     max-width: 8px;

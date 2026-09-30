@@ -13,14 +13,13 @@ enum class MatchType {
 struct MatchClause {
     bool negate = false;
     MatchType type = MatchType::AnyTagFacets;
-    QStringList facets; // AnyTagFacets: the tag must carry all of these
+    QStringList facets; // AnyTagFacets: all required
     QString nameGlob;   // AnyTagName
 
     bool operator==(const MatchClause&) const = default;
 };
 
-// OR of AND-groups: a tag matches when any one group has all its clauses
-// satisfied. AND binds tighter than OR.
+// OR of AND-groups.
 struct RuleMatch {
     QList<QList<MatchClause>> orGroups;
 
@@ -42,12 +41,11 @@ struct RuleAction {
     bool operator==(const RuleAction&) const = default;
 };
 
-// Rules run in file order; only Include tags are eligible for each.
 struct Rule {
     QString uuid; // identity, survives a rename
     QString name;
     bool enabled = true;
-    bool force = false; // fire the action even when nothing matched
+    bool force = false; // fire even with no match
     RuleMatch match;
     RuleAction action;
 

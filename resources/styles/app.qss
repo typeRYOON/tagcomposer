@@ -1,4 +1,4 @@
-/* ── App-wide ─────────────────────────────────────────────────────────────── */
+/* App-wide */
 
 /* Palette tokens (Qt has no native variables - search/replace cheat sheet):
        Surfaces:   #0d0d0d  page bg          #0f0f0f  panel bg
@@ -27,7 +27,7 @@ QMainWindow, QWidget {
     background: #0d0d0d;
 }
 
-/* ── Dialogs ──────────────────────────────────────────────────────────────── */
+/* Dialogs */
 
 QDialog {
     background: #0d0d0d;
@@ -150,9 +150,8 @@ QDialog QCheckBox::indicator:checked {
     border-color: #5a8a5a;
 }
 
-/* ── Context menus ────────────────────────────────────────────────────────── */
-/* App-wide QMenu styling. ::item:selected covers both mouse-hover and
-   keyboard navigation, so the same lighter shade lights up either way. */
+/* Context menus */
+/* ::item:selected covers both mouse hover and keyboard navigation. */
 
 QMenu {
     background: #0f0f0f;
@@ -181,7 +180,7 @@ QMenu::separator {
     margin: 4px 8px;
 }
 
-/* ── Shared widget patterns ───────────────────────────────────────────────── */
+/* Shared widget patterns */
 /* Keyed by objectName so per-page rules (loaded later) can override. */
 
 /* Dark input base - per-page rules add :focus and tweak padding/font. */

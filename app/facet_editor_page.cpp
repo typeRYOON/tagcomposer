@@ -77,7 +77,7 @@ FacetEditorPage::FacetEditorPage(AppData& data, QWidget* parent)
     setObjectName(u"FacetEditorPage"_s);
     setAttribute(Qt::WA_StyledBackground, true);
 
-    // ================= Left: the tag list =================
+    // ---- Left: the tag list
     m_searchEdit = new QLineEdit;
     m_searchEdit->setObjectName(u"FacetSearchBar"_s);
     m_searchEdit->setPlaceholderText(u"filter..."_s);
@@ -96,8 +96,7 @@ FacetEditorPage::FacetEditorPage(AppData& data, QWidget* parent)
     m_tagList = tagListWidget();
     m_tagList->setSortingEnabled(true);
 
-    // Both lists feed selectTag; picking in one clears the other's highlight
-    // so the selection is never ambiguous.
+    // Selecting in one list clears the other's selection.
     connect(m_tagList, &QListWidget::currentTextChanged, this, [this](const QString& text) {
         if (!text.isEmpty()) m_undefinedList->setCurrentItem(nullptr);
         selectTag(text);
@@ -148,7 +147,7 @@ FacetEditorPage::FacetEditorPage(AppData& data, QWidget* parent)
     leftLayout->addWidget(m_countLabel);
     leftLayout->addWidget(m_tagList, 1);
 
-    // ================= Middle: the facet pills =================
+    // ---- Middle: the facet pills
     m_selectedLabel = new QLabel;
     m_selectedLabel->setObjectName(u"FacetSelectedTag"_s);
     m_selectedLabel->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -173,7 +172,7 @@ FacetEditorPage::FacetEditorPage(AppData& data, QWidget* parent)
             emit statusMessage(error);
             return;
         }
-        // The pill grid is built from the schema, so re-select to rebuild it.
+        // Re-select to rebuild the pill grid from the new schema.
         const QString tag = m_selectedTag;
         if (!tag.isEmpty()) selectTag(tag);
         emit statusMessage(u"facets.fct reloaded"_s);
@@ -235,7 +234,7 @@ FacetEditorPage::FacetEditorPage(AppData& data, QWidget* parent)
     editorLayout->addWidget(m_facetsScroll, 1);
     editorLayout->addWidget(m_saveBtn);
 
-    // ================= Right: the Danbooru rail =================
+    // ---- Right: the Danbooru rail
     m_preview = new TagPreviewFetcher(this);
     connect(m_preview, &TagPreviewFetcher::loading, this, [this](const QString&) {
         m_previewStatus->show();
@@ -283,8 +282,7 @@ FacetEditorPage::FacetEditorPage(AppData& data, QWidget* parent)
     m_previewStatus->setAlignment(Qt::AlignCenter);
     m_previewStatus->setWordWrap(true);
 
-    // The wiki text comes from the same wiki_pages fetch the preview uses -
-    // a reading aid while assigning facets.
+    // Wiki text from the same fetch as the preview.
     m_wikiHeader = panelHeader(u"WIKI"_s);
     m_wikiHeader->hide();
 
@@ -297,8 +295,7 @@ FacetEditorPage::FacetEditorPage(AppData& data, QWidget* parent)
     m_wikiText->hide();
 
     connect(m_wikiText, &QTextBrowser::anchorClicked, this, [this](const QUrl& url) {
-        // The same schemes dtextToHtml emits: [[tag]] stays in the app, post
-        // and asset references go to Danbooru.
+        // dtextToHtml's schemes: wiki links stay in the app, posts and assets open Danbooru.
         if (url.scheme() == "wiki"_L1) {
             emit wikiRequested(url.path());
             return;
@@ -358,8 +355,7 @@ void FacetEditorPage::reload()
 
     m_tagList->clear(); // fires selectTag("") -> clearEditor()
 
-    // The union of every tag in use and every tag with a definition, so a
-    // defined tag no entry uses still shows up.
+    // Tags in use plus every defined tag.
     QSet<QString> seen;
     QStringList all;
     for (const Entry& entry : m_data->entries.all()) {
@@ -416,9 +412,8 @@ void FacetEditorPage::refreshUndefinedList()
     const TagFacets& defs = m_data->defsFile.defs;
     const Variables& vars = m_data->varsFile.vars;
 
-    // Mirrors the pipeline's lookup: try the expanded tag, then the stripped
-    // one. The stripped form is what shows, so a var-prefixed tag collapses
-    // onto the bare tag it would actually define facets for.
+    // Same lookup as the pipeline: expanded tag, then stripped. The stripped form
+    // is listed, since that is what a definition would cover.
     QStringList undefined;
     QSet<QString> seen;
     for (const QString& tag : m_activeTagsProvider()) {
@@ -443,7 +438,7 @@ void FacetEditorPage::refreshUndefinedList()
         return;
     }
 
-    // Kept in the composer's order: that is the order they were typed in.
+    // Composer order.
     for (const QString& tag : undefined)
         m_undefinedList->addItem(new QListWidgetItem(tag));
 
@@ -562,8 +557,6 @@ void FacetEditorPage::selectTag(const QString& tag)
         delete item;
     }
 
-    // Pills rather than checkboxes: a bigger target, quicker to scan, and
-    // their state comes straight from the :checked rule.
     auto addBlock = [&](const QString& categoryName, const QStringList& facets) {
         if (facets.isEmpty()) return;
 
@@ -673,14 +666,10 @@ void FacetEditorPage::saveSelected()
          m_facetsContainer->findChildren<QPushButton*>(QString::fromLatin1(kPillName)))
         if (pill->isChecked()) checked << pill->text();
 
-    // An empty list is a valid answer: it clears the definition. Returning
-    // early here would leave the file out of step with the intent to
-    // un-categorise a tag.
+    // An empty list clears the definition.
     const bool nowDefined = !checked.isEmpty();
 
-    // A tag picked from the undefined list advances to the next one after a
-    // save; a tag picked from the full list stays put, since that is someone
-    // refining an existing definition.
+    // Advance to the next tag in whichever list it was picked from.
     const bool fromUndefined = m_undefinedList->currentItem() != nullptr;
 
     m_data->defsFile.defs.set(m_selectedTag, checked);
@@ -698,7 +687,7 @@ void FacetEditorPage::saveSelected()
     m_countLabel->setText(u"  %1 / %2 defined"_s.arg(definedCount).arg(m_tagList->count()));
 
     m_saveBtn->setText(nowDefined ? u"Update definition"_s : u"Save definition"_s);
-    refreshUndefinedList(); // the saved tag drops out of that section
+    refreshUndefinedList(); // drops the saved tag
     emit facetsDefined();
 
     if (fromUndefined) {
@@ -755,8 +744,7 @@ void FacetEditorPage::setWikiBody(const QString& body)
         return;
     }
 
-    // No post/asset collectors here: this panel cannot resolve thumbnail
-    // resources, so those bullets render as links rather than broken images.
+    // No collectors: post/asset bullets render as links here.
     m_wikiText->setHtml(wikiPanelCss() + dtextToHtml(dtext));
     m_wikiText->verticalScrollBar()->setValue(0);
     m_wikiText->show();
@@ -817,8 +805,7 @@ bool FacetEditorPage::eventFilter(QObject* watched, QEvent* event)
         }
     }
 
-    // Typing in either list goes to the filter box, so the keyboard never has
-    // to leave the list to narrow it.
+    // Typing in either list goes to the filter box.
     if (event->type() == QEvent::KeyPress
         && (watched == m_tagList || watched == m_undefinedList)) {
         auto* key = static_cast<QKeyEvent*>(event);
@@ -917,8 +904,7 @@ bool FacetEditorPage::eventFilter(QObject* watched, QEvent* event)
                 || code == Qt::Key_Meta || code == Qt::Key_AltGr)
                 return false;
 
-            // Everything else reaches the filter, so it stays usable from
-            // inside the pill grid.
+            // Everything else goes to the facet filter.
             QKeyEvent forwarded(QEvent::KeyPress, code, key->modifiers(), key->text());
             m_facetSearchEdit->setFocus();
             QApplication::sendEvent(m_facetSearchEdit, &forwarded);
@@ -956,8 +942,7 @@ QPushButton* FacetEditorPage::neighborPill(QPushButton* current, int key) const
     if (key == Qt::Key_Right) return index + 1 < all.size() ? all[index + 1] : all.first();
     if (key == Qt::Key_Left) return index > 0 ? all[index - 1] : all.last();
 
-    // Up and down want the nearest pill on another row, weighted toward the
-    // same x so a column reads as a column.
+    // Up/Down: nearest pill on another row, favoring the same x.
     const QPoint centre = current->mapToGlobal(current->rect().center());
     const int rowGap = current->height() / 2;
 

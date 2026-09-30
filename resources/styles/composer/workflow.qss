@@ -1,7 +1,6 @@
-/* ── Workflow sidebar (PromptComposerPage) ────────────────────────────────── */
+/* Workflow sidebar (PromptComposerPage) */
 
-/* Sidebar splitter handle (rules <-> wf/states divider). Explicit bg so the
-   handle is visible against the dark sidebar fill. */
+/* Sidebar splitter handle; explicit bg so it shows on the dark sidebar. */
 #ComposerSidebarSplit::handle:vertical {
     background: #161616;
     border-top:    1px solid #0a0a0a;
@@ -63,8 +62,7 @@
     color: #4a4a4a;
 }
 
-/* Transparent so the page background shows through
-   the gaps between tiles. */
+/* Transparent so the page background shows between tiles. */
 #StatesGrid {
     background: transparent;
     border: none;

@@ -14,13 +14,9 @@ namespace tc {
 class ClipCanvas;
 class WorkflowInputCache;
 
-// The editor for an image-typed workflow variable. Rect, brush, bucket and
-// mask-fill all paint into one grayscale mask; the erase button is a modifier
-// on whichever tool is active rather than a tool of its own.
-//
-// On accept the mask is written to the input cache and the new maskId comes
-// back through result(). Cleaning up the previous maskId is the caller's job,
-// because only it knows whether the old one is still referenced.
+// Mask editor for an image workflow variable: rect, brush, bucket and mask fill
+// paint one grayscale mask; erase modifies the active tool. On accept the mask
+// is saved to the cache; removing the old mask is the caller's job.
 class ClipEditorDialog : public ChromedDialog {
     Q_OBJECT
 
@@ -28,7 +24,7 @@ public:
     ClipEditorDialog(const QImage& source, const ImageEdits& initial, WorkflowInputCache* cache,
                      QWidget* parent = nullptr);
 
-    // Meaningful only after exec() returned Accepted.
+    // Valid after exec() returns Accepted.
     ImageEdits result() const;
 
 protected:
@@ -38,9 +34,7 @@ private:
     void updateRectLabel();
     void updateToolControls();
 
-    // Trim mode forces Rect and locks out the painting tools, because alpha
-    // is 255 everywhere and they would silently do nothing. The mask itself
-    // is left alone; clearing it belongs to the toggle handler.
+    // Trim mode forces Rect and disables the painting tools, which would do nothing.
     void applyTrimModeUI(bool on);
 
     WorkflowInputCache* m_cache = nullptr;

@@ -48,13 +48,12 @@ QString dotColorFor(TagResult result)
     case TagResult::Deactivated:
         return u"#2a2a2a"_s;
     case TagResult::Deleted:
-        return u"#2a2a2a"_s; // unreachable, but the switch stays exhaustive
+        return u"#2a2a2a"_s;
     }
     return u"#444444"_s;
 }
 
-// A tag the rules never got to see, or one a rule injected that has no
-// definition of its own.
+// No facet definition: never ruled on, or injected without one.
 bool isUndefined(const PipelineTag& tag)
 {
     return tag.result == TagResult::NoFacets
@@ -79,8 +78,7 @@ QLabel* rowBadge(const QString& text, const QString& objectName)
 
 void ComposerPage::applyTagFilter()
 {
-    // Every rebuild path lands here, so a pending search debounce is dropped;
-    // otherwise typing then pressing Enter fires two fades back to back.
+    // Drop a pending search debounce so one change doesn't fade twice.
     if (m_filterDebounce) m_filterDebounce->stop();
 
     if (m_filterQuery.isEmpty() && !m_undefinedOnly && !m_pushedOnly) {
@@ -88,8 +86,7 @@ void ComposerPage::applyTagFilter()
         return;
     }
 
-    // The union of the pushes being shown, keyed the way weights are so a
-    // $VAR$ row matches on the string that is actually in the document.
+    // Tags of the shown pushes, keyed like weights so $VAR$ rows match.
     QSet<QString> pushedKeys;
     if (m_pushedOnly) {
         for (const EntryPush& push : m_store->doc().pushes) {
@@ -100,10 +97,8 @@ void ComposerPage::applyTagFilter()
         }
     }
 
-    // The group a tag is shown under, which has to agree with the bucketing
-    // in applyGroupsRebuild or filtering by a section name hides rows that
-    // are sitting in it. A deactivated tag has no facets, so its section is
-    // the one it was turned off in.
+    // Must match applyGroupsRebuild's bucketing. Deactivated tags use the section
+    // they were turned off in.
     auto displayGroupOf = [this](const PipelineTag& tag) {
         const QString group = tag.result == TagResult::Deactivated
             ? m_deactivatedCategory.value(documentKey(tag))
@@ -117,8 +112,7 @@ void ComposerPage::applyTagFilter()
         if (m_pushedOnly && !pushedKeys.contains(documentKey(tag))) continue;
 
         if (!m_filterQuery.isEmpty()) {
-            // A substring match, so "shirt" finds "black shirt" - the same
-            // shape as the facet editor's filter.
+            // Substring match, like the facet editor's filter.
             const bool matchesTag = tag.tag.contains(m_filterQuery, Qt::CaseInsensitive);
             const bool matchesSource = !tag.sourceTag.isEmpty()
                 && tag.sourceTag.contains(m_filterQuery, Qt::CaseInsensitive);
@@ -133,9 +127,7 @@ void ComposerPage::applyTagFilter()
 
 void ComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& tags)
 {
-    // A rebuild landing while the states grid is up means the stack is about
-    // to switch back, so the toggle and the floats are synced first rather
-    // than left a step behind.
+    // A rebuild switches the stack back, so leave the states view first.
     leaveStatesViewMode();
 
     const bool fade = m_freezeNextRebuild;
@@ -146,8 +138,7 @@ void ComposerPage::rebuildGroupsDisplay(const QList<PipelineTag>& tags)
         return;
     }
 
-    // Snap invisible, swap, fade back. The rebuild can change which child is
-    // current, so the effect is resolved after the swap, not before.
+    // Snap invisible, swap, fade back in. Look up the effect after the swap.
     if (m_mainStackFade->state() == QAbstractAnimation::Running) m_mainStackFade->stop();
     applyGroupsRebuild(tags);
 
@@ -173,20 +164,18 @@ void ComposerPage::applyGroupsRebuild(const QList<PipelineTag>& tags)
     m_tagRowWidgets.clear();
     m_selectedRowIndex = -1;
 
-    // Counted off the full result, not the filtered list, so the badge stays
-    // right while a query has narrowed the view.
+    // Counted over the full result, not the filtered view.
     int undefinedTotal = 0;
     for (const PipelineTag& tag : m_lastResult)
         if (isUndefined(tag)) ++undefinedTotal;
 
-    // Defining the last undefined tag while filtered to them would strand the
-    // user on an empty view, so the filter releases itself.
+    // Drop the undefined-only filter once nothing is undefined.
     if (m_undefinedToggleBtn && undefinedTotal == 0 && m_undefinedToggleBtn->isChecked()) {
         m_undefinedToggleBtn->setChecked(false); // re-enters through toggled
         return;
     }
 
-    // Un-pushing the last entry would strand them the same way.
+    // Likewise for the pushed filter.
     if (m_pushedBtn) {
         const QList<EntryPush>& pushes = m_store->doc().pushes;
         m_pushedBtn->setEnabled(!pushes.isEmpty());
@@ -228,8 +217,7 @@ void ComposerPage::applyGroupsRebuild(const QList<PipelineTag>& tags)
                 [this, header, displayName](const QPoint& pos) {
                     QMenu menu;
 
-                    // Uncategorized and Deactivated are synthetic: they have
-                    // no facets to inherit, so only the full list applies.
+                    // Synthetic sections have no facets to add under.
                     bool real = false;
                     for (const TagGroup& group : m_groups.all())
                         if (group.name == displayName && !group.facets.isEmpty()) real = true;
@@ -258,8 +246,7 @@ void ComposerPage::applyGroupsRebuild(const QList<PipelineTag>& tags)
         m_groupsLayout->addWidget(spacer);
     };
 
-    // Display bucketing keeps a deactivated tag in the section it came from.
-    // The output side re-buckets without them, so the prompt is unaffected.
+    // Deactivated tags stay in their original section; the prompt ignores them.
     QHash<QString, QList<PipelineTag>> buckets;
     for (const PipelineTag& tag : tags) {
         const QString group = tag.result == TagResult::Deactivated
@@ -280,7 +267,7 @@ void ComposerPage::applyGroupsRebuild(const QList<PipelineTag>& tags)
 
     m_groupsLayout->addStretch();
 
-    // An undefined tag has no facets, so it always lands in Uncategorized.
+    // Undefined tags always land in Uncategorized.
     QHash<QString, int> undefinedByCategory;
     if (undefinedTotal > 0) undefinedByCategory[u"Uncategorized"_s] = undefinedTotal;
     if (m_categoryNav) m_categoryNav->updateCategories(navNames, undefinedByCategory);
@@ -317,8 +304,7 @@ void ComposerPage::replaceTagVariable(const QString& oldKey, const QString& newV
     if (newVarName.isEmpty())
         newKey = stripVariables(newKey);
     else
-        // Every $name$ is replaced, so the badge - which collapses them into
-        // one pill - stays in step with the tag.
+        // Replace every $name$ so the badge stays in step.
         newKey.replace(variableRe(), u"$"_s + newVarName + u"$"_s);
 
     newKey = newKey.trimmed();
@@ -385,8 +371,7 @@ void ComposerPage::promptAddCustomTag(const QString& groupName)
     if (!ok || text.isEmpty()) return;
 
     if (m_activeTagSet.contains(text)) {
-        // The same rule as the search bar: re-entering a manually deactivated
-        // tag brings it back rather than reporting a no-op.
+        // As in the search bar, re-entering a deactivated tag reactivates it.
         if (m_store->doc().deactivated.contains(text)) {
             m_freezeNextRebuild = true;
             m_store->setDeactivated(text, false);
@@ -401,8 +386,7 @@ void ComposerPage::promptAddCustomTag(const QString& groupName)
     m_store->addTags({text});
     m_store->setCustomFacets(text, group->facets);
 
-    // groupFor is first match wins, so a broader group above this one claims
-    // the facets before it gets here. Say so rather than silently misfiling.
+    // A broader group higher up may claim these facets first; say so.
     const QString lands = m_groups.groupFor(group->facets);
     if (lands != groupName)
         emit statusMessage(u"Added, but \"%1\" claims those facets before %2 does."_s.arg(
@@ -455,8 +439,7 @@ QWidget* ComposerPage::makeTagRow(const PipelineTag& tag)
     }
 
     if (editable) {
-        // A custom tag is free text rather than vocabulary, so it gets no
-        // suggestions.
+        // No suggestions for free-text custom tags.
         if (!m_store->doc().customFacets.contains(activeKey))
             new TagLineAutocomplete(tagEdit, &m_data->danbooru, tagEdit);
 
@@ -490,7 +473,7 @@ QWidget* ComposerPage::makeTagRow(const PipelineTag& tag)
         layout->addWidget(rowBadge(tag.ruleSource, u"ComposerInjectedBadge"_s));
     }
 
-    // The weight only applies to a tag that reaches the output.
+    // No weight box for struck-out tags.
     if (tag.result != TagResult::Skipped && tag.result != TagResult::Replaced
         && tag.result != TagResult::Deactivated) {
         auto* weightSpin = new QDoubleSpinBox;
@@ -515,10 +498,7 @@ QWidget* ComposerPage::makeTagRow(const PipelineTag& tag)
                 [this, activeKey, applyWeightColor](double value) {
                     applyWeightColor(value);
 
-                    // Tells refresh() the new value is already on screen, so
-                    // it can skip the rebuild. Undo, a state restore or Clear
-                    // weight all change weights too, and those do need the
-                    // rows rebuilt for the spin boxes to show the change.
+                    // The value is already on screen, so refresh() can skip the rebuild.
                     m_weightFromSpin = true;
                     m_store->setWeight(activeKey, float(value));
                     m_weightFromSpin = false;
@@ -529,7 +509,7 @@ QWidget* ComposerPage::makeTagRow(const PipelineTag& tag)
     const QString wikiTag = tag.tag;
 
     if (!inDocument) {
-        // An injected tag has no document entry, so it only gets the lookups.
+        // Injected tags aren't in the document; lookups only.
         auto installWiki = [&](QWidget* target) {
             target->setContextMenuPolicy(Qt::CustomContextMenu);
             connect(target, &QWidget::customContextMenuRequested, this,
@@ -556,8 +536,7 @@ QWidget* ComposerPage::makeTagRow(const PipelineTag& tag)
         return row;
     }
 
-    // The row's category is captured now so a later rebuild can keep a
-    // deactivated tag in the section it was turned off in.
+    // Remembered so a deactivated tag stays in this section.
     const QString originalCategory = m_groups.groupFor(tag.facets);
     auto onToggleDeactivate = [this, activeKey, originalCategory]() {
         const bool wasOff = m_store->doc().deactivated.contains(activeKey);
@@ -594,7 +573,6 @@ QWidget* ComposerPage::makeTagRow(const PipelineTag& tag)
                         menu.addAction(isDeactivated ? u"Activate"_s : u"Deactivate"_s);
                     QAction* removeAction = menu.addAction(u"Remove"_s);
 
-                    // The variable swap retargets every $foo$ or strips them.
                     QAction* dropVariableAction = nullptr;
                     QHash<QAction*, QString> setVariableActions;
                     if (hasVariable) {
@@ -649,7 +627,7 @@ QString ComposerPage::pushLabel(const QString& key) const
     QString title = entry ? entry->title : QString();
     if (title.isEmpty()) title = u"Entry %1"_s.arg(uuid.left(8));
 
-    // Only worth disambiguating when it is not the entry's first image.
+    // Name the image unless it's the first.
     if (entry && !entry->images.isEmpty() && entry->images[0].fileName != imageFile) {
         for (qsizetype i = 0; i < entry->images.size(); ++i)
             if (entry->images[i].fileName == imageFile)
@@ -675,11 +653,10 @@ void ComposerPage::updatePushedButton()
     if (m_pushedOnly)
         label = m_pushedFilterKey.isEmpty() ? u"All pushed"_s : pushLabel(m_pushedFilterKey);
 
-    // A title can be long and the button is a float sized to its text.
     const QFontMetrics metrics(m_pushedBtn->font());
     m_pushedBtn->setText(metrics.elidedText(label, Qt::ElideRight, 150));
 
-    // The checked chrome inverts to light on blue, so the icon follows.
+    // Light icon on the checked (blue) style.
     m_pushedBtn->setIcon(icons::pushDown(
         11, m_pushedOnly ? QColor(0xff, 0xff, 0xff) : QColor(0x55, 0x55, 0x55)));
     m_pushedBtn->setProperty("on", m_pushedOnly);
@@ -706,7 +683,7 @@ void ComposerPage::showPushedFilterMenu()
         items << Item{key, pushLabel(key), int(push.tags.size())};
     }
 
-    // Sorted so the menu does not shuffle between openings.
+    // Stable menu order.
     std::sort(items.begin(), items.end(), [](const Item& a, const Item& b) {
         const int order = a.label.localeAwareCompare(b.label);
         return order != 0 ? order < 0 : a.key < b.key;

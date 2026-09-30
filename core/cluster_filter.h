@@ -5,16 +5,9 @@
 
 namespace tc {
 
-// Facet filter for tag-cluster results. A rule is an AND-group of facets and
-// the rules OR together, so "character, female" plus "copyright" keeps a tag
-// that is either both of the first two or the third.
-//
-// A tag with no facets defined never matches any rule, which means blacklist
-// keeps it and whitelist drops it. That asymmetry is the point: blacklist is
-// for pruning what you have named, whitelist for keeping only what you have.
-//
-// Negations (written "-nsfw") run first and ignore the mode: a tag carrying a
-// negated facet is dropped before the rules are consulted at all.
+// Facet filter for tag-cluster results: rules are AND-groups of facets, OR'd
+// together. Tags without facets never match, so blacklist keeps them and
+// whitelist drops them. Negations ("-nsfw") drop a tag regardless of mode.
 class ClusterFilter {
 public:
     enum class Mode { Blacklist, Whitelist };

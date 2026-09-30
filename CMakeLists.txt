@@ -7,10 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Concurrent WebSockets)
 qt_standard_project_setup()
 
-# ---- Bundled native dependencies, used only by the tagger target below.
-#
-# The tree under third_party/ is the Windows prebuilt. On another platform,
-# drop a platform build at the same paths; nothing else here changes.
+# ---- OpenCV and ONNX Runtime, for tc_tagger only. See the README for the
+# third_party/ layout.
 if (WIN32)
     set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/third_party/opencv/build")
 endif()
@@ -25,14 +23,11 @@ else()
     set(ONNXRUNTIME_LIB "${ONNXRUNTIME_DIR}/lib/libonnxruntime.so")
 endif()
 
-# qt_standard_project_setup() turns on AUTOMOC and AUTOUIC but not AUTORCC.
-# Without this a .qrc listed in a target is silently ignored, every :/ path
-# resolves to nothing, and the app runs unstyled with blank icons.
+# qt_standard_project_setup() doesn't enable AUTORCC; without it the .qrc is
+# silently ignored.
 set(CMAKE_AUTORCC ON)
 
-# Domain and storage. Qt6::Core and nothing else: with no Gui or Widgets on the
-# include path, a #include <QWidget> under core/ fails to compile. That is the
-# only reason this target exists as a separate one.
+# Domain and storage. Links only Qt6::Core, so core/ can't include widgets.
 add_library(tc_core STATIC
     core/entry.h
     core/entry.cpp
@@ -91,12 +86,8 @@ add_library(tc_core STATIC
 target_include_directories(tc_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tc_core PUBLIC Qt6::Core)
 
-# Perceptual hashing and ONNX tag inference.
-#
-# Its own target rather than part of tc_core, for two reasons: it needs Gui
-# (QImage) and Concurrent, which tc_core deliberately does not link so that a
-# stray #include <QWidget> under core/ still fails to compile; and it drags in
-# OpenCV and ONNX Runtime, which nothing else in the app touches.
+# Perceptual hashing and ONNX tagging. Separate from tc_core because it needs
+# Gui and Concurrent, and pulls in OpenCV and ONNX Runtime.
 add_library(tc_tagger STATIC
     tagger/phash.h
     tagger/phash.cpp
@@ -115,7 +106,7 @@ target_include_directories(tc_tagger PUBLIC ${CMAKE_SOURCE_DIR} ${ONNXRUNTIME_DI
 target_link_libraries(tc_tagger PUBLIC Qt6::Core Qt6::Gui Qt6::Concurrent
                                        ${OpenCV_LIBS} ${ONNXRUNTIME_LIB})
 
-# The GUI. Widgets stop here: tc_core has no path to them.
+# The GUI.
 qt_add_executable(tagcomposer
     app/main.cpp
     app/page.h
@@ -225,8 +216,7 @@ qt_add_executable(tagcomposer
 target_link_libraries(tagcomposer PRIVATE tc_core tc_tagger Qt6::Widgets Qt6::Network
                                           Qt6::Concurrent Qt6::WebSockets)
 
-# Both DLLs have to sit beside the exe: Windows resolves them by search order,
-# and ONNX Runtime fails to open a session without its provider DLL alongside.
+# Both DLLs must sit beside the exe; ONNX Runtime also needs its provider DLL.
 if (WIN32)
     add_custom_command(TARGET tagcomposer POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -238,14 +228,9 @@ if (WIN32)
     )
 endif()
 
-# opencv_world is ~64 MB and onnxruntime ~14 MB, and only the tagger, the
-# collector and the clip editor ever reach them. Statically imported, every
-# launch pays their load and static-init before main(); delay-loading moves
-# that to the first actual call.
-#
-# Every import taken from both is a function, which is what makes this legal.
-# A data import cannot be delay-loaded, so if one ever appears the link fails
-# with LNK1194 and this is the thing to turn off.
+# Delay-load the big DLLs (~64 MB OpenCV, ~14 MB ONNX Runtime) so startup
+# doesn't pay for them. Only valid while every import is a function; a data
+# import fails the link with LNK1194.
 if (MSVC)
     target_link_libraries(tagcomposer PRIVATE delayimp.lib)
     target_link_options(tagcomposer PRIVATE
@@ -254,9 +239,7 @@ if (MSVC)
     )
 endif()
 
-# Copy the Qt runtime next to the exe. Without this the GUI starts and dies
-# with 0xC0000135 unless Qt's bin happens to be on PATH, which is not something
-# to depend on.
+# Deploy the Qt runtime next to the exe, so it runs without Qt on PATH.
 if (WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
     get_filename_component(_qt_bin "${_qt_qmake}" DIRECTORY)
@@ -275,7 +258,7 @@ if (WIN32)
     endif()
 endif()
 
-# The check suite, console only, so the whole thing runs without a window.
+# Console check suite.
 add_executable(tc_checks
     checks/main.cpp
 )

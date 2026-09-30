@@ -10,30 +10,21 @@ namespace tc {
 
 struct TaggerPrediction {
     QString tag;
-    int category; // the tags.csv column, following Danbooru's numbering
+    int category; // Danbooru category number
     float score;
 };
 
 struct TaggerResult {
     QList<TaggerPrediction> tags;       // descending by score
-    QList<TaggerPrediction> nearMisses; // the best of what fell below threshold
+    QList<TaggerPrediction> nearMisses; // best scores below threshold
     QString rating;
     float ratingScore = 0.0f;
 };
 
-// One loaded ONNX session with its preprocessing settings and labels.
-//
-// tag() is thread safe: ONNX Runtime allows concurrent Run() on one session,
-// and preprocessing keeps no shared state.
-//
-// The directory holds three files:
-//   model.onnx   one 4-D float input with a channel dim of 3. The layout
-//                (NCHW or NHWC) and the height and width are read off the
-//                session rather than assumed.
-//   config.json  timm-style. pretrained_cfg.input_size is only consulted
-//                when the session reports a dynamic dimension.
-//   tags.csv     header plus tag_id,name,category,count. The row index is
-//                the output index, and category 9 means rating.
+// One ONNX tagger session; tag() is thread safe. The model directory holds
+// model.onnx (4-D float input, NCHW or NHWC, size read from the session),
+// config.json (timm-style; input_size covers dynamic dims) and tags.csv
+// (row index = output index, category 9 = rating).
 class TaggerModel {
 public:
     static std::unique_ptr<TaggerModel> load(Ort::Env& env, const QString& dir,
@@ -43,7 +34,7 @@ public:
     QString directory() const;
     int classCount() const;
 
-    // The threshold filters tags only. A rating is always reported.
+    // threshold filters tags; the rating is always reported.
     TaggerResult tag(const QString& imagePath, float threshold) const;
 
 private:
@@ -71,12 +62,11 @@ private:
     int m_height = 448;
     int m_width = 448;
 
-    // Owns the strings behind the const char* handed to Run().
+    // Backing storage for the names passed to Run().
     std::string m_inputName;
     std::string m_outputName;
 
-    // Read from config.json and kept for reference. This model family bakes
-    // normalisation into the graph, so preprocessing does not apply them.
+    // From config.json, unused: these models normalize inside the graph.
     std::array<float, 3> m_mean{0.5f, 0.5f, 0.5f};
     std::array<float, 3> m_std{0.5f, 0.5f, 0.5f};
 
@@ -86,6 +76,6 @@ private:
 
 } // namespace tc
 
-// BatchTagger hands these between threads through queued connections.
+// Passed across threads by BatchTagger.
 Q_DECLARE_METATYPE(tc::TaggerPrediction)
 Q_DECLARE_METATYPE(tc::TaggerResult)

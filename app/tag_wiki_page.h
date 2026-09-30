@@ -22,12 +22,8 @@ namespace tc {
 class DanbooruIndex;
 class TagSearchBar;
 
-// The Danbooru wiki for one tag, rendered in-app: the article body, its
-// `!post #N` thumbnail galleries, back/forward history, and an autocomplete
-// bar to jump to another tag.
-//
-// Every page transition fades out, swaps, and fades back in, so a lookup
-// never flashes the previous article's layout.
+// The Danbooru wiki in-app: article, !post galleries, history and a tag search.
+// Page transitions fade out and back in.
 class TagWikiPage : public QWidget {
     Q_OBJECT
 
@@ -38,8 +34,7 @@ public:
     void lookupTag(const QString& tag);
 
 signals:
-    // A [[wiki link]] inside the body. The shell routes it back to
-    // lookupTag, so history and the fade stay in one place.
+    // A [[wiki link]] in the body; the shell routes it back to lookupTag.
     void wikiLinkClicked(const QString& tag);
 
 protected:
@@ -62,16 +57,14 @@ private:
     QString buildDocument(const QString& dtext, QList<int>& outPostIds,
                           QList<int>& outAssetIds) const;
 
-    // Fetches the image, pads it to the thumbnail box, stores it, then starts
-    // its fade.
+    // Fetch, pad to the thumbnail box, store, fade in.
     void downloadThumbAndFade(const QString& imageUrl, const QString& resourceUrl,
                               std::function<void(const QPixmap&)> store);
 
     void startThumbFade(const QString& resourceUrl, const QPixmap& finalPixmap);
     void onThumbFadeTick();
 
-    // Metadata fetches are paced: one per tick keeps an image-heavy page
-    // under Danbooru's per-IP rate limit.
+    // Paced one per tick to stay under Danbooru's rate limit.
     enum class ThumbKind { Post, Asset };
     void enqueueThumbFetch(ThumbKind kind, int id);
     void processThumbFetchQueue();
@@ -92,8 +85,7 @@ private:
     QHash<int, QPixmap> m_assetThumbs;
     bool m_fontApplied = false;
 
-    // One shared ticker drives every in-flight fade, so a hundred-thumbnail
-    // gallery costs one document re-layout per tick rather than a hundred.
+    // One shared ticker for all fades: one re-layout per tick.
     struct PendingThumbFade {
         QString resourceUrl;
         QPixmap finalPixmap;

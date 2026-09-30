@@ -15,8 +15,7 @@ struct EntryLoad {
 // Reads <entryFolder>/__entry.json.
 std::expected<Entry, LoadError> readEntry(const QString& entryFolder);
 
-// Every immediate subdirectory of entryDir, in name order. One unreadable
-// entry does not fail the rest -- it lands in errors instead.
+// Every subdirectory of entryDir, in name order. Failures go to errors.
 EntryLoad readEntries(const QString& entryDir);
 
 // Creates entryFolder if needed. Refuses an entry validEntry rejects.

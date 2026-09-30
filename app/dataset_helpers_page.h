@@ -20,9 +20,8 @@ class TagEditorPage;
 class TagFacets;
 class TaggerLibrary;
 
-// Holds the dataset tools behind one tab bar. Each tool is its own page and
-// knows nothing about the others; the handoffs between them are wired here,
-// so a tool stays usable on its own.
+// The dataset tools behind one tab bar. Each tool is independent; the handoffs
+// between them are wired here.
 class DatasetHelpersPage : public QWidget {
     Q_OBJECT
 
@@ -31,22 +30,19 @@ public:
                        TaggerLibrary& taggers, const QString& clusterFiltersPath,
                        const QString& collectionsRoot, QWidget* parent = nullptr);
 
-    // Arrives with the library, like every other page's index.
     void setDanbooruIndex(const DanbooruIndex* index);
 
-    // The shell wires the cluster page's navigation signals itself, the
-    // same way it does for every other page that emits them.
+    // For the shell to wire the cluster page's navigation.
     TagClusterPage* clusterPage() const;
 
     void setQuickFacets(const QString& character, const QString& copyright,
                         const QString& triggerWord, const QString& style);
     void refreshFacets();
 
-    // The active tab's label. The shell appends it to the window title.
+    // The active tab's label.
     QString currentTabLabel() const;
 
-    // The shell calls this on close: the collector moves files on a timer and
-    // must not outlive the window.
+    // Called on close; stops the collector's watcher.
     void stopBackgroundWork();
 
 signals:
@@ -71,13 +67,11 @@ private:
     QButtonGroup* m_tabGroup = nullptr;
     QStackedWidget* m_stack = nullptr;
 
-    // Outside the layout so it can be animated on its own, and lowered so the
-    // button text paints over it.
+    // Outside the layout so it can animate; lowered beneath the buttons.
     QWidget* m_indicator = nullptr;
     QPointer<QPropertyAnimation> m_indicatorAnim;
 
-    // The buttons have no geometry until the first show, so the first place
-    // cannot animate and cannot happen in the constructor.
+    // Placed on first show, once the buttons have geometry.
     bool m_indicatorPlaced = false;
 };
 

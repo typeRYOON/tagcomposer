@@ -88,8 +88,7 @@ TagPreviewPopup::TagPreviewPopup(QWidget* parent)
                 } else {
                     m_wiki->setHtml(wikiPanelCss() + dtextToHtml(dtext));
 
-                    // QTextBrowser will not size itself to its content, so
-                    // the laid-out document is measured and capped by hand.
+                    // QTextBrowser won't size to content; measure and cap.
                     m_wiki->document()->setTextWidth(kImageMaxWidth);
                     const int height = int(m_wiki->document()->size().height()) + 4;
                     m_wiki->setFixedHeight(qMin(height, kWikiMaxHeight));
@@ -151,9 +150,7 @@ void TagPreviewPopup::showNow()
     m_status->setText(QString::fromUtf8("Loading\xE2\x80\xA6"));
     m_status->show();
 
-    // A cached tag fills everything in before this returns, so the popup
-    // opens with its content already there instead of flashing the loading
-    // line first.
+    // A cached tag fills in synchronously, before the popup shows.
     m_fetcher->fetch(m_tag);
 
     applyGeometry();

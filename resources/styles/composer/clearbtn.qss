@@ -1,4 +1,4 @@
-/* ── Clear button (top-right float, left of nav panel) ────────────── */
+/* Clear button (top-right float, left of nav panel) */
 
 #ComposerClearBtn {
     background: #0e0e0e;
@@ -15,8 +15,7 @@
     border-color: #3a2020;
 }
 
-/* Pushed-entries filter toggle, left of Clear. Same chrome as Clear; the
-   checked state matches the composer's other filter toggle. */
+/* Pushed-entries filter toggle, left of Clear. */
 
 #ComposerPushedBtn {
     background: #0e0e0e;

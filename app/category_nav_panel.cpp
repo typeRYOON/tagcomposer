@@ -27,8 +27,7 @@ CategoryNavPanel::CategoryNavPanel(QWidget* parent) : QWidget(parent)
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
 
-    // Icon and caption are separate labels: the caption keeps its warn style
-    // while the icon is a pixmap, which no colour rule can reach.
+    // Separate icon label; QSS can't recolor a pixmap.
     auto* handleRow = new QWidget(this);
     handleRow->setObjectName(u"CategoryNavHandleRow"_s);
     handleRow->setFixedHeight(26);
@@ -62,7 +61,7 @@ CategoryNavPanel::CategoryNavPanel(QWidget* parent) : QWidget(parent)
     m_animation->setEasingCurve(QEasingCurve::InOutQuad);
     m_animation->setDuration(160);
 
-    // The panel tracks the list as it grows, so it never clips its own rows.
+    // Resize with the list so rows aren't clipped.
     connect(m_animation, &QPropertyAnimation::valueChanged, m_listFrame,
             [this](const QVariant&) { adjustSize(); });
 }
@@ -73,7 +72,7 @@ void CategoryNavPanel::setHandleWarn(bool warn)
     m_handle->style()->unpolish(m_handle);
     m_handle->style()->polish(m_handle);
 
-    // polish() does not descend into children, so the pixmap is redrawn here.
+    // Repaint the icon; polish() doesn't reach it.
     m_handleIcon->setPixmap(
         icons::menuLines(12, warn ? QColor(0x66, 0x88, 0xaa) : QColor(0x55, 0x55, 0x55))
             .pixmap(12, 12));
@@ -110,8 +109,7 @@ void CategoryNavPanel::updateCategories(const QStringList& displayNames,
         m_listLayout->addWidget(button);
     }
 
-    // Tinting the always-visible handle is how an undefined tag gets noticed
-    // without expanding the panel.
+    // The handle warns too, so it shows while collapsed.
     setHandleWarn(anyWarn);
 
     m_fullHeight = int(displayNames.size()) * kRowHeight + 4;

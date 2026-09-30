@@ -5,9 +5,8 @@
 
 namespace tc {
 
-// In-memory log with a capped history, surfaced by the Settings page's LOG
-// section. A GUI app has no console, so TAGCOMPOSER_LOG_FILE adds a file sink
-// for anything that has to be readable from a script.
+// Capped in-memory log shown on the Settings page. Set TAGCOMPOSER_LOG_FILE
+// to also append to a file.
 class Logger : public QObject {
     Q_OBJECT
 

@@ -109,7 +109,7 @@ NavBar::NavBar(QWidget* tooltipParent, QWidget* parent) : QWidget(parent)
 
     layout->addStretch();
 
-    // Not a page: opens a URL, so it must not latch into a checked state.
+    // Opens a URL, so not checkable.
     NavButton* discord = addButton(u"Discord"_s, u":/icons/nav_discord.png"_s);
     discord->setCheckable(false);
     place(discord);

@@ -7,28 +7,24 @@
 namespace tc {
 
 struct TagSearchResult {
-    QString displayName;  // the alias when one matched, else the canonical tag
-    QString canonicalTag; // what actually gets committed
+    QString displayName;  // alias if one matched
+    QString canonicalTag;
     int category = 0;
     qint64 count = 0;
     bool isAlias = false;
-    int matchStart = 0; // the bold range inside displayName
+    int matchStart = 0; // bold range in displayName
     int matchLength = 0;
 };
 
-// danbooru.csv, read once and held sorted for prefix search.
-//
-// Lookups take the canonical csv form (lower case, spaces). A caller holding
-// a wire form ("long_hair") normalises first; search() does that itself.
+// danbooru.csv, sorted for prefix search. Lookups take the normalized form
+// ("long hair"); search() normalizes its input itself.
 class DanbooruIndex {
 public:
-    // A missing or unreadable file leaves the index empty, which is not an
-    // error: the csv is optional and only powers autocomplete.
+    // The csv is optional; a missing file leaves the index empty.
     bool load(const QString& path);
     bool isEmpty() const;
 
-    // Ranked: name prefix first, then a prefix of any later word, then an
-    // alias. Within a tier, the higher post count wins.
+    // Ranked by tier (name prefix, later-word prefix, alias), then post count.
     QList<TagSearchResult> search(const QString& prefix, int maxResults = 12) const;
 
     int tagCategory(const QString& tag) const; // -1 when unknown
@@ -43,15 +39,15 @@ private:
     };
 
     struct AliasEntry {
-        QString normalized; // a leading '/' stripped, for the sorted lookup
-        QString original;   // shown as written
+        QString normalized; // leading '/' stripped
+        QString original;
         qsizetype tagIndex = 0;
     };
 
     struct WordEntry {
         QString word; // a non-leading word of a tag name
         qsizetype tagIndex = 0;
-        int offset = 0; // where that word starts inside the name
+        int offset = 0; // word start within the name
     };
 
     qsizetype indexOfName(const QString& tag) const;

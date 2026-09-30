@@ -7,12 +7,7 @@ class QVBoxLayout;
 
 namespace tc {
 
-// Draws bucketed pipeline output. Holds no document state of its own: it is
-// handed buckets plus the document they came from, and emits what the user
-// asked for. The window decides what that means.
-//
-// The document is only read to tell an editable tag from a rule-injected one,
-// which is not in activeTags and so has nothing to weight or remove.
+// Draws bucketed pipeline output and emits edits. Holds no document state.
 class TagListView : public QWidget {
     Q_OBJECT
 
@@ -22,8 +17,7 @@ public:
     void setBuckets(const QList<TagBucket>& buckets, const ComposerDoc& doc);
 
 signals:
-    // All three carry the activeTags key, not the displayed text, so a tag
-    // containing a variable addresses the right entry.
+    // Keyed by the activeTags key, not the displayed text.
     void removeRequested(const QString& key);
     void weightChanged(const QString& key, double weight);
     void renameRequested(const QString& key, const QString& to);

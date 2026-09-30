@@ -6,8 +6,7 @@
 
 namespace tc {
 
-// A per-facet wrap applied just before assembly, so model-specific syntax
-// (Anima's "@asanagi" for rStyle tags, say) lives in settings.
+// Per-facet wrap applied at assembly, for model-specific syntax.
 struct FacetFormat {
     QString facet;
     QString prefix;
@@ -27,9 +26,8 @@ struct TagBucket {
 // Buckets in groups.fct order. Deactivated tags stay with their peers.
 QList<TagBucket> bucketByGroup(const QList<PipelineTag>& tags, const TagGroups& groups);
 
-// Comma-joined, in bucket order, so group order is prompt order. Only tags
-// reachesOutput accepts are emitted. A weight other than 1.0 wraps the tag as
-// (tag:1.5), outside any facet format.
+// Comma-joined in bucket order, reachesOutput tags only. A non-1.0 weight
+// wraps as (tag:1.5), outside any facet format.
 QString buildPromptString(const QList<TagBucket>& buckets, bool forJson,
                           const QList<FacetFormat>& formats = {});
 

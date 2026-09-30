@@ -35,16 +35,14 @@ namespace tc {
 
 namespace cluster {
 
-// Panel widths match the other dataset tabs so the columns line up when
-// flipping between them.
+// Shared with the other dataset tabs so the columns line up.
 constexpr int kParamsWidth = 380;
 constexpr int kPreviewWidth = 420;
 constexpr int kPreviewMaxWidth = kPreviewWidth - 24; // less the 12px body margins
 constexpr int kPreviewMaxHeight = 560;
 constexpr int kHeaderHeight = 50;
 
-// Both sliders hold integers: a QDoubleSpinBox's keyboard stepping is awkward
-// for a value that drives a live recompute.
+// Integer sliders, scaled for display.
 constexpr int kPmiMin = 0;       // 0.00
 constexpr int kPmiMax = 500;     // 5.00
 constexpr int kPmiDefault = 50;  // 0.50
@@ -54,13 +52,10 @@ constexpr int kPctDefault = 10;  // 1.0%
 
 constexpr int kRecomputeDebounceMs = 150;
 
-// The marginal P(tag) denominator. It is a uniform log offset on every score,
-// so an approximate corpus size is fine: it shifts where the slider sits, not
-// the ranking.
+// Denominator for P(tag). Approximate is fine: it offsets every score equally.
 constexpr double kDanbooruTotalPosts = 9000000.0;
 
-// Below this, a tag is a typo or a one-off. Dropping them keeps log() well
-// conditioned and keeps junk off the top of the list.
+// Rarer tags are typos or one-offs.
 constexpr qint64 kGlobalCountFloor = 20;
 
 QWidget* sectionHeader(const QString& title)
@@ -88,8 +83,7 @@ QLabel* paramLabel(const QString& text)
     return label;
 }
 
-// Danbooru wire form to prompt form: spaces, with parentheses escaped the way
-// the composer writes them.
+// Danbooru form to prompt form: spaces and escaped parens.
 QString promptForm(const QString& tag)
 {
     QString out = tag;
@@ -99,8 +93,7 @@ QString promptForm(const QString& tag)
     return out;
 }
 
-// Capitalises each word's first letter, leaving punctuation alone, so
-// "taihou (azur lane)" becomes "Taihou (Azur Lane)".
+// "taihou (azur lane)" -> "Taihou (Azur Lane)".
 QString titleCase(const QString& text)
 {
     QString out;
@@ -131,7 +124,6 @@ TagClusterPage::TagClusterPage(const TagFacets& facets, const QString& filtersPa
 
     m_network = new QNetworkAccessManager(this);
 
-    // The lookup is the fetcher's; this page only renders what it reports.
     m_preview = new TagPreviewFetcher(this);
     connect(m_preview, &TagPreviewFetcher::loading, this, [this](const QString&) {
         m_previewStatus->show();
@@ -270,8 +262,7 @@ TagClusterPage::TagClusterPage(const TagFacets& facets, const QString& filtersPa
     paramsLayout->addLayout(grid);
     paramsLayout->addLayout(fetchRow);
 
-    // Its own object name so the stylesheet can give it a top border, setting
-    // it apart from the params above.
+    // Own name so the stylesheet can give it a top border.
     auto* filterBody = new QWidget;
     filterBody->setObjectName(u"DatasetFilterBody"_s);
     filterBody->setAttribute(Qt::WA_StyledBackground, true);
@@ -323,8 +314,7 @@ TagClusterPage::TagClusterPage(const TagFacets& facets, const QString& filtersPa
     filterLayout->addWidget(m_saveFilterBtn);
     filterLayout->addWidget(m_filterStatus);
 
-    // A separate name so the stylesheet skips this header's bottom border:
-    // the filter body owns the seam, and two would draw it twice.
+    // Own name so this header skips its bottom border; the body draws the seam.
     QWidget* filterHeader = sectionHeader(u"FACET FILTER"_s);
     filterHeader->setObjectName(u"DatasetFilterSectionHeader"_s);
 
@@ -366,8 +356,7 @@ TagClusterPage::TagClusterPage(const TagFacets& facets, const QString& filtersPa
     scroll->setVerticalScrollBar(new AppScrollBar(Qt::Vertical));
     m_resultsScroll = scroll;
 
-    // Swapped in for the scroll area when there is nothing to show, centred on
-    // both axes by the stretches around it.
+    // Replaces the scroll area when there are no results.
     auto* empty = new QWidget;
     empty->setObjectName(u"DatasetEmptyContainer"_s);
     auto* emptyLayout = new QVBoxLayout(empty);
@@ -486,8 +475,7 @@ TagClusterPage::TagClusterPage(const TagFacets& facets, const QString& filtersPa
         emit createEntryRequested(titleCase(QString(target).replace(u'_', u' ')), tags);
     });
 
-    // These two change which posts are fetched, so the cached sample no longer
-    // answers the question being asked.
+    // These change the query, so the fetched sample is stale.
     connect(m_solo, &QCheckBox::toggled, this, [this](bool) { markStale(); });
     connect(m_singleChar, &QCheckBox::toggled, this, [this](bool) { markStale(); });
 
@@ -512,12 +500,10 @@ void TagClusterPage::setDanbooruIndex(const DanbooruIndex* index)
 {
     m_danbooru = index;
 
-    // Attached here rather than in the constructor because the index loads
-    // after the page is built. It never changes again afterwards.
+    // The index loads after construction.
     if (index && !m_autocomplete) m_autocomplete = new TagLineAutocomplete(m_tagInput, index, this);
 
-    // A fetch that finished before the index arrived scored nothing, so give
-    // it the pass it could not have. A no-op before the first fetch.
+    // Score a fetch that finished before the index arrived.
     scheduleRecompute();
 }
 

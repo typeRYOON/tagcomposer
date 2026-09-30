@@ -37,8 +37,7 @@ namespace {
 const QStringList kImageFilters = {u"*.png"_s,  u"*.jpg"_s, u"*.jpeg"_s,
                                    u"*.webp"_s, u"*.bmp"_s, u"*.gif"_s};
 
-// The part before the first brace: the real folder that anchors the tree,
-// even when the pattern points into a date-stamped subfolder.
+// The part before the first '{': the real root folder.
 QString stripPatternToRoot(const QString& pattern)
 {
     QString root = pattern;
@@ -51,8 +50,7 @@ QString stripPatternToRoot(const QString& pattern)
     return root;
 }
 
-// `path/{yyyy-MM-dd}/...` against the current date. Whatever is inside the
-// braces goes straight to QDateTime::toString; no braces returns it as-is.
+// Resolves one {date format} against today.
 QString evaluateDatePattern(const QString& pattern)
 {
     const qsizetype open = pattern.indexOf(u'{');
@@ -66,8 +64,7 @@ QString evaluateDatePattern(const QString& pattern)
         + pattern.sliced(close + 1);
 }
 
-// The platform's own file icons are light-on-light here, so the tree draws
-// its own two.
+// Custom icons; the platform ones don't suit the dark theme.
 class TypeIconProvider : public QFileIconProvider {
 public:
     TypeIconProvider() : m_folder(makeFolder()), m_image(makeImage()) {}
@@ -166,8 +163,7 @@ protected:
 
         const bool isDir = model->isDir(index);
 
-        // Right on a file crosses into the thumbnail pane, which is how the
-        // keyboard moves between the two halves.
+        // Right on a file moves focus to the thumbnail pane.
         if (key == Qt::Key_Right && !isDir) {
             emit crossToThumbsRequested(model->filePath(index));
             event->accept();
@@ -216,11 +212,10 @@ public:
         m_placeholderIcon = QIcon(placeholder);
     }
 
-    // Each entry is a path and whether it is a directory.
+    // (path, isDir) pairs.
     void setEntries(QList<QPair<QString, bool>> entries)
     {
-        // Bumped first, so a decode still in flight for the previous folder
-        // cannot write its result into this one.
+        // Bump first so in-flight decodes for the old folder are dropped.
         const int generation = ++m_generation;
         clear();
         m_pending.clear();
@@ -289,8 +284,7 @@ private:
     static constexpr int kThumbWidth = 192;
     static constexpr int kThumbHeight = 192;
 
-    // Icon mode left-aligns its grid, which looks lopsided in a wide pane.
-    // The leftover width is split into equal viewport margins instead.
+    // Center the icon grid with equal side margins.
     void centreLayout()
     {
         const int gridWidth = gridSize().width();
@@ -355,7 +349,7 @@ private:
         }
     }
 
-    // A tile-sized folder glyph, so a directory is not a blank square.
+    // Tile-sized folder glyph.
     QIcon makeFolderIcon() const
     {
         QPixmap pixmap(kThumbWidth, kThumbHeight);
@@ -526,8 +520,7 @@ OutputViewerPage::OutputViewerPage(QWidget* parent) : QWidget(parent)
     connect(m_thumbs, &OutputThumbList::enterActivated, this,
             &OutputViewerPage::onThumbActivated);
 
-    // Escape crosses back, taking the tree's selection with it so the two
-    // panes do not disagree about what is current.
+    // Escape returns to the tree, selecting the same item.
     connect(m_thumbs, &OutputThumbList::escapePressed, this, [this]() {
         if (QListWidgetItem* item = m_thumbs->currentItem()) {
             const QString path = item->data(Qt::UserRole).toString();
@@ -570,8 +563,7 @@ void OutputViewerPage::setOutputFolder(const QString& folderPattern)
     m_model->setRootPath(m_root);
     m_tree->setRootIndex(m_model->index(m_root));
 
-    // Today's dated folder is where the interesting output is, so it opens
-    // there when it exists; otherwise the root does.
+    // Open today's dated folder if it exists, else the root.
     const QString dated = evaluateDatePattern(folderPattern);
     const QFileInfo datedInfo(dated);
 
@@ -606,7 +598,6 @@ void OutputViewerPage::onTreeCurrentChanged(const QModelIndex& current, const QM
     const QString directory =
         m_model->isDir(current) ? path : QFileInfo(path).absolutePath();
 
-    // Arrowing between siblings of one folder should not rebuild the grid.
     if (directory == m_currentThumbDir) return;
 
     m_currentThumbDir = directory;
@@ -637,7 +628,7 @@ void OutputViewerPage::focusThumbForImage(const QString& imagePath)
         return;
     }
 
-    // The grid may not hold the file after all, but focus still crosses over.
+    // Focus moves even if the file isn't in the grid.
     m_thumbs->setFocus();
 }
 
@@ -698,7 +689,7 @@ void OutputViewerPage::selectInTree(const QString& path)
     const QModelIndex index = m_model->index(path);
     if (!index.isValid()) return;
 
-    // Every ancestor has to be expanded, or scrollTo has nothing to scroll to.
+    // Expand ancestors so scrollTo can reach it.
     for (QModelIndex parent = index.parent(); parent.isValid(); parent = parent.parent())
         m_tree->expand(parent);
 

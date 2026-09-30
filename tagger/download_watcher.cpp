@@ -72,8 +72,7 @@ void DownloadWatcher::start(const QString& watchFolder, const QString& collectio
     m_active = true;
     emit started();
 
-    // Straight away rather than after the first interval, so pressing Start
-    // on a folder that already has files does something visible.
+    // Poll now so files already present are handled.
     poll();
 }
 
@@ -91,8 +90,7 @@ void DownloadWatcher::poll()
 {
     if (!m_active) return;
 
-    // Not recursive: a browser's download folder has unrelated subdirectories
-    // and none of them are ours to move files out of.
+    // Not recursive; subfolders aren't ours.
     QStringList candidates;
     for (const QString& filter : kImageFilters) {
         QDirIterator it(m_watchFolder, {filter}, QDir::Files);
@@ -103,9 +101,7 @@ void DownloadWatcher::poll()
     for (const QString& source : candidates) {
         const QFileInfo info(source);
 
-        // Still downloading. A browser writes a .part beside the target and
-        // leaves the target empty until it finishes, and hashing either one
-        // gives a hash for a file that is about to change.
+        // Skip files still downloading.
         if (QFile::exists(source + u".part"_s)) continue;
         if (info.size() == 0) continue;
 
@@ -138,9 +134,7 @@ void DownloadWatcher::poll()
 
         m_index.add(name, hash);
 
-        // Written after every move, not at stop: this runs unattended for
-        // hours, and a crash would otherwise lose the whole session's hashes
-        // and re-import everything next time.
+        // Save after every move so a crash doesn't lose the session's hashes.
         m_index.save(m_collectionDir);
 
         ++m_collected;

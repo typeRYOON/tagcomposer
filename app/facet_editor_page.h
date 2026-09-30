@@ -21,8 +21,7 @@ class AppData;
 class FlowLayout;
 class TagPreviewFetcher;
 
-// Assigns facets to tags: the tag list on the left, a pill grid per facet
-// category in the middle, and the Danbooru preview and wiki on the right.
+// Assigns facets to tags: tag list, facet pills per category, Danbooru preview.
 class FacetEditorPage : public QWidget {
     Q_OBJECT
 
@@ -32,8 +31,7 @@ public:
     // Rebuilds the tag list from the entries plus every defined tag.
     void reload();
 
-    // Where the composer's active tags come from. Pulled on every show, so
-    // the "undefined in composer" list stays fresh with no signal to plumb.
+    // Composer tags for the undefined list; read on every show.
     void setActiveTagsProvider(std::function<QStringList()> provider);
 
 public slots:
@@ -62,8 +60,7 @@ private:
     void focusFirstPill();
     QPushButton* neighborPill(QPushButton* current, int key) const;
 
-    // The right rail. The lookup is TagPreviewFetcher's; these only render
-    // what it reports.
+    // Right rail rendering; TagPreviewFetcher does the lookups.
     void setPreviewPixmap(const QPixmap& image);
     void clearPreview();
     void setWikiBody(const QString& body);

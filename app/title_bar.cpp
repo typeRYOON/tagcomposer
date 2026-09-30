@@ -76,7 +76,7 @@ TitleBar::TitleBar(QWidget* parent) : QWidget(parent)
     connect(m_minButton, &QPushButton::clicked, this, [this]() {
         QWidget* host = window();
         if (!host || (host->windowState() & Qt::WindowMinimized)) return;
-        // Fade out first; the host fades back in when it is restored.
+        // The host fades back in on restore.
         connect(fade(host, host->windowOpacity(), 0.0), &QPropertyAnimation::finished, host,
                 [host]() { host->showMinimized(); });
     });

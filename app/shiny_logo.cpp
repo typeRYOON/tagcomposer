@@ -52,8 +52,6 @@ void ShinyLogo::buildAnimation()
 {
     if (m_group) return;
 
-    // A sequential group with a pause stays in step with Qt's animation
-    // framework, which a QTimer would not.
     m_group = new QSequentialAnimationGroup(this);
 
     auto* sweep = new QPropertyAnimation(this, "shineProgress", this);
@@ -90,7 +88,6 @@ void ShinyLogo::showEvent(QShowEvent* event)
 void ShinyLogo::hideEvent(QHideEvent* event)
 {
     QWidget::hideEvent(event);
-    // m_wantRunning stays set, so showEvent resumes on its own.
     if (m_group && m_group->state() == QAbstractAnimation::Running) m_group->stop();
 }
 
@@ -102,8 +99,7 @@ void ShinyLogo::paintEvent(QPaintEvent*)
     const QRect target((width() - fit.width()) / 2, (height() - fit.height()) / 2, fit.width(),
                        fit.height());
 
-    // Drawing onto a transparent pixmap gives SourceAtop the logo's own alpha
-    // to mask against.
+    // Offscreen so SourceAtop masks against the logo's alpha.
     QPixmap canvas(size() * devicePixelRatioF());
     canvas.setDevicePixelRatio(devicePixelRatioF());
     canvas.fill(Qt::transparent);

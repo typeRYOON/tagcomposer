@@ -5,16 +5,12 @@
 
 namespace tc {
 
-// The <filename, pHash> map for one collection, kept in
-// `<collectionDir>/__hashes.json`.
-//
-// Lookup is a linear popcount scan. That is fine to roughly fifty thousand
-// entries, and a tree over Hamming distance would cost more to maintain than
-// the scan costs to run at this size.
+// <filename, pHash> map for one collection, stored in <collectionDir>/__hashes.json.
+// Lookup is a linear scan, fine up to ~50k entries.
 class PHashIndex {
 public:
     struct Match {
-        QString filename; // empty when nothing was near enough
+        QString filename; // empty if no match
         int distance = -1;
     };
 

@@ -89,8 +89,7 @@ QString AppData::workflowPath(const Workflow& workflow) const
 {
     if (m_dataDir.isEmpty() || workflow.path.isEmpty()) return {};
 
-    // Stored paths already start with "data/", so strip the data dir's own
-    // trailing segment rather than doubling it.
+    // Stored paths start with "data/"; don't double it.
     const QString relative = workflow.path.startsWith(u"data/"_s)
         ? workflow.path.sliced(5)
         : workflow.path;
@@ -144,7 +143,7 @@ void AppData::load(const QString& dataDir)
     else
         m_problems << u"workflows.json: "_s + read.error().reason;
 
-    // Optional: only autocomplete and the facet editor's tag colours use it.
+    // Optional; feeds autocomplete and tag colors.
     danbooru.load(dataPath(paths::kDanbooruCsv));
 
     const QList<LoadError> entryErrors = entries.load(dataDir + u"/entry"_s);

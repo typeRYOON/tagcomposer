@@ -10,8 +10,7 @@ class QVBoxLayout;
 
 namespace tc {
 
-// The float in the composer's top right: a small handle that expands on
-// hover into the list of group names currently on screen.
+// Hover-expanding list of the groups on screen; a click scrolls to one.
 class CategoryNavPanel : public QWidget {
     Q_OBJECT
 
@@ -20,9 +19,7 @@ public:
 
     std::function<void(const QString&)> onCategoryClicked;
 
-    // `undefinedCounts` maps a display name to how many of its tags have no
-    // facet definition. A positive count adds a suffix and the warn property,
-    // and the handle itself warns when any count is positive.
+    // undefinedCounts: per group, tags without facets. Nonzero counts warn.
     void updateCategories(const QStringList& displayNames,
                           const QHash<QString, int>& undefinedCounts = {});
 

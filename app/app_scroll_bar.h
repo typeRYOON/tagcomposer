@@ -3,8 +3,7 @@
 
 namespace tc {
 
-// A thin, rounded scrollbar painted by hand. The stock one cannot be made
-// this shape through the stylesheet alone.
+// Thin, rounded, hand-painted scrollbar.
 class AppScrollBar : public QScrollBar {
     Q_OBJECT
 

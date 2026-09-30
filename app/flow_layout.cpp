@@ -104,8 +104,6 @@ int FlowLayout::doLayout(const QRect& rect, bool testOnly) const
     int lineHeight = 0;
 
     for (QLayoutItem* item : m_items) {
-        // Skipping hidden items is the fix over Qt's stock example, which
-        // reserves a slot for them and leaves holes in the flow.
         if (item->isEmpty()) continue;
 
         const QWidget* w = item->widget();

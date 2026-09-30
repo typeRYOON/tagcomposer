@@ -92,7 +92,7 @@ bool EntryStore::remove(const QString& uuid)
     const auto it = m_indexByUuid.constFind(uuid);
     if (it == m_indexByUuid.constEnd()) return false;
 
-    // Copied, because uuid may reference the entry about to be erased.
+    // uuid may alias the entry being erased.
     const QString id = uuid;
     const QString folder = folderFor(id);
 
@@ -145,8 +145,7 @@ bool EntryStore::removeImage(const QString& uuid, qsizetype imageIndex)
     const QString fileName = entry->images[imageIndex].fileName;
     entry->images.removeAt(imageIndex);
 
-    // An entry with no images left is no longer storable, so it goes entirely
-    // rather than leaving a folder writeEntry would refuse.
+    // An entry with no images is invalid, so remove it entirely.
     if (entry->images.isEmpty()) {
         QFile::remove(folderFor(uuid) + u"/"_s + fileName);
         return remove(uuid);

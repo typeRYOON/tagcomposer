@@ -56,8 +56,7 @@ NumFilter parseNumFilter(QStringView text)
 
     bool ok = false;
     const int value = rest.trimmed().toInt(&ok);
-    // A negative or unparseable bound leaves the clause off rather than
-    // dropping every entry.
+    // A bad bound disables the clause instead of matching nothing.
     if (!ok || value < 0) return filter;
 
     filter.op = op;
@@ -74,8 +73,7 @@ void applyPresence(QueryGroup& group, QStringView field, bool wanted)
         group.hasTitle = wanted;
     else if (name == "comment"_L1)
         group.hasComment = wanted;
-    // An unknown field is ignored: a typo'd has:foo is better as a no-op than
-    // as a clause that matches nothing.
+    // Unknown fields are ignored.
 }
 
 bool matchesScalarClauses(const Entry& entry, const QueryGroup& group)

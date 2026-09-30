@@ -12,9 +12,7 @@ namespace tc {
 
 class DanbooruIndex;
 
-// The composer's tag entry: a line edit with a Danbooru autocomplete popup
-// below it. The popup is a separate top-level window shown without taking
-// focus, so typing never leaves the input.
+// Tag input with a Danbooru autocomplete popup that never takes focus.
 class TagSearchBar : public QWidget {
     Q_OBJECT
 
@@ -29,11 +27,10 @@ signals:
     void tagAlreadyPresent(const QString& tag);
     void queryChanged(const QString& text);
 
-    // Only when the popup is closed, so the host can hand focus to a
-    // sensible neighbour such as the tag list.
+    // Escape with the popup closed.
     void escapePressed();
 
-    // Down with an empty input, which the host treats as "go into the list".
+    // Down with an empty input.
     void downArrowOnEmpty();
 
 protected:
@@ -56,9 +53,8 @@ private:
     const QSet<QString>* m_activeTags = nullptr;
 };
 
-// The same popup attached to an existing QLineEdit. Picking a suggestion
-// replaces the edit's text with the canonical tag and clears focus, so the
-// host's editingFinished handler runs as though it had been typed.
+// The same popup on an existing QLineEdit. Picking a suggestion sets the
+// canonical tag and clears focus, firing the host's editingFinished.
 class TagLineAutocomplete : public QObject {
     Q_OBJECT
 

@@ -9,11 +9,8 @@ class QVBoxLayout;
 
 namespace tc {
 
-// The composer's right column: RULES, WORKFLOWS and VARIABLES stacked in a
-// draggable splitter, matching the old sidebar's sections and styling.
-//
-// It renders what it is given and emits intent. Applying a rule toggle or a
-// variable edit is the page's job, because those write back to disk.
+// The composer's rules/workflows/variables column. Renders what it is given
+// and emits intent; the page applies and saves.
 class ComposerSidebar : public QWidget {
     Q_OBJECT
 
@@ -34,7 +31,6 @@ signals:
     void variableAdded(const QString& name, const QString& value);
     void variableRemoved(const QString& name);
 
-    // Header buttons: the page owns the files, so it does the reloading.
     void reloadRulesRequested();
     void reloadVariablesRequested();
     void openRulesFileRequested();

@@ -16,11 +16,8 @@ struct WorkflowInput {
     int height = 0;
 };
 
-// Owns the files behind image-typed workflow variables. They live at
-// <cacheDir>/<uuid>.png; ComfyUI's input/ is a write-through mirror.
-//
-// This is app-side rather than core because it decodes and renders images,
-// and tc_core is Qt6::Core only.
+// Files behind image workflow variables, stored as <cacheDir>/<uuid>.png.
+// In app/ rather than core/ because it needs QImage.
 class WorkflowInputCache : public QObject {
     Q_OBJECT
 
@@ -36,18 +33,17 @@ public:
     const QString& cacheDir() const;
     QString localPath(const QString& uuid) const;
 
-    // localPath when the edits are off; otherwise renders the variant into
-    // _edited/<hash>/<uuid>.png and returns that. The basename stays <uuid>
-    // so the server-side path does not change with the variant.
+    // localPath, or the rendered edit variant at _edited/<hash>/<uuid>.png. The
+    // basename stays <uuid> so the server-side name doesn't change.
     QString resolveEdited(const QString& uuid, const ImageEdits& edits) const;
 
-    // Every save mints a fresh id; deduplication is the edits hash's job.
+    // Each save gets a fresh id.
     QString saveMask(const QImage& mask);
     QImage loadMask(const QString& maskId) const;
     void removeMask(const QString& maskId);
     QString maskPath(const QString& maskId) const;
 
-    // A subfolder under ComfyUI's input/, which keeps us out of clipspace/.
+    // Subfolder under ComfyUI's input/.
     static QString serverSubfolder();
     QString serverFilename(const QString& uuid) const;
 

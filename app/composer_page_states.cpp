@@ -1,7 +1,5 @@
-// Named saved states, the session file, and PNG drops carrying a baked state.
-//
-// A state is an explicit, named snapshot with an optional thumbnail; the
-// session is the unnamed one written on close and read on startup.
+// Saved states, the session file, and PNG drops carrying a baked state. The
+// session is the unnamed state written on close and read on startup.
 
 #include <app/composer_page.h>
 #include <app/app_data.h>
@@ -39,8 +37,7 @@ using namespace Qt::StringLiterals;
 namespace tc {
 namespace {
 
-// A single local .png, else empty. A child widget with its own drop handling
-// still wins: the page only sees a drag that no child accepted.
+// A single local .png, else empty.
 QString bakedPngFromMime(const QMimeData* mime)
 {
     if (!mime || !mime->hasUrls()) return {};
@@ -61,7 +58,6 @@ void ComposerPage::setStatesViewActive(bool active)
     if (m_statesViewActive == active) return;
     m_statesViewActive = active;
 
-    // Kept in step without re-entering this method.
     if (m_statesToggleBtn && m_statesToggleBtn->isChecked() != active) {
         const QSignalBlocker block(m_statesToggleBtn);
         m_statesToggleBtn->setChecked(active);
@@ -71,8 +67,7 @@ void ComposerPage::setStatesViewActive(bool active)
 
     for (QWidget* widget : m_composerFloats) {
         if (!widget) continue;
-        // The preview inset has its own lifecycle: it is only visible once an
-        // image has actually arrived.
+        // The preview inset only shows once an image has arrived.
         if (active)
             widget->setVisible(false);
         else if (widget == m_previewLabel)
@@ -86,8 +81,7 @@ void ComposerPage::setStatesViewActive(bool active)
         if (m_statesFilter) m_statesFilter->setFocus();
     }
 
-    // Snap-fade to the target view. A rebuild already in flight, from a tile
-    // click into restoreState say, collapses into this one.
+    // Fade in the target view, replacing any fade in flight.
     if (m_mainStackFade->state() == QAbstractAnimation::Running) m_mainStackFade->stop();
     m_mainStack->setCurrentIndex(active ? 2 : composerStackIndex());
 
@@ -145,7 +139,7 @@ void ComposerPage::captureCurrentState(SavedState& state) const
 
     state.activeTags = doc.activeTags;
 
-    // A weight of 1 is the default, so storing it would only bloat the file.
+    // Skip default weights.
     state.tagWeights.clear();
     for (auto it = doc.weights.cbegin(); it != doc.weights.cend(); ++it)
         if (qAbs(it.value() - 1.0f) >= 0.001f) state.tagWeights[it.key()] = it.value();
@@ -160,10 +154,9 @@ void ComposerPage::captureCurrentState(SavedState& state) const
     state.rulesSnapshot = QJsonArray();
     for (const Rule& rule : m_data->ruleFile.rules) {
         state.ruleStates[rule.uuid] = rule.enabled;
-        // The injected tags are user-typed, so they belong to the state.
+        // Arguments are user-typed.
         state.ruleArguments[rule.uuid] = rule.action.arguments;
-        // The whole definition, so restoring on a machine that never had this
-        // rule can recreate it locally.
+        // Full definition, so another machine can recreate the rule.
         state.rulesSnapshot.append(ruleToJson(rule));
     }
 
@@ -187,9 +180,7 @@ void ComposerPage::captureCurrentState(SavedState& state) const
     for (const Lora& lora : doc.loraStack)
         state.activeLoraUuids << lora.sha256;
 
-    // The stamp carries names for the UI plus the resolved order and format
-    // list, so the state replays identically after its profile is edited or
-    // deleted.
+    // Resolved order and formats, so the state replays even if profiles change.
     state.profilesStamped = true;
     state.groupProfileName = m_profiles.activeGroup();
     state.groupOrder = m_groups.names();
@@ -266,9 +257,7 @@ void ComposerPage::overwriteState(int row)
     if (m_statesDir.isEmpty()) return;
     if (row < 0 || row >= m_stateManager.states().size()) return;
 
-    // The id is the folder on disk and the preview is a separate file, so
-    // both are kept; only the payload is refreshed. createdAt is bumped so it
-    // floats to the top.
+    // Keep the id (folder) and preview; refresh the payload and bump createdAt.
     SavedState fresh;
     fresh.id = m_stateManager.states()[row].id;
     fresh.name = m_stateManager.states()[row].name;
@@ -294,8 +283,7 @@ void ComposerPage::restoreState(const SavedState& state)
     doc.deactivated = state.deactivatedTags;
     doc.customFacets = state.customTagFacets;
 
-    // A push naming an entry that no longer exists is dropped rather than
-    // left claiming tags nothing can un-claim.
+    // Drop pushes whose entry or image is gone.
     int missingEntries = 0;
     for (const EntryPush& push : state.activePushes) {
         const Entry* entry = m_entries->find(push.entryUuid);
@@ -311,8 +299,7 @@ void ComposerPage::restoreState(const SavedState& state)
         doc.pushes << push;
     }
 
-    // The stack is rebuilt from the entries the uuids name, so a LoRA whose
-    // entry has been deleted simply drops out.
+    // Rebuilt from the entries; LoRAs of deleted entries drop out.
     for (const QString& sha : state.activeLoraUuids) {
         for (const Entry& entry : m_entries->all()) {
             if (!entry.lora || entry.lora->sha256 != sha) continue;
@@ -323,10 +310,8 @@ void ComposerPage::restoreState(const SavedState& state)
 
     m_deactivatedCategory = state.deactivatedCategory;
 
-    // Bring back any rule the state knows about that the local rules.fct does
-    // not, matched by uuid. An existing rule keeps its local behaviour unless
-    // the setting says otherwise; its name is always local, since that is the
-    // rule's display identity.
+    // Recreate rules missing locally (by uuid). Existing rules keep their local
+    // definition unless forceOverwriteRulesOnStateLoad is set; names stay local.
     int rulesAdded = 0;
     int rulesOverwritten = 0;
     {
@@ -356,9 +341,7 @@ void ComposerPage::restoreState(const SavedState& state)
         }
     }
 
-    // The enabled flags and injected tags always come from the state. A rule
-    // created after the snapshot is switched off, so what is on screen and
-    // what is on disk agree.
+    // Enabled flags and arguments come from the state; newer rules are switched off.
     for (Rule& rule : m_data->ruleFile.rules) {
         const auto enabled = state.ruleStates.constFind(rule.uuid);
         if (enabled == state.ruleStates.cend()) {
@@ -373,7 +356,7 @@ void ComposerPage::restoreState(const SavedState& state)
     report(m_data->saveRules());
     rebuildRulesSidebar();
 
-    // The state is canonical for variables: the set is replaced wholesale.
+    // Variables are replaced wholesale.
     QList<Variable> variables;
     for (const QPair<QString, QString>& pair : state.varValues)
         variables << Variable{pair.first, pair.second};
@@ -381,8 +364,7 @@ void ComposerPage::restoreState(const SavedState& state)
     report(m_data->saveVariables());
     rebuildVarsSidebar();
 
-    // The workflow selection is restored first, so the var restore below
-    // lands on the right one.
+    // Select the workflow first so its vars get restored.
     bool workflowMissing = false;
     if (!state.selectedWorkflowId.isEmpty()) {
         int found = -1;
@@ -397,15 +379,13 @@ void ComposerPage::restoreState(const SavedState& state)
         }
     }
 
-    // Workflow vars are replaced wholesale in their saved order. Skipped when
-    // the workflow is gone, so another workflow's vars are never clobbered.
+    // Replace the workflow's vars, unless the workflow is gone.
     if (!workflowMissing && !state.selectedWorkflowId.isEmpty()) {
         QList<WorkflowVar> restored;
         for (const QJsonValue entry : state.workflowVarValues) {
             WorkflowVar var = varFromJson(entry.toObject());
 
-            // An image the cache has lost is cleared: re-picking it beats
-            // uploading a broken reference.
+            // Clear images the cache has lost.
             if (auto* image = std::get_if<ImageVar>(&var.value)) {
                 if (!image->imageUuid.isEmpty() && !m_cache->has(image->imageUuid)) {
                     emit statusMessage(u"Image input %1 missing from cache (%2) - repick"_s.arg(
@@ -421,8 +401,7 @@ void ComposerPage::restoreState(const SavedState& state)
     report(m_data->saveWorkflows());
     emit workflowVarsChanged();
 
-    // No redraw here: the store's reset below does it with the right order
-    // already applied.
+    // No redraw; the reset below triggers one.
     applyProfileStamp(state, false);
 
     m_store->reset(std::move(doc));
@@ -536,8 +515,7 @@ void ComposerPage::restoreSession(const QString& path)
     for (auto it = categories.constBegin(); it != categories.constEnd(); ++it)
         m_deactivatedCategory[it.key()] = it.value().toString();
 
-    // The same rule as a state restore: a push whose entry or image is gone
-    // is dropped rather than kept claiming tags.
+    // As in restoreState, drop pushes whose entry or image is gone.
     for (const QJsonValue value : root[u"activePushes"_s].toArray()) {
         const EntryPush push = entryPushFromJson(value.toObject());
         const Entry* entry = m_entries->find(push.entryUuid);
@@ -563,11 +541,7 @@ void ComposerPage::restoreSession(const QString& path)
     emit pushesChanged();
 }
 
-// ---- PNG drops carrying a baked state
-//
-// An image this app queued carries the composer snapshot in a
-// "tagcomposer_state" text chunk, so dropping one back on the page restores
-// that state - the same gesture ComfyUI uses for a workflow image.
+// ---- PNG drops carrying a baked state (the "tagcomposer_state" text chunk)
 
 void ComposerPage::dragEnterEvent(QDragEnterEvent* event)
 {
@@ -604,7 +578,7 @@ void ComposerPage::dropEvent(QDropEvent* event)
     if (state.name.isEmpty()) state.name = QFileInfo(path).completeBaseName();
     restoreState(state);
 
-    // Pinning the dropped image as the preview makes the load visible.
+    // Show the dropped image as the preview.
     const QImage image(path);
     if (!image.isNull()) setPreviewImage(image);
 }

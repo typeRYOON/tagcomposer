@@ -7,46 +7,35 @@
 
 namespace tc {
 
-// A named ordering of the groups groups.fct already defines. It never
-// redefines a group's name or facets - groups.fct stays the one definition of
-// what a group is. Naming a subset is fine: the groups left out keep their
-// file order and follow the named ones.
+// A named ordering of groups.fct's groups. Unnamed groups follow in file order.
 struct GroupProfile {
     QString name;
     QStringList order;
 };
 
-// A named set of per-facet tag wraps: one alternative to settings.json's
-// facets.formats list. Independent of GroupProfile.
+// A named alternative to settings.json's facet format list.
 struct FormatProfile {
     QString name;
     QList<FacetFormat> formats;
 };
 
-// `base` with the groups named in `order` hoisted to the front in that order.
-// Groups not named follow in base order, and an unknown name is ignored,
-// since a group may have been renamed or removed since the profile was
-// written.
+// Named groups first, in order; the rest keep base order. Unknown names are ignored.
 TagGroups applyGroupOrder(const TagGroups& base, const QStringList& order);
 
-// profiles.fct. Blocks are @groupprofile and @formatprofile, plus one
-// `active = <group> | <format>` line.
+// profiles.fct: @groupprofile / @formatprofile blocks, `active = <group> | <format>`.
 class ProfileIndex {
 public:
-    // A missing file yields an empty index, which is not an error.
+    // A missing file yields an empty index.
     static ProfileIndex loadFromFile(const QString& path);
 
-    // One "Default" per axis mirroring current behaviour, so a first run with
-    // no profiles.fct behaves exactly as before.
+    // One "Default" profile per axis, matching the current settings.
     static ProfileIndex withDefaults(const TagGroups& groups,
                                      const QList<FacetFormat>& formats);
 
-    // A full rewrite, used for the first-run migration. It drops comments.
+    // Full rewrite; drops comments.
     void saveToFile(const QString& path) const;
 
-    // Rewrites only the `active` line, so hand-written comments and profile
-    // bodies survive a combo-box switch. Falls back to a full write when the
-    // file is missing.
+    // Rewrites only the active line, keeping comments. Full write if the file is missing.
     void saveActiveToFile(const QString& path) const;
 
     bool isEmpty() const;
@@ -54,7 +43,7 @@ public:
     const QList<GroupProfile>& groupProfiles() const;
     const QList<FormatProfile>& formatProfiles() const;
 
-    // nullptr when nothing carries that name.
+    // nullptr if not found.
     const GroupProfile* groupProfile(const QString& name) const;
     const FormatProfile* formatProfile(const QString& name) const;
 
@@ -63,9 +52,7 @@ public:
     void setActiveGroup(const QString& name);
     void setActiveFormat(const QString& name);
 
-    // The resolved active payloads. Empty when the active name is unset or
-    // names a profile that no longer exists; the caller then keeps base order
-    // and the settings.json format list.
+    // Empty when unset or the profile is gone; callers then use the defaults.
     QStringList activeOrder() const;
     QList<FacetFormat> activeFormats() const;
 

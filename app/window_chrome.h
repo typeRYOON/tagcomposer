@@ -12,15 +12,9 @@ namespace tc {
 
 class TitleBar;
 
-// Frameless chrome for any top-level widget: titlebar, cosmetic border, and
-// outline-style edge resize. The host owns it and delegates.
-//
-// Host responsibilities:
-//   1. setWindowFlags(... | Qt::FramelessWindowHint)
-//   2. auto* chrome = new WindowChrome(this, opts);
-//   3. put chrome->frame() in the layout, or setCentralWidget for a QMainWindow
-//   4. lay content into chrome->body()
-//   5. forward changeEvent to chrome->onWindowStateChanged()
+// Frameless chrome for a top-level widget: titlebar, border and edge resize.
+// The host sets FramelessWindowHint, puts frame() in its layout, lays content
+// into body() and forwards changeEvent to onWindowStateChanged().
 class WindowChrome : public QObject {
     Q_OBJECT
 
@@ -30,8 +24,7 @@ public:
         bool showMax = true;
         bool showClose = true;
 
-        // For a QDialog using exec(): the modal loop breaks Qt's implicit
-        // mouse grab during a resize drag, so one is taken explicitly.
+        // For exec()'d dialogs, whose modal loop breaks the implicit mouse grab.
         bool modalGrab = false;
     };
 
@@ -42,8 +35,7 @@ public:
     QWidget* body() const;
     TitleBar* titleBar() const;
 
-    // Titlebar hides in fullscreen, the border goes in fullscreen and
-    // maximized, and the resize ring is off in both.
+    // Hides the chrome when fullscreen or maximized.
     void onWindowStateChanged();
 
 protected:
@@ -67,9 +59,7 @@ private:
     QRect m_dragStartGeometry;
     QPoint m_dragStartGlobal;
 
-    // Polls the mouse buttons while a drag is live. If the implicit grab is
-    // broken mid-drag the release never arrives, and without this the outline
-    // and override cursor would stay stuck on screen.
+    // Polls the buttons during a drag in case the release never arrives.
     QTimer* m_dragGuard = nullptr;
 };
 

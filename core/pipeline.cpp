@@ -30,8 +30,7 @@ QList<PipelineTag> evaluate(const ComposerDoc& doc, const PipelineContext& ctx)
     QHash<QString, Weight> picked;
 
     for (const QString& activeTag : doc.activeTags) {
-        // A deactivated tag is display-only and handled after the rules, so
-        // it takes no part in expansion, deduplication or facet lookup.
+        // Deactivated tags come back as display-only rows after the rules.
         if (doc.deactivated.contains(activeTag)) continue;
 
         PipelineTag pt;
@@ -63,12 +62,8 @@ QList<PipelineTag> evaluate(const ComposerDoc& doc, const PipelineContext& ctx)
         resolved << pt;
     }
 
-    // Display-only rows for what the user muted. Carrying the raw active-tag
-    // text rather than an expansion is what greys them out: an expanded tag
-    // keeps its sourceTag, and a row with a sourceTag is styled as a variable
-    // -- bright, and only struck through. Left without facets too, so the
-    // section it is shown under comes from the page's own snapshot of where
-    // it was when it was turned off.
+    // Display-only rows for muted tags. No sourceTag (a row with one is styled as
+    // a variable) and no facets (the page remembers where each was turned off).
     auto appendDeactivated = [&doc](QList<PipelineTag>& list) {
         for (const QString& activeTag : doc.activeTags) {
             if (!doc.deactivated.contains(activeTag)) continue;

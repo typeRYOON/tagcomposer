@@ -102,8 +102,7 @@ bool ComposerStore::renameTag(const QString& from, const QString& to)
     const Edit e = beginEdit(u"rename:"_s + from);
 
     if (collides) {
-        // The target already carries its own weight and facets, so the old
-        // entry is dropped rather than overwriting them.
+        // The target keeps its own weight and facets.
         m_doc.activeTags.removeAt(at);
         m_doc.weights.remove(from);
         m_doc.customFacets.remove(from);
@@ -115,8 +114,7 @@ bool ComposerStore::renameTag(const QString& from, const QString& to)
     }
     m_doc.deactivated.remove(from);
 
-    // A push claiming the old name follows it, unless the rename collapsed
-    // into a tag something else already owns.
+    // Pushes follow the rename; on a collision the old name is just dropped.
     for (EntryPush& push : m_doc.pushes) {
         const qsizetype claimed = push.tags.indexOf(from);
         if (claimed < 0) continue;
@@ -234,9 +232,7 @@ void ComposerStore::unpush(const QString& entryUuid, const QString& imageFile,
         m_doc.customFacets.remove(tag);
     }
 
-    // An entry's other images may still be pushed, and they share the one
-    // LoRA: dropping it on the first unpush would leave those pushes styled
-    // by nothing.
+    // Keep the LoRA while another image of the same entry is still pushed.
     if (loraSha.isEmpty()) return;
     for (const EntryPush& p : m_doc.pushes)
         if (p.entryUuid == entryUuid) return;

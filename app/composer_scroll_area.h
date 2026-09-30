@@ -6,17 +6,15 @@ class QWheelEvent;
 
 namespace tc {
 
-// The composer's tag list viewport. Scrolling is animated rather than
-// instant, and the run shortcuts are caught here because this is what holds
-// focus while the list is being worked through.
+// The tag list viewport: animated scrolling, plus the run shortcuts while it
+// has focus.
 class ComposerScrollArea : public QScrollArea {
     Q_OBJECT
 
 public:
     explicit ComposerScrollArea(QWidget* parent = nullptr);
 
-    // Animated jump to an absolute y inside the inner widget, so a category
-    // nav click glides instead of snapping.
+    // Animated scroll to a y inside the inner widget.
     void scrollToY(int y);
 
 signals:

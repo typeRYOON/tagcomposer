@@ -12,7 +12,6 @@ class QRandomGenerator;
 
 namespace tc {
 
-// Everything rendering needs beyond the document and the workflow.
 struct RenderContext {
     PipelineContext pipeline;
     const TagGroups* groups = nullptr;
@@ -21,7 +20,7 @@ struct RenderContext {
     // ComfyUI-side folder uploads land in.
     QString imageSubfolder;
 
-    // Slots the template may carry: __lora_name_1__ through this number.
+    // __lora_name_1__ .. __lora_name_N__
     int loraSlots = 10;
 };
 
@@ -38,8 +37,7 @@ struct RunRequest {
     QStringList wildcardTags; // what this run picked, for history
 };
 
-// errors mean the run would produce wrong output silently and should block.
-// warnings are informational.
+// errors block the run; warnings are informational.
 struct RunIssues {
     QStringList errors;
     QStringList warnings;
@@ -50,10 +48,8 @@ struct RunIssues {
     }
 };
 
-// Picks one bundle per wildcard variable, folds those tags into the document,
-// runs the pipeline, and substitutes every token in `templateJson`.
-// 
-// Pure: the same document, workflow and generator state always render the same output.
+// Picks wildcard bundles, runs the pipeline and fills templateJson's tokens.
+// Deterministic for a given rng state.
 RunRequest renderRun(const ComposerDoc& doc, const Workflow& workflow,
                      const QString& templateJson, const RenderContext& ctx,
                      QRandomGenerator* rng);

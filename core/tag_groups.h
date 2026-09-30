@@ -7,7 +7,7 @@
 
 namespace tc {
 
-// A tag joins the group when it carries every one of these facets.
+// A tag joins when it has all of these facets.
 struct TagGroup {
     QString name;
     QStringList facets;
@@ -15,9 +15,7 @@ struct TagGroup {
     bool operator==(const TagGroup&) const = default;
 };
 
-// groups.fct: @group blocks, matched top to bottom, first match wins. Order is
-// therefore meaning, not presentation: a broad group above a narrow one claims
-// every tag the narrow one would have taken.
+// groups.fct: @group blocks, first match wins, so order matters.
 class TagGroups {
 public:
     // Name of the first group whose facets are all present, or empty.

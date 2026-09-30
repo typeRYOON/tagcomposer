@@ -37,8 +37,7 @@ bool isModelFile(const QString& path)
     return suffixes.contains(QFileInfo(path).suffix().toLower());
 }
 
-// [u64 LE header size][UTF-8 JSON header][tensor data]. Some __metadata__
-// values are themselves JSON strings, such as ss_tag_frequency.
+// [u64 LE header size][JSON header][tensors]; some metadata values are JSON strings.
 QJsonObject readSafetensorsMetadata(const QString& path)
 {
     QFile file(path);
@@ -50,8 +49,7 @@ QJsonObject readSafetensorsMetadata(const QString& path)
         return {};
 
     headerSize = qFromLittleEndian(headerSize);
-    // A sane bound: the header is metadata, and anything this large means the
-    // file is not what it claims to be.
+    // Anything larger isn't really a safetensors header.
     if (headerSize == 0 || headerSize > 100ULL * 1024 * 1024) return {};
 
     const QByteArray header = file.read(headerSize);
@@ -78,8 +76,7 @@ QString resolutionFromDatasets(const QString& datasetsJson)
     return u"%1x%2"_s.arg(int(resolution[0].toDouble())).arg(int(resolution[1].toDouble()));
 }
 
-// ss_tag_frequency is {"<subset>": {"tag": count}}. Flattened across subsets
-// and sorted by count, then name.
+// {"<subset>": {"tag": count}}, merged across subsets, sorted by count then name.
 QList<QPair<QString, int>> parseTagFrequency(const QString& json)
 {
     QList<QPair<QString, int>> result;
@@ -171,8 +168,7 @@ LoraInfoDialog::LoraInfoDialog(const QString& path, QWidget* parent) : ChromedDi
 
     const QJsonObject metadata = readSafetensorsMetadata(path);
 
-    // Trainers disagree on key names, so each field takes the first key that
-    // actually carries something.
+    // Trainers use different keys; take the first non-empty one.
     const auto pickFirst = [&metadata](std::initializer_list<const char*> keys) {
         for (const char* key : keys) {
             const QString value = metadata[QLatin1String(key)].toString().trimmed();
@@ -207,8 +203,6 @@ LoraInfoDialog::LoraInfoDialog(const QString& path, QWidget* parent) : ChromedDi
     addRow(u"Resolution:"_s, resolution);
 
     auto* frequencyHeader = new QLabel(u"Tag frequency:"_s);
-    // Inline, because no stylesheet carries a rule for it and a bare label
-    // here reads as body text rather than a section heading.
     frequencyHeader->setStyleSheet(u"color:#888; margin-top:6px;"_s);
     root->addWidget(frequencyHeader);
 
@@ -224,14 +218,14 @@ LoraInfoDialog::LoraInfoDialog(const QString& path, QWidget* parent) : ChromedDi
     const QList<QPair<QString, int>> entries =
         parseTagFrequency(metadata[u"ss_tag_frequency"_s].toString());
 
-    // The counts are right-aligned to the widest one, so the tags line up.
+    // Right-align counts so the tags line up.
     const int countWidth =
         entries.isEmpty() ? 1 : int(QString::number(entries.first().second).size());
 
     for (const auto& [tag, count] : entries) {
         auto* item = new QListWidgetItem(
             u"%1  %2"_s.arg(count, countWidth, 10, QChar(u' ')).arg(tag), list);
-        // The bare tag, so a copy yields the tag rather than the count too.
+        // Copy yields just the tag.
         item->setData(Qt::UserRole, tag);
     }
 
@@ -280,8 +274,7 @@ LoraImportDialog::LoraImportDialog(const QString& sourcePath, const QString& lor
     setWindowTitle(u"Import LoRA"_s);
     setMinimumSize(800, 480);
 
-    // Scanned once up front: the match list is how the user follows whatever
-    // folder convention the collection already uses.
+    // Existing paths, to show the collection's folder convention.
     const QDir base(loraBaseDir);
     QDirIterator it(loraBaseDir, {u"*.safetensors"_s}, QDir::Files,
                     QDirIterator::Subdirectories);
@@ -350,8 +343,7 @@ QString LoraImportDialog::computeFinalPath(const QString& input)
 {
     if (input.isEmpty()) return {};
 
-    // A dot only counts as an extension when it comes after the last
-    // separator, or "style/v1.5/name" would look like it already had one.
+    // Only a dot after the last separator is an extension ("v1.5/name" has none).
     const qsizetype lastSeparator = std::max(input.lastIndexOf(u'/'), input.lastIndexOf(u'\\'));
     const qsizetype lastDot = input.lastIndexOf(u'.');
 

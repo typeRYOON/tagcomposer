@@ -7,13 +7,10 @@
 
 namespace tc {
 
-// settings.json, in full. Every field is carried even where the feature that
-// uses it is not ported yet: the file is shared with the old app, and writing
-// back a subset would erase the rest.
+// settings.json. Fields without a feature yet are still carried, so a write keeps them.
 struct Settings {
     // ---- Appearance
-    // Tile bottom gradient. start is where the fade begins (0 top, 1 bottom),
-    // alpha is the darkness at the bottom edge.
+    // Tile bottom gradient: fade start (0 top, 1 bottom), alpha at the bottom edge.
     qreal tileGradientStart = 0.6;
     int tileGradientAlpha = 180;
     QString tileTitleColor = QStringLiteral("#ffffff");
@@ -32,8 +29,7 @@ struct Settings {
     double defaultLoraClipStrength = 1.0;
 
     // ---- Facets
-    // Empty means the matching quick-add menu item stays hidden, so nobody is
-    // forced into a particular facet naming scheme.
+    // Empty hides the matching quick-add menu item.
     QString quickCharacterFacet;
     QString quickCopyrightFacet;
     QString quickTriggerWordFacet;
@@ -64,8 +60,7 @@ struct Settings {
     bool operator==(const Settings&) const = default;
 };
 
-// A missing file is not an error: first run has no settings.json, and the
-// defaults above are the right answer.
+// A missing file yields the defaults.
 std::expected<Settings, LoadError> readSettings(const QString& path);
 std::expected<void, LoadError> writeSettings(const Settings& settings, const QString& path);
 

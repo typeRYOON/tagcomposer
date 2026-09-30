@@ -14,9 +14,7 @@ using namespace Qt::StringLiterals;
 namespace tc {
 namespace {
 
-// A binary frame is [u32 BE event][u32 BE format][image bytes]. Event 1 is an
-// unencoded preview; format 1 is JPEG and 2 is PNG, but the decoder sniffs
-// the data anyway, so only the header size matters here.
+// Binary frame: [u32 BE event][u32 BE format][image]. Event 1 is a preview.
 constexpr int kBinaryHeaderBytes = 8;
 constexpr quint32 kPreviewEvent = 1;
 
@@ -43,8 +41,7 @@ ComfyClient::ComfyClient(QObject* parent)
         m_connected = false;
         if (was) emit disconnected();
 
-        // The server restarting is routine, so the feed just comes back on
-        // its own rather than needing the user to do anything.
+        // Reconnect after server restarts.
         if (m_wantConnection) m_retry->start();
     });
     connect(m_socket, &QWebSocket::errorOccurred, this, [this](QAbstractSocket::SocketError) {
@@ -73,7 +70,6 @@ void ComfyClient::setServerAddress(const QString& address)
     if (trimmed == m_address) return;
     m_address = trimmed;
 
-    // Point the live feed at the new host rather than leaving it on the old.
     if (m_wantConnection) openSocket();
 }
 
@@ -95,7 +91,7 @@ void ComfyClient::openSocket()
     if (!m_wantConnection || m_address.isEmpty()) return;
 
     m_retry->stop();
-    m_socket->abort(); // close() would wait for a handshake that may never come
+    m_socket->abort(); // close() can wait on a dead handshake
     m_socket->open(QUrl(u"ws://%1/ws?clientId=%2"_s.arg(m_address, m_clientId)));
 }
 
@@ -108,14 +104,11 @@ void ComfyClient::handleTextMessage(const QString& text)
         const QJsonObject data = message[u"data"_s].toObject();
         const int value = data[u"value"_s].toInt();
 
-        // Not advancing means a new run began, so the preview that comes with
-        // this step still belongs to the old one.
+        // Not advancing means a new run; its first preview is stale.
         if (value <= m_lastProgressValue) m_dropNextPreview = true;
         m_lastProgressValue = value;
 
-        // Already 1..max: the sampler reports step + 1. The +1 below belongs
-        // to the "preview" message, whose step is 0-based, and applying it
-        // here as well put the count one ahead of the real step.
+        // Already 1-based, unlike the "preview" message's step.
         emit previewProgressChanged(value, data[u"max"_s].toInt());
         return;
     }
@@ -129,18 +122,16 @@ void ComfyClient::handleTextMessage(const QString& text)
         return;
     }
 
-    // The older JSON preview, kept because a base64 frame still arrives from
-    // some custom sampler nodes.
+    // Base64 JSON preview, as sent by the README's latent_preview patch.
     if (type != "preview"_L1) return;
 
     const QJsonObject data = message[u"data"_s].toObject();
     const int step = data[u"step"_s].toInt();
     emit previewProgressChanged(step + 1, data[u"total_steps"_s].toInt());
 
-    // Step 0 re-sends the previous run's last frame, which would flash the
-    // old image over the new job.
+    // Step 0 is the previous run's last frame.
     if (step == 0) {
-        m_dropNextPreview = false; // this path names the frame itself
+        m_dropNextPreview = false;
         return;
     }
     m_dropNextPreview = false;
@@ -155,8 +146,7 @@ void ComfyClient::handleBinaryMessage(const QByteArray& payload)
     if (payload.size() <= kBinaryHeaderBytes) return;
     if (qFromBigEndian<quint32>(payload.constData()) != kPreviewEvent) return;
 
-    // The run's first frame is the previous run's, the same one the JSON path
-    // drops at step 0.
+    // A run's first frame is the previous run's last one.
     if (m_dropNextPreview) {
         m_dropNextPreview = false;
         return;
@@ -189,8 +179,6 @@ void ComfyClient::queue(const QString& workflowJson, const QJsonObject& extraPng
 
     const QJsonObject prompt = QJsonDocument::fromJson(workflowJson.toUtf8()).object();
     if (prompt.isEmpty()) {
-        // Almost always a substitution that produced invalid JSON, so say that
-        // rather than blaming the server.
         emit failed(u"Rendered workflow is not valid JSON"_s);
         return;
     }
@@ -271,8 +259,7 @@ void ComfyClient::post(const QString& endpoint, const QJsonObject& body, const Q
 
         const QJsonObject response = QJsonDocument::fromJson(reply->readAll()).object();
 
-        // ComfyUI answers a rejected prompt with 200 and an error body, so a
-        // clean transport does not mean the job was accepted.
+        // An "error" key in the body means the prompt was rejected.
         if (response.contains(u"error"_s)) {
             const QJsonValue error = response[u"error"_s];
             emit failed(what + u" rejected: "_s

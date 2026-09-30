@@ -68,8 +68,7 @@ bool DanbooruIndex::load(const QString& path)
     std::sort(m_byAlias.begin(), m_byAlias.end(),
               [](const AliasEntry& a, const AliasEntry& b) { return a.normalized < b.normalized; });
 
-    // Only the words after the first: the leading one is already reachable
-    // through m_byName.
+    // Non-leading words only; the first is covered by m_byName.
     for (qsizetype i = 0; i < m_tags.size(); ++i) {
         const QString& name = m_tags[i].name;
         qsizetype wordStart = 0;
@@ -138,7 +137,7 @@ QList<TagSearchResult> DanbooruIndex::search(const QString& prefix, int maxResul
         }
     }
 
-    // Aliases get their own rows: the pill shows where the alias resolves to.
+    // Alias rows show which tag they resolve to.
     {
         auto it = std::lower_bound(
             m_byAlias.cbegin(), m_byAlias.cend(), needle,

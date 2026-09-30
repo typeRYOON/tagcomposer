@@ -8,8 +8,7 @@
 
 namespace tc {
 
-// workflows.json: {"files": [...], "selectedIndex": N}.
-// selectedIndex is the last workflow used.
+// workflows.json. selectedIndex is the last workflow used.
 struct WorkflowsFile {
     QList<Workflow> workflows;
     int selectedIndex = -1;
@@ -19,8 +18,7 @@ struct WorkflowsFile {
 std::expected<WorkflowsFile, LoadError> readWorkflows(const QString& path);
 std::expected<void, LoadError> writeWorkflows(const WorkflowsFile& file, const QString& path);
 
-// latent_sizes.txt: "<w> <h>" per line, # comments and blanks skipped. A
-// missing file is not an error; the picker just has nothing to offer.
+// latent_sizes.txt: "<w> <h>" per line, # comments. A missing file reads as empty.
 struct LatentSizeEntry {
     int width = 0;
     int height = 0;
@@ -29,8 +27,7 @@ struct LatentSizeEntry {
 
 QList<LatentSizeEntry> readLatentSizes(const QString& path);
 
-// Shared with saved states so both speak one var format.
-// An unrecognised type reads as a StringVar.
+// Also used by saved states. Unknown types read as StringVar.
 QJsonObject varToJson(const WorkflowVar& var);
 WorkflowVar varFromJson(const QJsonObject& obj);
 

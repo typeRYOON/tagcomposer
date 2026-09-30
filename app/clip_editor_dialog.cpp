@@ -28,12 +28,10 @@ using namespace Qt::StringLiterals;
 namespace tc {
 namespace {
 
-// Erase is a modifier rather than its own tool: Rect+erase, Brush+erase and
-// so on clear instead of paint.
+// Erase is a modifier: any tool clears instead of paints.
 enum class Tool { Rect, Brush, Bucket, MaskFill };
 
-// The tight box around every non-zero pixel, or a null rect when the mask is
-// entirely empty.
+// Bounding box of non-zero pixels; null when the mask is empty.
 QRect maskBoundingBox(const QImage& mask)
 {
     if (mask.isNull()) return {};
@@ -58,14 +56,8 @@ QRect maskBoundingBox(const QImage& mask)
     return QRect(QPoint(minX, minY), QPoint(maxX, maxY));
 }
 
-// A four-connected scanline flood fill.
-//
-// `matches` decides whether a pixel belongs to the region and `visit` marks
-// it. Both take image coordinates. The filled bounding box comes back, or a
-// null rect when nothing was filled.
-//
-// Scanline rather than per-pixel recursion: a fill over a large flat region
-// is thousands of pixels deep, which a naive version would stack-overflow on.
+// Four-connected scanline flood fill; no recursion, so large regions can't
+// overflow the stack. Returns the filled bounding box, or a null rect.
 QRect scanlineFill(const QSize& size, QPoint start,
                    const std::function<bool(int, int)>& matches,
                    const std::function<void(int, int)>& visit)
@@ -76,8 +68,7 @@ QRect scanlineFill(const QSize& size, QPoint start,
     const int width = size.width();
     const int height = size.height();
 
-    // Visited is tracked separately, because `visit` may write a value the
-    // `matches` test still accepts.
+    // Separate visited set: visit() may write a value matches() still accepts.
     std::vector<bool> seen(size_t(width) * size_t(height), false);
     const auto index = [width](int x, int y) { return size_t(y) * size_t(width) + size_t(x); };
 
@@ -115,8 +106,7 @@ QRect scanlineFill(const QSize& size, QPoint start,
         minY = std::min(minY, y);
         maxY = std::max(maxY, y);
 
-        // Seed the rows above and below, one point per contiguous run so the
-        // stack stays proportional to the region's perimeter.
+        // Seed one point per run in the rows above and below.
         for (int neighbourY : {y - 1, y + 1}) {
             if (neighbourY < 0 || neighbourY >= height) continue;
 
@@ -154,21 +144,20 @@ public:
         m_overlay = QImage(m_source.size(), QImage::Format_ARGB32);
         m_overlay.fill(Qt::transparent);
 
-        // Kept in RGB888 once, so the bucket tool is not re-converting the
-        // whole image on every click.
+        // Converted once for the bucket tool.
         m_rgb = m_source.format() == QImage::Format_RGB888
             ? m_source
             : m_source.convertToFormat(QImage::Format_RGB888);
     }
 
-    // Replaces the mask wholesale, from a saved maskId or a legacy rect.
+    // From a saved maskId or a legacy rect.
     void setMask(const QImage& mask)
     {
         if (mask.isNull()) {
             m_mask.fill(0);
         } else {
             m_mask = mask.convertToFormat(QImage::Format_Grayscale8);
-            // Defensive: a mask of the wrong size would index out of bounds.
+            // A wrong-size mask would index out of bounds.
             if (m_mask.size() != m_source.size())
                 m_mask = m_mask.scaled(m_source.size(), Qt::IgnoreAspectRatio,
                                        Qt::FastTransformation);
@@ -183,8 +172,7 @@ public:
 
     void setTool(Tool tool)
     {
-        // A tool change cancels an in-flight rect drag, or its half-painted
-        // preview would linger.
+        // Cancel an in-flight rect drag.
         if (m_dragging) {
             m_dragging = false;
             m_currentRect = QRect();
@@ -234,7 +222,7 @@ public:
         m_onHistoryChanged = std::move(callback);
     }
 
-    // The overlay tint is session-only and deliberately not persisted.
+    // Session-only; not persisted.
     QColor overlayColor() const { return m_overlayColor; }
 
     void setOverlayColor(const QColor& colour)
@@ -282,8 +270,7 @@ protected:
         painter.drawImage(destination, m_source);
 
         if (m_trimMode) {
-            // In trim mode the mask's box is the crop, so everything outside
-            // it is dimmed rather than the mask being tinted.
+            // Trim mode: dim everything outside the mask's box (the crop).
             const QRect box = maskBoundingBox(m_mask);
             if (!box.isEmpty()) {
                 const QRect boxOnScreen = sourceToDisplay(box);
@@ -320,8 +307,7 @@ protected:
         if (event->button() != Qt::LeftButton || m_source.isNull()) return;
         const QPoint position = event->position().toPoint();
 
-        // A click in the margin around the image pans instead, so a tool
-        // never fires from a coordinate clamped to the edge.
+        // Clicks in the margin pan instead of using the tool.
         if (!displayRect().contains(position)) {
             m_panning = true;
             m_panStart = position;
@@ -352,8 +338,7 @@ protected:
             break;
 
         case Tool::MaskFill:
-            // pushUndo is inside maskFillAt, so a click on an already-filled
-            // region does not spend a history slot on nothing.
+            // maskFillAt pushes undo only if it changes something.
             QApplication::setOverrideCursor(Qt::WaitCursor);
             maskFillAt(source);
             QApplication::restoreOverrideCursor();
@@ -388,8 +373,7 @@ protected:
             setCursor(overImage ? Qt::ArrowCursor : Qt::OpenHandCursor);
     }
 
-    // Cursor-anchored zoom: the source pixel under the cursor stays put, and
-    // the pan shifts to compensate.
+    // Zoom around the cursor.
     void wheelEvent(QWheelEvent* event) override
     {
         if (m_source.isNull()) {
@@ -432,8 +416,7 @@ protected:
         const QRect box = m_currentRect.intersected(m_mask.rect());
         m_currentRect = QRect();
 
-        // A stray click is not a rect; two pixels is the smallest meaningful
-        // drag.
+        // Ignore clicks without a real drag.
         if (box.width() < 2 || box.height() < 2) {
             update();
             return;
@@ -470,8 +453,7 @@ private:
 
         {
             QPainter painter(&m_mask);
-            // Hard edges: an anti-aliased brush would write intermediate
-            // values the mask has no meaning for.
+            // No anti-aliasing; the mask is meant to be binary.
             painter.setRenderHint(QPainter::Antialiasing, false);
 
             QPen pen(erase ? QColor(0, 0, 0) : QColor(255, 255, 255));
@@ -487,8 +469,7 @@ private:
         if (m_onChanged) m_onChanged();
     }
 
-    // Fills every pixel whose colour is within tolerance of the seed's,
-    // walking outward from it, and writes that region into the mask.
+    // Masks the connected region within tolerance of the seed color.
     void bucketFillAt(QPoint start)
     {
         if (!m_source.rect().contains(start)) return;
@@ -517,9 +498,8 @@ private:
         if (m_onChanged) m_onChanged();
     }
 
-    // Fills the connected region of the mask that shares the seed's value,
-    // ignoring the image. It stops at painted mask edges or the borders, so
-    // it is how an outline gets filled in.
+    // Fills the connected mask region matching the seed's value, e.g. inside an
+    // outline. Ignores the image.
     void maskFillAt(QPoint start)
     {
         if (!m_mask.rect().contains(start)) return;
@@ -544,9 +524,7 @@ private:
         if (m_onChanged) m_onChanged();
     }
 
-    // The overlay is a cached tinted mirror of the mask, blitted whole on
-    // paint. Only the dirty box is regenerated, so an edit never costs a
-    // walk of the entire image.
+    // Cached tinted copy of the mask; only the dirty box is regenerated.
     void rebuildOverlay(const QRect& dirtyIn)
     {
         const QRect dirty = dirtyIn.intersected(m_mask.rect());
@@ -588,8 +566,7 @@ private:
                 qBound(0, int((point.y() - destination.top()) * scaleY), m_source.height() - 1)};
     }
 
-    // The float versions matter for zoom anchoring: rounding here would drift
-    // visibly over a long run of wheel ticks.
+    // Float versions keep zoom anchoring from drifting.
     QPointF displayToSourceF(QPointF point) const
     {
         const QRect destination = displayRect();
@@ -657,8 +634,7 @@ private:
     bool m_panning = false;
     QPoint m_panStart;
 
-    // The pan offsets the display from its centred fit position; the wheel
-    // zoom and a margin drag both move it.
+    // Offset from the centered fit; zoom and margin drags move it.
     double m_zoom = 1.0;
     QPoint m_pan;
 
@@ -679,8 +655,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const ImageEdits& initi
     setMinimumSize(920, 920);
     resize(1024, 920);
 
-    // The tool buttons override the dialog-wide red checked state, because a
-    // tool is a selector rather than a destructive toggle. Erase keeps red.
+    // Tool buttons use green for checked; only Erase keeps the red.
     setStyleSheet(
         u"QSlider::groove:horizontal { background: #1a1a1a; height: 4px; border-radius: 2px; }"
         "QSlider::sub-page:horizontal { background: #336633; border-radius: 2px; }"
@@ -768,8 +743,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const ImageEdits& initi
             [this](bool on) { m_canvas->setErase(on); });
 
     // ---- Sliders
-    // The labels are fixed width, or the row reshuffles mid-drag as the
-    // number changes length.
+    // Fixed-width labels so the row doesn't shift mid-drag.
     m_brushLabel = new QLabel(u"Size 30"_s, this);
     m_brushLabel->setFixedWidth(
         m_brushLabel->fontMetrics().horizontalAdvance(u"Size 200"_s) + 24);
@@ -808,7 +782,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const ImageEdits& initi
     applySwatch();
 
     connect(colourBtn, &QPushButton::clicked, this, [this, applySwatch]() {
-        // Wrapped so the picker gets the app's own titlebar.
+        // Wrapped for the app's titlebar.
         ChromedDialog wrapper(this);
         wrapper.setWindowTitle(u"Overlay color"_s);
 
@@ -823,8 +797,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const ImageEdits& initi
         connect(buttons, &QDialogButtonBox::rejected, &wrapper, &QDialog::reject);
         connect(picker, &QColorDialog::colorSelected, &wrapper,
                 [&wrapper](const QColor&) { wrapper.accept(); });
-        // Escape on the embedded picker only hides the picker, so it is
-        // forwarded to close the wrapper too.
+        // Escape only hides the embedded picker; close the wrapper too.
         connect(picker, &QDialog::rejected, &wrapper, &QDialog::reject);
 
         auto* layout = new QVBoxLayout(wrapper.contentArea());
@@ -866,7 +839,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const ImageEdits& initi
         "On: a rect-only crop. The output is that rect cropped from the source, with alpha "
         "255 everywhere and no mask."_s);
     connect(m_trimToCrop, &QCheckBox::toggled, this, [this](bool on) {
-        // Trim mode is only a crop, so keeping mask data would be misleading.
+        // Trim mode is crop-only; drop the mask.
         if (on) m_canvas->clearMask();
         applyTrimModeUI(on);
     });
@@ -893,7 +866,6 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const ImageEdits& initi
     sidebarLayout->setContentsMargins(0, 0, 0, 0);
     sidebarLayout->setSpacing(6);
 
-    // Two by two keeps the four tools compact.
     auto* toolGrid = new QGridLayout;
     toolGrid->setSpacing(6);
     toolGrid->addWidget(rectBtn, 0, 0);
@@ -938,8 +910,6 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const ImageEdits& initi
     split->addWidget(sidebar);
     split->addWidget(m_canvas, 1);
 
-    // The read-out shares the bottom row with the dialog buttons, so it stays
-    // visible without taking sidebar space.
     auto* statusRow = new QHBoxLayout;
     statusRow->setSpacing(8);
     statusRow->addWidget(m_rectLabel, 1);
@@ -951,8 +921,7 @@ ClipEditorDialog::ClipEditorDialog(const QImage& source, const ImageEdits& initi
     contentLayout->addLayout(split, 1);
     contentLayout->addLayout(statusRow);
 
-    // Applied without clearing: legacy data carrying both a mask and
-    // trimToCrop should load intact.
+    // Without clearing, so legacy mask+trim data loads intact.
     applyTrimModeUI(initial.trimToCrop);
 }
 
@@ -963,8 +932,7 @@ ImageEdits ClipEditorDialog::result() const
 
 void ClipEditorDialog::accept()
 {
-    // An empty mask means no edits at all, which the caller reads as "drop
-    // the maskId and clear the edits".
+    // An empty mask means no edits.
     const QImage finalMask = m_canvas->mask();
     const QRect box = maskBoundingBox(finalMask);
 
@@ -978,8 +946,7 @@ void ClipEditorDialog::accept()
     m_result.cropRect = box;
     m_result.trimToCrop = m_trimToCrop->isChecked();
 
-    // Trim mode discards the mask at render time, so not saving one avoids a
-    // stray cache file and keeps the card's label honest.
+    // Trim mode ignores the mask, so don't save one.
     m_result.maskId =
         (!m_result.trimToCrop && m_cache) ? m_cache->saveMask(finalMask) : QString();
 
@@ -1004,8 +971,7 @@ void ClipEditorDialog::updateRectLabel()
 
 void ClipEditorDialog::updateToolControls()
 {
-    // Greying out what the active tool does not use makes its parameters
-    // obvious without a label.
+    // Disable controls the active tool doesn't use.
     const int id = m_toolGroup->checkedId();
     const bool isBrush = id == int(Tool::Brush);
     const bool isBucket = id == int(Tool::Bucket);
@@ -1021,8 +987,6 @@ void ClipEditorDialog::applyTrimModeUI(bool on)
     m_canvas->setTrimMode(on);
 
     if (on) {
-        // The painting tools would silently do nothing in trim mode, so Rect
-        // is forced and the rest locked out.
         if (QAbstractButton* rectBtn = m_toolGroup->button(int(Tool::Rect)))
             rectBtn->setChecked(true);
         m_canvas->setTool(Tool::Rect);

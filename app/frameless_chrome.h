@@ -13,8 +13,7 @@ namespace tc::chrome {
 // Visible cosmetic border: the frame's layout margin.
 constexpr int kResizeBorder = 2;
 
-// Invisible resize hit ring. Mouse events within this many pixels of an edge
-// are edge grabs rather than clicks on the content beneath.
+// Resize hit area along each edge.
 constexpr int kResizeHit = 6;
 
 inline Qt::Edges edgesAt(const QPoint& pos, const QSize& size)
@@ -53,8 +52,7 @@ inline Qt::CursorShape cursorForEdges(Qt::Edges edges)
     }
 }
 
-// Click-through top-level outline showing where a resize drag will land. The
-// window itself is left alone until the mouse is released.
+// Outline previewing a resize; the window resizes on release.
 class ResizeOutline : public QWidget {
 public:
     ResizeOutline()

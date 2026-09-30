@@ -4,15 +4,10 @@
 
 namespace tc {
 
-// Danbooru DText to an HTML fragment for QTextBrowser. No <html> or <style>
-// wrapper: the caller supplies its own, so the same markup renders at page
-// scale or inside a side panel.
-//
-// outPostIds / outAssetIds collect the ids used by `!post #N` / `!asset #N`
-// bullet galleries so the caller can fetch those thumbnails and register them
-// as document resources named `post:<id>` / `asset:<id>`. Pass nullptr for
-// both when the caller cannot: the bullets then render as plain links rather
-// than broken images. thumbWidth / thumbHeight size the gallery cells.
+// Danbooru DText to an HTML fragment for QTextBrowser (no <html>/<style>
+// wrapper). outPostIds/outAssetIds collect !post/!asset gallery ids so the
+// caller can register "post:<id>"/"asset:<id>" image resources; pass nullptr
+// to render those bullets as links instead.
 QString dtextToHtml(const QString& dtext, QList<int>* outPostIds = nullptr,
                     QList<int>* outAssetIds = nullptr, int thumbWidth = 150,
                     int thumbHeight = 150);

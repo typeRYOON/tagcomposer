@@ -154,8 +154,7 @@ EntryPanel::EntryPanel(EntryStore& store, ComposerStore& composer, const Setting
     m_loraModelStrength = makeStrengthSpin(0.0, 2.0, 0.05, 0.9);
     m_loraClipStrength = makeStrengthSpin(0.0, 4.0, 0.1, 2.0);
 
-    // Debounced: dragging a spin box would otherwise write the entry on every
-    // intermediate value.
+    // Debounced so a spin drag doesn't write on every step.
     m_loraTimer = new QTimer(this);
     m_loraTimer->setSingleShot(true);
     m_loraTimer->setInterval(500);
@@ -221,8 +220,6 @@ EntryPanel::EntryPanel(EntryStore& store, ComposerStore& composer, const Setting
     headerLayout->addLayout(headerRow);
 
     // ---- Tags
-    // The same bar the composer and the wiki use, so the Danbooru
-    // autocomplete popup comes with it.
     m_tagSearch = new TagSearchBar;
     m_tagSearch->setActiveTags(&m_activeTags);
 
@@ -262,7 +259,7 @@ EntryPanel::EntryPanel(EntryStore& store, ComposerStore& composer, const Setting
 
     connect(m_title, &QLineEdit::returnPressed, this,
             [this]() { m_store->setTitle(m_uuid, m_title->text().trimmed()); });
-    // Reverts rather than saves: a title is committed with Enter.
+    // Enter commits; leaving the field reverts.
     connect(m_title, &QLineEdit::editingFinished, this, [this]() {
         if (const Entry* entry = m_store->find(m_uuid)) m_title->setText(entry->title);
     });
@@ -310,14 +307,13 @@ EntryPanel::EntryPanel(EntryStore& store, ComposerStore& composer, const Setting
 
     connect(m_composer, &QPushButton::clicked, this, &EntryPanel::toggleComposerPush);
 
-    // The toggle reflects the document, so an unpush from anywhere unchecks it.
+    // The toggle follows the document.
     connect(m_composerStore, &ComposerStore::docChanged, this,
             &EntryPanel::updateComposerToggle);
 
     connect(m_image, &ImageDropper::imageDropped, this,
             [this](const QString&) { emit statusMessage(u"Image import is not wired yet"_s); });
 
-    // The store is the source of truth, so anything that changes it redraws.
     connect(m_store, &EntryStore::entryChanged, this, [this](const QString& uuid) {
         if (uuid == m_uuid) refresh();
     });
@@ -331,8 +327,7 @@ EntryPanel::EntryPanel(EntryStore& store, ComposerStore& composer, const Setting
     refresh();
 }
 
-// Watches the whole app, because the panel's own children take focus and a
-// filter installed only on the panel would never see the key.
+// App-wide: the panel's children hold focus, so a local filter would miss keys.
 bool EntryPanel::eventFilter(QObject* watched, QEvent* event)
 {
     if (event->type() != QEvent::KeyPress) return QWidget::eventFilter(watched, event);
@@ -354,9 +349,7 @@ bool EntryPanel::eventFilter(QObject* watched, QEvent* event)
         }
     }
 
-    // A grid key pressed anywhere in the panel hands off to the tile grid.
-    // Skipped inside a widget that uses these keys itself - the text edits and
-    // the spin boxes - where the keystroke belongs to what has focus.
+    // Grid keys hand off to the tile grid, except in widgets that use them.
     switch (key->key()) {
     case Qt::Key_Left:
     case Qt::Key_Right:
@@ -399,8 +392,7 @@ void EntryPanel::refreshLoraSection()
     const Entry* entry = m_store->find(m_uuid);
     const bool has = entry && entry->lora.has_value();
 
-    // Blocked, or setValue would restart the debounce and write the entry
-    // straight back with the values just read from it.
+    // Blocked so loading values doesn't trigger a write.
     const QSignalBlocker blockModel(m_loraModelStrength);
     const QSignalBlocker blockClip(m_loraClipStrength);
 
@@ -428,8 +420,7 @@ void EntryPanel::assignLoraFile(const QString& sourcePath)
 {
     if (m_uuid.isEmpty()) return;
 
-    // The uuid is captured, not the entry: a delete while the hash is running
-    // would leave any pointer dangling.
+    // Capture the uuid; the entry may be deleted while hashing.
     const QString uuid = m_uuid;
     emit statusMessage(u"Computing LoRA hash..."_s);
 
@@ -442,8 +433,7 @@ void EntryPanel::assignLoraFile(const QString& sourcePath)
                 const Entry* target = m_store->find(uuid);
                 if (!target) return;
 
-                // Rejected before anything moves, so a duplicate drop cannot
-                // leave the model relocated for nothing.
+                // Reject duplicates before moving anything.
                 if (!hash.isEmpty()) {
                     for (const Entry& other : m_store->all()) {
                         if (other.uuid == uuid || !other.lora) continue;
@@ -459,9 +449,8 @@ void EntryPanel::assignLoraFile(const QString& sourcePath)
                     return;
                 }
 
-                // Inside either root it is used where it lies. Outside both,
-                // the import dialog moves it into primary: a path outside the
-                // configured roots cannot be written into a workflow.
+                // Files inside a root stay put; others move into primary, since workflows can
+                // only reference files under a root.
                 const QString absolute = QDir::cleanPath(QDir(sourcePath).absolutePath());
                 const auto relativeInside = [&absolute](const QString& dir) -> QString {
                     if (dir.isEmpty()) return {};
@@ -487,8 +476,7 @@ void EntryPanel::assignLoraFile(const QString& sourcePath)
                             m_settings->loraBaseDir + u"/"_s + relative;
                         QDir().mkpath(QFileInfo(destination).absolutePath());
 
-                        // rename fails across drives on Windows, so copy and
-                        // remove is the fallback.
+                        // rename fails across drives; fall back to copy and remove.
                         if (!QFile::rename(sourcePath, destination)) {
                             if (!QFile::copy(sourcePath, destination)) {
                                 emit statusMessage(
@@ -620,7 +608,7 @@ void EntryPanel::showLoraMenu(const QPoint& globalPos)
         return;
     }
 
-    // On Windows this nearly always means ComfyUI still has the file mapped.
+    // Usually ComfyUI still has the file mapped.
     if (!m_comfy->isConnected()) {
         emit statusMessage(
             u"Delete failed - the file may be in use (ComfyUI is not connected)"_s);
@@ -646,8 +634,7 @@ void EntryPanel::toggleComposerPush()
     const Entry* entry = m_store->find(m_uuid);
     if (!entry || m_imageIndex >= entry->images.size()) return;
 
-    // The LoRA belongs to the entry, not the image, so it rides along with
-    // whichever of its images is pushed. The store handles the bookkeeping.
+    // The entry's LoRA rides along with whichever image is pushed.
     const QString sha = entry->lora ? entry->lora->sha256 : QString();
 
     const QString file = currentImageFile();
@@ -718,8 +705,7 @@ void EntryPanel::refresh()
     m_title->setText(entry->title);
     m_pageLabel->setText(pages > 0 ? u"%1 / %2"_s.arg(m_imageIndex + 1).arg(pages) : QString());
 
-    // Blocked: setPlainText fires textChanged, which would queue a save of
-    // the text just loaded.
+    // Blocked so loading the text doesn't queue a save.
     if (m_comment->toPlainText() != entry->comment) {
         const QSignalBlocker block(m_comment);
         m_comment->setPlainText(entry->comment);
@@ -786,8 +772,7 @@ QWidget* EntryPanel::makeTagRow(const QString& tag)
     dot->setStyleSheet(u"background:%1;border-radius:4px;"_s.arg(colour.name()));
     layout->addWidget(dot, 0, Qt::AlignVCenter);
 
-    // Editable: Enter renames the tag, focus-out reverts. Only the colour is
-    // inline; the rest of the look is #TagLabel in the stylesheet.
+    // Enter renames the tag; focus-out reverts.
     auto* label = new QLineEdit(tag);
     label->setObjectName(u"TagLabel"_s);
     label->setFrame(false);

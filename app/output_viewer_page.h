@@ -14,19 +14,14 @@ namespace tc {
 class OutputThumbList;
 class OutputTreeView;
 
-// Browses ComfyUI's output folder: a tree of folders and images on the left,
-// a thumbnail grid on the right for whatever folder the tree's current item
-// belongs to. Clicking an image opens it in the system viewer; a folder in
-// the right pane navigates the tree to it.
+// Browses ComfyUI's output folder: a folder tree and a thumbnail grid.
 class OutputViewerPage : public QWidget {
     Q_OBJECT
 
 public:
     explicit OutputViewerPage(QWidget* parent = nullptr);
 
-    // The raw pattern from settings, which may carry a {yyyy-MM-dd} suffix.
-    // Everything from the first brace on is stripped to find the real
-    // on-disk root that anchors the tree.
+    // The settings pattern; anything from the first '{' on is dropped for the root.
     void setOutputFolder(const QString& folderPattern);
 
 private slots:
@@ -40,17 +35,13 @@ private:
     void selectInTree(const QString& path);
     static void openInSystemViewer(const QString& path);
 
-    // The model may not have realised the root's children when the folder is
-    // first set, so navigating straight to today's dated subfolder can fail.
-    // The wanted path waits here and is retried on every directoryLoaded.
+    // Retried on directoryLoaded until the model has the target path.
     void navigateToPendingIfReady();
 
     QString m_pattern;
     QString m_root;
 
-    // Which folder the right pane is showing. Compared against a new
-    // selection so arrowing between siblings of one parent does not rebuild
-    // the grid for no reason.
+    // The folder the grid shows; unchanged selections skip the rebuild.
     QString m_currentThumbDir;
     QString m_pendingNavTo;
 

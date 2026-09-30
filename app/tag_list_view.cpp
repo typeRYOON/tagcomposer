@@ -13,8 +13,7 @@ using namespace Qt::StringLiterals;
 namespace tc {
 namespace {
 
-// Short marker shown after a tag whose result is not a plain Include. The
-// long form goes in the tooltip; the row is too narrow for both.
+// Short result marker; the tooltip has the long form.
 QString badgeFor(TagResult result)
 {
     switch (result) {
@@ -115,8 +114,7 @@ void TagListView::addRow(const PipelineTag& tag, bool editable)
     layout->setContentsMargins(8, 1, 6, 1);
     layout->setSpacing(6);
 
-    // Editable when the document owns it; a rule-injected tag is not in
-    // activeTags, so there is nothing to rename or weight.
+    // Only document tags are editable; injected ones aren't in activeTags.
     QWidget* name = nullptr;
     if (editable) {
         auto* edit = new QLineEdit(tag.tag);
@@ -175,8 +173,6 @@ void TagListView::addRow(const PipelineTag& tag, bool editable)
             [this, key](double value) { emit weightChanged(key, value); });
     connect(remove, &QPushButton::clicked, this, [this, key]() { emit removeRequested(key); });
 
-    // Double-clicking the name mutes and unmutes, which is what the old row's
-    // strike-through toggle did.
     if (auto* edit = qobject_cast<QLineEdit*>(name)) {
         connect(edit, &QLineEdit::returnPressed, this, [this, key, edit]() {
             if (edit->text().trimmed() != key) emit renameRequested(key, edit->text().trimmed());

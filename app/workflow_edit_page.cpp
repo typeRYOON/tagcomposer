@@ -220,8 +220,7 @@ QScrollArea* columnScroll(QWidget* body)
     return scroll;
 }
 
-// The list rows recolour to mark the selected one, so this is used by both
-// the dir-search and latent-size cards.
+// Bolds and tints the selected row.
 void markSelected(QListWidget* list, const std::function<bool(QListWidgetItem*)>& isSelected)
 {
     for (int i = 0; i < list->count(); ++i) {
@@ -336,8 +335,6 @@ WorkflowEditPage::WorkflowEditPage(AppData& data, EntryStore& entries, EntrySear
     middleLayout->addWidget(columnScroll(loraContainer), 1);
 
     // ---- Right: batch
-    // Fire and forget: resolve the query, build a prompt per entry, push them
-    // all. ComfyUI drains its own queue, so nothing blocks here.
     QHBoxLayout* rightHeaderLayout = nullptr;
     QWidget* rightHeader = columnHeader(&rightHeaderLayout);
     rightHeaderLayout->addWidget(columnTitle(u"BATCH"_s));
@@ -390,7 +387,7 @@ WorkflowEditPage::WorkflowEditPage(AppData& data, EntryStore& entries, EntrySear
         emit batchRunRequested(batchQueryEdit->text().trimmed());
     });
 
-    // Live preview of what the query matches, debounced off the keystrokes.
+    // Debounced preview of the query's matches.
     m_batchQueryDebounce = new QTimer(this);
     m_batchQueryDebounce->setSingleShot(true);
     m_batchQueryDebounce->setInterval(120);
@@ -417,7 +414,7 @@ WorkflowEditPage::WorkflowEditPage(AppData& data, EntryStore& entries, EntrySear
     rightLayout->addWidget(rightHeader);
     rightLayout->addWidget(batchBody, 1);
 
-    // ---- Three equal columns across the page
+    // ---- Three equal columns
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
@@ -425,8 +422,7 @@ WorkflowEditPage::WorkflowEditPage(AppData& data, EntryStore& entries, EntrySear
     root->addWidget(middlePanel, 1);
     root->addWidget(rightPanel, 1);
 
-    // The placeholder defaults double as documentation of the token each type
-    // expects; wildcard and latent size have no single token, so they get none.
+    // Default placeholders show the expected token style.
     connect(m_addBtn, &QPushButton::clicked, this, [this]() {
         QMenu menu(this);
         menu.addAction(u"Seed"_s, this,
@@ -540,8 +536,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     auto* card = new QFrame;
     card->setObjectName(u"WfVarCard"_s);
     card->setAttribute(Qt::WA_StyledBackground, true);
-    // Capped so spare vertical space goes to the trailing stretch rather than
-    // stretching the cards.
+    // Spare height goes to the trailing stretch.
     card->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
     auto* cardLayout = new QVBoxLayout(card);
@@ -555,8 +550,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
     auto* placeholderEdit = new QLineEdit(var.placeholder);
     placeholderEdit->setObjectName(u"WfPlaceholderEdit"_s);
 
-    // Wildcards inject through the positive prompt and latent size carries its
-    // own pair of tokens, so for those the field is only a label.
+    // Wildcard and latent-size vars have no single token; the field is a label.
     const bool labelOnly = std::holds_alternative<WildcardVar>(var.value)
         || std::holds_alternative<LatentSizeVar>(var.value);
     placeholderEdit->setPlaceholderText(labelOnly ? u"Name (label only)"_s : u"__token__"_s);
@@ -693,7 +687,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
             u"Ext. whitelist: .safetensors, .ckpt  (empty = all except .sha256)"_s);
         cardLayout->addWidget(extEdit);
 
-        // Not persisted: narrowing the list is a per-visit thing.
+        // Not persisted.
         QLineEdit* filterEdit = valueEdit();
         filterEdit->setPlaceholderText(u"Filter by name..."_s);
         cardLayout->addWidget(filterEdit);
@@ -874,8 +868,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         bodyRow->addWidget(preview, 0, Qt::AlignTop);
         cardLayout->addLayout(bodyRow);
 
-        // Width and height go into the JSON as raw integers, each under its
-        // own token, wherever they appear.
+        // Width and height are substituted as raw integers.
         auto tokenRow = [&](const QString& label, const QString& current,
                             std::function<void(const QString&)> commit) {
             QLineEdit* edit = valueEdit(current);
@@ -935,8 +928,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
             const WorkflowInput record = m_cache->get(uuid);
             QString name = record.displayName.isEmpty() ? uuid : record.displayName;
 
-            // Say so in the label when edits are live, so it is obvious the
-            // upload will not be the raw source.
+            // Note live edits in the label.
             const QList<WorkflowVar>* vars = variables();
             if (vars && index < vars->size())
                 if (const auto* value = std::get_if<ImageVar>(&vars->at(index).value))
@@ -956,7 +948,6 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         QPushButton* editBtn = smallButton(QString::fromUtf8("Edit\xE2\x80\xA6"));
         QPushButton* clearBtn = smallButton(u"Clear"_s);
 
-        // Nothing to edit until an image is actually in the cache.
         editBtn->setEnabled(!image->imageUuid.isEmpty() && m_cache->has(image->imageUuid));
 
         connect(editBtn, &QPushButton::clicked, this, [this, index, showImage]() {
@@ -977,8 +968,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
             ClipEditorDialog dialog(source, value->edits, m_cache, this);
             if (dialog.exec() != QDialog::Accepted) return;
 
-            // Re-read: the dialog pumped events, so the selection may have
-            // moved on underneath it.
+            // Re-read: the dialog pumped events.
             vars = variables();
             if (!vars || index >= vars->size()) return;
             value = std::get_if<ImageVar>(&(*vars)[index].value);
@@ -986,8 +976,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
 
             value->edits = dialog.result();
 
-            // Every save mints a fresh id, so the old mask is orphaned the
-            // moment the edits change at all.
+            // Masks get fresh ids on save; drop the orphaned one.
             if (!previousMask.isEmpty() && previousMask != value->edits.maskId)
                 m_cache->removeMask(previousMask);
 
@@ -995,8 +984,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
             showImage(value->imageUuid);
         });
 
-        // Changing the source drops the edits and the stale mask file, which
-        // would otherwise pile up in the cache.
+        // A new source drops the edits and their mask file.
         auto resetEdits = [this, index]() {
             QList<WorkflowVar>* vars = variables();
             if (!vars || index >= vars->size()) return;
@@ -1084,7 +1072,7 @@ QFrame* WorkflowEditPage::makeVarCard(int index)
         edit->setMaximumHeight(220);
         edit->setPlaceholderText(u"blue hair, blue eyes\nred hair\nblonde hair, twintails"_s);
 
-        // textChanged fires per keystroke, so the disk write is debounced.
+        // Debounce the write; textChanged fires per keystroke.
         auto* saveTimer = new QTimer(card);
         saveTimer->setSingleShot(true);
         saveTimer->setInterval(400);
@@ -1131,8 +1119,7 @@ QFrame* WorkflowEditPage::makeLoraCard(int index)
 {
     const Lora& lora = m_loraStack[index];
 
-    // The stack carries only the LoRA; the entry behind it is what owns the
-    // strengths on disk, and it is found by sha256.
+    // The owning entry (by sha256) stores the strengths.
     const Entry* owner = nullptr;
     if (!lora.sha256.isEmpty()) {
         for (const Entry& entry : m_entries->all()) {
@@ -1209,8 +1196,7 @@ QFrame* WorkflowEditPage::makeLoraCard(int index)
 
     row->addLayout(infoColumn, 1);
 
-    // With no entry behind it there is nowhere to persist an edit, so the
-    // spins are read-only rather than silently losing the change.
+    // No owning entry means nowhere to save, so read-only.
     if (!owner) {
         modelSpin->setEnabled(false);
         clipSpin->setEnabled(false);

@@ -17,8 +17,7 @@ using namespace Qt::StringLiterals;
 namespace tc {
 namespace {
 
-// Matches the Output Viewer and Workflow Editor header, so switching pages
-// does not shift the title row.
+// Same as the other page headers.
 constexpr int kHeaderHeight = 50;
 constexpr int kTabHeight = 32;
 constexpr int kIndicatorMs = 220;
@@ -57,9 +56,7 @@ DatasetHelpersPage::DatasetHelpersPage(Settings& settings, const TagFacets& face
     connect(m_stack, &QStackedWidget::currentChanged, this,
             [this](int) { emit tabChanged(currentTabLabel()); });
 
-    // Tab order is the order a dataset is actually built: collect the images,
-    // tag them, fix the tags, then apply something across the folder. The
-    // cluster tool leads because it is what tells you which tags to want.
+    // Tabs in workflow order: cluster, collect, auto-tag, edit, batch edit.
     m_clusterPage = new TagClusterPage(facets, clusterFiltersPath, this);
     addTab(u"Tag Cluster"_s, m_clusterPage);
 
@@ -75,8 +72,7 @@ DatasetHelpersPage::DatasetHelpersPage(Settings& settings, const TagFacets& face
     m_batchPage = new BatchEditPage(settings, this);
     addTab(u"Batch Edit"_s, m_batchPage);
 
-    // The handoffs. Each one carries the folder the previous step produced,
-    // because retyping that path is the step people get wrong.
+    // Handoffs pass along the folder the previous step produced.
     connect(m_collectorPage, &CollectorPage::sendToAutoTaggerRequested, this,
             [this](const QString& folder) {
                 m_autoTagPage->setInputFolder(folder);
@@ -160,8 +156,7 @@ void DatasetHelpersPage::switchTo(QWidget* page)
 
     m_stack->setCurrentIndex(index);
 
-    // The button order is the layout's, which is addTab order, which is the
-    // stack's. QButtonGroup does not promise an order, so it is not used here.
+    // Layout order matches stack order; QButtonGroup's order isn't guaranteed.
     QLayoutItem* item = m_tabLayout->itemAt(index);
     if (!item) return;
     if (auto* button = qobject_cast<QPushButton*>(item->widget())) {
@@ -203,8 +198,7 @@ void DatasetHelpersPage::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
 
-    // First show: the buttons have been laid out, so the pill can finally be
-    // put somewhere. Later shows already track the checked button.
+    // Place the indicator once the buttons are laid out.
     if (m_indicatorPlaced) return;
     if (QAbstractButton* button = m_tabGroup->checkedButton()) moveIndicatorTo(button, false);
 }

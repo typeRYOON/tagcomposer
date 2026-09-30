@@ -1,4 +1,4 @@
-/* ── Entry nav panel (top-right float on EntryView) ────────────────── */
+/* Entry nav panel (top-right float on EntryView) */
 
 #EntryNavPanel {
     background: #0e0e0e;

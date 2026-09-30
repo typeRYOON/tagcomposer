@@ -1,4 +1,4 @@
-/* ── Category nav panel (top-right float) ──────────────────────────── */
+/* Category nav panel (top-right float) */
 
 #CategoryNavPanel {
     background: #0e0e0e;

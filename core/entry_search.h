@@ -29,7 +29,7 @@ struct TagTerm {
     bool operator==(const TagTerm&) const = default;
 };
 
-// One comma-separated AND group. Every clause must hold for an entry to match.
+// A comma-separated AND group.
 struct QueryGroup {
     QList<TagTerm> tags;
     QList<TagTerm> excluded;
@@ -45,7 +45,7 @@ struct QueryGroup {
     bool operator==(const QueryGroup&) const = default;
 };
 
-// Groups are OR-ed. sort: is global rather than per group; last one wins.
+// Groups are OR'd. sort: is global; the last one wins.
 struct EntryQuery {
     QList<QueryGroup> groups;
     QString sortKey;
@@ -54,14 +54,12 @@ struct EntryQuery {
     bool operator==(const EntryQuery&) const = default;
 };
 
-// Note: An unparseable clause is dropped rather than matching nothing
+// Unparseable clauses are dropped.
 EntryQuery parseEntryQuery(const QString& text);
 
 void sortEntries(QList<const Entry*>& entries, const QString& sortKey, const QString& sortDir);
 
-// Tag lookups run off an inverted index rebuilt on demand. It listens to the
-// store's change signals and only marks itself dirty, so an edit costs
-// nothing and the next query pays for one rebuild.
+// Inverted tag index, marked dirty on store changes and rebuilt on the next query.
 class EntrySearch : public QObject {
     Q_OBJECT
 

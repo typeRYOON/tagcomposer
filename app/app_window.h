@@ -25,11 +25,7 @@ class WorkflowEditPage;
 class WorkflowInputCache;
 class WindowChrome;
 
-// The shell: frameless chrome, navbar, page stack, bottom info bar.
-//
-// Pages come from kPages. A page that has no implementation yet gets a
-// placeholder, so the navbar and the stack are complete from the start and a
-// real page is a one-line swap in buildPage().
+// The shell: frameless chrome, navbar, page stack and status bar.
 class AppWindow : public QMainWindow {
     Q_OBJECT
 
@@ -37,8 +33,7 @@ public:
     // dataDir holds system/ and entry/.
     explicit AppWindow(const QString& dataDir, QWidget* parent = nullptr);
 
-    // Out of line: m_taggers is a unique_ptr to a type this header only
-    // forward-declares, and deleting it needs the definition.
+    // Out of line for the unique_ptr to an incomplete type.
     ~AppWindow() override;
 
 protected:
@@ -50,12 +45,10 @@ protected:
 private:
     QWidget* buildPage(int index);
     void updateTitle();
-    // Shared by the composer and the cluster page: both offer the same
-    // quick-add menu, and both want it written through at once.
-    // Reads the just-rendered image back off disk and shows it. Comfy only
-    // streams sampler previews, so the finished picture arrives this way.
+    // Loads the finished image from disk; ComfyUI only streams sampler previews.
     void loadFinalPreview();
 
+    // Shared by the composer's and the cluster page's quick-add menus.
     void addQuickFacet(const QString& tag, const QString& facet);
     void installShortcuts();
     void report(const QString& error);
@@ -78,20 +71,16 @@ private:
     EntryViewerPage* m_viewerPage = nullptr;
     DatasetHelpersPage* m_datasetPage = nullptr;
 
-    // Final-image bookkeeping. A run arms m_pendingFinalLoad once it is
-    // really sampling; the two skips disarm it when the run was cancelled
-    // rather than finished.
+    // Final-image loading: armed once a run samples, skipped after a cancel.
     int m_lastQueueCount = 0;
     bool m_pendingFinalLoad = false;
     bool m_skipNextFinalLoad = false;
     bool m_skipPendingClearLoad = false;
 
-    // Bumped when a prompt starts sampling. The delayed final load carries
-    // the value it was armed with and drops out if a newer run has begun.
+    // Bumped per sampling run so a stale delayed load can bail.
     int m_sampleGeneration = 0;
 
-    // Built with the window, but it only scans directories: no ONNX session
-    // is created until a model is actually asked for.
+    // Only scans directories; sessions load on demand.
     std::unique_ptr<TaggerLibrary> m_taggers;
 
     WindowChrome* m_chrome = nullptr;

@@ -79,8 +79,7 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
 
     state.rulesSnapshot = obj[u"rulesSnapshot"_s].toArray();
 
-    // The array form keeps the user's order. The object form is legacy and
-    // reorders once, on the next save.
+    // Array form keeps order; the object form is legacy.
     {
         const QJsonValue values = obj[u"varValues"_s];
         if (values.isArray()) {
@@ -118,8 +117,7 @@ SavedState SavedState::fromJson(const QJsonObject& obj)
     for (const QJsonValue uuid : obj[u"activeLoraUuids"_s].toArray())
         state.activeLoraUuids << uuid.toString();
 
-    // Absent on a legacy state, and a restore must then leave the live
-    // profiles alone rather than clearing them.
+    // Legacy states have no stamp; restore then leaves the live profiles alone.
     state.profilesStamped =
         obj.contains(u"groupProfile"_s) || obj.contains(u"formatProfile"_s);
     if (state.profilesStamped) {
@@ -219,8 +217,7 @@ QJsonObject SavedState::toJson() const
         loraArray.append(uuid);
     obj[u"activeLoraUuids"_s] = loraArray;
 
-    // Written only when stamped, so rewriting a legacy state does not turn
-    // "no opinion" into an empty stamp.
+    // Only when stamped, so a legacy state stays unstamped.
     if (profilesStamped) {
         QJsonArray orderArray;
         for (const QString& name : groupOrder)

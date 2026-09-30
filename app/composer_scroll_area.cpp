@@ -56,8 +56,7 @@ void ComposerScrollArea::wheelEvent(QWheelEvent* event)
         return;
     }
 
-    // A notch is about three tag rows. The target accumulates, so spinning
-    // fast compounds rather than restarting from the current position.
+    // About three rows per notch; the target accumulates across fast spins.
     constexpr int kStepPerNotch = 90;
     if (m_scrollAnim->state() != QAbstractAnimation::Running) m_scrollTarget = bar->value();
     m_scrollTarget =

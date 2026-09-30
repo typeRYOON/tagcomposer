@@ -1,5 +1,4 @@
-// Sidebar rebuilds: rules, variables, workflows and profiles. Each one
-// replaces its container's children from the current model.
+// Sidebar rebuilds: rules, variables, workflows and profiles.
 
 #include <app/composer_page.h>
 #include <app/app_data.h>
@@ -66,13 +65,8 @@ private:
     QString m_full;
 };
 
-// A click-to-edit rule name. Both children share one layout slot and only one
-// is ever visible; Qt skips a hidden child when sizing, so the row stays
-// label-height in display mode. A stacked widget would have inflated it to
-// the line edit's height instead.
-//
-// onCommit returns true to accept the new text or false to revert. Empty or
-// unchanged input never reaches it.
+// Double-click-to-edit rule name. Label and edit swap visibility; a stacked
+// widget would size the row to the edit. onCommit returns false to revert.
 class EditableRuleName : public QWidget {
 public:
     explicit EditableRuleName(const QString& full, QWidget* parent = nullptr)
@@ -161,9 +155,8 @@ private:
     bool m_committing = false;
 };
 
-// A rule row that hides its arguments unless hovered or focused. The hide is
-// debounced and checks the live cursor position, because underMouse() lags
-// while the row is collapsing.
+// Shows its arguments while hovered or focused. The hide is debounced and
+// checks the cursor, since underMouse() lags while collapsing.
 class RuleRow : public QWidget {
 public:
     explicit RuleRow(QWidget* parent = nullptr) : QWidget(parent)
@@ -180,7 +173,7 @@ public:
         if (!m_args) return;
 
         m_args->setVisible(false);
-        // Every child is watched so the row stays open while one is typed in.
+        // Stay open while a child has focus.
         for (QWidget* child : m_args->findChildren<QWidget*>())
             child->installEventFilter(this);
     }
@@ -214,9 +207,7 @@ private:
         if (!m_args || !m_args->isVisible()) return;
         if (QRect(mapToGlobal(QPoint(0, 0)), size()).contains(QCursor::pos())) return;
 
-        // Only kept open when the focus is inside the arguments, i.e. a line
-        // edit being typed in. Checking the whole row would keep it open
-        // after merely toggling the checkbox.
+        // Stay open only for focus inside the arguments, not the checkbox.
         if (QWidget* focused = QApplication::focusWidget())
             if (m_args->isAncestorOf(focused)) return;
 
@@ -227,8 +218,7 @@ private:
     QTimer* m_hideTimer = nullptr;
 };
 
-// The colour arrives with the icon: a pixmap ignores the colour rule the
-// object name used to carry.
+// Colored via the icon; QSS can't recolor a pixmap.
 QLabel* makeBadge(const QIcon& icon, int px, const QString& objectName)
 {
     auto* label = new QLabel;
@@ -307,8 +297,7 @@ void ComposerPage::rebuildProfilesSidebar()
     for (const FormatProfile& profile : m_profiles.formatProfiles())
         m_formatProfileBox->addItem(profile.name, profile.name);
 
-    // An item carries its profile name as data. The one-off "(from state)"
-    // row and the no-profile fallback carry nothing and are inert.
+    // Items carry their profile name; the "(from state)" and fallback rows don't.
     auto select = [](QComboBox* box, const QString& active, const QString& oneOff,
                      const QString& fallback) {
         if (oneOff.isEmpty()) {
@@ -330,12 +319,9 @@ void ComposerPage::rebuildProfilesSidebar()
 
 void ComposerPage::applyProfileStamp(const SavedState& state, bool refreshNow)
 {
-    // A legacy state carries no stamp, so the live profiles are left alone.
     if (!state.profilesStamped) return;
 
-    // Matched on the resolved payload rather than the name alone, so a
-    // renamed but otherwise identical profile still selects. A tie prefers
-    // the stamped name.
+    // Match on content so a renamed profile still selects; ties prefer the name.
     QString groupSelection;
     for (const GroupProfile& profile : m_profiles.groupProfiles()) {
         if (applyGroupOrder(m_data->groups, profile.order).names() != state.groupOrder) continue;
@@ -361,8 +347,7 @@ void ComposerPage::applyProfileStamp(const SavedState& state, bool refreshNow)
     m_oneOffGroupLabel = groupSelection.isEmpty() ? oneOff(state.groupProfileName) : QString();
     m_oneOffFormatLabel = formatSelection.isEmpty() ? oneOff(state.formatProfileName) : QString();
 
-    // The snapshot wins over the named profile: a state has to replay what it
-    // was saved under, even after that profile has been edited.
+    // The snapshot wins, so a state replays as saved even if the profile changed.
     m_facetFormats = state.facetFormats;
     m_groups = applyGroupOrder(m_data->groups, state.groupOrder);
 
@@ -424,7 +409,7 @@ void ComposerPage::rebuildRulesSidebar()
             if (i >= m_data->ruleFile.rules.size()) return false;
             m_data->ruleFile.rules[i].name = next;
             report(m_data->saveRules());
-            refresh(); // the "^ rule" badges on matched tags follow the name
+            refresh(); // row badges show rule names
             return true;
         };
         headerLayout->addWidget(nameWidget, 1);
@@ -432,8 +417,7 @@ void ComposerPage::rebuildRulesSidebar()
         connect(ruleWidget, &QWidget::customContextMenuRequested, this,
                 [this, ruleWidget, nameWidget, i](const QPoint& pos) {
                     QMenu menu;
-                    // Deferred, or the menu's focus restoration steals focus
-                    // straight back from the rename edit.
+                    // Deferred so the closing menu doesn't steal focus back.
                     menu.addAction(u"Rename..."_s, this, [nameWidget]() {
                         QTimer::singleShot(0, nameWidget,
                                            [nameWidget]() { nameWidget->beginEdit(); });
@@ -609,11 +593,8 @@ void ComposerPage::rebuildVarsSidebar()
             refresh();
         });
 
-        // Reuses the rule-argument delete styling. NoFocus keeps Tab on the
-        // value edits.
         QPushButton* deleteBtn = argDeleteButton(u"Remove variable"_s);
         connect(deleteBtn, &QPushButton::clicked, this, [this, name, persistAndRefresh]() {
-            // Counted before the removal, so the warning is accurate.
             const QString token = u"$"_s + name + u"$"_s;
             int usage = 0;
             for (const QString& tag : m_store->doc().activeTags)
@@ -634,8 +615,7 @@ void ComposerPage::rebuildVarsSidebar()
         m_varsLayout->addWidget(row);
     }
 
-    // The add row commits on Enter. editingFinished would fire while tabbing
-    // between the two fields with a half-typed value.
+    // Commits on Enter only; editingFinished would fire when tabbing between fields.
     auto* addRow = new QWidget;
     auto* addLayout = new QHBoxLayout(addRow);
     addLayout->setContentsMargins(0, 0, 0, 0);
@@ -654,7 +634,7 @@ void ComposerPage::rebuildVarsSidebar()
         const QString name = addName->text().trimmed();
         if (name.isEmpty()) return;
 
-        // A duplicate name clears and refocuses, which says so visually.
+        // Duplicate name: clear and refocus.
         if (m_data->varsFile.vars.isDefined(name)) {
             addName->clear();
             addValue->clear();
@@ -709,7 +689,7 @@ void ComposerPage::rebuildWorkflowList()
         m_workflowList->addItem(item);
     }
 
-    // Connected once, on the first build, since the list itself persists.
+    // Wire once; the list persists across rebuilds.
     if (m_workflowList->property("_wired").toBool()) return;
     m_workflowList->setProperty("_wired", true);
 
@@ -727,8 +707,7 @@ void ComposerPage::rebuildWorkflowList()
     connect(m_workflowList, &WorkflowDropList::fileDropped, this, [this](const QString& path) {
         const QFileInfo info(path);
 
-        // Copied into the data folder so it stays portable: the list holds a
-        // path relative to the data dir, not wherever the file came from.
+        // Copy into data/workflows so the stored path is relative to the data dir.
         const QString workflowsDir = m_data->dataDir() + u"/workflows"_s;
         QDir().mkpath(workflowsDir);
 
@@ -764,7 +743,7 @@ void ComposerPage::rebuildWorkflowList()
         workflow.path = relative;
         workflow.createdAt = now;
 
-        // Prepended so the newest sits on top; the selection shifts with it.
+        // Newest on top; shift the selection with it.
         m_data->workflows.workflows.prepend(workflow);
         if (m_data->workflows.selectedIndex < 0)
             m_data->workflows.selectedIndex = 0;

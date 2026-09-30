@@ -13,14 +13,10 @@ QPropertyAnimation* propertyAnimate(QObject* object, const QByteArray& property,
                                     int durationMs,
                                     const QEasingCurve& curve = QEasingCurve::Linear);
 
-// Danbooru tag category colours, shared by every list that shows tags.
-// Unknown categories take `fallback`, which is deliberately per-site: the
-// autocomplete popup wants an unrecognised tag readable, the tag lists want
-// it to sit back.
+// Danbooru category colors; unknown categories get fallback.
 QColor danbooruCategoryColor(int category, const QColor& fallback = QColor(0x60, 0x60, 0x60));
 
-// Opens a config file in the user's default editor, creating it first if it
-// is missing so the button never silently does nothing on a fresh install.
+// Opens a file in the default editor, creating it first if missing.
 void openSystemFile(const QString& absolutePath, const QByteArray& seedContent = {});
 
 } // namespace tc

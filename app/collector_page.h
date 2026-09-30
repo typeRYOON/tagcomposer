@@ -16,10 +16,8 @@ namespace tc {
 class DownloadWatcher;
 struct Settings;
 
-// Watches a downloads folder and files new images into a named collection.
-// Each one is perceptually hashed and either moved in under a sequential name
-// or recycled as a near-duplicate of something already there, which is what
-// makes it safe to leave running while you save images by hand.
+// Watches a downloads folder and files new images into a named collection;
+// near-duplicates (by perceptual hash) go to the recycle bin.
 class CollectorPage : public QWidget {
     Q_OBJECT
 
@@ -27,8 +25,7 @@ public:
     CollectorPage(Settings& settings, const QString& collectionsRoot, QWidget* parent = nullptr);
     ~CollectorPage() override;
 
-    // The shell calls this on close. A watcher moving files around after the
-    // window is gone is not something to leave running.
+    // Called on close.
     void stopWatcher();
 
 signals:
@@ -43,8 +40,7 @@ private:
     void setRunningUi(bool running);
     QString currentCollectionDir() const;
 
-    // Decodes off the GUI thread, then puts the thumbnail at the front of the
-    // recent grid and trims the tail.
+    // Decodes off the GUI thread, then prepends to the recent grid.
     void addRecentThumb(const QString& imagePath);
 
     Settings* m_settings = nullptr;
@@ -68,7 +64,7 @@ private:
     QLabel* m_skipped = nullptr;
     QPlainTextEdit* m_log = nullptr;
 
-    // Newest first, capped. Swaps with the placeholder below it.
+    // Newest first, capped.
     QListWidget* m_recent = nullptr;
     QLabel* m_recentEmpty = nullptr;
 };

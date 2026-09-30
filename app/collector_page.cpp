@@ -49,13 +49,10 @@ constexpr int kRowHeight = 40;
 constexpr int kHeaderHeight = 50;
 constexpr int kThumbSize = 96;
 
-// Newest first, and the tail rolls off. This is a session view, not a
-// browser: the collection folder itself is the record.
+// Recent grid cap; the collection folder is the real record.
 constexpr int kRecentMax = 50;
 
-// Above this the hash stops describing the same picture and starts merging
-// different ones, so the slider stops there rather than letting a drag ruin a
-// collection.
+// Beyond this, different images start matching.
 constexpr int kMaxThreshold = 16;
 
 QWidget* sectionHeader(const QString& title)
@@ -408,8 +405,7 @@ CollectorPage::CollectorPage(Settings& settings, const QString& collectionsRoot,
         if (!folder.isEmpty()) emit sendToAutoTaggerRequested(folder);
     });
 
-    // Nothing here means anything without a collection picked, and a fresh
-    // install has none until one is made.
+    // These need a collection.
     auto syncCollectionButtons = [this]() {
         const bool picked = !m_collections->currentText().isEmpty();
         m_sendToTagger->setEnabled(picked);
@@ -488,9 +484,7 @@ void CollectorPage::newCollection()
     name = name.trimmed();
     if (name.isEmpty()) return;
 
-    // This becomes a directory name, and the point is to refuse path
-    // traversal before mkpath turns it into one. Anything else the OS objects
-    // to shows up as a failed mkpath below.
+    // Refuse path separators and traversal; mkpath reports anything else.
     static const QString forbidden = u"\\/:*?\"<>|"_s;
     for (const QChar c : forbidden) {
         if (!name.contains(c)) continue;
@@ -553,8 +547,7 @@ void CollectorPage::setRunningUi(bool running)
     m_startStop->setText(running ? u"Stop"_s : u"Start"_s);
     m_runState->setText(running ? u"running"_s : u"idle"_s);
 
-    // Locked while it runs: these are what the watcher was started with, and
-    // changing one mid-run would move files somewhere the log does not say.
+    // Locked while running; the watcher uses the values it started with.
     m_watchEdit->setEnabled(!running);
     m_watchBrowse->setEnabled(!running);
     m_collections->setEnabled(!running);
@@ -577,8 +570,7 @@ void CollectorPage::rebuildIndex()
     m_rebuild->setEnabled(false);
     m_log->appendPlainText(u"[%1] rebuilding index..."_s.arg(timestamp()));
 
-    // Hashing a large collection takes a while, and doing it on the GUI
-    // thread would freeze the window for all of it.
+    // Off the GUI thread; hashing a large collection is slow.
     auto* watcher = new QFutureWatcher<qsizetype>(this);
     connect(watcher, &QFutureWatcher<qsizetype>::finished, this, [this, watcher]() {
         m_log->appendPlainText(
@@ -610,16 +602,14 @@ void CollectorPage::persistSettings()
 
 void CollectorPage::addRecentThumb(const QString& imagePath)
 {
-    // One watcher per call: several images can land in a single poll, and a
-    // shared watcher would drop all but the last.
+    // One watcher per image; several can land in one poll.
     auto* watcher = new QFutureWatcher<QImage>(this);
     connect(watcher, &QFutureWatcher<QImage>::finished, this, [this, watcher, imagePath]() {
         const QImage image = watcher->result();
         watcher->deleteLater();
         if (image.isNull()) return;
 
-        // Expanded to fill the square and then centre-cropped, so a row of
-        // mixed aspect ratios still reads as a grid.
+        // Fill and center-crop to a square.
         QPixmap thumb = QPixmap::fromImage(image).scaled(
             kThumbSize, kThumbSize, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
         if (thumb.width() > kThumbSize || thumb.height() > kThumbSize)

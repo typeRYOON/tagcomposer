@@ -52,7 +52,7 @@ EntryView::EntryView(const EntryStore& store, QWidget* parent) : QWidget(parent)
     m_placeholder = QPixmap(kTileW, kTileH);
     m_placeholder.fill(Qt::transparent);
 
-    // Stand-in art for an entry with no image, or whose file has gone.
+    // For entries without a usable image.
     QImage source(u":/img/placeholder.png"_s);
     if (source.isNull()) {
         source = QImage(kTileW, kTileH, QImage::Format_ARGB32_Premultiplied);
@@ -88,7 +88,7 @@ void EntryView::setActiveEntries(const QSet<QString>& uuids)
     if (m_activeUuids == uuids) return;
     m_activeUuids = uuids;
     rebuildNavPanel();
-    update(); // the tile badge follows the same set
+    update();
 }
 
 void EntryView::rebuildNavPanel()
@@ -165,8 +165,7 @@ void EntryView::recomputeLayout()
     const int rows = int((m_uuids.size() + m_cols - 1) / m_cols);
     m_totalH = rows * kTileH + std::max(0, rows - 1) * kSpacing + kPadV * 2;
 
-    // Hold visible rows plus the preload window plus slack, so eviction can
-    // never target a tile that is still on screen.
+    // Big enough that eviction never hits a visible tile.
     constexpr int slackRows = 3;
     const int visibleRows = (height() + strideY - 1) / strideY + 1;
     m_tiles.setMaxCost(std::max(200, m_cols * (visibleRows + kPreloadRows + slackRows)));
@@ -206,7 +205,7 @@ void EntryView::scrollToIndex(int index)
 {
     if (index < 0 || index >= m_uuids.size()) return;
 
-    m_flingVelocity = 0.0; // an explicit target beats any residual fling
+    m_flingVelocity = 0.0;
 
     const int row = index / m_cols;
     const qreal top = kPadV + row * qreal(kTileH + kSpacing);
@@ -214,10 +213,7 @@ void EntryView::scrollToIndex(int index)
     const qreal target =
         std::clamp(top - (height() - kTileH) / 2.0, 0.0, qreal(maxScroll));
 
-    // Anything further than one viewport snaps rather than animating.
-    // Easing across hundreds of rows spends thread-pool decodes on tiles that
-    // flash past in a single frame, and evicts the ones actually wanted at
-    // the destination. A near jump still animates.
+    // Jumps beyond one viewport snap, so we don't bake tiles that fly past.
     if (std::abs(target - m_scrollActual) > height()) {
         m_scrollActual = target;
         m_scrollTarget = target;
@@ -293,8 +289,7 @@ void EntryView::requestBake(int index)
 
     QThreadPool::globalInstance()->start([this, path, title, publish]() {
         QImage image(path);
-        // A missing file must still produce a tile, or paint would keep
-        // re-requesting it every frame and never fill the cache.
+        // A missing file still gets a tile, or paint would re-request it forever.
         const QImage scaled = image.isNull()
             ? m_emptyTile
             : image.scaled(QSize(kTileW, kTileH), Qt::KeepAspectRatioByExpanding,
@@ -312,8 +307,7 @@ void EntryView::onAnimationTick()
     bool active = false;
     bool scrolled = false;
 
-    // Fling stays parked while the button is down: during a drag the cursor
-    // tracks 1:1, and integrating velocity too would fight it.
+    // No fling while the button is down; the drag tracks the cursor.
     if (m_flingVelocity != 0.0 && !m_pressed) {
         const int maxScroll = std::max(0, m_totalH - height());
         const qreal next = m_scrollActual + m_flingVelocity * (kFrameMs / 1000.0);
@@ -398,10 +392,7 @@ void EntryView::paintEvent(QPaintEvent*)
             continue;
         }
 
-        // A tile with no animation state yet starts invisible and fades in,
-        // even when its pixmap was already cached. setEntries clears the
-        // state, so a new query flashes the whole grid rather than only the
-        // tiles that happened to need baking.
+        // New tiles fade in, cached or not, so a new query fades the whole grid.
         auto anim_it = m_anims.find(i);
         if (anim_it == m_anims.end()) {
             anim_it = m_anims.insert(i, TileAnim{0.0, 0.0});
@@ -418,7 +409,7 @@ void EntryView::paintEvent(QPaintEvent*)
         painter.translate(-r.center());
         painter.drawPixmap(r.topLeft(), tile);
 
-        // Pushed to the composer: a green ring around the whole tile.
+        // Pushed to the composer.
         if (m_activeUuids.contains(m_uuids[i])) {
             painter.setOpacity(1.0);
             painter.setBrush(Qt::NoBrush);
@@ -429,8 +420,7 @@ void EntryView::paintEvent(QPaintEvent*)
             painter.drawPath(ring);
         }
 
-        // A LoRA shows as a small corner dot, and an active one as an inner
-        // orange ring, so both states read at a glance.
+        // LoRA: corner dot, or an inner ring when active.
         {
             const Entry* entry = m_store->find(m_uuids[i]);
             const bool hasLora = entry && entry->lora.has_value();
@@ -630,15 +620,12 @@ void EntryView::keyPressEvent(QKeyEvent* event)
     const int last = int(m_uuids.size()) - 1;
     const int current = m_selected.isEmpty() ? 0 : indexOf(m_selected);
 
-    // Enter toggles the selected entry in the composer, the same as its
-    // Composer button.
     if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
         if (current >= 0) emit entryActivated(m_uuids[current]);
         event->accept();
         return;
     }
 
-    // A page is however many whole rows fit on screen.
     const int rowsPerPage = std::max(1, height() / (kTileH + kSpacing));
 
     int next = current;

@@ -8,8 +8,7 @@
 
 namespace tc {
 
-// The tags one entry image contributed to the composer. Identified the way it
-// is stored, by uuid and file name, so it survives a restart and an entry reorder.
+// Tags one entry image pushed into the composer.
 struct EntryPush {
     QString entryUuid;
     QString imageFile;
@@ -18,13 +17,8 @@ struct EntryPush {
     bool operator==(const EntryPush&) const = default;
 };
 
-// Everything the composer holds. A value type in tc_core:
-// a saved state stores one of these, undo stacks them, and the batch
-// runner builds one per entry without touching the UI.
-//
-// deactivated, weights and customFacets key on the activeTags string, which is
-// the pre-expansion text. A tag's weight therefore survives a change to the
-// variable it contains.
+// Everything the composer holds. deactivated, weights and customFacets key on
+// the activeTags string (pre-expansion text).
 struct ComposerDoc {
     QStringList activeTags;
     QSet<QString> deactivated;
@@ -36,7 +30,7 @@ struct ComposerDoc {
     bool operator==(const ComposerDoc&) const = default;
 };
 
-// Absence from ComposerDoc::weights is what makes a weight a default.
+// wasSet means the tag has an entry in ComposerDoc::weights.
 struct Weight {
     float value = 1.0f;
     bool wasSet = false;

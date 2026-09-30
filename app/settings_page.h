@@ -15,20 +15,17 @@ namespace tc {
 
 class AppData;
 
-// Edits the live Settings in place and says so. Nothing here writes the file;
-// the shell owns settings.json and saves on settingsChanged.
+// Edits Settings in place and emits settingsChanged; the shell saves the file.
 class SettingsPage : public QWidget {
     Q_OBJECT
 
 public:
     SettingsPage(Settings& settings, AppData& data, QWidget* parent = nullptr);
 
-    // Driven by the shell's ComfyUI connection state.
     void setComfyStatus(bool connected, const QString& error = {});
 
 public slots:
-    // Pages are built before the data dir is read, so every widget starts on
-    // the struct defaults. This puts the loaded values in without emitting.
+    // Loads the current values without emitting.
     void reload();
 
     void appendLogMessage(const QString& message);

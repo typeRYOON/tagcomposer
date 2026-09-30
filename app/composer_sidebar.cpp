@@ -27,7 +27,7 @@ QPushButton* sidebarButton(const QIcon& icon, const QString& tooltip)
     return button;
 }
 
-// The trailing stretch is the one item these layouts always keep.
+// Keeps the trailing stretch.
 void clearRows(QVBoxLayout* layout)
 {
     while (layout->count() > 1) {
@@ -91,7 +91,6 @@ ComposerSidebar::ComposerSidebar(QWidget* parent) : QWidget(parent)
     workflowLayout->addWidget(m_workflowList, 1);
     workflowLayout->addLayout(runRow);
 
-    // Per-workflow variables are edited on their own page, not here.
     QPushButton* workflowEdit =
         sidebarButton(icons::openExternal(), u"Workflow Variable Editor"_s);
     auto* workflowSection = makeSection(u"WORKFLOWS"_s, workflowBody, {workflowEdit});
@@ -115,7 +114,7 @@ ComposerSidebar::ComposerSidebar(QWidget* parent) : QWidget(parent)
     QPushButton* varsReload = sidebarButton(icons::reload(), u"Reload variables from file"_s);
     auto* variablesSection = makeSection(u"VARIABLES"_s, variableScroll, {varsOpen, varsReload});
 
-    // Rules absorbs the leftover space; the other two hold their dragged size.
+    // Rules takes the leftover space.
     auto* split = new QSplitter(Qt::Vertical);
     split->setObjectName(u"ComposerSidebarSplit"_s);
     split->setHandleWidth(5);
@@ -265,8 +264,7 @@ void ComposerSidebar::setVariables(const QList<Variable>& variables)
 
         const QString key = variable.name;
 
-        // editingFinished also fires on focus loss, so a value the user typed
-        // and then clicked away from is still saved.
+        // editingFinished also fires on focus loss.
         connect(value, &QLineEdit::editingFinished, this,
                 [this, key, value]() { emit variableChanged(key, value->text()); });
         connect(remove, &QPushButton::clicked, this,
@@ -275,7 +273,7 @@ void ComposerSidebar::setVariables(const QList<Variable>& variables)
         m_variableRows->insertWidget(m_variableRows->count() - 1, row);
     }
 
-    // Trailing add row: name, value, and the button that commits both.
+    // Trailing add row.
     auto* addRow = new QWidget;
     auto* addLayout = new QHBoxLayout(addRow);
     addLayout->setContentsMargins(0, 0, 0, 0);

@@ -36,9 +36,7 @@ private:
     QPixmap m_source;
 };
 
-// The preview in its own top-level window, parented to the composer so Qt
-// cleans it up. It forwards the run, interrupt and clear shortcuts back to
-// the composer when it is the focused window.
+// The preview in its own top-level window. Forwards the run shortcuts.
 class PreviewPopoutWindow : public QWidget {
     Q_OBJECT
 
@@ -49,7 +47,7 @@ public:
     void setOutputFolder(const QString& folder);
     void setTempFolder(const QString& folder);
 
-    // Mirrors the main window's status bar: same widgets, same fades.
+    // Mirrors the main status bar.
     void setProgress(int step, int total);
     void setActiveCount(int count);
 

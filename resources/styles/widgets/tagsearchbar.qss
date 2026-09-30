@@ -1,4 +1,4 @@
-/* ── TagSearchBar ─────────────────────────────────────────────────────────── */
+/* TagSearchBar */
 
 /* #TagSearchInput base in app.qss. */
 #TagSearchInput:focus {

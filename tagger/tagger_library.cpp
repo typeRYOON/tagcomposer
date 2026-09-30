@@ -29,9 +29,7 @@ void TaggerLibrary::rescan()
     QDir root(m_root);
     if (!root.exists()) return;
 
-    // A directory only counts as a model when it actually holds one. Listing
-    // every subdirectory would offer names that fail the moment they are
-    // picked.
+    // Only directories that contain a model.onnx.
     for (const QFileInfo& info :
          root.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name))
         if (QFile::exists(info.absoluteFilePath() + u"/model.onnx"_s))

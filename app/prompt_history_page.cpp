@@ -32,7 +32,7 @@ namespace {
 constexpr int kTileWidth = 120;
 constexpr int kTileHeight = 150;
 
-// A faithful short rendering of what was actually sent for each var type.
+// Short display of each var's value.
 QString formatVarValue(const WorkflowVar& var)
 {
     return std::visit(
@@ -82,8 +82,7 @@ QLabel* dimText(const QString& text)
     return label;
 }
 
-// Decode, scale and centre-crop. A pure function, so it can run on any
-// thread without touching a single Qt GUI object.
+// Decode, scale and center-crop; safe off the GUI thread.
 QImage decodeThumb(const QString& path)
 {
     const QImage source(path);
@@ -163,8 +162,7 @@ PromptHistoryPage::PromptHistoryPage(PromptHistory& history, EntryStore& entries
     m_detailsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_detailsScroll->setVerticalScrollBar(new AppScrollBar(Qt::Vertical));
 
-    // A viewport resize is what both a page resize and a splitter drag look
-    // like from here, so the column count is recomputed from it.
+    // Page resizes and splitter drags both resize the viewport.
     m_detailsScroll->viewport()->installEventFilter(this);
 
     m_detailsHost = new QWidget(m_detailsScroll);
@@ -191,8 +189,7 @@ PromptHistoryPage::PromptHistoryPage(PromptHistory& history, EntryStore& entries
     rebuildList();
 
     connect(m_history, &PromptHistory::recordAdded, this, [this](int) {
-        // Records prepend, so the selection is read first and shifted by one
-        // to keep the user pinned to the same record.
+        // Records prepend; shift the selection to stay on the same record.
         const int previous = selectedRecordIndex();
         rebuildList();
         if (previous < 0) return;
@@ -285,7 +282,6 @@ QWidget* PromptHistoryPage::buildEntryTile(const QString& uuid, const QString& i
 
     const Entry* entry = m_entries->find(uuid);
 
-    // Keyed on both, so the same image reused across records decodes once.
     const QString key = uuid + u'|' + imageFile;
     const auto cached = m_thumbCache.constFind(key);
 
@@ -311,15 +307,13 @@ QWidget* PromptHistoryPage::buildEntryTile(const QString& uuid, const QString& i
     titleLabel->setObjectName(u"PhEntryTileTitle"_s);
     titleLabel->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
     titleLabel->setWordWrap(true);
-    // Fixed rather than maximum, so a one-line title takes the same vertical
-    // space as a two-line one and the grid rows stay even.
+    // Fixed height keeps the grid rows even.
     titleLabel->setFixedSize(kTileWidth, 32);
     layout->addWidget(titleLabel);
 
     QString tooltip = u"%1\n%2 tag(s)"_s.arg(titleText).arg(tagCount);
     if (entry) {
-        // Only a tile whose entry still exists is interactive, rather than
-        // looking clickable and doing nothing.
+        // Clickable only if the entry still exists.
         tile->setCursor(Qt::PointingHandCursor);
         tile->setProperty("_entryUuid", uuid);
         tile->installEventFilter(this);
@@ -341,8 +335,7 @@ void PromptHistoryPage::requestThumb(const QString& key, const QString& absolute
             decoded.isNull() ? placeholderThumb() : QPixmap::fromImage(decoded);
         m_thumbCache.insert(key, pixmap);
 
-        // Guarded pointers: the details pane may have been rebuilt while the
-        // decode was running, deleting the labels that asked for it.
+        // The labels may be gone if the details pane was rebuilt.
         for (const QPointer<QLabel>& label : m_pendingThumbs.take(key))
             if (label) label->setPixmap(pixmap);
     });
@@ -368,8 +361,7 @@ void PromptHistoryPage::layoutTileGrid(int columns)
     auto* grid = qobject_cast<QGridLayout*>(m_tileGridHost->layout());
     if (!grid) return;
 
-    // Detached in layout order, which is the order they were added, so the
-    // snapshot's own ordering survives the reflow.
+    // Detach in layout order to keep the snapshot's order.
     QList<QWidget*> tiles;
     while (grid->count() > 0) {
         QLayoutItem* item = grid->takeAt(0);
@@ -377,8 +369,7 @@ void PromptHistoryPage::layoutTileGrid(int columns)
         delete item;
     }
 
-    // The previous layout left one trailing column stretched to keep the
-    // tiles left-aligned; that has to be cleared before re-placing.
+    // Clear the old trailing stretch column.
     for (int column = 0; column <= m_tileGridColumns; ++column)
         grid->setColumnStretch(column, 0);
 
@@ -636,13 +627,11 @@ void PromptHistoryPage::doRequeue()
         return;
     }
 
-    // A replay gets its own row, so the history reflects every actual push.
-    // Only the timestamp changes.
+    // A replay gets its own row with a new timestamp.
     PromptRecord replay = original;
     replay.queuedAt = QDateTime::currentDateTime();
 
-    // Copied out before the append: prepending can reallocate the list and
-    // leave `original` dangling.
+    // Copy before the append; prepending can invalidate original.
     QJsonObject bakedState;
     bakedState[u"tagcomposer_state"_s] = replay.snapshot.toJson();
     const QString renderedJson = replay.renderedJson;

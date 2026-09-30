@@ -25,9 +25,7 @@ constexpr int kGripSide = 16;
 constexpr int kGripLines = 3;
 constexpr int kOutputButtonSide = 24;
 
-// The newest image under `dir` by modification time. Recursive, because a
-// save node's filename prefix puts files in a per-workflow subfolder
-// (<output>/<date>/<workflow>/foo_00001.png), so a flat scan finds nothing.
+// Newest image under dir. Recursive, since save nodes write into subfolders.
 QString newestImageIn(const QString& dir)
 {
     if (dir.isEmpty() || !QDir(dir).exists()) return {};
@@ -83,10 +81,7 @@ void MovablePreviewLabel::setSourcePixmap(const QPixmap& pixmap)
     }
     if (nowNull || pixmap.width() <= 0 || pixmap.height() <= 0) return;
 
-    // Re-derive the size the way a grip resize would: take the larger of the
-    // two axis scales, lock to the source aspect, clamp to the minimum and to
-    // the bounds. The bottom edge is the anchor, so it grows upward exactly
-    // as a grip pull does.
+    // Refit to the new aspect as a grip resize would, anchored at the bottom.
     qreal scale = std::max(qreal(width()) / qreal(pixmap.width()),
                            qreal(height()) / qreal(pixmap.height()));
     scale = qMax(scale, qreal(m_minSide) / qreal(qMin(pixmap.width(), pixmap.height())));
@@ -123,8 +118,7 @@ void MovablePreviewLabel::setTempFolder(const QString& path)
     update();
 }
 
-// A dated output pattern has no folder until the first save of the day, so
-// the temp folder keeps the button useful until then.
+// Falls back to the temp folder before the day's output folder exists.
 void MovablePreviewLabel::openFolder() const
 {
     QString target = m_outputFolder;
@@ -133,9 +127,6 @@ void MovablePreviewLabel::openFolder() const
     QDesktopServices::openUrl(QUrl::fromLocalFile(target));
 }
 
-// A click opens the saved output rather than the temp frame on screen: the
-// temp folder holds in-progress decodes, so the file worth opening is the
-// newest one the save node wrote.
 void MovablePreviewLabel::openPreferredTarget() const
 {
     QString target = newestImageIn(m_outputFolder);
@@ -236,8 +227,7 @@ void MovablePreviewLabel::mousePressEvent(QMouseEvent* event)
     }
 
     if (event->button() == Qt::LeftButton && outputButtonRect().contains(event->pos())) {
-        // Opened on release, so the release can tell this from a click on the
-        // image and dragging off the button cancels it.
+        // Opened on release, so dragging off cancels.
         m_pressOnFolderButton = true;
         event->accept();
         return;
@@ -277,8 +267,7 @@ void MovablePreviewLabel::mouseMoveEvent(QMouseEvent* event)
     }
 
     if (m_mode == Mode::Resizing && (event->buttons() & Qt::LeftButton)) {
-        // The grip is top-right: width grows with +dx and height with -dy.
-        // The left edge stays put and the top follows, anchoring the bottom.
+        // Top-right grip: the bottom-left corner stays put.
         const QPoint delta = event->globalPosition().toPoint() - m_dragStartGlobal;
         const int newX = m_dragStartTopLeft.x();
         int newWidth = m_dragStartSize.width() + delta.x();
@@ -286,8 +275,7 @@ void MovablePreviewLabel::mouseMoveEvent(QMouseEvent* event)
         int newY = m_dragStartTopLeft.y() + delta.y();
 
         if (!m_source.isNull() && m_source.width() > 0 && m_source.height() > 0) {
-            // Locked to the source aspect: whichever axis was pushed further
-            // proportionally drives the scale, and the other follows.
+            // Keep the aspect; the axis pushed further drives the scale.
             const qreal scaleW = qreal(newWidth) / qreal(m_source.width());
             const qreal scaleH = qreal(newHeight) / qreal(m_source.height());
             const qreal minScale =
@@ -309,7 +297,6 @@ void MovablePreviewLabel::mouseMoveEvent(QMouseEvent* event)
             newHeight = qRound(m_source.height() * scale);
             newY = m_dragStartTopLeft.y() + m_dragStartSize.height() - newHeight;
         } else {
-            // Nothing to lock to, so resize freely.
             if (newWidth < m_minSide) newWidth = m_minSide;
             if (newHeight < m_minSide) {
                 newY = m_dragStartTopLeft.y() + m_dragStartSize.height() - m_minSide;
@@ -371,8 +358,7 @@ void MovablePreviewLabel::mouseReleaseEvent(QMouseEvent* event)
     }
 
     if (m_mode != Mode::Idle) {
-        // Only a gesture that actually changed the geometry counts as
-        // placing it, so a stray right click does not lock the auto layout.
+        // Only an actual move or resize disables auto layout.
         const bool moved = pos() != m_dragStartTopLeft || size() != m_dragStartSize;
         if (moved) m_userPlaced = true;
 
@@ -386,8 +372,7 @@ void MovablePreviewLabel::mouseReleaseEvent(QMouseEvent* event)
         return;
     }
 
-    // Suppressed after a drag, or releasing inside the label right after a
-    // quick drag would also open the viewer.
+    // Not after a drag.
     if (event->button() == Qt::LeftButton && !m_dragInFlight && rect().contains(event->pos()))
         openPreferredTarget();
 
@@ -426,7 +411,7 @@ void MovablePreviewLabel::paintEvent(QPaintEvent* event)
     constexpr int step = 4;
     constexpr int length = 8;
 
-    // The grip, top right, its diagonals matching the resize cursor.
+    // Resize grip, top right.
     for (int i = 0; i < kGripLines; ++i) {
         const int offset = pad + i * step;
         painter.drawLine(width() - offset - length, offset, width() - offset, offset + length);

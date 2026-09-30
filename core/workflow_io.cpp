@@ -46,8 +46,7 @@ QJsonObject varToJson(const WorkflowVar& var)
                    },
                    [&o](const ImageVar& v) {
                        o[u"imageUuid"_s] = v.imageUuid;
-                       // Only written when active: an inert block would
-                       // churn the file for every image var ever made.
+                       // Only written when enabled.
                        if (!v.edits.enabled) return;
                        QJsonObject e;
                        e[u"enabled"_s] = true;

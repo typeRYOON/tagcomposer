@@ -10,10 +10,8 @@
 
 namespace tc {
 
-// header holds the file's leading comment and blank lines verbatim.
-// generatedUuids is set when a rule on disk had no id, or a duplicate one, and
-// a fresh id was made for it; the caller should write the file back so ids stop
-// moving between runs.
+// header: the file's leading comments, verbatim. generatedUuids: some rule got
+// a fresh id, so the caller should write the file back.
 struct RuleFile {
     QList<Rule> rules;
     QStringList header;
@@ -23,8 +21,7 @@ struct RuleFile {
     bool trailingNewline = true;
 };
 
-// A rule with an unparseable action is still returned, with its action left as
-// skip and the problem in errors.
+// A rule with a bad action is kept as skip, with the problem in errors.
 std::expected<RuleFile, LoadError> readRules(const QString& path);
 std::expected<void, LoadError> writeRules(const RuleFile& file, const QString& path);
 
@@ -37,8 +34,7 @@ QString serializeMatch(const RuleMatch& match);
 std::optional<RuleAction> parseAction(const QString& expr);
 QString serializeAction(const RuleAction& action);
 
-// A whole rule as JSON, which is how a saved state carries one so it can be
-// recreated on a machine whose rules.fct never had it.
+// Saved states carry whole rules, for machines whose rules.fct lacks them.
 QJsonObject ruleToJson(const Rule& rule);
 Rule ruleFromJson(const QJsonObject& obj);
 

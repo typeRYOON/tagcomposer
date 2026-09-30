@@ -5,9 +5,7 @@
 
 namespace tc {
 
-// Wrapping horizontal layout: items flow left to right and wrap when they no
-// longer fit. Qt's example layout, vendored, with hidden items skipped rather
-// than left holding a slot.
+// Qt's FlowLayout example, skipping hidden items.
 class FlowLayout : public QLayout {
 public:
     explicit FlowLayout(QWidget* parent, int margin = -1, int hSpacing = -1, int vSpacing = -1);

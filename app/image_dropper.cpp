@@ -121,8 +121,7 @@ void ImageDropper::paintEvent(QPaintEvent*)
 
     if (m_dragOver) {
         painter.setClipping(false);
-        // Same green as the tile view's active marker, so every drop and
-        // active affordance shares one accent.
+        // The shared accent green.
         painter.setPen(QPen(QColor(0x4a, 0xa0, 0x4a), 2));
         painter.setBrush(Qt::NoBrush);
         painter.drawRoundedRect(bounds.adjusted(1, 1, -1, -1), kRadius, kRadius);

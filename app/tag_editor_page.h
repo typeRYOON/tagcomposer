@@ -19,9 +19,7 @@ class DanbooruIndex;
 struct Settings;
 class TagSearchBar;
 
-// Paints each comma-separated token of a pattern in its own colour, so two
-// matches on the same line stay distinguishable. The pattern is set whole
-// ("red, black, hair") and split here.
+// Colors each comma-separated token of the pattern differently.
 class TagSearchHighlighter : public QSyntaxHighlighter {
     Q_OBJECT
 
@@ -37,9 +35,8 @@ private:
     QStringList m_patterns;
 };
 
-// Edits the .txt sidecars beside a folder of images, one image at a time.
-// Nothing here loads a model or infers anything: it is file I/O on
-// `<folder>/<basename>.txt`, debounced and saved as you type.
+// Edits the .txt sidecars in a folder of images, one image at a time; saves as
+// you type.
 class TagEditorPage : public QWidget {
     Q_OBJECT
 
@@ -47,7 +44,7 @@ public:
     explicit TagEditorPage(Settings& settings, QWidget* parent = nullptr);
     ~TagEditorPage() override;
 
-    // The handoff from another tab, which has already picked the folder.
+    // Handoff from another tab.
     void setInputFolder(const QString& folder);
 
     void setDanbooruIndex(const DanbooruIndex* index);
@@ -74,8 +71,7 @@ private:
     Settings* m_settings = nullptr;
     const DanbooruIndex* m_danbooru = nullptr;
 
-    // The folder scan decodes an image, which startup should not pay for on
-    // a page that may never be opened. Deferred to the first show.
+    // The first scan decodes an image; deferred to the first show.
     bool m_pendingScan = false;
 
     QLineEdit* m_folderEdit = nullptr;
@@ -93,8 +89,7 @@ private:
     QLabel* m_preview = nullptr;
     QLabel* m_imageName = nullptr;
 
-    // Native resolution, kept so a window resize re-scales without going back
-    // to disk for another decode.
+    // Full resolution, so resizes don't re-decode.
     QPixmap m_previewSource;
 
     TagSearchBar* m_tagSearch = nullptr;
@@ -109,7 +104,7 @@ private:
     QString m_txtPath;
     QTimer* m_saveTimer = nullptr;
 
-    // What the search bar checks before offering a tag.
+    // For the search bar's already-present check.
     QSet<QString> m_activeTags;
 };
 

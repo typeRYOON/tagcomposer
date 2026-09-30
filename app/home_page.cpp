@@ -13,8 +13,7 @@ using namespace Qt::StringLiterals;
 namespace tc {
 namespace {
 
-// The wordmark and the tag glyph are separate artwork layered in one frame:
-// only the wordmark takes the shine.
+// Two layered images; only the wordmark shines.
 constexpr QSize kLogoFrame{626, 252};
 constexpr QRect kTagRect{174, 1, 280, 251};
 constexpr QRect kWordmarkRect{0, 0, 626, 173};
@@ -64,8 +63,7 @@ HomePage::HomePage(QWidget* parent) : QWidget(parent)
     m_authorLogo->setToolTip(u"typeRYOON on GitHub"_s);
     m_authorLogo->installEventFilter(this);
 
-    // The leading spacer matches the author logo's width so the update notice
-    // stays centred on the page rather than on the space left over.
+    // Balances the author logo so the notice stays centered.
     auto* bottomRow = new QHBoxLayout;
     bottomRow->setContentsMargins(kBottomMargin + 10, 0, kBottomMargin + 10, kBottomMargin);
     bottomRow->addSpacing(m_authorLogo->width());

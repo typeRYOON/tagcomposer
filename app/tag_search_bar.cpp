@@ -67,11 +67,8 @@ public:
         const int baseline =
             option.rect.top() + (option.rect.height() + metrics.ascent() - metrics.descent()) / 2;
 
-        // The whole string is laid out once and the match bolded as a format
-        // range. Drawing three separate runs and advancing x by each one's
-        // width drifts - integer rounding, metrics resolved against the app
-        // default device rather than the painter's, and no kerning across the
-        // boundary - which shows as a gap or an overlap where the bold ends.
+        // One layout with the match bolded as a format range; separately drawn runs
+        // drift at the bold boundary.
         const int from = qBound(0, index.data(MatchStartRole).toInt(), int(display.size()));
         const int length =
             qBound(0, index.data(MatchLengthRole).toInt(), int(display.size()) - from);
@@ -97,7 +94,7 @@ public:
         painter->setPen(danbooruCategoryColor(category, QColor(0xe0, 0xe0, 0xe0)));
         layout.draw(painter, QPointF(option.rect.left() + 12, baseline - line.ascent()));
 
-        // Pills run right to left: the count first, then the alias target.
+        // Pills right to left: count, then alias target.
         QFont pillFont = option.font;
         pillFont.setPointSize(9);
         const QFontMetrics pillMetrics(pillFont);
@@ -167,7 +164,6 @@ TagSearchBar::TagSearchBar(QWidget* parent) : QWidget(parent)
     root->setContentsMargins(0, 0, 0, 0);
     root->addWidget(m_input);
 
-    // A frameless top level shown without taking focus from the input.
     m_popup = new QFrame(nullptr,
                          Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
     m_popup->setObjectName(u"TagSearchPopup"_s);
@@ -284,7 +280,7 @@ void TagSearchBar::commitRaw(const QString& text)
     for (const QString& part : text.split(u',')) {
         QString tag = part.trimmed();
 
-        // A pasted tag often arrives quoted.
+        // Strip quotes from pasted tags.
         if (tag.size() >= 2) {
             const QChar front = tag.front();
             const QChar back = tag.back();
@@ -305,7 +301,7 @@ void TagSearchBar::commitRaw(const QString& text)
 bool TagSearchBar::eventFilter(QObject* watched, QEvent* event)
 {
     if (watched != m_input) {
-        // The window moved or resized, so the popup has to follow the input.
+        // Follow the window.
         const QEvent::Type type = event->type();
         if ((type == QEvent::Move || type == QEvent::Resize
              || type == QEvent::WindowStateChange)
@@ -328,7 +324,7 @@ bool TagSearchBar::eventFilter(QObject* watched, QEvent* event)
         if (m_popup->isVisible()) {
             m_list->setCurrentRow(std::min(m_list->currentRow() + 1, m_list->count() - 1));
         } else if (m_list->count() > 0) {
-            showPopup(); // a populated popup that a focus-out had hidden
+            showPopup(); // reopen after a focus-out
         } else if (m_input->text().isEmpty()) {
             emit downArrowOnEmpty();
         }
@@ -339,9 +335,7 @@ bool TagSearchBar::eventFilter(QObject* watched, QEvent* event)
         return true;
 
     case Qt::Key_Tab:
-        // Only commits when the user actually arrowed onto a result.
-        // Otherwise Tab stays focus traversal, so chained tabs from a
-        // neighbouring widget do not commit something unintended.
+        // Commit only a selected result; otherwise Tab moves focus.
         if (m_popup->isVisible() && m_list->currentItem()) {
             commitCurrent();
             return true;
@@ -359,9 +353,7 @@ bool TagSearchBar::eventFilter(QObject* watched, QEvent* event)
     }
 
     case Qt::Key_Escape:
-        // With the popup up, Escape closes it. Otherwise it is a focus
-        // gesture, and it is consumed either way so it never reaches a
-        // window-level handler such as leaving fullscreen.
+        // Always consumed, so it never leaves fullscreen.
         if (m_popup->isVisible()) {
             hidePopup();
             return true;
@@ -392,14 +384,9 @@ void TagLineAutocomplete::ensurePopup()
 {
     if (m_popup) return;
 
-    // Parented to the edit rather than its window: the composer rebuilds its
-    // inline tag rows on every rename, and a window-parented popup would
-    // orphan a visible widget when the row goes away mid-click.
-    //
-    // WindowDoesNotAcceptFocus is what makes clicking the popup work at all.
-    // Without it a Qt::Tool window activates on click on Windows, stealing
-    // focus from the edit and firing editingFinished with the half-typed
-    // text before commitSelection gets to substitute the canonical tag.
+    // Parented to the edit: the composer rebuilds rows on rename, and a
+    // window-parented popup would be orphaned. WindowDoesNotAcceptFocus keeps a
+    // click on the popup from stealing focus and firing editingFinished early.
     m_popup = new QFrame(m_edit, Qt::Tool | Qt::FramelessWindowHint
                                      | Qt::NoDropShadowWindowHint
                                      | Qt::WindowDoesNotAcceptFocus);
@@ -450,8 +437,7 @@ void TagLineAutocomplete::showPopup()
     m_popup->show();
     m_popup->raise();
 
-    // A focus-out alone misses a click that lands on a non-focusable widget
-    // or another window, so outside clicks are caught application-wide.
+    // Catch outside clicks app-wide; focus-out misses some.
     qApp->installEventFilter(this);
 }
 
@@ -477,19 +463,16 @@ void TagLineAutocomplete::commitSelection()
     hidePopup();
     m_edit->setText(item->data(CanonicalTagRole).toString());
 
-    // setText restarts the debounce whenever the canonical form differs from
-    // what was typed, so cancel it or the popup reopens 120ms later.
+    // setText restarted the debounce; stop it so the popup stays closed.
     m_debounce->stop();
 
-    // clearFocus fires editingFinished, which runs the host's rename handler
-    // exactly as if this had been typed and entered.
+    // Fires editingFinished, as if typed.
     m_edit->clearFocus();
 }
 
 bool TagLineAutocomplete::eventFilter(QObject* watched, QEvent* event)
 {
-    // Any press outside both the popup and the edit closes the popup. The
-    // event is not consumed: the click should still reach its target.
+    // A press outside the popup and edit closes it; the click still goes through.
     if ((event->type() == QEvent::MouseButtonPress
          || event->type() == QEvent::NonClientAreaMouseButtonPress)
         && m_popup && m_popup->isVisible()) {
@@ -519,8 +502,7 @@ bool TagLineAutocomplete::eventFilter(QObject* watched, QEvent* event)
         case Qt::Key_Return:
         case Qt::Key_Enter:
         case Qt::Key_Tab:
-            // With a live selection, commit it. Otherwise dismiss and let
-            // the edit's own editingFinished commit whatever was typed.
+            // Commit the selection, or dismiss and let editingFinished take the text.
             if (!popupOpen) break;
             if (m_list->currentItem()) {
                 commitSelection();
@@ -540,15 +522,13 @@ bool TagLineAutocomplete::eventFilter(QObject* watched, QEvent* event)
     }
 
     if (event->type() == QEvent::FocusOut) {
-        // Deferred, because click delivery races focus transfer on some
-        // styles and the focus may be heading into the popup.
+        // Deferred: focus may be moving into the popup.
         QTimer::singleShot(150, this, [this]() {
             if (!m_edit->hasFocus()) hidePopup();
         });
     }
 
-    // A page switch hides the edit through its parent. The popup is its own
-    // top-level window, so it would otherwise linger on screen.
+    // The popup is a separate window; hide it with the edit.
     if (event->type() == QEvent::Hide || event->type() == QEvent::HideToParent) hidePopup();
 
     return false;

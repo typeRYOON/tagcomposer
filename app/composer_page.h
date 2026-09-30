@@ -47,13 +47,9 @@ class TagSearchBar;
 class WorkflowDropList;
 class WorkflowInputCache;
 
-// The composer: the tag list in the middle, the rules / workflows /
-// variables sidebar on the right, and floating controls over the bottom
-// right corner.
-//
-// The document lives in ComposerStore, not here - active tags, weights,
-// deactivations, pushes, custom facets and undo all belong to it. This page
-// reads the document, renders it, and asks the store for every change.
+// The composer: tag list, rules/workflows/variables sidebar and floating
+// controls. The document lives in ComposerStore; this page renders it and
+// routes every change through the store.
 class ComposerPage : public QWidget {
     Q_OBJECT
 
@@ -62,15 +58,12 @@ public:
                  WorkflowInputCache& cache, ComfyClient& comfy, PromptHistory& history,
                  QWidget* parent = nullptr);
 
-    // The prompt the current document produces.
     QString currentPromptString(bool forJson) const;
 
-    // The active tags plus the names rules injected on the last run, so the
-    // facet editor's undefined list catches a rule-introduced tag too.
+    // Active tags plus tags rules injected on the last evaluation.
     QStringList currentActiveTags() const;
 
-    // A one-off pipeline run that does not disturb the document. The batch
-    // runner uses it. Weights apply where the tags overlap.
+    // One-off pipeline runs that leave the document alone.
     QString computePromptForTags(const QStringList& tags, bool forJson) const;
     QString computePromptWithExtraTags(const QStringList& extraTags, bool forJson) const;
 
@@ -79,30 +72,23 @@ public:
     void saveSession(const QString& path) const;
     void restoreSession(const QString& path);
 
-    // The live composer and workflow state as a state object. The caller
-    // fills in id, name and previewImagePath.
+    // The caller fills in id, name and previewImagePath.
     SavedState currentSnapshot() const;
     void restoreFromSnapshot(const SavedState& state);
 
-    // Appends `state` with a generated id and the given display name, with no
-    // prompt. For turning a history entry into a state.
+    // Saves state under a new id without prompting (history -> state).
     void appendSnapshotAsState(SavedState state, const QString& displayName = {});
 
-    // Every image-typed workflow var any saved state references, so a cache
-    // purge keeps what a restore would need.
+    // Image vars referenced by saved states, kept by cache purges.
     QList<WorkflowVar> imageVarsFromStates() const;
 
 public slots:
-    // The page is built before the data dir is read, so this is what the
-    // shell calls once everything has actually loaded.
+    // Called once the data dir has loaded.
     void reloadAll();
 
-    // The .fct values are plain data with no signals, so the shell calls
-    // these after a load or an external edit.
     void refresh();
 
-    // Both report what they did. They are slots rather than direct store
-    // connections so the buttons and the shortcuts share one path.
+    // Shared by the buttons and shortcuts.
     void undo();
     void redo();
 
@@ -117,7 +103,6 @@ public slots:
     void setComfyProgress(int step, int total);
     void setComfyActiveCount(int count);
 
-    // Pushes an entry image's tags in, or takes them out again.
     void togglePush(const QString& entryUuid, const QString& imageFile, const QStringList& tags);
 
 signals:
@@ -128,7 +113,7 @@ signals:
     void workflowVarsChanged();
     void pushesChanged();
 
-    // Right-click quick add: the shell mutates the definitions and saves.
+    // Right-click quick add; the shell writes the definition.
     void quickFacetRequested(const QString& tag, const QString& facetName);
 
 protected:
@@ -155,7 +140,7 @@ private:
     int composerStackIndex() const;
     QGraphicsOpacityEffect* stackChildFx(int index) const;
 
-    // Queues one rebuild of the tag list for the next event-loop turn.
+    // Coalesces rebuilds into the next event-loop turn.
     void queueRebuild();
 
     // ---- Sidebar
@@ -195,8 +180,7 @@ private:
     const Workflow* selectedWorkflow() const;
     void report(const QString& error);
 
-    // Rewrites every $foo$ in a tag to $newVarName$, or strips them when the
-    // name is empty.
+    // Rewrites $foo$ tokens in a tag to $newVarName$; an empty name strips them.
     void replaceTagVariable(const QString& oldKey, const QString& newVarName);
 
     QList<PipelineTag> evaluateTags(const QStringList& tags) const;
@@ -209,8 +193,7 @@ private:
     ComfyClient* m_comfy = nullptr;
     PromptHistory* m_history = nullptr;
 
-    // groups.fct as loaded is in AppData; this is the profile-ordered copy
-    // that actually does the bucketing.
+    // AppData's groups in profile order.
     TagGroups m_groups;
     QList<FacetFormat> m_facetFormats; // the effective list
     ProfileIndex m_profiles;
@@ -227,11 +210,9 @@ private:
     bool m_repushPending = false;
 
     QList<PipelineTag> m_lastResult;
-    QSet<QString> m_activeTagSet; // what the search bar checks against
+    QSet<QString> m_activeTagSet; // for the search bar
 
-    // The section a tag was deactivated in, so its row keeps showing there
-    // instead of being pooled into one Deactivated group. Ephemeral: a
-    // missing entry just falls back to Uncategorized.
+    // Section each tag was deactivated in, so its row stays there.
     QHash<QString, QString> m_deactivatedCategory;
 
     // ---- Centre
@@ -285,8 +266,7 @@ private:
     QLabel* m_statesEmptyHint = nullptr;
     bool m_statesViewActive = false;
 
-    // One opacity effect per stack child. A single effect on the stack itself
-    // caches the source pixmap across a child swap and goes stale.
+    // One effect per stack child; a single one on the stack goes stale on swaps.
     QGraphicsOpacityEffect* m_emptyHintFx = nullptr;
     QGraphicsOpacityEffect* m_groupsFx = nullptr;
     QGraphicsOpacityEffect* m_statesViewFx = nullptr;
@@ -295,20 +275,17 @@ private:
     // The next rebuild fades through zero instead of swapping in place.
     bool m_freezeNextRebuild = false;
 
-    // The document as the list was last built from it, so refresh() can tell
-    // a weight nudge from a change that needs the rows rebuilt.
+    // Lets refresh() tell a weight nudge from a change that needs a rebuild.
     ComposerDoc m_lastDoc;
     bool m_weightFromSpin = false;
 
-    // Set while a rebuild is already queued, so a burst of edits collapses
-    // into one.
     bool m_rebuildPending = false;
 
     int m_lastComfyStep = 0;
     int m_lastComfyTotal = 0;
     int m_lastComfyActive = 0;
 
-    // Up and down move between tag rows on the focused list.
+    // For Up/Down row navigation.
     QList<QWidget*> m_tagRowWidgets;
     int m_selectedRowIndex = -1;
 

@@ -51,25 +51,20 @@ struct LatentSizeVar {
     bool operator==(const LatentSizeVar&) const = default;
 };
 
-// Non-destructive edits applied when the image is uploaded: the source file
-// is never touched, a derived PNG is rendered and cached instead. The mask is
-// the canonical alpha source; cropRect is both the legacy rect-as-mask and
-// the bounds used in trim mode.
+// Non-destructive edits, rendered to a cached PNG at upload. cropRect is the
+// legacy rect mask and the trim bounds.
 struct ImageEdits {
     bool enabled = false;
     QRect cropRect;
     QString maskId;          // empty means no mask
-    bool trimToCrop = false; // true: output is cropRect at full alpha
-                             // false: source-sized, alpha shaped by the mask
+    bool trimToCrop = false; // true: cropRect at full alpha; false: masked, source-sized
 
-    // Short stable digest of the active fields. Doubles as the upload key and
-    // as the cache directory for the rendered variant.
+    // Stable digest; the upload key and cache dir name.
     QString hash() const;
 
     bool operator==(const ImageEdits&) const = default;
 };
 
-// References an image the uploader resolves to a ComfyUI-side filename.
 struct ImageVar {
     QString imageUuid;
     ImageEdits edits;
@@ -77,7 +72,7 @@ struct ImageVar {
     bool operator==(const ImageVar&) const = default;
 };
 
-// One line per slot; each is comma-split into tags when a run picks from it.
+// Each bundle is a comma-separated tag list; a run picks one.
 struct WildcardVar {
     QStringList bundles;
 
@@ -108,8 +103,7 @@ QString seedBehaviorToString(SeedBehavior b);
 SeedBehavior seedBehaviorFromString(const QString& s);
 
 // "seed", "string", "integer", "float", "dirSearch", "latentSize", "image",
-// "wildcard". Reading is case-insensitive, which is how the legacy CamelCase
-// forms in older saved states still load.
+// "wildcard". Parsed case-insensitively.
 QString varTypeName(const WorkflowVarValue& value);
 
 } // namespace tc

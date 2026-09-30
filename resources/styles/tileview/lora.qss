@@ -1,4 +1,4 @@
-/* ── LoRA section (EntryPanel) ────────────────────────────────────────────── */
+/* LoRA section (EntryPanel) */
 
 /* Section-label font in app.qss. */
 #EntrySubLabel {

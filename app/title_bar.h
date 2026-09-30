@@ -7,11 +7,8 @@ class QMouseEvent;
 
 namespace tc {
 
-// Titlebar for a frameless window. Dragging moves the window via
-// QWindow::startSystemMove, double-click toggles fullscreen.
-//
-// The label tracks window()->windowTitle() through an event filter, so hosts
-// just call setWindowTitle() as usual.
+// Frameless titlebar: drag moves, double-click toggles fullscreen. Follows the
+// window's title.
 class TitleBar : public QWidget {
     Q_OBJECT
 

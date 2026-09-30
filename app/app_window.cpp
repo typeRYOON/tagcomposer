@@ -47,8 +47,7 @@ using namespace Qt::StringLiterals;
 namespace tc {
 namespace {
 
-// ComfyUI drops the queue count before the save node has written the
-// file. Reading straight away finds the previous run's image.
+// The queue count drops before the save node has written the file.
 constexpr int kFinalLoadDelayMs = 500;
 
 constexpr auto kDiscordUrl = "https://discord.gg/4jgC8C9Ku8";
@@ -71,25 +70,19 @@ QWidget* placeholder(const QString& title)
 AppWindow::AppWindow(const QString& dataDir, QWidget* parent)
     : QMainWindow(parent), m_dataDir(dataDir)
 {
-    // Flags first: on a window setWindowFlags re-creates the native window
-    // and drops the geometry set before it, and what the layout then falls
-    // back to is the stack's size hint, i.e. the largest page there is.
-    //
-    // The hints are spelled out rather than OR'd onto windowFlags() because a
-    // frameless window still needs them for the taskbar: without them Windows
-    // gives up snap, the minimise animation and the thumbnail.
+    // Flags before sizing: setWindowFlags recreates the native window and drops
+    // its geometry. The button hints keep Windows' snap and minimize animation.
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowMinimizeButtonHint
                    | Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
 
-    // The composer is the constraint: a 330px sidebar, the floating control
-    // bar, and a tag list wide enough that rows are not all ellipsis.
+    // Sized for the composer page.
     resize(1550, 872);
     setMinimumSize(1420, 920);
 
     m_chrome = new WindowChrome(this);
     setCentralWidget(m_chrome->frame());
 
-    // Before the pages: buildPage wires a page's status messages into it.
+    // Before the pages, which connect to these.
     m_comfy = new ComfyClient(this);
     m_history = new PromptHistory(this);
     m_status = new StatusBar;
@@ -120,14 +113,13 @@ AppWindow::AppWindow(const QString& dataDir, QWidget* parent)
     connect(m_pages, &QStackedWidget::currentChanged, m_nav, &NavBar::setCurrentPage);
     connect(m_pages, &QStackedWidget::currentChanged, this, &AppWindow::updateTitle);
     connect(m_pages, &QStackedWidget::currentChanged, this, [this](int index) {
-        // The editor shows whatever the composer has selected, and that can
-        // change while this page is off screen.
+        // The composer's selection may have changed while this page was hidden.
         if (m_workflowPage && index == int(Page::WorkflowEditor)) m_workflowPage->refresh();
     });
     connect(m_nav, &NavBar::discordRequested, this,
             []() { QDesktopServices::openUrl(QUrl(QString::fromLatin1(kDiscordUrl))); });
 
-    // The live feed: previews to the composer, step and queue to the bar.
+    // Live feed: previews to the composer, progress to the status bar.
     connect(m_comfy, &ComfyClient::previewImageReady, this, [this](const QImage& image) {
         if (m_composerPage) m_composerPage->setPreviewImage(image);
     });
@@ -135,23 +127,18 @@ AppWindow::AppWindow(const QString& dataDir, QWidget* parent)
         m_status->setProgress(step, total);
         if (m_composerPage) m_composerPage->setComfyProgress(step, total);
 
-        // Something is actually sampling, so there will be an image worth
-        // loading when the queue comes back down.
+        // Sampling, so load the result when the queue drops.
         if (step > 0 && total > 0) m_pendingFinalLoad = true;
 
-        // Back at the first step means the next prompt in the queue has
-        // started. The finished image of the one before it is still waiting
-        // on its timer, and landing now would drop a stale picture on top of
-        // a live preview and then be replaced by the next frame.
+        // A new run started; cancel the previous run's pending final load.
         if (step <= 1) ++m_sampleGeneration;
     });
     connect(m_comfy, &ComfyClient::queueCountChanged, this, [this](int count) {
         m_status->setActiveCount(count);
         if (m_composerPage) m_composerPage->setComfyActiveCount(count);
 
-        // A queue that just got shorter means a prompt finished. The live
-        // preview frames stop at the last sampler step, so without this the
-        // composer keeps showing a half-denoised latent instead of the render.
+        // A shorter queue means a prompt finished; replace the last preview frame
+        // with the final image.
         const bool finished = count < m_lastQueueCount;
         m_lastQueueCount = count;
         if (!finished) return;
@@ -169,8 +156,6 @@ AppWindow::AppWindow(const QString& dataDir, QWidget* parent)
 
         m_pendingFinalLoad = false;
 
-        // ComfyUI reports the queue before the file is on disk, so the read
-        // has to wait for the write.
         const int generation = m_sampleGeneration;
         QTimer::singleShot(kFinalLoadDelayMs, this, [this, generation]() {
             if (generation != m_sampleGeneration) return; // a newer run owns the preview now
@@ -178,9 +163,7 @@ AppWindow::AppWindow(const QString& dataDir, QWidget* parent)
         });
     });
 
-    // An interrupt kills the current prompt, a clear drops the queued ones.
-    // Either way the newest temp image is the previous run's and loading it
-    // would silently show the wrong picture.
+    // After a cancel the newest temp image is stale; don't load it.
     connect(m_comfy, &ComfyClient::interruptSent, this,
             [this]() { m_skipNextFinalLoad = true; });
     connect(m_comfy, &ComfyClient::pendingCleared, this,
@@ -197,8 +180,7 @@ AppWindow::AppWindow(const QString& dataDir, QWidget* parent)
 
         if (m_composerPage) {
             m_composerPage->reloadAll();
-            // After the library: a push names an entry, and restoring one
-            // before the entries exist would drop every push as missing.
+            // After the entries load, since pushes reference them.
             if (!m_sessionRestored) {
                 m_sessionRestored = true;
                 m_composerPage->restoreSession(m_data.dataPath(paths::kSession));
@@ -230,9 +212,7 @@ AppWindow::AppWindow(const QString& dataDir, QWidget* parent)
     m_pages->setCurrentIndex(int(Page::Home));
     updateTitle();
 
-    // Fully transparent until the first event-loop turn, so the first frame
-    // the user sees is a complete window fading in rather than a half-built
-    // one snapping into place.
+    // Fade in once the first frame is built.
     setWindowOpacity(0.0);
     QTimer::singleShot(0, this, [this]() {
         propertyAnimate(this, "windowOpacity", 0.0, 1.0, 250, QEasingCurve::InOutSine);
@@ -241,9 +221,6 @@ AppWindow::AppWindow(const QString& dataDir, QWidget* parent)
 
 AppWindow::~AppWindow() = default;
 
-// The finished render, read back off disk. ComfyUI streams preview frames
-// while sampling but never sends the decoded result, so the temp folder is
-// the only place the real image exists.
 void AppWindow::loadFinalPreview()
 {
     if (!m_composerPage) return;
@@ -255,8 +232,7 @@ void AppWindow::loadFinalPreview()
     const QFileInfoList files = QDir(folder).entryInfoList(filters, QDir::Files);
     if (files.isEmpty()) return;
 
-    // Newest by modification time: the run that just finished is the freshest
-    // write, and the folder keeps older ones.
+    // Newest file wins.
     const QFileInfo* newest = &files[0];
     for (const QFileInfo& info : files)
         if (info.lastModified() > newest->lastModified()) newest = &info;
@@ -268,8 +244,7 @@ void AppWindow::loadFinalPreview()
 
 void AppWindow::closeEvent(QCloseEvent* event)
 {
-    // Two passes: the first saves and fades, the second lets the close
-    // through once the animation has finished.
+    // First pass saves and fades out; the second accepts.
     if (m_closing) {
         event->accept();
         return;
@@ -277,16 +252,15 @@ void AppWindow::closeEvent(QCloseEvent* event)
     event->ignore();
     m_closing = true;
 
-    // Stopped first: the collector's timer moves files, and it must not keep
-    // doing that through the fade or after the window is gone.
+    // Stop the collector before it moves more files.
     if (m_datasetPage) m_datasetPage->stopBackgroundWork();
 
-    // Saved before the fade, so a crash during the animation cannot lose it.
+    // Save before the fade.
     report(m_data.saveSettings());
     report(m_data.saveDefinitions());
     if (m_composerPage) m_composerPage->saveSession(m_data.dataPath(paths::kSession));
 
-    // Child windows - the preview popout - fade with the main one.
+    // Fade child windows (the preview popout) too.
     for (QWidget* widget : QApplication::topLevelWidgets()) {
         if (widget == this || !widget->isWindow() || !widget->isVisible()) continue;
         propertyAnimate(widget, "windowOpacity", widget->windowOpacity(), 0.0, 500,
@@ -298,8 +272,7 @@ void AppWindow::closeEvent(QCloseEvent* event)
                         QEasingCurve::InOutSine);
     connect(out, &QPropertyAnimation::finished, this, [this]() {
         hide();
-        // A popout set to delete on close would otherwise keep the event loop
-        // alive after quit().
+        // Keeps a delete-on-close popout from outliving quit().
         for (QWidget* widget : QApplication::topLevelWidgets()) {
             if (widget == this || !widget->isWindow()) continue;
             widget->setAttribute(Qt::WA_DeleteOnClose, false);
@@ -321,8 +294,7 @@ void AppWindow::showEvent(QShowEvent* event)
     if (m_loaded) return;
     m_loaded = true;
 
-    // Queued so the window is painted before 1,345 entry folders are read.
-    // Pages redraw from the store signals they already listen to.
+    // Queued so the window paints before the library loads.
     QTimer::singleShot(0, this, [this]() { m_data.load(m_dataDir); });
 }
 
@@ -355,8 +327,6 @@ QWidget* AppWindow::buildPage(int index)
                     if (m_wikiPage) m_wikiPage->lookupTag(tag);
                 });
 
-        // A quick-add writes the definition straight through, since the point
-        // is not having to visit the facet editor for it.
         connect(m_composerPage, &ComposerPage::quickFacetRequested, this,
                 &AppWindow::addQuickFacet);
         return m_composerPage;
@@ -384,8 +354,7 @@ QWidget* AppWindow::buildPage(int index)
 
     if (kPages[index].page == Page::DanbooruWiki) {
         m_wikiPage = new TagWikiPage;
-        // A [[link]] in the body comes back out so history and the fade stay
-        // in one place rather than being duplicated inside the page.
+        // Wiki links go through lookupTag so history is kept in one place.
         connect(m_wikiPage, &TagWikiPage::wikiLinkClicked, m_wikiPage,
                 &TagWikiPage::lookupTag);
         return m_wikiPage;
@@ -402,11 +371,10 @@ QWidget* AppWindow::buildPage(int index)
                     if (m_wikiPage) m_wikiPage->lookupTag(tag);
                 });
 
-        // The undefined list reads whatever the composer currently holds.
+        // For the undefined-tags list.
         m_facetPage->setActiveTagsProvider(
             [this]() { return m_data.composer.doc().activeTags; });
 
-        // A new definition changes what the pipeline resolves.
         connect(m_facetPage, &FacetEditorPage::facetsDefined, this, [this]() {
             if (m_composerPage) m_composerPage->refresh();
         });
@@ -462,8 +430,7 @@ QWidget* AppWindow::buildPage(int index)
                 [this](const QString& tag, const QString& facet) { addQuickFacet(tag, facet); });
         connect(cluster, &TagClusterPage::createEntryRequested, this,
                 [this](const QString& title, const QStringList& tags) {
-                    // One placeholder image slot carrying the cluster's tags;
-                    // a real file gets dropped onto it later.
+                    // A placeholder image slot; the user drops a real file on it later.
                     Entry entry;
                     entry.title = title.trimmed();
                     entry.created = QDateTime::currentSecsSinceEpoch();
@@ -484,8 +451,7 @@ QWidget* AppWindow::buildPage(int index)
     return placeholder(QString::fromLatin1(kPages[index].title));
 }
 
-// Writes the definition straight through: the point of a quick-add is not
-// having to visit the facet editor for it.
+// Writes the definition immediately.
 void AppWindow::addQuickFacet(const QString& tag, const QString& facet)
 {
     QStringList facets = m_data.defsFile.defs.facetsFor(tag);
@@ -506,8 +472,7 @@ void AppWindow::addQuickFacet(const QString& tag, const QString& facet)
 
 void AppWindow::installShortcuts()
 {
-    // Nothing fires while a text field has focus, or typing "e" in the search
-    // bar would queue a render.
+    // Shortcuts don't fire while typing in a text field.
     auto typing = []() {
         const QWidget* focused = qApp->focusWidget();
         return focused
@@ -515,8 +480,7 @@ void AppWindow::installShortcuts()
                 || qobject_cast<const QPlainTextEdit*>(focused));
     };
 
-    // WindowShortcut, so a child window such as the preview popout can bind
-    // the same keys for itself.
+    // WindowShortcut so the preview popout can bind the same keys.
     auto add = [this](const QKeySequence& keys, auto handler) {
         auto* shortcut = new QShortcut(keys, this);
         shortcut->setContext(Qt::WindowShortcut);
@@ -558,7 +522,6 @@ void AppWindow::installShortcuts()
         connect(out, &QPropertyAnimation::finished, this, [this]() { showMinimized(); });
     });
 
-    // Page cycling wraps at both ends.
     add(QKeySequence(Qt::CTRL | Qt::Key_PageUp), [this]() {
         const int current = m_pages->currentIndex();
         m_pages->setCurrentIndex(current > 0 ? current - 1 : m_pages->count() - 1);
@@ -571,7 +534,6 @@ void AppWindow::installShortcuts()
 
 void AppWindow::keyPressEvent(QKeyEvent* event)
 {
-    // Only reached when no focused child consumed it first.
     if (event->key() == Qt::Key_Escape && isFullScreen()) {
         QPropertyAnimation* out = propertyAnimate(this, "windowOpacity", windowOpacity(), 0.0,
                                                   200, QEasingCurve::InOutSine);
@@ -591,7 +553,6 @@ void AppWindow::updateTitle()
     const int index = m_pages->currentIndex();
     if (index < 0 || index >= kPageCount) return;
 
-    // The composer shares the app's name, so it gets no suffix.
     if (kPages[index].page == Page::TagComposer) {
         setWindowTitle(u"Tag Composer"_s);
         return;

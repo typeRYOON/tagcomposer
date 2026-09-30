@@ -4,8 +4,7 @@
     background: transparent;
 }
 
-/* Header bar mirrors WfEditHeader / OvHeader (dark bg + bottom rule).
- * Title/subtitle reuse #WfEditTitle / #WfEditSubtitle styles from app.qss. */
+/* Header bar like #WfEditHeader / #OvHeader. */
 #PhHeader {
     background: #0f0f0f;
     border-bottom: 1px solid #1a1a1a;

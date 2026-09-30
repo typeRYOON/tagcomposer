@@ -13,8 +13,7 @@
 #include <cmath>
 #include <utility>
 
-// Header-only icon factory. Paints small monochrome icons into QPixmaps so
-// the dark theme stays consistent without shipping a PNG per glyph.
+// Painted monochrome icons, so the dark theme needs no PNG per glyph.
 namespace tc::icons {
 
 namespace detail {
@@ -33,7 +32,7 @@ inline void primeLine(QPainter& p, int px, QColor color, qreal strokeFactor)
 
 } // namespace detail
 
-// "Open in editor": NE arrow leaving a half-frame, like a browser external-link glyph.
+// External-link glyph.
 inline QIcon openExternal(int px = 16, QColor color = QColor(0x9a, 0x9a, 0x9a))
 {
     QPixmap pm(px, px);
@@ -74,8 +73,7 @@ inline QIcon reload(int px = 16, QColor color = QColor(0x9a, 0x9a, 0x9a))
     const QRectF r(m, m, px - 2 * m, px - 2 * m);
     p.drawArc(r, 60 * 16, 280 * 16);
 
-    // Arrowhead at the start of the arc (upper-right); the triangle splays
-    // along the tangent at 60 deg, which points up-and-left for CCW.
+    // Arrowhead at the arc's start, along the tangent.
     constexpr qreal kPi = 3.14159265358979323846;
     const qreal ang = 60.0 * kPi / 180.0;
     const qreal cx = r.center().x();
@@ -111,8 +109,7 @@ inline QIcon plus(int px = 16, QColor color = QColor(0x9a, 0x9a, 0x9a))
     return QIcon(pm);
 }
 
-// Solid right-pointing triangle, nudged right of center so a square button
-// reads as visually balanced.
+// Solid triangle, nudged right to look centered.
 inline QIcon play(int px = 16, QColor color = QColor(0x77, 0xaa, 0xdd))
 {
     QPixmap pm(px, px);
@@ -382,12 +379,9 @@ inline QIcon arrowUp(int px = 16, QColor color = QColor(0x9a, 0x9a, 0x9a))
     return QIcon(pm);
 }
 
-// ---- Button state plumbing
-//
-// QSS color rules reach glyph text but not a painted QIcon, so buttons that
-// used to take their hover feedback from a color rule supply the renderings
-// here instead. Disabled is folded into the QIcon and chosen automatically;
-// QPushButton has no icon mode for hover, so that one needs an event filter.
+// ---- Button states
+// QSS colors don't reach painted icons, so hover and disabled variants are
+// painted here; hover swaps icons from an event filter.
 
 namespace detail {
 
@@ -421,8 +415,7 @@ private:
 
 using Factory = QIcon (*)(int, QColor);
 
-// Paints fn once per visual state and wires the set to btn. Leave disabled
-// invalid for buttons that never go insensitive.
+// Paints fn per state and wires it to btn. disabled is optional.
 inline void applyStates(QAbstractButton* btn, Factory fn, int px, QColor rest,
                         QColor hover, QColor disabled = QColor())
 {

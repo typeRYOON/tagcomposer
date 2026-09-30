@@ -5,8 +5,7 @@
 namespace tc {
 namespace {
 
-// A raw zlib stream to text. qUncompress wants a four-byte big-endian size
-// prefix, and it grows the buffer itself when the hint is too low.
+// qUncompress needs a 4-byte big-endian size hint; it grows past a low one.
 QString inflateZlib(const QByteArray& compressed, quint32 sizeHint)
 {
     QByteArray buffer(4, '\0');

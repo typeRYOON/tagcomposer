@@ -9,15 +9,8 @@ class QNetworkAccessManager;
 
 namespace tc {
 
-// Danbooru preview lookup for one tag, shared by the facet editor's rail and
-// the composer's hover popup.
-//
-// The chain matches what the wiki page shows, so previews agree across the
-// app: the tag's wiki page first, taking its first "!post #N" when it has
-// one, otherwise the top hit of a /posts.json search.
-//
-// Only the newest fetch() reports back - an earlier chain still in flight is
-// dropped - so a caller never has to guard against a stale reply landing last.
+// Danbooru preview for one tag: the wiki page's first "!post #N", else the top
+// /posts.json hit. Only the newest fetch() reports.
 class TagPreviewFetcher : public QObject {
     Q_OBJECT
 
@@ -27,18 +20,16 @@ public:
     // A cached tag re-emits synchronously, before this returns.
     void fetch(const QString& tag);
 
-    // Abandons the in-flight chain; nothing further is emitted for it.
+    // Abandons the in-flight fetch.
     void cancel();
 
 signals:
     void loading(const QString& tag);
 
-    // Once the wiki page resolves. An empty body is not an error - the tag
-    // simply has no wiki page, and the image search still runs.
+    // An empty body means no wiki page (not an error).
     void wikiBodyReady(const QString& tag, const QString& body);
     void imageReady(const QString& tag, const QPixmap& image, int postId);
 
-    // Terminal, carrying the short text the rails show.
     void failed(const QString& tag, const QString& reason);
 
 private:
@@ -50,8 +41,7 @@ private:
     QNetworkAccessManager* m_network = nullptr;
     quint64 m_generation = 0;
 
-    // Images are capped because the hover popup can walk a lot of tags in one
-    // session. Wiki bodies and post ids are small enough to keep.
+    // Only the image cache is capped.
     QHash<QString, QPixmap> m_imageCache;
     QStringList m_imageOrder; // oldest first, for the cap
     QHash<QString, int> m_postIds;

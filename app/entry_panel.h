@@ -24,12 +24,8 @@ class LoraDropZone;
 class TagSearchBar;
 struct Settings;
 
-// Detail side of the entry viewer: image with paging, title, comment, and the
-// tag list for the current image.
-//
-// It holds a uuid, never an Entry*, and re-reads through the store on every
-// refresh. Every edit goes through EntryStore, which writes through, so there
-// is nothing to save here and nothing to keep in sync.
+// Detail side of the entry viewer: image paging, title, comment and tags.
+// Holds a uuid and edits through EntryStore.
 class EntryPanel : public QWidget {
     Q_OBJECT
 
@@ -40,28 +36,23 @@ public:
     void setEntry(const QString& uuid);
     QString entry() const;
 
-    // Called after a click in the grid so typing can start without another.
     void focusTagInput();
 
-    // The same thing the Composer button does. Enter on a grid tile uses it,
-    // so both routes go through one place.
+    // Same as the Composer button.
     void toggleComposerPush();
 
-    // The LoRA roots come from settings, which are read after this is built.
+    // Re-reads the LoRA roots from settings.
     void applySettings();
 
-    // Lands after the library loads, so the rows are rebuilt to pick up the
-    // category colours they were drawn without.
+    // Rebuilds the rows with category colors.
     void setDanbooruIndex(const DanbooruIndex* index);
 
 signals:
-    // A grid navigation key pressed anywhere in the panel: the page hands
-    // focus back to the tile grid and replays it there.
+    // A grid navigation key pressed in the panel.
     void gridNavRequested(int key);
 
     void statusMessage(const QString& message);
 
-    // The panel deleted the entry it was showing.
     void entryDeleted(const QString& uuid);
 
 protected:
@@ -81,8 +72,6 @@ private:
     QColor tagColour(const QString& tag) const;
     void clearTagRows();
 
-    // The toggle pushes this entry's tags into the composer, so the panel
-    // depends on the composer store. That is what the button does.
     EntryStore* m_store = nullptr;
     ComposerStore* m_composerStore = nullptr;
     const Settings* m_settings = nullptr;
@@ -116,8 +105,7 @@ private:
     TagSearchBar* m_tagSearch = nullptr;
     const DanbooruIndex* m_danbooru = nullptr;
 
-    // What the search bar checks before offering a tag; kept in step with the
-    // rows in rebuildTagList.
+    // The current image's tags, so the search bar can skip them.
     QSet<QString> m_activeTags;
     QScrollArea* m_tagScroll = nullptr;
     QVBoxLayout* m_tagRows = nullptr;

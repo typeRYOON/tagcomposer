@@ -44,8 +44,7 @@ constexpr int kRowHeight = 40;
 constexpr int kHeaderHeight = 50;
 constexpr int kSaveDebounceMs = 400;
 
-// Background/foreground pairs, cycled so each token of the highlight pattern
-// reads as its own colour against the dark editor.
+// Background/foreground pairs, one per highlight token.
 const QList<QPair<QColor, QColor>> kHighlightColours = {
     {QColor(0x3a, 0x4a, 0x2a), QColor(0xe0, 0xff, 0xd0)}, // green
     {QColor(0x4a, 0x2a, 0x2a), QColor(0xff, 0xd0, 0xd0)}, // red
@@ -161,8 +160,7 @@ TagEditorPage::TagEditorPage(Settings& settings, QWidget* parent)
     left->setAttribute(Qt::WA_StyledBackground, true);
     left->setFixedWidth(kLeftWidth);
 
-    // Pairs with the WidgetWithChildrenShortcut arrows below: they step the
-    // cursor, except inside a text field, which eats the key first.
+    // Click focus so the arrow shortcuts below apply.
     left->setFocusPolicy(Qt::ClickFocus);
 
     auto* leftBody = new QWidget;
@@ -230,8 +228,7 @@ TagEditorPage::TagEditorPage(Settings& settings, QWidget* parent)
     m_sendToBatch->setCursor(Qt::PointingHandCursor);
     m_sendToBatch->setToolTip(u"Open this folder in Batch Edit for whole-folder operations."_s);
 
-    // Label plus an "open in file manager" affordance, like the composer's
-    // rules and vars headers.
+    // Label plus an "open in file manager" button.
     {
         auto* row = new QWidget;
         auto* rowLayout = new QHBoxLayout(row);
@@ -288,9 +285,7 @@ TagEditorPage::TagEditorPage(Settings& settings, QWidget* parent)
     m_preview->setToolTip(u"Click to open the image in the system viewer."_s);
     m_preview->installEventFilter(this);
 
-    // A label holding a pixmap reports the pixmap's size as its minimum, which
-    // would pin the column to whatever image happens to be open. Expanding in
-    // both directions, with no minimum width, lets the column drive instead.
+    // Expanding with no minimum, so the pixmap's size can't pin the column width.
     QSizePolicy policy = m_preview->sizePolicy();
     policy.setHorizontalPolicy(QSizePolicy::Expanding);
     policy.setVerticalPolicy(QSizePolicy::Expanding);
@@ -300,8 +295,7 @@ TagEditorPage::TagEditorPage(Settings& settings, QWidget* parent)
 
     middleBodyLayout->addWidget(m_preview, 1);
 
-    // Built inline rather than with sectionHeader: this one carries the file
-    // name beside the title.
+    // Inline header: it also shows the file name.
     auto* imageHeader = new QWidget;
     imageHeader->setObjectName(u"DatasetSectionHeader"_s);
     imageHeader->setAttribute(Qt::WA_StyledBackground, true);
@@ -349,8 +343,7 @@ TagEditorPage::TagEditorPage(Settings& settings, QWidget* parent)
     m_tagEdit->setVerticalScrollBar(new AppScrollBar(Qt::Vertical));
     m_tagEdit->setEnabled(false);
 
-    // Same object name as the editor so the two line up: same background,
-    // border and font size.
+    // Styled like the editor.
     m_highlightEdit = new QLineEdit;
     m_highlightEdit->setObjectName(u"DatasetExcludeEdit"_s);
     m_highlightEdit->setPlaceholderText(u"Highlight (comma-separated)..."_s);
@@ -407,7 +400,7 @@ TagEditorPage::TagEditorPage(Settings& settings, QWidget* parent)
     connect(m_highlightEdit, &QLineEdit::textChanged, this,
             [this](const QString& text) { m_highlighter->setPattern(text); });
 
-    // Scoped to the left panel so the arrows keep working in the text fields.
+    // Scoped to the left panel; text fields keep their arrows.
     for (auto [key, step] : {std::pair{Qt::Key_Left, -1}, std::pair{Qt::Key_Right, 1}}) {
         auto* shortcut = new QShortcut(QKeySequence(key), left);
         shortcut->setContext(Qt::WidgetWithChildrenShortcut);
@@ -431,7 +424,6 @@ TagEditorPage::TagEditorPage(Settings& settings, QWidget* parent)
         emit sendToBatchEditRequested(folder);
     });
 
-    // Nothing to hand over without a folder, so the button says so.
     auto syncSend = [this]() {
         m_sendToBatch->setEnabled(!m_folderEdit->text().trimmed().isEmpty());
     };
@@ -449,8 +441,7 @@ TagEditorPage::TagEditorPage(Settings& settings, QWidget* parent)
 
 TagEditorPage::~TagEditorPage()
 {
-    // A pending edit is still only in the widget; tearing down without this
-    // loses whatever was typed in the last fraction of a second.
+    // Flush a pending save.
     if (m_saveTimer->isActive()) {
         m_saveTimer->stop();
         saveNow();
@@ -461,7 +452,7 @@ void TagEditorPage::setInputFolder(const QString& folder)
 {
     m_folderEdit->setText(folder);
     persistSettings();
-    m_pendingScan = false; // scanning now, so the first show must not repeat it
+    m_pendingScan = false; // scanning now
     rescan();
 }
 
@@ -534,16 +525,16 @@ void TagEditorPage::jumpTo(int index)
         return;
     }
 
-    // The outgoing image's edits belong to the outgoing image.
+    // Save the outgoing image's edits.
     if (m_saveTimer->isActive()) {
         m_saveTimer->stop();
         saveNow();
     }
 
-    // Clamped, so callers can say `m_index - 10` without checking bounds.
+    // Clamped, so callers needn't bounds-check.
     index = std::clamp(index, 0, int(m_images.size()) - 1);
 
-    // Deleted from under us: drop it and take the next one along.
+    // Deleted externally: drop it and move on.
     if (!QFileInfo::exists(m_images.at(index))) {
         m_images.removeAt(index);
         jumpTo(std::min(index, int(m_images.size()) - 1));
@@ -577,8 +568,7 @@ void TagEditorPage::jumpTo(int index)
         m_tagEdit->setPlainText(contents);
     }
 
-    // Relative to the chosen folder, so a recursive scan shows subdir/foo.png
-    // rather than an absolute path that does not fit.
+    // Relative to the chosen folder (subdir/foo.png).
     m_imageName->setText(QDir(m_folderEdit->text().trimmed()).relativeFilePath(m_imagePath));
 
     const QString name = QFileInfo(m_txtPath).fileName();
@@ -611,8 +601,7 @@ void TagEditorPage::deleteCurrent()
     const QString imagePath = m_imagePath;
     const QString txtPath = m_txtPath;
 
-    // Drop the pending save first, or it writes the sidecar back out right
-    // after the delete.
+    // Cancel the pending save, or it recreates the sidecar.
     m_saveTimer->stop();
     m_imagePath.clear();
     m_txtPath.clear();
@@ -622,15 +611,14 @@ void TagEditorPage::deleteCurrent()
     if (QFile::exists(txtPath) && !QFile::moveToTrash(txtPath)) ok = false;
 
     if (!ok) {
-        // Put the paths back so a retry does not need the place found again.
+        // Restore the paths for a retry.
         m_imagePath = imagePath;
         m_txtPath = txtPath;
         m_status->setText(u"Delete failed (recycle bin unavailable)."_s);
         return;
     }
 
-    // Holding the index lands on the next image, which is what deleting a run
-    // of bad images wants; the last one steps back instead.
+    // Stay on the same index (the next image); step back at the end.
     m_images.removeAt(m_index);
     if (m_index >= m_images.size()) --m_index;
 
@@ -703,8 +691,7 @@ bool TagEditorPage::eventFilter(QObject* watched, QEvent* event)
 {
     if (watched != m_preview) return QWidget::eventFilter(watched, event);
 
-    // The label's own resize is what "the available area changed" means here.
-    // Not consumed: the label still has its own work to do.
+    // Rescale on resize; not consumed.
     if (event->type() == QEvent::Resize) rescalePreview();
 
     if (event->type() == QEvent::MouseButtonRelease) {
